@@ -7,3 +7,7 @@ __pycache__/
 godot/.godot/
 godot/bin/
 node_modules/
+third_party/nest-simulator/
+third_party/nest-build/
+third_party/nest-install/
+build/
