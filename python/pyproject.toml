@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spike"
+version = "0.1.0"
+description = "Spike: build circuit JSON as PyNEST networks, run them, and analyse motifs and spike statistics"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+test = ["pytest", "networkx"]
+notebook = ["jupyter", "matplotlib"]
+
+[tool.setuptools]
+packages = ["spike"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

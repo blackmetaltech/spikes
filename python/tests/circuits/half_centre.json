@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "name": "Half-centre oscillator (parity fixture)",
+  "resolution_ms": 0.1,
+  "seed": 42,
+  "populations": [
+    { "id": "L", "model": "aeif_cond_alpha", "n": 1, "params": { "a": 4.0, "b": 80.5 } },
+    { "id": "R", "model": "aeif_cond_alpha", "n": 1, "params": { "a": 4.0, "b": 80.5 } }
+  ],
+  "projections": [
+    { "pre": "L", "post": "R", "edges": [[0, 0, 30.0, 2.0]], "synapse": { "synapse_model": "static_synapse" } },
+    { "pre": "R", "post": "L", "edges": [[0, 0, 30.0, 2.0]] }
+  ],
+  "inputs": [
+    { "name": "drive", "kind": "dc", "targets": ["L", "R"], "weight": 1.0, "value": 800.0 }
+  ],
+  "record": { "spikes": "all" }
+}

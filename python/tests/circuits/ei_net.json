@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "Balanced E/I network (parity fixture)",
+  "resolution_ms": 0.1,
+  "seed": 7,
+  "populations": [
+    { "id": "E", "model": "iaf_psc_alpha", "n": 80, "params": { "I_e": 0.0 } },
+    { "id": "I", "model": "iaf_psc_alpha", "n": 20 }
+  ],
+  "projections": [
+    { "pre": "E", "post": "E", "rule": "fixed_indegree", "indegree": 8, "synapse": { "weight": 40.0, "delay": 1.5 } },
+    { "pre": "E", "post": "I", "rule": "fixed_indegree", "indegree": 8, "synapse": { "weight": 40.0, "delay": 1.5 } },
+    { "pre": "I", "post": "E", "rule": "fixed_indegree", "indegree": 4, "synapse": { "weight": -160.0, "delay": 1.5 } },
+    { "pre": "I", "post": "I", "rule": "fixed_indegree", "indegree": 4, "synapse": { "weight": -160.0, "delay": 1.5 } }
+  ],
+  "inputs": [
+    { "name": "drive", "kind": "poisson", "targets": ["E", "I"], "weight": 40.0, "value": 4000.0 },
+    { "name": "bias", "kind": "dc", "targets": [{ "pop": "E", "idx": [0, 1, 2, 3] }], "weight": 1.0, "value": 100.0 }
+  ],
+  "outputs": [ { "name": "out", "kind": "rate", "neurons": [{ "pop": "E", "idx": [0, 1, 2, 3, 4] }] } ],
+  "record": { "spikes": "all" }
+}
