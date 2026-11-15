@@ -1,0 +1,8 @@
+[configuration]
+entry_symbol = "spike_library_init"
+compatibility_minimum = "4.5"
+reloadable = false
+
+[libraries]
+linux.x86_64.debug = "res://bin/libspike_gd_debug.so"
+linux.x86_64.release = "res://bin/libspike_gd_release.so"

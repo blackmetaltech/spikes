@@ -2,12 +2,21 @@ extends Node
 ## App shell: boot order (settings -> layout -> theme -> UI root -> screens), screen manager with slide/fade transitions,
 ## pad and touch support, and the SP_* env hooks for smoke tests and screenshots. Screens are code-built Controls (ui/screens).
 ##
-## Env hooks:  SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
-##             SP_SCREEN=title|settings|credits|lab   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
+## Env hooks:  SP_TASK=reflex|lamprey|worm + SP_REF=1 (lab opens that task with its reference circuit)   SP_SPEED=<x> (lab run speed)   SP_SEL=pop:<id>|proj:<i>|in:<name>|out:<name> (lab selection)
+##             SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
+##             SP_SCREEN=title|tasks|lab|analysis|settings|credits   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
 ##             SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
-const SCREENS := {"title": "res://ui/screens/title.gd", "settings": "res://ui/screens/settings.gd", "lab": "res://ui/screens/lab.gd", "credits": "res://ui/screens/credits.gd"}
-const BACK_TO := {"settings": "title", "lab": "title", "credits": "title"}
+const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd"}
+const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title"}
+
+## Hand-over between screens: which task the lab opens, whether it starts from the reference circuit, circuits kept between lab visits, and what the analysis shows.
+var lab_task := ""
+var lab_reference := false
+var lab_keep := {}
+var analysis_circuit := {}
+var analysis_tele: Telemetry = null
+var analysis_task := ""
 
 var ui: CanvasLayer
 var root: Control
@@ -19,6 +28,7 @@ var _last_input := 0.0
 var _kind := ""
 
 func _ready() -> void:
+	if OS.get_environment("SP_BUDGET_US") != "": Telemetry.budget_us = int(OS.get_environment("SP_BUDGET_US"))
 	Settings.load_all()
 	Settings.apply(get_window()); Settings.write_log(get_window())
 	Layout.update(get_window())
@@ -38,10 +48,29 @@ func _ready() -> void:
 	if OS.get_environment("SP_SHOT") != "": Kit.instant = true   # screenshots show the settled frame, not a transition
 	var start := OS.get_environment("SP_SCREEN") if SCREENS.has(OS.get_environment("SP_SCREEN")) else "title"
 	show_screen("title", false, true)
-	if start != "title": show_screen(start, false, true)
+	if start == "analysis": _analysis_demo(); 
+	elif start == "lab": open_lab(OS.get_environment("SP_TASK"), OS.get_environment("SP_REF") != "", true)
+	elif start != "title": show_screen(start, false, true)
 	if OS.get_environment("SP_SHOT") != "":
 		var at := float(OS.get_environment("SP_SHOT_AT")) if OS.get_environment("SP_SHOT_AT") != "" else 2.0
-		get_tree().create_timer(at).timeout.connect(_shot)
+		get_tree().create_timer(at).timeout.connect(_shot_when_ready)
+
+## Screenshots of the analysis screen need a circuit that has run: open the lab on SP_TASK, let it run, then show the analysis of it.
+func _analysis_demo() -> void:
+	open_lab(OS.get_environment("SP_TASK") if OS.get_environment("SP_TASK") != "" else "lamprey", true, true)
+	await get_tree().create_timer(3.5).timeout
+	var lab := screen as LabScreen
+	if lab != null: open_analysis(lab.circuit, lab.tele, lab.task_id)
+
+## SP_SIM_UNTIL=<model ms>: wait until the lab's run has reached that model time (deterministic screenshots on a slow software renderer).
+func _shot_when_ready() -> void:
+	var until := float(OS.get_environment("SP_SIM_UNTIL")) if OS.get_environment("SP_SIM_UNTIL") != "" else 0.0
+	var lab := screen as LabScreen if screen is LabScreen else null
+	if until > 0.0 and lab != null and lab.tele != null and lab.tele.sim != null and lab.tele.t_ms < until and Time.get_ticks_msec() < 150000:
+		get_tree().create_timer(0.25).timeout.connect(_shot_when_ready); return
+	if until > 0.0 and lab != null:   # hold the instant (paused views freeze glows and pulses), let a few frames draw it
+		lab.tele.hold = true; await get_tree().create_timer(0.5).timeout
+	_shot()
 
 func _shot() -> void:
 	var img := get_viewport().get_texture().get_image()
@@ -114,7 +143,18 @@ func hint_refresh() -> void:
 ## B / Esc: let the screen handle it, else go to the screen it came from.
 func back() -> void:
 	if screen != null and screen.on_back(): return
+	if cur == "analysis": open_lab(analysis_task, false, true); return
 	if BACK_TO.has(cur): show_screen(BACK_TO[cur], true)
+
+## Open the lab on a task ("" = free run), empty bench or with the reference circuit.
+func open_lab(task: String, reference := false, back_nav := false) -> void:
+	lab_task = task; lab_reference = reference
+	if cur == "lab": cur = ""
+	show_screen("lab", back_nav)
+
+func open_analysis(c: Dictionary, t: Telemetry, task: String) -> void:
+	analysis_circuit = c.duplicate(true); analysis_tele = t; analysis_task = task
+	show_screen("analysis")
 
 func quit_game() -> void: get_tree().quit()
 
@@ -140,12 +180,15 @@ func _smoke() -> void:
 				for t in SettingsScreen.TABS:
 					(screen as SettingsScreen).set_tab(t); await _frames(); tabs += 1; small += _small_fonts(screen)
 			if id == "lab": await _frames(20); small += _small_fonts(screen)
+			if id == "analysis": await _frames(4); small += _small_fonts(screen)
 		pad.set_active(true); await _frames(); show_screen("title", false, true); await _frames(); pad.ensure_focus(true)
 		var fo := get_viewport().gui_get_focus_owner(); _check(fo != null, "pad nav on title focused nothing (%s)" % kind)
 		small += _small_fonts(screen); pad.set_active(false)
 	Settings.layout = "auto"; relayout()
 	await _interaction_checks()
 	_extension_checks()
+	await _lab_checks()
+	small += small_fonts_total
 	print("FONTS below %d px: %d" % [Kit.MIN_FONT, small]); _check(small == 0, "text smaller than the readable minimum")
 	cur = ""; show_screen("title", false, true); await _frames(4)
 	var orphans1 := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
@@ -154,24 +197,54 @@ func _smoke() -> void:
 	print("SMOKE OK screens=%d settings_tabs=%d layouts=%d renderer=%s" % [opened, tabs, layouts.size(), RenderingServer.get_current_rendering_method()])
 	get_tree().quit()
 
-## The GDExtension is loaded and a SpikeSim steps a small circuit: spikes appear, time advances, voltages are finite, bad JSON is rejected.
+## The GDExtension is loaded: SpikeSim steps a circuit, every task runs its reference circuit for 1 s, bad JSON is rejected, analysis answers.
 func _extension_checks() -> void:
-	_check(ClassDB.class_exists("SpikeSim"), "GDExtension: class SpikeSim is not registered (run scripts/build-gd.sh)")
+	_check(ClassDB.class_exists("SpikeSim") and ClassDB.class_exists("SpikeTask"), "GDExtension: SpikeSim / SpikeTask are not registered (run scripts/build-gd.sh)")
 	if not ClassDB.class_exists("SpikeSim"): return
-	var sim = ClassDB.instantiate("SpikeSim")
-	_check(sim != null, "SpikeSim could not be instantiated")
-	if sim == null: return
-	_check(not sim.load_circuit("not json"), "load_circuit accepted garbage")
-	_check(sim.load_circuit(DemoCircuit.json()), "load_circuit rejected the demo circuit")
-	sim.set_input(0, 400.0)
-	sim.step(5000)
-	_check(absf(sim.time_ms() - 500.0) < 0.001, "time_ms after 5000 steps is %s, want 500" % sim.time_ms())
-	var sp: PackedInt32Array = sim.spikes_since(0)
-	_check(sp.size() > 0 and sp.size() % 2 == 0, "spikes_since(0) gave %d ints" % sp.size())
-	_check(is_finite(sim.voltage(0)) and is_nan(sim.voltage(9999)), "voltage(id) misbehaves")
-	var after: PackedInt32Array = sim.spikes_since(sim.step_count())
-	_check(after.is_empty(), "spikes_since(now) not empty")
-	print("EXTENSION OK neurons=%d spikes=%d t=%.1f ms" % [sim.neuron_count(), sp.size() / 2, sim.time_ms()])
+	var bad = ClassDB.instantiate("SpikeSim")
+	_check(not bad.load_circuit("{not json"), "SpikeSim accepted invalid JSON"); _check(str(bad.error()) != "", "SpikeSim gave no error text for invalid JSON")
+	var ids: PackedStringArray = ClassDB.instantiate("SpikeTask").call("task_ids")
+	_check(ids.size() >= 3, "task_ids gave %d tasks, want 3" % ids.size())
+	var sum_spikes := 0
+	for id in ids:
+		var t = ClassDB.instantiate("SpikeTask"); _check(t.make(id), "make(%s)" % id)
+		var txt := Circuits.read_reference(str(t.reference_circuit())); _check(txt != "", "reference circuit for %s is not readable (%s)" % [id, t.reference_circuit()])
+		var sim = ClassDB.instantiate("SpikeSim")
+		_check(sim.load_circuit(txt), "%s: reference circuit rejected: %s" % [id, sim.error()])
+		if sim.neuron_count() == 0: continue
+		t.reset(1); sim.watch(0)
+		for i in 1000: t.step(sim, 1.0)
+		var sp: PackedFloat64Array = sim.drain_spikes(); sum_spikes += sp.size() / 2
+		var st: Dictionary = sim.stats()
+		_check(sp.size() % 2 == 0, "%s: drain_spikes gave an odd array" % id)
+		_check(absf(float(st.get("t_ms", 0.0)) - 1000.0) < 1.0, "%s: model time %s after 1000 slices" % [id, st.get("t_ms", 0)])
+		_check(is_finite(sim.voltage(0)), "%s: voltage(0) is not finite" % id)
+		var b: Dictionary = t.body(); _check(b.has("points") and (b["points"] as PackedVector2Array).size() > 1, "%s: body has no points" % id)
+		_check(t.score().has("value"), "%s: score has no value" % id); _check(t.bounds().size.x > 0.0, "%s: empty bounds" % id)
+		var m := Circuits.parse(str(sim.motif_json(0, 5, 1))); _check(m.has("motifs") and (m["motifs"] as Array).size() == 13, "%s: motif census did not return 13 classes" % id)
+		var nn := int(sim.neuron_count()); sim.stop()
+		print("TASK %s ok: %d neurons, %d spikes in 1 s, score %.0f" % [id, nn, sp.size() / 2, float(t.score().get("value", 0.0))])
+	print("EXTENSION OK tasks=%d spikes=%d" % [ids.size(), sum_spikes])
+
+## The lab opens on every task with its reference circuit, runs, and takes an edit (the circuit editor reloads the engine).
+func _lab_checks() -> void:
+	if not ClassDB.class_exists("SpikeTask"): return
+	for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+		cur = ""; open_lab(id, true); await _frames(30)
+		var lab := screen as LabScreen
+		_check(lab != null and lab.tele.sim != null, "lab: %s reference circuit did not load%s" % [id, (" (" + lab.tele.error + ")") if lab != null else ""])
+		if lab == null or lab.tele.sim == null: continue
+		_check(lab.tele.t_ms > 0.0, "lab: %s did not advance" % id)
+		await get_tree().create_timer(0.6).timeout
+		if id != "reflex": _check(lab.tele.total_spikes > 0, "lab: %s produced no spikes in the lab view" % id)   # a reflex arc is quiet until the first poke at 1.5 s
+		var n0 := lab.tele.n
+		var nid := Circuits.add_neuron(lab.circuit, "iaf_psc_alpha", 0, Vector2(100, 400), "I"); lab.editor.select({"t": "pop", "id": nid}); lab._on_structure()
+		await get_tree().create_timer(0.5).timeout
+		_check(lab.tele.sim != null and lab.tele.n == n0 + 1, "lab: %s edit did not reload (n %d -> %d)" % [id, n0, lab.tele.n])
+		small_fonts_total += _small_fonts(screen)
+	cur = ""; show_screen("title", false, true); await _frames()
+
+var small_fonts_total := 0
 
 ## Steppers and toggles change Settings; screen changes animate and leave exactly one screen behind.
 func _interaction_checks() -> void:

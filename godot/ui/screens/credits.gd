@@ -5,9 +5,10 @@ extends Screen
 
 const CREDITS := [
 	["Game engine", "Godot Engine 4.7, godotengine.org (MIT)."],
-	["Godot bindings", "godot-rust (gdext), godot-rust.github.io (MPL-2.0)."],
+	["Godot bindings", "godot-cpp (GDExtension C++ bindings), github.com/godotengine/godot-cpp (MIT)."],
 	["Typeface", "Atkinson Hyperlegible by the Braille Institute of America (SIL OFL 1.1). Licence: godot/assets/fonts/OFL-AtkinsonHyperlegible.txt."],
-	["Simulation", "spike-core: deterministic spiking neural network engine, written for this project. Model parameters and their literature sources are cited in its code."],
+	["Simulation", "NEST Simulator (GPL-2.0-or-later), nest-simulator.org: every neuron and synapse model in the game is a NEST model, run by the embedded libspike engine."],
+	["Models and tasks", "Izhikevich 2003, Naud et al. 2008 (adaptive exponential model), Hodgkin and Huxley 1952, Grillner 2003 (lamprey locomotion), Suzuki et al. 2008 (C. elegans salt chemotaxis), Milo et al. 2002 (network motifs). Each task header cites its sources."],
 	["Art", "Everything on screen is drawn procedurally in code. No external image assets."],
 ]
 

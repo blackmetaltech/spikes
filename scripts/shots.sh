@@ -10,7 +10,7 @@ godot --headless --path . --import >/dev/null 2>&1
 out=$root/docs/screenshots; mkdir -p "$out"
 SS=${SS:-1}
 tmp=$(mktemp -d); trap 'rm -rf "$tmp" override.cfg' EXIT
-export SP_NOAUTOSAVE=1 SP_NODISPLAY=1 SP_NOTHROTTLE=1
+export SP_NOAUTOSAVE=1 SP_NODISPLAY=1 SP_NOTHROTTLE=1 SP_BUDGET_US=${SP_BUDGET_US:-200000}
 im=$(command -v magick || command -v convert || true)
 run_godot() {
   if [ -z "${DISPLAY:-}" ] || [ "${SP_SHOTS_GL:-0}" = 1 ]; then
@@ -29,13 +29,22 @@ shot() {   # shot <name> <WxH> <env assignments...>
   if [ "$SS" != 1 ] && [ -n "$im" ]; then "$im" "$png" -filter Lanczos -resize "${w}x${h}!" "$out/$name-$size.png"; else cp "$png" "$out/$name-$size.png"; fi
   echo "wrote docs/screenshots/$name-$size.png"
 }
-ONLY=${ONLY:-"title settings lab"}
+ONLY=${ONLY:-"title tasks lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes analysis settings credits"}
+PHONE_ONLY=" lab-world lab-scopes "
 for size in 1920x1080 844x390; do
   for s in $ONLY; do
+    [[ "$PHONE_ONLY" == *" $s "* && "$size" != 844x390 ]] && continue
     case $s in
       title) shot title $size SP_SCREEN=title ;;
       settings) shot settings $size SP_SCREEN=settings SP_TAB=Display ;;
-      lab) shot lab $size SP_SCREEN=lab SP_SHOT_AT=3 ;;
+      tasks) shot tasks $size SP_SCREEN=tasks ;;
+      lab-lamprey) shot lab-lamprey $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=6000 SP_SHOT_AT=3 ;;
+      lab-worm) shot lab-worm $size SP_SCREEN=lab SP_TASK=worm SP_REF=1 SP_SPEED=20 SP_SIM_UNTIL=40000 SP_SHOT_AT=3 ;;
+      lab-reflex) shot lab-reflex $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=5200 SP_SHOT_AT=3 ;;
+      lab-edit) shot lab-edit $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SEL=proj:3 SP_SIM_UNTIL=6000 SP_SHOT_AT=3 ;;
+      lab-world) shot lab-world $size SP_SCREEN=lab SP_TASK=worm SP_REF=1 SP_SPEED=20 SP_SIM_UNTIL=40000 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      lab-scopes) shot lab-scopes $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=6000 SP_LABTAB=scopes_only SP_SHOT_AT=3 ;;
+      analysis) shot analysis $size SP_SCREEN=analysis SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SHOT_AT=7 ;;
       credits) shot credits $size SP_SCREEN=credits ;;
       *) echo "unknown screen $s" >&2; exit 2 ;;
     esac
