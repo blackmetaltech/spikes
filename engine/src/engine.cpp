@@ -539,6 +539,7 @@ void Engine::step( double ms )
       nest::prepare();
       m.prepared = true;
     }
+    bool reprep = false;
     for ( auto& d : m.devs )
       if ( d.dirty )
       {
@@ -546,7 +547,13 @@ void Engine::step( double ms )
         v[ d.param ] = d.value;
         nest::set_node_status( d.node_id, v );
         d.dirty = false;
+        reprep = reprep or d.param == "rate";
       }
+    if ( reprep )
+    {
+      nest::cleanup();
+      nest::prepare();
+    }
     std::fill( m.out_count.begin(), m.out_count.end(), 0.0 );
     auto t0 = clk::now();
     nest::run( ms );
