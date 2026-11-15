@@ -1,0 +1,220 @@
+{
+ "schema_version": 1,
+ "name": "Worm ASEL/ASER chemotaxis",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "ASEL",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {
+    "I_e": 0.0
+   },
+   "pos": [
+    [
+     60,
+     40
+    ],
+    [
+     60,
+     84
+    ]
+   ],
+   "role": "sensor"
+  },
+  {
+   "id": "ASER",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {
+    "I_e": 0.0
+   },
+   "pos": [
+    [
+     60,
+     220
+    ],
+    [
+     60,
+     264
+    ]
+   ],
+   "role": "sensor"
+  },
+  {
+   "id": "AIY",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {
+    "I_e": 0.0
+   },
+   "pos": [
+    [
+     250,
+     40
+    ],
+    [
+     250,
+     84
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "AIB",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {
+    "I_e": 450.0
+   },
+   "pos": [
+    [
+     250,
+     220
+    ],
+    [
+     250,
+     264
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "TL",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {
+    "I_e": 0.0
+   },
+   "pos": [
+    [
+     450,
+     40
+    ],
+    [
+     450,
+     84
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "TR",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {
+    "I_e": 0.0
+   },
+   "pos": [
+    [
+     450,
+     220
+    ],
+    [
+     450,
+     264
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "ASEL",
+   "post": "AIY",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 800.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "AIY",
+   "post": "AIB",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1500.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "ASER",
+   "post": "AIB",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1000.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "AIB",
+   "post": "TR",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1000.0,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "ASEL",
+   "kind": "poisson",
+   "targets": [
+    "ASEL"
+   ],
+   "weight": 1000.0,
+   "value": 5.0
+  },
+  {
+   "name": "ASER",
+   "kind": "poisson",
+   "targets": [
+    "ASER"
+   ],
+   "weight": 1000.0,
+   "value": 5.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "turn_left",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "TL",
+     "idx": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "turn_right",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "TR",
+     "idx": [
+      0,
+      1
+     ]
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "worm",
+  "notes": "docs/circuits/worm.md"
+ }
+}

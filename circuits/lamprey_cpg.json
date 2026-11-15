@@ -1,0 +1,310 @@
+{
+ "schema_version": 1,
+ "name": "Lamprey half-centre swim CPG",
+ "resolution_ms": 0.1,
+ "seed": 42,
+ "populations": [
+  {
+   "id": "E_L",
+   "model": "aeif_cond_alpha",
+   "n": 4,
+   "params": {
+    "a": 8.4,
+    "b": 75.0,
+    "tau_w": 320.0,
+    "tau_syn_ex": 12.0,
+    "tau_syn_in": 20.0,
+    "V_m": -62.0
+   },
+   "pos": [
+    [
+     100,
+     60
+    ],
+    [
+     100,
+     94
+    ],
+    [
+     100,
+     128
+    ],
+    [
+     100,
+     162
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "CC_L",
+   "model": "aeif_cond_alpha",
+   "n": 2,
+   "params": {
+    "tau_syn_ex": 3.3
+   },
+   "pos": [
+    [
+     220,
+     100
+    ],
+    [
+     220,
+     150
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "MN_L",
+   "model": "iaf_cond_alpha",
+   "n": 3,
+   "params": {
+    "tau_syn_ex": 4.4
+   },
+   "pos": [
+    [
+     340,
+     60
+    ],
+    [
+     340,
+     110
+    ],
+    [
+     340,
+     160
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "E_R",
+   "model": "aeif_cond_alpha",
+   "n": 4,
+   "params": {
+    "a": 8.4,
+    "b": 75.0,
+    "tau_w": 320.0,
+    "tau_syn_ex": 12.0,
+    "tau_syn_in": 20.0,
+    "V_m": -70.6
+   },
+   "pos": [
+    [
+     560,
+     60
+    ],
+    [
+     560,
+     94
+    ],
+    [
+     560,
+     128
+    ],
+    [
+     560,
+     162
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "CC_R",
+   "model": "aeif_cond_alpha",
+   "n": 2,
+   "params": {
+    "tau_syn_ex": 3.3
+   },
+   "pos": [
+    [
+     680,
+     100
+    ],
+    [
+     680,
+     150
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "MN_R",
+   "model": "iaf_cond_alpha",
+   "n": 3,
+   "params": {
+    "tau_syn_ex": 4.4
+   },
+   "pos": [
+    [
+     800,
+     60
+    ],
+    [
+     800,
+     110
+    ],
+    [
+     800,
+     160
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "E_L",
+   "post": "E_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.9,
+    "delay": 1.0
+   },
+   "allow_autapses": false
+  },
+  {
+   "pre": "E_L",
+   "post": "CC_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 6.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "E_L",
+   "post": "MN_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 2.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "CC_L",
+   "post": "E_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -19.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "CC_L",
+   "post": "MN_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -28.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "E_R",
+   "post": "E_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.9,
+    "delay": 1.0
+   },
+   "allow_autapses": false
+  },
+  {
+   "pre": "E_R",
+   "post": "CC_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 6.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "E_R",
+   "post": "MN_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 2.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "CC_R",
+   "post": "E_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -19.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "CC_R",
+   "post": "MN_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -28.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "drive",
+   "kind": "dc",
+   "targets": [
+    "E_L",
+    "E_R"
+   ],
+   "weight": 1050.0,
+   "value": 1.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "left_motor",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN_L",
+     "idx": [
+      0,
+      1,
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "right_motor",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN_R",
+     "idx": [
+      0,
+      1,
+      2
+     ]
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "lamprey",
+  "notes": "docs/circuits/lamprey.md"
+ }
+}
