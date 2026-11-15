@@ -1,0 +1,261 @@
+{
+ "checksum": "281c897f32aabd9a",
+ "circuit": {
+  "inputs": [
+   {
+    "kind": "poisson",
+    "name": "drive",
+    "targets": [
+     "E",
+     "I"
+    ],
+    "value": 8000.0,
+    "weight": 10.0
+   },
+   {
+    "kind": "dc",
+    "name": "sensor",
+    "targets": [
+     {
+      "idx": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49
+      ],
+      "pop": "E"
+     }
+    ],
+    "value": 200.0,
+    "weight": 1.0
+   }
+  ],
+  "name": "balanced 1k",
+  "outputs": [
+   {
+    "kind": "rate",
+    "name": "motor",
+    "neurons": [
+     {
+      "idx": [
+       700,
+       701,
+       702,
+       703,
+       704,
+       705,
+       706,
+       707,
+       708,
+       709,
+       710,
+       711,
+       712,
+       713,
+       714,
+       715,
+       716,
+       717,
+       718,
+       719,
+       720,
+       721,
+       722,
+       723,
+       724,
+       725,
+       726,
+       727,
+       728,
+       729,
+       730,
+       731,
+       732,
+       733,
+       734,
+       735,
+       736,
+       737,
+       738,
+       739,
+       740,
+       741,
+       742,
+       743,
+       744,
+       745,
+       746,
+       747,
+       748,
+       749,
+       750,
+       751,
+       752,
+       753,
+       754,
+       755,
+       756,
+       757,
+       758,
+       759,
+       760,
+       761,
+       762,
+       763,
+       764,
+       765,
+       766,
+       767,
+       768,
+       769,
+       770,
+       771,
+       772,
+       773,
+       774,
+       775,
+       776,
+       777,
+       778,
+       779,
+       780,
+       781,
+       782,
+       783,
+       784,
+       785,
+       786,
+       787,
+       788,
+       789,
+       790,
+       791,
+       792,
+       793,
+       794,
+       795,
+       796,
+       797,
+       798,
+       799
+      ],
+      "pop": "E"
+     }
+    ]
+   }
+  ],
+  "populations": [
+   {
+    "id": "E",
+    "model": "iaf_psc_alpha",
+    "n": 800
+   },
+   {
+    "id": "I",
+    "model": "iaf_psc_alpha",
+    "n": 200
+   }
+  ],
+  "projections": [
+   {
+    "indegree": 80,
+    "post": "E",
+    "pre": "E",
+    "rule": "fixed_indegree",
+    "synapse": {
+     "delay": 1.5,
+     "synapse_model": "static_synapse",
+     "weight": 20.0
+    }
+   },
+   {
+    "indegree": 80,
+    "post": "I",
+    "pre": "E",
+    "rule": "fixed_indegree",
+    "synapse": {
+     "delay": 1.5,
+     "synapse_model": "static_synapse",
+     "weight": 20.0
+    }
+   },
+   {
+    "indegree": 20,
+    "post": "E",
+    "pre": "I",
+    "rule": "fixed_indegree",
+    "synapse": {
+     "delay": 1.5,
+     "synapse_model": "static_synapse",
+     "weight": -250.0
+    }
+   },
+   {
+    "indegree": 20,
+    "post": "I",
+    "pre": "I",
+    "rule": "fixed_indegree",
+    "synapse": {
+     "delay": 1.5,
+     "synapse_model": "static_synapse",
+     "weight": -250.0
+    }
+   }
+  ],
+  "record": {
+   "spikes": "all"
+  },
+  "resolution_ms": 0.1,
+  "schema_version": 1,
+  "seed": 42
+ },
+ "description": "Balanced E/I network, 800 E + 200 I iaf_psc_alpha, fixed in-degree 80/20, Poisson drive; about 14 Hz (cf. engine/tests/feasibility_loop.cpp).",
+ "ms": 1000.0,
+ "spikes": 13720
+}

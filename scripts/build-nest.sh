@@ -9,7 +9,7 @@ if [ ! -d "$SRC/.git" ]; then git clone -q https://github.com/nest/nest-simulato
 git -C "$SRC" fetch -q --depth 1 origin "$NEST_REF" 2>/dev/null || true
 git -C "$SRC" checkout -q "$NEST_REF"
 mkdir -p "$BUILD"; cd "$BUILD"
-cmake "$SRC" -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+cmake "$SRC" -DCMAKE_INSTALL_PREFIX="$PREFIX" \
   -Dwith-mpi=OFF -Dwith-openmp="$OPENMP" -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON >/dev/null
 make -j"$(nproc)" models nestkernel nestutil
 echo "NEST static libs:"; find "$BUILD" -name '*.a'

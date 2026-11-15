@@ -63,6 +63,15 @@ public:
   uint64_t dropped() const;
   /// Spike count per output channel during the last step() (for motor readout), and the rate in Hz.
   double output_rate( const std::string& channel ) const;
+  /// Additions (v0.1, add-only). output_rate() = output_count() * 1000 / step_ms is the summed population rate (Hz);
+  /// divide by outputs()[i].neurons.size() for the per-neuron mean.
+  double output_count( const std::string& channel ) const;
+  /// Membrane potential samples of a watched neuron, one per step() (taken at the step's end), since the last call.
+  std::vector< double > drain_voltage( int32_t neuron );
+  /// Resolution of the loaded circuit (ms); 0 when nothing is loaded.
+  double resolution_ms() const;
+  /// Wall time (us) spent inside NEST's run() during the last step(); step() wall time minus this is the engine overhead.
+  double last_run_us() const;
 
   /// Membrane potential of a neuron (mV), via a multimeter the engine attaches on demand (watch()) or
   /// via get_status V_m if not watched. Watch a handful of neurons for scope traces.
