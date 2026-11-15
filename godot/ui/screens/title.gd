@@ -27,7 +27,7 @@ func build() -> void:
 	var right := VBoxContainer.new(); right.size_flags_horizontal = Control.SIZE_EXPAND_FILL; right.size_flags_stretch_ratio = 1.0
 	right.alignment = BoxContainer.ALIGNMENT_CENTER; right.add_theme_constant_override("separation", int(18 * f)); cols.add_child(right)
 	var bsize := int(clampf(38 * f, 24, 38))
-	var defs := [["LAB", "amber", "lab"], ["SETTINGS", "panel", "settings"], ["CREDITS", "panel", "credits"], ["QUIT", "ghost", "quit"]]
+	var defs := [["PLAY", "amber", "tasks"], ["LAB", "panel", "lab"], ["SETTINGS", "panel", "settings"], ["CREDITS", "panel", "credits"], ["QUIT", "ghost", "quit"]]
 	if OS.has_feature("web"): defs.pop_back()
 	for d in defs:
 		var b := Kit.btn(d[0], func(): _press(d[2]), d[1], bsize)
@@ -41,7 +41,8 @@ func build() -> void:
 
 func _press(id: String) -> void:
 	match id:
-		"lab": app.show_screen("lab")
+		"tasks": app.show_screen("tasks")
+		"lab": app.open_lab("")
 		"settings": app.show_screen("settings")
 		"credits": app.show_screen("credits")
 		"quit": app.quit_game()

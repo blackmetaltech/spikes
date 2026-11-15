@@ -228,15 +228,15 @@ class Stepper extends HBoxContainer:
 	var val: Label
 	var left: Button
 	var right: Button
-	func setup(options: Array, selected: String, on_change: Callable, width := 240.0) -> Stepper:
+	func setup(options: Array, selected: String, on_change: Callable, width := 240.0, fsize := 22, aw := 54.0) -> Stepper:
 		opts = options; cb = on_change
 		for i in opts.size():
 			if str(opts[i][0]) == selected: idx = i
 		add_theme_constant_override("separation", 8)
-		left = Kit.btn("<", func(): step(-1), "panel", 26, Vector2(54, 0)); right = Kit.btn(">", func(): step(1), "panel", 26, Vector2(54, 0))
+		left = Kit.btn("<", func(): step(-1), "panel", fsize + 2, Vector2(aw, 0)); right = Kit.btn(">", func(): step(1), "panel", fsize + 2, Vector2(aw, 0))
 		left.focus_mode = Control.FOCUS_NONE; right.focus_mode = Control.FOCUS_NONE
 		var chipp := PanelContainer.new(); chipp.add_theme_stylebox_override("panel", Kit.sb(Kit.WELL, Kit.LINE, 1, 10, 10, false)); chipp.custom_minimum_size.x = width
-		val = Kit.shout(str(opts[idx][1]), 22, Kit.TEXT); val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; val.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chipp.add_child(val)
+		val = Kit.shout(str(opts[idx][1]), fsize, Kit.TEXT); val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; val.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chipp.add_child(val)
 		chipp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(left); add_child(chipp); add_child(right)
 		focus_mode = Kit.focus_mode(); add_theme_stylebox_override("focus", Kit.ring_sb())
@@ -252,8 +252,8 @@ class Stepper extends HBoxContainer:
 	func _draw() -> void:
 		if has_focus(): draw_style_box(Kit.ring_sb(), Rect2(Vector2.ZERO, size))
 
-static func stepper(options: Array, selected: String, cb: Callable, width := 240.0) -> Stepper:
-	return Stepper.new().setup(options, selected, cb, width)
+static func stepper(options: Array, selected: String, cb: Callable, width := 240.0, fsize := 22, aw := 54.0) -> Stepper:
+	return Stepper.new().setup(options, selected, cb, width, fsize, aw)
 
 ## Tab row; the current tab is amber.
 static func tabs(names: Array, current: String, cb: Callable) -> HBoxContainer:

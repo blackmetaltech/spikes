@@ -13,3 +13,4 @@ third_party/nest-install/
 build/
 .pytest_cache/
 *.egg-info/
+third_party/godot-cpp/
