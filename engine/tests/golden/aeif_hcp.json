@@ -1,0 +1,104 @@
+{
+ "checksum": "91c88f2f47d73840",
+ "circuit": {
+  "inputs": [
+   {
+    "kind": "dc",
+    "name": "drive",
+    "targets": [
+     "L",
+     "R"
+    ],
+    "value": 800.0,
+    "weight": 1.0
+   }
+  ],
+  "name": "half-centre oscillator",
+  "outputs": [
+   {
+    "kind": "rate",
+    "name": "left_motor",
+    "neurons": [
+     {
+      "idx": [
+       0
+      ],
+      "pop": "L"
+     }
+    ]
+   },
+   {
+    "kind": "rate",
+    "name": "right_motor",
+    "neurons": [
+     {
+      "idx": [
+       0
+      ],
+      "pop": "R"
+     }
+    ]
+   }
+  ],
+  "populations": [
+   {
+    "id": "L",
+    "model": "aeif_cond_alpha",
+    "n": 1,
+    "params": {
+     "V_m": -55.0,
+     "a": 4.0,
+     "b": 20.0
+    }
+   },
+   {
+    "id": "R",
+    "model": "aeif_cond_alpha",
+    "n": 1,
+    "params": {
+     "a": 4.0,
+     "b": 20.0
+    }
+   }
+  ],
+  "projections": [
+   {
+    "post": "R",
+    "pre": "L",
+    "rule": "all_to_all",
+    "synapse": {
+     "delay": 2.0,
+     "synapse_model": "static_synapse",
+     "weight": -60.0
+    }
+   },
+   {
+    "post": "L",
+    "pre": "R",
+    "rule": "all_to_all",
+    "synapse": {
+     "delay": 2.0,
+     "synapse_model": "static_synapse",
+     "weight": -60.0
+    }
+   }
+  ],
+  "record": {
+   "spikes": "all",
+   "voltage": [
+    {
+     "idx": [
+      0
+     ],
+     "pop": "L"
+    }
+   ]
+  },
+  "resolution_ms": 0.1,
+  "schema_version": 1,
+  "seed": 42
+ },
+ "description": "Half-centre pair of aeif_cond_alpha neurons with mutual inhibition (negative weight = inhibitory conductance) and 800 pA tonic drive; L starts depolarised to break symmetry.",
+ "ms": 1000.0,
+ "spikes": 46
+}

@@ -1,0 +1,55 @@
+{
+ "checksum": "d8dd968b977ef725",
+ "circuit": {
+  "inputs": [
+   {
+    "kind": "dc",
+    "name": "dc",
+    "targets": [
+     "N"
+    ],
+    "value": 400.0,
+    "weight": 1.0
+   }
+  ],
+  "name": "iaf under DC",
+  "outputs": [
+   {
+    "kind": "rate",
+    "name": "out",
+    "neurons": [
+     {
+      "idx": [
+       0
+      ],
+      "pop": "N"
+     }
+    ]
+   }
+  ],
+  "populations": [
+   {
+    "id": "N",
+    "model": "iaf_psc_alpha",
+    "n": 1
+   }
+  ],
+  "record": {
+   "spikes": "all",
+   "voltage": [
+    {
+     "idx": [
+      0
+     ],
+     "pop": "N"
+    }
+   ]
+  },
+  "resolution_ms": 0.1,
+  "schema_version": 1,
+  "seed": 1
+ },
+ "description": "One iaf_psc_alpha under 400 pA DC (rheobase 375 pA): regular firing, first spike near 27.7 ms.",
+ "ms": 500.0,
+ "spikes": 16
+}
