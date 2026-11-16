@@ -4,8 +4,9 @@ extends RefCounted
 ##   "proj:<i>"    cut the axon (projection i): every synapse of it gets weight 0
 ##   "pop:<id>"    silence the population: its outgoing and incoming synapses are cut, it is taken off the input channels and off the motor outputs
 ##   "in:<name>"   cut the sensor: the input channel drives nothing (deafferentation)
-## The circuit Dictionary is never changed; `apply` returns a lesioned copy and `Runner` re-runs the task on it, headless, for the circuit's own seed, so the
-## result is comparable with the intact run. Results make the lesion table (rows -> markdown / CSV).
+## The circuit Dictionary is never changed; `apply` returns a lesioned copy and `Runner` re-runs the task on it, headless, on several seeds (the task and the
+## circuit are both reseeded, as the TEST does), so a row is a mean with a range and a k-of-n pass count, and the intact row says how steady the circuit is.
+## Results make the lesion table (rows -> markdown / CSV), each with the expected biology from LesionHints.
 
 static func parse_key(key: String) -> Array:
 	var p := key.split(":", true, 1); return [p[0], p[1] if p.size() > 1 else ""]
@@ -65,12 +66,33 @@ static func singles(c: Dictionary) -> Array:
 	return out
 
 # ---------- the lesion table ----------
-## One row: {label, lesions (keys), score, passed, verdict, parts, rate (spikes/s)}.
-static func markdown(task_title: String, circuit_name: String, seed: int, rows: Array) -> String:
-	var s := "# Lesion table: %s\n\nCircuit: %s. Same seed (%d) for every row; each row is one full episode with the lesion applied.\n\n" % [task_title, circuit_name, seed]
-	s += "| Lesion | Score | Result | Spikes/s | Verdict |\n|---|---:|---|---:|---|\n"
+## Seeds a lesion row runs on (the intact row too): the task is reset with `seed`, the circuit is loaded with seed 1000 * seed + its own seed.
+const SEEDS := [1, 2, 3]
+
+## "mean (lo-hi)" of a row's score, or the single score for one seed.
+static func score_text(r: Dictionary) -> String:
+	var m := int(roundf(float(r["score"]))); var lo := int(roundf(float(r.get("lo", r["score"])))); var hi := int(roundf(float(r.get("hi", r["score"]))))
+	return "%d" % m if lo == hi else "%d (%d-%d)" % [m, lo, hi]
+
+## "2 of 3 seeds" or "" for a one-seed row.
+static func pass_text(r: Dictionary) -> String:
+	var n := int(r.get("n", 1))
+	return "" if n <= 1 else "%d of %d seeds" % [int(r.get("passes", 0)), n]
+
+## True when the row's intact baseline passes on some seeds and not others (the table's other rows are then partly seed noise).
+static func baseline_flaky(rows: Array) -> bool:
 	for r in rows:
-		s += "| %s | %d | %s | %.1f | %s |\n" % [str(r["label"]).replace("|", "/"), int(roundf(float(r["score"]))), "pass" if r["passed"] else "fail", float(r.get("rate", 0.0)), str(r["verdict"]).replace("|", "/").replace("\n", " ")]
+		if (r["lesions"] as Array).is_empty(): return int(r.get("n", 1)) > 1 and int(r.get("passes", 0)) > 0 and int(r.get("passes", 0)) < int(r.get("n", 1))
+	return false
+
+## One row: {label, lesions (keys), score (mean), lo, hi, passes, n, passed, verdict, parts (means), rate (spikes/s), name, bio}.
+static func markdown(task_title: String, circuit_name: String, seed: int, rows: Array) -> String:
+	var ns := int(rows[0].get("n", 1)) if not rows.is_empty() else 1
+	var s := "# Lesion table: %s\n\nCircuit: %s (seed %d). Every row is %d full episode%s with the lesion applied, on seeds reseeding the world and the circuit; the score is the mean (lowest-highest).\n\n" % [task_title, circuit_name, seed, ns, "" if ns == 1 else "s"]
+	if baseline_flaky(rows): s += "Note: the intact circuit itself fails on some seeds, so differences of a few points between rows are noise.\n\n"
+	s += "| Lesion | Score | Seeds passed | Spikes/s | Verdict | Expected biology |\n|---|---:|---|---:|---|---|\n"
+	for r in rows:
+		s += "| %s | %s | %s | %.1f | %s | %s |\n" % [str(r["label"]).replace("|", "/"), score_text(r), "%d/%d" % [int(r.get("passes", 1 if r["passed"] else 0)), int(r.get("n", 1))], float(r.get("rate", 0.0)), str(r["verdict"]).replace("|", "/").replace("\n", " "), str(r.get("bio", "")).replace("|", "/")]
 	return s
 
 static func csv(rows: Array) -> String:
@@ -78,9 +100,9 @@ static func csv(rows: Array) -> String:
 	for r in rows:
 		for k in (r.get("parts", {}) as Dictionary):
 			if not keys.has(str(k)): keys.append(str(k))
-	var s := "lesion,score,passed,spikes_per_s,verdict" + "".join(keys.map(func(k): return "," + _q(k))) + "\n"
+	var s := "lesion,score_mean,score_min,score_max,seeds_passed,seeds,passed,spikes_per_s,verdict,expected_biology" + "".join(keys.map(func(k): return "," + _q(k))) + "\n"
 	for r in rows:
-		s += "%s,%.1f,%s,%.1f,%s" % [_q(str(r["label"])), float(r["score"]), "true" if r["passed"] else "false", float(r.get("rate", 0.0)), _q(str(r["verdict"]))]
+		s += "%s,%.1f,%.1f,%.1f,%d,%d,%s,%.1f,%s,%s" % [_q(str(r["label"])), float(r["score"]), float(r.get("lo", r["score"])), float(r.get("hi", r["score"])), int(r.get("passes", 1 if r["passed"] else 0)), int(r.get("n", 1)), "true" if r["passed"] else "false", float(r.get("rate", 0.0)), _q(str(r["verdict"])), _q(str(r.get("bio", "")))]
 		for k in keys: s += "," + (str(snappedf(float(r["parts"][k]), 0.01)) if (r["parts"] as Dictionary).has(k) and not (r["parts"][k] is String) else "")
 		s += "\n"
 	return s
@@ -99,12 +121,14 @@ static func save(task_id: String, md: String, csv_text: String) -> String:
 	return ProjectSettings.globalize_path(dir) if ok else ""
 
 # ---------- the re-runner ----------
-## Runs a list of jobs ({label, lesions}) one after another, a time slice per call, on its own SpikeSim and task. The engine is a process singleton, so the
-## caller stops its live run first and reloads it after (the lab does, as it does for TEST x5).
+## Runs a list of jobs ({label, lesions}) one after another, each on every seed of `seeds`, a time slice per call, on its own SpikeSim and task. The engine is a
+## process singleton, so the caller stops its live run first and reloads it after (the lab does, as it does for TEST x5).
 class Runner extends RefCounted:
 	var jobs: Array = []
 	var results: Array = []
-	var i := 0
+	var seeds: Array = []
+	var i := 0            # job being run
+	var si := 0           # seed (index into `seeds`) being run
 	var circuit := {}
 	var task_id := ""
 	var seed := 1
@@ -113,25 +137,30 @@ class Runner extends RefCounted:
 	var _task = null
 	var _t := -1.0
 	var _spikes := 0
+	var _runs: Array = []   # the finished runs of the current job
 
-	func begin(tid: String, c: Dictionary, js: Array) -> void:
-		task_id = tid; circuit = c; jobs = js; results = []; i = 0; _t = -1.0; failed = ""
+	func begin(tid: String, c: Dictionary, js: Array, sds: Array = []) -> void:
+		task_id = tid; circuit = c; jobs = js; results = []; i = 0; si = 0; _t = -1.0; failed = ""; _runs = []
+		seeds = sds if not sds.is_empty() else Lesion.SEEDS.duplicate()
 		seed = int(c.get("seed", 1)); _sim = ClassDB.instantiate("SpikeSim"); _task = Campaign.make(tid)
 
 	func done() -> bool: return i >= jobs.size() or failed != ""
 	func fraction() -> float:
 		if jobs.is_empty(): return 1.0
 		var dur := maxf(float(_task.duration_ms()), 1.0) if _task != null else 1.0
-		return (float(i) + clampf(maxf(_t, 0.0) / dur, 0.0, 1.0)) / float(jobs.size())
+		var per := float(maxi(seeds.size(), 1))
+		return (float(i) + (float(si) + clampf(maxf(_t, 0.0) / dur, 0.0, 1.0)) / per) / float(jobs.size())
 	func current_label() -> String: return str(jobs[i]["label"]) if i < jobs.size() else ""
+	func current_seed() -> int: return int(seeds[si]) if si < seeds.size() else 0
 
 	func step(budget_us := 12000) -> void:
 		if done(): return
 		var dur := float(_task.duration_ms())
 		if _t < 0.0:
 			var lc := Lesion.apply(circuit, jobs[i]["lesions"])
+			lc["seed"] = 1000 * int(seeds[si]) + seed   # the circuit is reseeded per run, as the engine's own tests and TEST x5 do
 			if not _sim.load_circuit(Circuits.to_json(Telemetry.sanitized(lc))): failed = "the engine rejected the lesioned circuit: " + str(_sim.error()); return
-			_task.reset(seed); _t = 0.0; _spikes = 0
+			_task.reset(int(seeds[si])); _t = 0.0; _spikes = 0
 		var t0 := Time.get_ticks_usec()
 		while _t < dur and Time.get_ticks_usec() - t0 < budget_us:
 			_task.step(_sim, 1.0); _t += 1.0
@@ -141,7 +170,25 @@ class Runner extends RefCounted:
 		if _t < dur: return
 		_spikes += (_sim.drain_spikes() as PackedFloat64Array).size() / 2
 		var sc: Dictionary = _task.score()
-		results.append({"label": jobs[i]["label"], "lesions": (jobs[i]["lesions"] as Dictionary).keys(), "score": float(sc.get("value", 0.0)), "passed": bool(sc.get("passed", false)),
-			"verdict": str(sc.get("verdict", "")), "parts": (sc.get("parts", {}) as Dictionary).duplicate(), "rate": float(_spikes) / maxf(dur * 0.001, 0.001)})
-		i += 1; _t = -1.0
+		_runs.append({"score": float(sc.get("value", 0.0)), "passed": bool(sc.get("passed", false)), "verdict": str(sc.get("verdict", "")), "parts": (sc.get("parts", {}) as Dictionary).duplicate(), "rate": float(_spikes) / maxf(dur * 0.001, 0.001)})
+		_t = -1.0; si += 1
+		if si < seeds.size(): return
+		results.append(_aggregate(jobs[i]))
+		_runs = []; si = 0; i += 1
 		if i >= jobs.size(): _sim.stop()
+
+	## One row from the runs of a job: mean score with range, passes, the verdict of the worst seed, mean parts and rate, and the expected biology.
+	func _aggregate(job: Dictionary) -> Dictionary:
+		var n := _runs.size(); var tot := 0.0; var lo := 1.0e9; var hi := -1.0e9; var passes := 0; var rate := 0.0; var worst: Dictionary = _runs[0]
+		var parts := {}; var counts := {}
+		for r in _runs:
+			var sc := float(r["score"]); tot += sc; lo = minf(lo, sc); hi = maxf(hi, sc); rate += float(r["rate"])
+			if bool(r["passed"]): passes += 1
+			if sc < float(worst["score"]): worst = r
+			for k in (r["parts"] as Dictionary):
+				if r["parts"][k] is String: continue
+				parts[k] = float(parts.get(k, 0.0)) + float(r["parts"][k]); counts[k] = int(counts.get(k, 0)) + 1
+		for k in parts: parts[k] = float(parts[k]) / float(counts[k])
+		var hint := LesionHints.find(task_id, circuit, job["lesions"])
+		return {"label": job["label"], "lesions": (job["lesions"] as Dictionary).keys(), "score": tot / float(n), "lo": lo, "hi": hi, "passes": passes, "n": n, "passed": passes * 2 > n,
+			"verdict": str(worst["verdict"]), "parts": parts, "rate": rate / float(n), "name": str(hint["name"]), "bio": str(hint["bio"]), "exact": bool(hint["exact"])}

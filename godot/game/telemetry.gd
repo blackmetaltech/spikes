@@ -5,8 +5,8 @@ extends RefCounted
 ## travelling pulses, smoothed output rates, and whole-run spike statistics.
 const SLICE_MS := 1.0
 static var budget_us := 9000     # at most this much wall time per frame spent stepping (SP_BUDGET_US overrides: screenshots on a software renderer)
-const HISTORY_MS := 4000.0       # spikes kept for the raster, the analysis and the stats
-const VOLT_KEEP := 4000
+const HISTORY_MS := 20000.0      # spikes kept for the raster, the analysis and the stats
+const VOLT_KEEP := 20000
 const FLASH_TAU := 0.11          # s, wall clock: how long a soma glows after a spike
 const PULSE_MIN_S := 0.14        # a pulse takes delay_ms * PULSE_S_PER_MS of wall time, so a 1-5 ms synaptic delay is visible
 const PULSE_S_PER_MS := 0.085
@@ -182,23 +182,19 @@ func _sample_hist() -> void:
 			var a2: PackedFloat32Array = hist[k]; a2.append(a2[n0 - 1] if n0 > 0 and a2.size() >= n0 else 0.0); hist[k] = a2
 	_next_hist = t_ms + HIST_STEP_MS
 
-## Neuromodulator concentration dial (sandbox): remembered, and pushed to the engine when it has set_modulator (it does once the modulator engine work lands).
+## Neuromodulator concentration dial (sandbox): remembered, and pushed to the engine (SpikeSim.set_modulator).
 static func modulators_available() -> bool:
-	return ClassDB.class_exists("SpikeSim") and (ClassDB.class_has_method("SpikeSim", "set_modulator") or (ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "set_modulator")))
+	return ClassDB.class_exists("SpikeSim") and ClassDB.class_has_method("SpikeSim", "set_modulator")
 func set_modulator(name: String, conc: float) -> void:
 	mods[name] = conc; _push_mod(name)
 func _push_mod(name: String) -> void:
-	if sim == null: return
-	if sim.has_method("set_modulator"): sim.call("set_modulator", name, float(mods[name]))
-	elif ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "set_modulator"): ClassDB.instantiate("SpikeTask").call("set_modulator", sim, name, float(mods[name]))
-## What the circuit currently sees: the engine's value when it reports one, else the dial, else the task's readout of that name.
+	if sim != null: sim.set_modulator(name, float(mods[name]))
+## What the circuit currently sees: the task's own readout of that name, else the engine's total (dial plus release pools), else the dial.
 func modulator_level(name: String) -> float:
 	var ro: Dictionary = body.get("readouts", {})
 	if ro.has(name): return float(ro[name])   # a task that reports its own NE / ACh / DA level
-	if sim != null and sim.has_method("modulator"): return float(sim.call("modulator", name))
-	if sim != null and ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "modulator"): return float(ClassDB.instantiate("SpikeTask").call("modulator", sim, name))
-	if mods.has(name): return float(mods[name])
-	return float((body.get("readouts", {}) as Dictionary).get(name, 0.0))
+	if sim != null: return float(sim.modulator(name))
+	return float(mods.get(name, 0.0))
 
 ## Network spike rate (all neurons, spikes per second of model time) and the ATP it costs: roughly 1e8 to 1e9 ATP per spike
 ## (Attwell and Laughlin 2001; Lennie 2003 for human cortex), so this is an order-of-magnitude figure, shown as a range.

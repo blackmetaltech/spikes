@@ -52,12 +52,25 @@ func _bbox(ns: Array) -> Rect2:
 func _card_size() -> Vector2:
 	var k := clampf(Kit.f(), 0.85, 1.0); return Vector2(150.0 * k, maxf(52.0 * k, float(Kit.fs(14)) * 2.0 + 18.0))
 
+## Channel cards stack in one column down each side; many channels (a task with 24 motors) go in several columns so none run off the bench.
+func _card_cols(count: int) -> int:
+	if count <= 0 or inset_bottom > 0.0: return 1   # with the phone sheet open the canvas is a strip: one column, squeezed
+	var avail := maxf(size.y - (44.0 if inset_bottom > 0.0 else 80.0) - inset_bottom, 120.0)
+	return clampi(ceili(float(count) * (_card_size().y + 8.0) / avail), 1, 4)
+
+## Centre of card `i` of `count` on one side (side -1 left, +1 right), `x0` the screen x of the column nearest the neurons.
+func _card_centre(count: int, i: int, side: int, x0: float, cy: float, pitch: float) -> Vector2:
+	var cols := _card_cols(count); var per := ceili(float(count) / float(cols)); var col := i / per; var row := i % per
+	var rows_here := mini(per, count - col * per)
+	return Vector2(x0 + float(side) * float(col) * (_card_size().x + 14.0), cy + (float(row) - float(rows_here - 1) * 0.5) * pitch)
+
 ## Fit the neuron block into the canvas, leaving room (in screen px) for the sensor cards on the left and the motor cards on the right.
 func _do_fit(ns: Array) -> void:
 	var bb := _bbox(ns).grow(46.0)
 	var cw := _card_size().x
-	var side_in := cw + 76.0 if not circuit.get("inputs", []).is_empty() else 0.0
-	var side_out := cw + 76.0 if not circuit.get("outputs", []).is_empty() else 0.0
+	var cin := _card_cols(circuit.get("inputs", []).size()); var cout := _card_cols(circuit.get("outputs", []).size())
+	var side_in := cin * (cw + 14.0) + 62.0 if not circuit.get("inputs", []).is_empty() else 0.0
+	var side_out := cout * (cw + 14.0) + 62.0 if not circuit.get("outputs", []).is_empty() else 0.0
 	var avail := Vector2(size.x - 24.0 - side_in - side_out, size.y - (44.0 if inset_bottom > 0.0 else 80.0) - inset_bottom)
 	view_scale = clampf(minf(avail.x / maxf(bb.size.x, 1.0), avail.y / maxf(bb.size.y, 1.0)), 0.3, 2.0)
 	view_off = Vector2(12.0 + side_in + avail.x * 0.5, (size.y - inset_bottom) * 0.5 + 6.0) - bb.get_center() * view_scale
@@ -143,11 +156,15 @@ func _draw() -> void:
 	var pad := _r + 14.0
 	var xl := to_screen(bb.position).x - pad - 44.0 - card_w * 0.5; var xr := to_screen(bb.end).x + pad + 44.0 + card_w * 0.5
 	var cy := to_screen(bb.get_center()).y; var pitch := maxf(card_h + 12.0, minf(96.0, maxf(bb.size.y, 120.0) / 2.0) * view_scale)
+	if _card_cols(ins.size()) > 1 or _card_cols(outs.size()) > 1: pitch = card_h + 8.0
+	for cnt in [ins.size(), outs.size()]:   # every card stays on the bench: squeeze the pitch to the room there is
+		var per := ceili(float(cnt) / float(_card_cols(cnt)))
+		if per > 1: pitch = minf(pitch, maxf((size.y - 16.0 - inset_bottom - card_h) / float(per - 1), card_h * 0.6))
 	for i in ins.size():
-		var c := Vector2(xl, cy + (float(i) - float(ins.size() - 1) * 0.5) * pitch)
+		var c := _card_centre(ins.size(), i, -1, xl, cy, pitch)
 		_cards["in:" + str(ins[i].get("name", ""))] = Rect2(c - cs * 0.5, cs)
 	for i in outs.size():
-		var c := Vector2(xr, cy + (float(i) - float(outs.size() - 1) * 0.5) * pitch)
+		var c := _card_centre(outs.size(), i, 1, xr, cy, pitch)
 		_cards["out:" + str(outs[i].get("name", ""))] = Rect2(c - cs * 0.5, cs)
 	var in_sensor := {}
 	if tele != null and tele.task != null:
@@ -297,8 +314,13 @@ func _draw() -> void:
 		var pd := _pop_dict(pops, str(_connect_from.get("id", "")))
 		if not pd.is_empty(): draw_arc(pd["c"], float(pd["rad"]) + 12.0, 0, TAU, 48, Color(1, 1, 1, 0.8), 2.0, true)
 	if circuit.get("populations", []).is_empty():
-		var hw := maxf(size.x * 0.8, 160.0)
-		draw_multiline_string(font, Vector2((size.x - hw) * 0.5, size.y * 0.16), "An empty bench. Press + EXCITATORY above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 4, Kit.TEXT_SOFT)
+		var lo := 8.0; var hi := size.x - 8.0   # the hint sits between the card columns, not over them
+		for k in _cards:
+			var rc: Rect2 = _cards[k]
+			if rc.get_center().x < size.x * 0.5: lo = maxf(lo, rc.end.x + 10.0)
+			else: hi = minf(hi, rc.position.x - 10.0)
+		var hw := maxf(hi - lo, 160.0)
+		draw_multiline_string(font, Vector2(lo, size.y * 0.16), "An empty bench. Press + EXCITATORY above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 6, Kit.TEXT_SOFT)
 
 func _draw_card(font: Font, fz: int, side: String, ch: Dictionary, task_driven: bool, now: float) -> void:
 	var name := str(ch.get("name", "")); var r: Rect2 = _cards[side + ":" + name]
@@ -406,6 +428,7 @@ func _make_link(src: Dictionary, dst: Dictionary) -> void:
 		select({"t": "proj", "i": idx})
 		if circuit["projections"].size() != before: structure_changed.emit()
 	elif src["t"] == "in" and dst["t"] == "pop":
+		if Circuits.wire_family(circuit, "inputs", str(src["name"]), str(dst["id"])) > 0: structure_changed.emit(); return   # a group of n onto a family of n sensors: sensor k to neuron k
 		for ch in circuit["inputs"]:
 			if str(ch.get("name", "")) == str(src["name"]):
 				var tg: Array = ch.get("targets", [])
@@ -416,6 +439,7 @@ func _make_link(src: Dictionary, dst: Dictionary) -> void:
 					if pi >= 0: ch["weight"] = Circuits.input_weight(str(circuit["populations"][pi].get("model", "iaf_psc_alpha")), str(ch.get("kind", "poisson")))
 				tg.append(str(dst["id"])); ch["targets"] = tg; structure_changed.emit(); return
 	elif src["t"] == "pop" and dst["t"] == "out":
+		if Circuits.wire_family(circuit, "outputs", str(dst["name"]), str(src["id"])) > 0: structure_changed.emit(); return   # a group of n onto a family of n motors: neuron k to motor k
 		for ch in circuit["outputs"]:
 			if str(ch.get("name", "")) == str(dst["name"]):
 				var tg: Array = ch.get("neurons", [])

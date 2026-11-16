@@ -14,8 +14,9 @@ const PRESETS := {
 	"izhikevich": [["Regular spiking", {"a": 0.02, "b": 0.2, "c": -65.0, "d": 8.0}, "Cortical excitatory cell."], ["Intrinsic bursting", {"a": 0.02, "b": 0.2, "c": -55.0, "d": 4.0}, "Starts with a burst, then spikes."], ["Chattering", {"a": 0.02, "b": 0.2, "c": -50.0, "d": 2.0}, "Fast rhythmic bursts."], ["Fast spiking", {"a": 0.1, "b": 0.2, "c": -65.0, "d": 2.0}, "Cortical inhibitory interneuron."]],
 	"hh_psc_alpha": [["NEST default", {}, "Hodgkin-Huxley squid axon."]]}
 
-## Synaptic weight of a typical single connection per target model, in the model's own synapse units (pA for current-based, nS for conductance-based).
-const WEIGHT := {"iaf_psc_alpha": 250.0, "aeif_cond_alpha": 20.0, "izhikevich": 25.0, "hh_psc_alpha": 400.0}
+## Fallback synaptic weights for cards whose catalogue entry has no measured default weight (an empty unit marks the placeholder 1.0): a typical single
+## connection per model, in the model's own synapse units (pA for current-based, nS for conductance-based). The catalogue is the one table; this only fills gaps.
+const WEIGHT_FALLBACK := {"izhikevich": 25.0, "hh_psc_alpha": 400.0}
 static var sandbox := false   # set by the lab: every part is available (free run)
 const SYNAPSES := ["static_synapse"]   # plasticity (STDP, Tsodyks) is the 0.2 theme; circuits that already use it still load
 
@@ -26,11 +27,14 @@ static func presets_of(model: String) -> Array:
 	for c in Catalog.cards_of(model): out.append([str(c["title"]), (c["preset"] as Dictionary).duplicate(), str(c["summary"])])
 	return out if not out.is_empty() else [["Default", {}, ""]]
 
-## Weight of a typical synapse onto `model`: the editor's table, else the catalogue's default input weight, else nS for conductance models and pA for current ones.
+## Weight of a typical synapse onto `model`: the catalogue's default input weight (the measured one, in the card's unit), else the small fallback table,
+## else nS for conductance models and pA for current ones.
 static func weight_of(model: String) -> float:
-	if WEIGHT.has(model): return float(WEIGHT[model])
+	for c in Catalog.cards_of(model):
+		if float(c["input_weight"]) > 0.0 and str(c["weight_unit"]) != "": return float(c["input_weight"])
+	if WEIGHT_FALLBACK.has(model): return float(WEIGHT_FALLBACK[model])
 	var w := Catalog.input_weight_of(model)
-	return w if w > 0.0 else (20.0 if model.contains("cond") else 100.0)
+	return w if w > 0.0 and w != 1.0 else (20.0 if model.contains("cond") else 100.0)
 
 ## Advanced parameter rows of `model`: the editor's table, else derived from the catalogue card's parameters and ranges.
 static func advanced_of(model: String) -> Array:
@@ -44,11 +48,11 @@ const ADVANCED := {
 	"izhikevich": [["V_m", "start V", -85.0, -45.0, 0.5, -65.0, "mV"], ["a", "a", 0.01, 0.15, 0.005, 0.02, ""], ["b", "b", 0.1, 0.3, 0.005, 0.2, ""], ["c", "c", -70.0, -45.0, 0.5, -65.0, "mV"], ["d", "d", 0.5, 10.0, 0.5, 8.0, ""], ["I_e", "bias", -10.0, 30.0, 0.5, 0.0, "pA"]],
 	"hh_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -65.0, "mV"], ["I_e", "bias", -100.0, 600.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]]}
 
-## Default weight of a sensor / noise input onto a neuron of `model`: a bit above one internal synapse (WEIGHT), so a lone neuron wired straight from a
-## 400 Hz sensor fires at once instead of sitting silent. Dc inputs keep their own scale (pA of drive).
+## Default weight of a sensor / noise input onto a neuron of `model`: several internal synapses (weight_of), so a lone neuron wired straight from a
+## 400 Hz sensor fires at once instead of sitting silent (as the old 1.2 x 250 pA did for iaf). Dc inputs keep their own scale (pA of drive).
 static func input_weight(model: String, kind: String) -> float:
 	if kind == "dc": return 300.0
-	return snappedf(weight_of(model) * 1.2, 0.5)
+	return snappedf(weight_of(model) * 3.5, 0.5)
 
 static func empty(name := "New circuit") -> Dictionary:
 	return {"schema_version": 1, "name": name, "resolution_ms": 0.1, "seed": 1, "populations": [], "projections": [], "inputs": [], "outputs": [], "record": {"spikes": "all"}, "meta": {"author": "", "notes": ""}}
@@ -182,6 +186,154 @@ static func kind_per_neuron(c: Dictionary) -> Array:
 	var kd := kinds(c); var out := []
 	for p in c.get("populations", []):
 		for k in pop_n(p): out.append(kd[str(p.get("id", ""))])
+	return out
+
+# ---------- channels (inputs / outputs of a task) ----------
+const MODULATORS := ["NE", "ACh", "DA"]
+const MOD_GAIN := 0.05      # concentration units per spike (docs/CIRCUIT-FORMAT.md, "modulator" outputs)
+const MOD_TAU := 1000.0     # ms
+
+## The channel kinds a task expects, so an empty bench starts with the right devices: {"inputs": {name: kind}, "outputs": {name: {kind, modulator, gain, tau_ms}}}.
+## From the task's own `channel_kinds()` when the extension has it (a Dictionary or JSON, {inputs, outputs} or flat name -> kind, or a list of {name, kind, ...}),
+## else from the channels of the task's reference circuit (circuits/<ref>.json). Channels neither source names are absent: the caller falls back to rate / poisson.
+static func task_channel_kinds(tid: String, task: Variant = null) -> Dictionary:
+	var out := {"inputs": {}, "outputs": {}}
+	if tid == "": return out
+	if task != null and task.has_method("channel_kinds"):
+		var v: Variant = task.call("channel_kinds")
+		if v is String: v = JSON.parse_string(v)
+		_absorb_kinds(out, v, task)
+	var ref := parse(read_reference(Campaign.ref_path(tid)))
+	if not ref.is_empty():
+		for ch in ref.get("inputs", []):
+			if not (out["inputs"] as Dictionary).has(str(ch.get("name", ""))): out["inputs"][str(ch.get("name", ""))] = str(ch.get("kind", "poisson"))
+		for ch in ref.get("outputs", []):
+			if not (out["outputs"] as Dictionary).has(str(ch.get("name", ""))): out["outputs"][str(ch.get("name", ""))] = _out_kind(ch, false)
+	return out
+
+## Kind of one output channel. `keep_tuning` keeps the channel's own gain and tau (the task's say); a reference circuit's tuning is not copied: the empty bench
+## starts at the documented defaults and the player tunes the release.
+static func _out_kind(ch: Dictionary, keep_tuning := true) -> Dictionary:
+	var k := str(ch.get("kind", "rate"))
+	if k != "modulator": return {"kind": "rate"}
+	return {"kind": "modulator", "modulator": str(ch.get("modulator", "NE")), "gain": float(ch.get("gain", MOD_GAIN)) if keep_tuning else MOD_GAIN, "tau_ms": float(ch.get("tau_ms", MOD_TAU)) if keep_tuning else MOD_TAU}
+
+static func _absorb_kinds(out: Dictionary, v: Variant, task: Variant) -> void:
+	var sensors := []
+	if task != null: sensors = Array(task.sensor_channels())
+	if v is Dictionary:
+		if v.has("inputs") or v.has("outputs"):
+			for side in ["inputs", "outputs"]: _absorb_side(out, side, v.get(side))
+		else:
+			for name in v:
+				var side := "inputs" if sensors.has(str(name)) else "outputs"
+				_absorb_one(out, side, str(name), v[name])
+	elif v is Array:
+		for e in v:
+			if e is Dictionary:
+				var name := str(e.get("name", "")); var side := "inputs" if (e.get("side", "") == "input" or sensors.has(name)) else "outputs"
+				_absorb_one(out, side, name, e)
+
+static func _absorb_side(out: Dictionary, side: String, v: Variant) -> void:
+	if v is Dictionary:
+		for name in v: _absorb_one(out, side, str(name), v[name])
+	elif v is Array:
+		for e in v:
+			if e is Dictionary: _absorb_one(out, side, str(e.get("name", "")), e)
+
+static func _absorb_one(out: Dictionary, side: String, name: String, v: Variant) -> void:
+	if name == "": return
+	if side == "inputs": out["inputs"][name] = str(v.get("kind", "poisson")) if v is Dictionary else str(v)
+	else: out["outputs"][name] = _out_kind(v if v is Dictionary else {"kind": str(v)})
+
+## Make output channel `ch` a rate readout or a modulator release (docs/CIRCUIT-FORMAT.md "Output kind modulator"); the unused keys are removed.
+static func set_output_kind(ch: Dictionary, kind: String, modulator := "NE", gain := MOD_GAIN, tau_ms := MOD_TAU) -> void:
+	if kind == "modulator":
+		ch["kind"] = "modulator"; ch["modulator"] = modulator; ch["gain"] = gain; ch["tau_ms"] = tau_ms
+	else:
+		ch["kind"] = "rate"
+		for k in ["modulator", "gain", "tau_ms"]: ch.erase(k)
+
+## The numbered family a channel belongs to: "ach3" -> {stem "ach", index 3, names [ach0 .. ach7] in index order}. Empty when it has no trailing number or
+## fewer than 3 channels share its stem. Used by the segment wiring: a group of n neurons dropped on one member of a family of n connects neuron k to member k.
+static func channel_family(c: Dictionary, key: String, name: String) -> Dictionary:
+	var re := RegEx.new(); re.compile("^(.*?)(\\d+)$")
+	var m := re.search(name)
+	if m == null: return {}
+	var stem := m.get_string(1); var names := {}
+	for ch in c.get(key, []):
+		var mm := re.search(str(ch.get("name", "")))
+		if mm != null and mm.get_string(1) == stem: names[int(mm.get_string(2))] = str(ch.get("name", ""))
+	if names.size() < 3: return {}
+	var idx := names.keys(); idx.sort()
+	return {"stem": stem, "index": int(m.get_string(2)), "names": idx.map(func(i): return names[i])}
+
+## Wire population `pop` (n neurons) to every member of the channel family of `name`, neuron k to the k-th member (inputs: sensor k -> neuron k). Returns how many
+## channels were connected (0 when the family size and n do not match).
+static func wire_family(c: Dictionary, key: String, name: String, pop: String) -> int:
+	var fam := channel_family(c, key, name)
+	var pi := pop_index(c, pop)
+	if fam.is_empty() or pi < 0: return 0
+	var n := pop_n(c["populations"][pi]); var names: Array = fam["names"]
+	if n != names.size(): return 0
+	var model := str(c["populations"][pi].get("model", "iaf_psc_alpha")); var done := 0
+	for k in n:
+		for ch in c.get(key, []):
+			if str(ch.get("name", "")) != str(names[k]): continue
+			var field := "neurons" if key == "outputs" else "targets"
+			var tg: Array = ch.get(field, [])
+			if key == "inputs" and tg.is_empty(): ch["weight"] = input_weight(model, str(ch.get("kind", "poisson")))
+			if not tg.any(func(x): return proj_pop(x) == pop and x is Dictionary and (x.get("idx", []) as Array).has(k)): tg.append({"pop": pop, "idx": [k]})
+			ch[field] = tg; done += 1
+	return done
+
+# ---------- segment wiring and modulation rows ----------
+## "all" (every pre neuron to every post neuron) or "segment" (neuron k to neuron k + offset: one_to_one or explicit edges).
+static func proj_wiring(pr: Dictionary) -> String:
+	return "segment" if (str(pr.get("rule", "")) == "one_to_one" or pr.has("edges")) else "all"
+
+static func segment_offset(pr: Dictionary) -> int:
+	var e: Array = pr.get("edges", [])
+	if not e.is_empty() and e[0] is Array and e[0].size() >= 2: return int(e[0][1]) - int(e[0][0])
+	return 0
+
+## Rewire projection `pr` of circuit `c` index-wise with an offset (post = pre + offset), or back to all-to-all. Weight and delay are kept.
+static func set_wiring(c: Dictionary, pr: Dictionary, wiring: String, offset := 0) -> void:
+	var w := proj_weight(pr); var d := proj_delay(pr)
+	var syn: Dictionary = (pr.get("synapse", {}) as Dictionary).duplicate(); syn["weight"] = w; syn["delay"] = d
+	pr.erase("edges"); pr.erase("rule")
+	if wiring != "segment": pr["rule"] = "all_to_all"; pr["synapse"] = syn; return
+	var pa := pop_index(c, proj_pop(pr.get("pre", ""))); var pb := pop_index(c, proj_pop(pr.get("post", "")))
+	var na := pop_n(c["populations"][pa]) if pa >= 0 else 1; var nb := pop_n(c["populations"][pb]) if pb >= 0 else 1
+	if offset == 0 and na == nb: pr["rule"] = "one_to_one"; pr["synapse"] = syn; return
+	var edges := []
+	for k in na:
+		if k + offset >= 0 and k + offset < nb: edges.append([k, k + offset, w, d])
+	pr["edges"] = edges; pr["synapse"] = {"synapse_model": str(syn.get("synapse_model", "static_synapse"))}
+
+## Indices into c.modulation of the rows that act on population `pop`.
+static func mod_rows(c: Dictionary, pop: String) -> Array:
+	var out := []; var rows: Array = c.get("modulation", [])
+	for i in rows.size():
+		if str(rows[i].get("pop", "")) == pop: out.append(i)
+	return out
+
+static func add_mod_row(c: Dictionary, pop: String, modulator: String, param: String, gain := 1.0) -> void:
+	var rows: Array = c.get("modulation", []); rows.append({"modulator": modulator, "pop": pop, "param": param, "gain": gain}); c["modulation"] = rows
+
+static func remove_mod_row(c: Dictionary, i: int) -> void:
+	var rows: Array = c.get("modulation", [])
+	if i >= 0 and i < rows.size(): rows.remove_at(i)
+	if rows.is_empty(): c.erase("modulation")
+	else: c["modulation"] = rows
+
+## Numeric parameters a modulation row can target on `model`: the NESTML cells' ach / ne inputs first (docs/CIRCUIT-FORMAT.md), then the editor's advanced parameters.
+static func mod_params(model: String) -> Array:
+	var out := []
+	for a in advanced_of(model):
+		if str(a[0]) != "V_m": out.append(str(a[0]))
+	for k in ["ach", "ne"]:
+		if Catalog.cards_of(model).any(func(cd): return (cd["params"] as Array).any(func(q): return str(q["key"]) == k)) and not out.has(k): out.insert(0, k)
 	return out
 
 # ---------- editing ----------
