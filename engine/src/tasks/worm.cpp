@@ -69,9 +69,11 @@ public:
            "and turn_right clockwise. Turning one way is enough, because a worm that keeps turning eventually points "
            "uphill. The rule to build: turn while things get worse, go straight while they get better. Catch: the plate "
            "is stirred, and now and then BOTH cells chatter together for a second or so. That chatter means nothing; "
-           "only ASER minus ASEL does. So wire ASER to excite turn_left and ASEL to inhibit it (a negative weight), "
-           "with a few cells per pool so Poisson noise averages out. An input weight of about 1000 pA makes each sensor "
-           "cell fire once per input spike, and links of about 1000 pA (negative for ASEL) work well. Pass: get within 10 % of the plate radius of the peak within 45 s "
+           "only ASER minus ASEL does. So wire ASER to excite turn_left and ASEL to inhibit it. A recipe that works (8 iaf cells in every "
+           "group; pA): ASER onto a group A and ASEL onto a group B with a sensor weight of about 1000 (each sensor cell then fires once per "
+           "input spike); A onto the turn_left group with +1000; B set inhibitory (E / I) and onto turn_left with -1000; turn_right must be "
+           "connected to a neuron too, but an idle group will do. With 4 cells per group the worm reaches the peak on some seeds only. "
+           "Pass: get within 10 % of the plate radius of the peak within 45 s "
            "(one cell listening to ASER alone is too slow and gets thrown off by the chatter). Score: how fast, and "
            "how close you stay on average.";
   }

@@ -55,7 +55,12 @@ public:
            "forearm is NOT supported: it weighs 1.5 kg and must be held 29 degrees above horizontal while six random pushes knock it "
            "either way. Wire the spindle afferents (ag_Ia, ant_Ia, ag_II, ant_II) to the motoneuron pools, drive a gamma pool "
            "(gamma_motor) from the descending tone, and give the flexor more tone than the extensor so that gravity is balanced "
-           "at the target. Score: root-mean-square angle error, the worst error, the sag between pushes, and no ringing.";
+           "at the target. Score: root-mean-square angle error, the worst error, the sag between pushes, and no ringing. A recipe that works "
+           "(iaf_psc_alpha groups; weights pA; the spindle sensors are dc inputs, so their weight is pA per Hz): the four spindle sensors at weight 3 "
+           "onto relay groups (Ia: 4 cells, II: 3 cells, ADVANCED tau m 60 ms); pools MNF and MNE of 20 cells; Ia and II relays > their pool at "
+           "160; Ia relays > inhibitory groups of 2 at 80, which inhibit the opposite pool at -320; drive (weight 300) onto a tonic group of 6 "
+           "(tau m 60 ms): TONIC > MNF at 160 (the flexor tone that balances gravity; none onto MNE) and TONIC > GAM, the gamma group of 4 cells, "
+           "at 960 (a silent gamma pool leaves the spindles quiet and the loop deaf).";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "ag_II", "ant_II", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor", "gamma_motor" }; }

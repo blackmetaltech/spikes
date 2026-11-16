@@ -64,7 +64,8 @@ public:
            "(weight about -60) and that inhibit PHR (about -30): they keep the phrenic pool quiet between breaths. (4) Route 'chemo' "
            "through relay cells (iaf, I_e about 335 pA, weight 1) to PBC (about 0.09 nS: breathing gets faster, the 'frequency' path) and "
            "to PHR (about 8 pA: breaths get deeper). If the rate is wrong, change the burster drive, not the coupling: g_tonic 0.30 gives a "
-           "burst every 4.9 s, 0.35 every 2.6 s.";
+           "burst every 4.9 s, 0.35 every 2.6 s. The phrenic cells need slow synapses to smooth the bursts into breaths: ADVANCED tau syn E and tau "
+           "syn I 20 ms on PHR, tau syn I 10 ms on the expiratory cells. Sensor weights: drive 0.005, chemo 1 (pA per unit of its value).";
   }
   std::vector< std::string > sensor_channels() const override { return { "drive", "chemo" }; }
   std::vector< std::string > motor_channels() const override { return { "phrenic" }; }

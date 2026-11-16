@@ -69,7 +69,13 @@ public:
            "ends the parasympathetic side must take over again and everything must settle back to rest. Wire 'threat' into the circuit and "
            "read out the pacemaker ('sa_beat'), the two heart modulators ('sympathetic' = NE, 'vagal' = ACh: set these two outputs to kind modulator, and let the SA cell respond to NE and ACh), 'sym_vascular', 'dilator', "
            "'sphincter' and 'vent'. Score: for each of heart rate, pressure, pupil and ventilation: resting value in its band, a clear rise "
-           "during the 30 s threat, and a return to rest within 50 s after it.";
+           "during the 30 s threat, and a return to rest within 50 s after it. A recipe that works (iaf_psc_alpha groups; pA; bias = ADVANCED "
+           "I_e; the engine makes the SA cell follow NE and ACh): threat onto HYP (4 cells, bias 100, tau syn I 10 ms) "
+           "> RVLM (4, bias 330) 120 > SG (6, bias 340) 60 > sympathetic output (NE, gain 0.0015, tau 1500 ms); RVLM > SV (4, bias 380) 30 "
+           "> sym_vascular; RVLM > SCG (4, bias 380) 60 > dilator; vagal side NA (4, bias 380, tau syn I 10 ms) > VG (6, bias 340) 60 > vagal "
+           "output (ACh, gain 0.007, tau 500 ms), with HYP > NA at -150; EW (4, bias 380, tau syn I 10 ms) > CG (4, bias 340) 60 > sphincter, "
+           "with HYP > EW at -150; HYP > VRG (4, bias 380) 100 > vent; an SA-node cell onto sa_beat. The cells with bias 380 fire on their "
+           "own (rest tone); a bias of 375 or less leaves them silent.";
   }
   std::vector< std::string > sensor_channels() const override { return { "threat" }; }
   std::vector< std::string > motor_channels() const override

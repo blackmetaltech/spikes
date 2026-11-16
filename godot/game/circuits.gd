@@ -36,6 +36,13 @@ static func weight_of(model: String) -> float:
 	var w := Catalog.input_weight_of(model)
 	return w if w > 0.0 and w != 1.0 else (20.0 if model.contains("cond") else 100.0)
 
+## Largest weight the projection slider offers onto `model`: 20 typical synapses (the slider is square-law, so small weights stay easy to set), in the card's unit.
+static func proj_wmax(model: String) -> float: return 20.0 * weight_of(model)
+## Largest weight of a dc input: pA of current per unit of the sensor's value, whichever cell it drives (a conductance cell still takes a current).
+const DC_WMAX := 2000.0
+## Longest synaptic delay the slider offers (ms), square-law like the weights: 1-3 ms for a synapse, 100-250 ms to stand for a polysynaptic chain (a burst generator).
+const DELAY_MAX := 250.0
+
 ## Advanced parameter rows of `model`: the editor's table, else derived from the catalogue card's parameters and ranges.
 static func advanced_of(model: String) -> Array:
 	return ADVANCED[model] if ADVANCED.has(model) else Catalog.advanced_of(model)
@@ -43,10 +50,10 @@ static func advanced_of(model: String) -> Array:
 ## "Advanced" neuron parameters per model, in NEST's names and units: [key, label, min, max, step, NEST default, unit]. `V_m` is the initial membrane
 ## potential: different starting values are what lets two identical cells break symmetry (a half-centre oscillator needs that).
 const ADVANCED := {
-	"iaf_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -70.0, "mV"], ["tau_m", "tau m", 2.0, 60.0, 0.5, 10.0, "ms"], ["V_th", "threshold", -60.0, -40.0, 0.5, -55.0, "mV"], ["I_e", "bias", -400.0, 800.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]],
-	"aeif_cond_alpha": [["V_m", "start V", -85.0, -45.0, 0.5, -70.6, "mV"], ["a", "a", -2.0, 10.0, 0.1, 4.0, "nS"], ["b", "b", 0.0, 200.0, 1.0, 80.5, "pA"], ["tau_w", "tau w", 5.0, 400.0, 1.0, 144.0, "ms"], ["I_e", "bias", -400.0, 1000.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 0.2, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]],
+	"iaf_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -70.0, "mV"], ["tau_m", "tau m", 2.0, 60.0, 0.5, 10.0, "ms"], ["V_th", "threshold", -60.0, -40.0, 0.5, -55.0, "mV"], ["I_e", "bias", -400.0, 800.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]],
+	"aeif_cond_alpha": [["V_m", "start V", -85.0, -45.0, 0.5, -70.6, "mV"], ["a", "a", -2.0, 10.0, 0.1, 4.0, "nS"], ["b", "b", 0.0, 200.0, 1.0, 80.5, "pA"], ["tau_w", "tau w", 5.0, 400.0, 1.0, 144.0, "ms"], ["I_e", "bias", -400.0, 1000.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 0.2, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]],
 	"izhikevich": [["V_m", "start V", -85.0, -45.0, 0.5, -65.0, "mV"], ["a", "a", 0.01, 0.15, 0.005, 0.02, ""], ["b", "b", 0.1, 0.3, 0.005, 0.2, ""], ["c", "c", -70.0, -45.0, 0.5, -65.0, "mV"], ["d", "d", 0.5, 10.0, 0.5, 8.0, ""], ["I_e", "bias", -10.0, 30.0, 0.5, 0.0, "pA"]],
-	"hh_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -65.0, "mV"], ["I_e", "bias", -100.0, 600.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]]}
+	"hh_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -65.0, "mV"], ["I_e", "bias", -100.0, 600.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]]}
 
 ## Default weight of a sensor / noise input onto a neuron of `model`: several internal synapses (weight_of), so a lone neuron wired straight from a
 ## 400 Hz sensor fires at once instead of sitting silent (as the old 1.2 x 250 pA did for iaf). Dc inputs keep their own scale (pA of drive).

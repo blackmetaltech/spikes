@@ -68,7 +68,12 @@ public:
            "motoneuron pools ag_motor and ant_motor, give both pools tonic drive, and add the inhibitory crossing. Score: the motor "
            "reply to a tap must come within 50 ms (a spinal reflex, not a decision), the reflex must cut the deflection to well "
            "below what the muscles' own stiffness would allow, the opposing muscle must be switched off, and the limb must "
-           "settle without ringing (too much reflex gain oscillates: clonus).";
+           "settle without ringing (too much reflex gain oscillates: clonus). A recipe that works (iaf_psc_alpha groups; weights pA; the "
+           "Ia sensors are dc inputs, so their weight is pA of current per Hz of afferent rate, and the drive weight is pA of tonic current): "
+           "ag_Ia and ant_Ia at weight 3 onto relay groups IaF and IaE (6 cells, ADVANCED tau m 60 ms so they fire regularly at the afferent "
+           "rate); motoneuron pools MNF and MNE of 20 cells with drive at weight 280 onto both; IaF > MNF and IaE > MNE at 320; "
+           "IaF > INF and IaE > INE (4 cells, inhibitory) at 240; INF > MNE and INE > MNF at -320. A weaker Ia > MN link (80) misses tendon taps "
+           "on some seeds; much stronger gains ring.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
