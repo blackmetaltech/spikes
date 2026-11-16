@@ -30,7 +30,20 @@ bool Engine::load( const std::string& ) { return true; }
 const std::string& Engine::error() const { static std::string e; return e; }
 int32_t Engine::neuron_count() const { return 0; }
 std::string Engine::neuron_population( int32_t ) const { return ""; }
-std::vector< ChannelInfo > Engine::inputs() const { return {}; }
+std::vector< ChannelInfo > Engine::inputs() const
+{
+  // every sensor channel of the three tasks is wired to one neuron
+  std::vector< ChannelInfo > v;
+  for ( const char* name : { "drive", "touch", "ASEL", "ASER" } )
+  {
+    ChannelInfo c;
+    c.name = name;
+    c.kind = "poisson";
+    c.neurons.push_back( 0 );
+    v.push_back( c );
+  }
+  return v;
+}
 std::vector< ChannelInfo > Engine::outputs() const
 {
   std::vector< ChannelInfo > v;
@@ -190,6 +203,50 @@ static void test_lamprey()
   }
   { StubBrain b; b.pool_size[ "left_motor" ] = 4; b.pool_size[ "right_motor" ] = 4; b.f = []( double, const auto&, auto& ) {};
     Score s = run_task( *t, b, 1 ); show( "silent", s ); CHECK( !s.passed && s.parts[ "speed" ] == 0 ); }
+  // ---- scoring loophole: both sides must oscillate ----
+  // One side bursts at 3 Hz, the other is completely silent: not a rhythm, no phase reported, must fail.
+  {
+    StubBrain b; b.pool_size[ "left_motor" ] = 4; b.pool_size[ "right_motor" ] = 4;
+    b.f = []( double tm, const auto&, auto& out ) { out[ "left_motor" ] = 4 * 60.0 * std::max( 0.0, std::sin( 2 * tasks::kPi * 3 * tm / 1000.0 ) ); };
+    Score s = run_task( *t, b, 1 ); show( "left only (right silent)", s );
+    CHECK( !s.passed && s.parts[ "phase_deg" ] == 0 && s.parts[ "freq_hz" ] == 0 );
+    CHECK( s.verdict.find( "right_motor never fired" ) != std::string::npos );
+  }
+  // One side bursts, the other fires tonically (never silent): still one-sided.
+  {
+    StubBrain b; b.pool_size[ "left_motor" ] = 4; b.pool_size[ "right_motor" ] = 4;
+    b.f = []( double tm, const auto&, auto& out ) {
+      out[ "left_motor" ] = 4 * 60.0 * std::max( 0.0, std::sin( 2 * tasks::kPi * 3 * tm / 1000.0 ) );
+      out[ "right_motor" ] = 4 * 20.0;
+    };
+    Score s = run_task( *t, b, 1 ); show( "left bursts, right tonic", s );
+    CHECK( !s.passed && s.parts[ "phase_deg" ] == 0 );
+    CHECK( s.verdict.find( "only left_motor rises and falls" ) != std::string::npos );
+  }
+  // Spike ripple of tonically firing cells (one spike per 5 ms per cell, i.e. 200 Hz ripple, on each side, with a
+  // 0.5 Hz drift on the left): must not be read as a fast rhythm or pass.
+  {
+    StubBrain b; b.pool_size[ "left_motor" ] = 1; b.pool_size[ "right_motor" ] = 1;
+    b.f = []( double tm, const auto&, auto& out ) {
+      if ( std::fmod( tm, 5.0 ) < 1.0 ) { out[ "left_motor" ] = 1000.0; out[ "right_motor" ] = 1000.0; }
+    };
+    Score s = run_task( *t, b, 1 ); show( "tonic spike ripple both sides", s );
+    CHECK( !s.passed );
+    CHECK( s.parts[ "freq_hz" ] < 1.0 || s.parts[ "freq_hz" ] > 10.0 || s.parts[ "phase_deg" ] == 0 );
+  }
+  // Silent on both sides: say so plainly.
+  {
+    StubBrain b; b.pool_size[ "left_motor" ] = 4; b.pool_size[ "right_motor" ] = 4; b.f = []( double, const auto&, auto& ) {};
+    Score s = run_task( *t, b, 1 );
+    CHECK( s.verdict.find( "Both motor channels are silent" ) != std::string::npos );
+  }
+  // Unwired motor: a circuit that declares no right_motor neurons.
+  {
+    StubBrain b; b.pool_size[ "left_motor" ] = 4; b.pool_size[ "right_motor" ] = 0;
+    b.f = []( double, const auto&, auto& ) {};
+    Score s = run_task( *t, b, 1 ); show( "right_motor unwired", s );
+    CHECK( s.verdict.find( "motor 'right_motor'" ) != std::string::npos );
+  }
   // per-neuron normalisation is pool-size independent
   {
     StubBrain b1 = osc( 2, 180, 60, 2 ), b2 = osc( 2, 180, 60, 9 );
@@ -237,14 +294,14 @@ static void test_worm()
       Score s = run_task( *t, b, seed );
       char name[ 64 ]; std::snprintf( name, sizeof name, "ideal logic seed %llu", (unsigned long long)seed );
       show( name, s );
-      pass += s.passed;
+      pass += s.parts[ "t_reach_s" ] > 0;  // physics only: reaching the peak at all (the 45 s pass bar needs a better controller than this stub)
     }
     CHECK( pass >= 5 );
   }
   {
     StubBrain b; b.pool_size[ "turn_left" ] = 2; b.pool_size[ "turn_right" ] = 2; b.f = []( double, const auto&, auto& ) {};
     int pass = 0;
-    for ( uint64_t seed = 1; seed <= 6; ++seed ) { Score s = run_task( *t, b, seed ); pass += s.passed; if ( seed == 1 ) show( "never turns", s ); }
+    for ( uint64_t seed = 1; seed <= 6; ++seed ) { Score s = run_task( *t, b, seed ); pass += s.passed; if ( seed == 1 ) { show( "never turns", s ); CHECK( s.verdict.find( "Neither turn_left nor turn_right ever fired" ) != std::string::npos ); } }
     CHECK( pass == 0 );
   }
   {

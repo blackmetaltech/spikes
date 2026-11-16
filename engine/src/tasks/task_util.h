@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <vector>
 #include "spike/engine.h"
 
 namespace spike::tasks
@@ -71,6 +72,8 @@ public:
   {
     return sum_hz( e, ch ) / n_of( e, ch );
   }
+  /// Number of neurons the channel reads (1 if unknown).
+  double pool_size( const Engine& e, const std::string& ch ) { return n_of( e, ch ); }
   /// Spike count of the channel during a step of dt_ms.
   double spike_count( const Engine& e, const std::string& ch, double dt_ms ) { return sum_hz( e, ch ) * dt_ms / 1000.0; }
 
@@ -89,6 +92,51 @@ private:
     return n;
   }
   std::map< std::string, double > counts_;
+};
+
+/// Checks, once per episode, which of a task's channels are connected to at least one neuron. Tasks use it to say plainly
+/// "sensor X is not wired" / "motor Y has no neurons" instead of an unexplained zero score.
+class Wiring
+{
+public:
+  void invalidate() { probed_ = false; unwired_.clear(); }
+  void probe( const Engine& e, const std::vector< std::string >& sensors, const std::vector< std::string >& motors )
+  {
+    if ( probed_ )
+      return;
+    probed_ = true;
+    unwired_.clear();
+    auto check = [ & ]( const std::vector< ChannelInfo >& have, const std::vector< std::string >& want, const char* kind ) {
+      for ( const auto& w : want )
+      {
+        bool ok = false;
+        for ( const auto& c : have )
+          if ( c.name == w && !c.neurons.empty() )
+            ok = true;
+        if ( !ok )
+          unwired_.push_back( std::string( kind ) + " '" + w + "'" );
+      }
+    };
+    check( e.inputs(), sensors, "sensor" );
+    check( e.outputs(), motors, "motor" );
+  }
+  bool ok() const { return unwired_.empty(); }
+  /// "sensor 'touch' is not connected to any neuron" etc. (empty when everything is wired)
+  std::string message() const
+  {
+    std::string m;
+    for ( size_t i = 0; i < unwired_.size(); ++i )
+    {
+      if ( i ) m += "; ";
+      m += unwired_[ i ];
+    }
+    if ( m.empty() ) return m;
+    return m + ( unwired_.size() > 1 ? " are" : " is" ) + " not connected to any neuron";
+  }
+
+private:
+  bool probed_ = false;
+  std::vector< std::string > unwired_;
 };
 
 } // namespace spike::tasks

@@ -11,24 +11,31 @@
 //   Segment directions are phi_i = sum_{k<=i} theta_k (relative to the body axis). Lateral offset of the tail point
 //   y_tail = sum_i 0.1 * sin(phi_i); v_tail = d y_tail / dt (BL/s).
 //
-//   Thrust (simplified Lighthill 1960 reactive model): added-mass momentum flux off the tail,
+//   Thrust (a toy reactive-thrust model in the spirit of Lighthill 1960, NOT his formula): added-mass momentum flux off the tail,
 //        T = 1/2 * m * v_tail^2 * (1 - U/c)+          m = 0.03 (added mass per BL, normalised)
 //   Drag and inertia:  M dU/dt = T - k U^2,  M = 1, k = 1, U >= 0 is the forward speed in BL/s.
 //   Steering: heading psi changes by  dpsi/dt = 2.0 /s * mean_i(theta_i)  (a left/right bias bends the body).
 //   Position integrates U along psi. Arena for drawing: x in [-2, 18], y in [-4, 4].
 //
 // SCORING over the analysis window t in [2500 ms, 10 000 ms]
-//   freq  : upward zero crossings of (rL - rR) with +-10 % hysteresis, per second; 0 if the swing is < 2 Hz
-//   phase : phase between the left and right motor rate (complex demodulation at freq), folded to [0,180] deg
+//   The analysis works on the motor rates smoothed once more (tau = 40 ms, on top of the muscle low-pass), so spike ripple
+//   of a tonically firing cell cannot be mistaken for a rhythm.
+//   swing_L, swing_R : peak-to-peak of the smoothed left / right rate (Hz). BOTH sides must modulate:
+//           min(swing_L, swing_R) >= 2 Hz and >= 0.3 * max(swing_L, swing_R), else "no rhythm" and no phase is reported
+//   freq  : upward zero crossings of (rL - rR) with +-25 % hysteresis (of the half swing), per second; needs >= 3 crossings
+//   amp_L, amp_R : amplitude of each side at freq (complex demodulation); both must be >= 1 Hz and >= 0.3 * the larger
+//   phase : phase between left and right at freq, folded to [0,180] deg; only defined when both sides are coherent
 //   speed : mean U over the window (BL/s)
 //   value = 100 * (0.25 * f_ok + 0.35 * phase_ok + 0.40 * min(1, speed/0.8)), where f_ok = 1 if 1 <= f <= 10,
-//           phase_ok = max(0, 1 - |phase - 180|/90)
-//   pass  : 1 <= f <= 10 Hz, |phase - 180| <= 40 deg, speed >= 0.25 BL/s
+//           phase_ok = max(0, 1 - |phase - 180|/90)  (0 when there is no valid phase)
+//   pass  : valid two-sided rhythm, 1 <= f <= 10 Hz, |phase - 180| <= 40 deg, speed >= 0.25 BL/s
+//   verdict: says plainly when a motor channel is not wired or never fired (left_motor / right_motor), or both are silent.
 //
 // Biology: lamprey spinal locomotor CPG (Grillner 2003 Nat Rev Neurosci; Buchanan 2001), swim frequency 0.3-10 Hz
 // (Wallen & Williams 1984), anti-phase left/right bursts from reciprocal commissural inhibition, one cycle of wave per
-// body length. Lighthill M.J. (1960) J Fluid Mech 9:305 "Note on the swimming of slender fish".
+// body length. Thrust is inspired by Lighthill M.J. (1960) J Fluid Mech 9:305, but simplified to a toy.
 #include <cmath>
+#include <iomanip>
 #include <sstream>
 #include "task_util.h"
 #include "tasks.h"
@@ -55,9 +62,10 @@ public:
     return "A lamprey swims by alternating left and right muscle bursts, produced by a half-centre oscillator in its "
            "spinal cord: two groups of neurons that inhibit each other and tire (spike-frequency adaptation) so that "
            "the winner periodically hands over. A steady descending drive switches swimming on. Build left and right "
-           "pools with mutual inhibition, give them the drive, and read out left_motor and right_motor. Score: "
+           "pools with mutual inhibition, give them the drive, and read out left_motor and right_motor. Both sides must "
+           "burst (a rhythm on one side only does not count). Score: "
            "swim frequency inside 1-10 Hz, left and right about 180 degrees apart, and forward speed (the body "
-           "makes a travelling wave and Lighthill's reactive thrust pushes it along).";
+           "makes a travelling wave and a simple reactive-thrust model pushes it along).";
   }
   std::vector< std::string > sensor_channels() const override { return { "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "left_motor", "right_motor" }; }
@@ -81,13 +89,18 @@ public:
     theta_.assign( kSeg, 0.0 );
     tail_amp_ = 0;
     motor_.invalidate();
+    wiring_.invalidate();
+    spikes_l_ = spikes_r_ = 0;
   }
 
   void step( Engine& e, double dt ) override
   {
+    wiring_.probe( e, sensor_channels(), motor_channels() );
     e.set_input( "drive", 1.0 );
     e.step( dt );
     double l = motor_.hz_per_neuron( e, "left_motor" ), r = motor_.hz_per_neuron( e, "right_motor" );
+    spikes_l_ += motor_.spike_count( e, "left_motor", dt );
+    spikes_r_ += motor_.spike_count( e, "right_motor", dt );
     // world ticks of at most 1 ms (a 5 ms call integrates 5 ticks with the same motor rates)
     int n = std::max( 1, static_cast< int >( std::ceil( dt - 1e-9 ) ) );
     double h = dt / n;
@@ -123,30 +136,50 @@ public:
   Score score() const override
   {
     Score s;
-    double f = 0, ph = 0, speed = 0, swing = 0;
-    analyse( f, ph, speed, swing );
-    s.parts[ "freq_hz" ] = f;
-    s.parts[ "phase_deg" ] = ph;
-    s.parts[ "speed" ] = speed;
-    s.parts[ "swing_hz" ] = swing;
-    double f_ok = ( f >= 1.0 && f <= 10.0 ) ? 1.0 : 0.0;
-    double p_ok = f > 0 ? std::max( 0.0, 1.0 - std::fabs( ph - 180.0 ) / 90.0 ) : 0.0;
-    s.value = 100.0 * ( 0.25 * f_ok + 0.35 * p_ok + 0.40 * std::min( 1.0, speed / 0.8 ) );
+    Analysis a = analyse();
+    s.parts[ "freq_hz" ] = a.f;
+    s.parts[ "phase_deg" ] = a.valid ? a.phase : 0.0;
+    s.parts[ "speed" ] = a.speed;
+    s.parts[ "swing_left_hz" ] = a.swing_l;
+    s.parts[ "swing_right_hz" ] = a.swing_r;
+    s.parts[ "spikes_left" ] = spikes_l_;
+    s.parts[ "spikes_right" ] = spikes_r_;
+    double f_ok = ( a.valid && a.f >= 1.0 && a.f <= 10.0 ) ? 1.0 : 0.0;
+    double p_ok = a.valid ? std::max( 0.0, 1.0 - std::fabs( a.phase - 180.0 ) / 90.0 ) : 0.0;
+    s.value = 100.0 * ( 0.25 * f_ok + 0.35 * p_ok + 0.40 * std::min( 1.0, a.speed / 0.8 ) );
     bool done = t_ >= kDuration;
-    s.passed = done && f_ok > 0 && std::fabs( ph - 180.0 ) <= 40.0 && speed >= 0.25;
+    s.passed = done && a.valid && f_ok > 0 && std::fabs( a.phase - 180.0 ) <= 40.0 && a.speed >= 0.25;
     std::ostringstream o;
-    o.precision( 2 );
-    if ( swing < 2.0 )
-      o << "No rhythm: left and right motor rates never alternate" << ( done ? "." : " yet." );
+    o << std::fixed << std::setprecision( 1 );
+    const char* yet = done ? "." : " yet.";
+    if ( !wiring_.ok() )
+      o << "Not wired: " << wiring_.message() << ".";
+    else if ( spikes_l_ < 1 && spikes_r_ < 1 )
+      o << "Both motor channels are silent: neither left_motor nor right_motor has fired" << yet
+        << " Check that drive reaches your neurons and that the weights are strong enough.";
+    else if ( spikes_l_ < 1 )
+      o << "left_motor never fired" << yet << " Both sides must burst in turn; only right_motor is active.";
+    else if ( spikes_r_ < 1 )
+      o << "right_motor never fired" << yet << " Both sides must burst in turn; only left_motor is active.";
+    else if ( !a.valid )
+    {
+      if ( a.swing_l < 2.0 && a.swing_r < 2.0 )
+        o << "No rhythm: neither motor rate rises and falls (it fires steadily or in a blur)" << yet;
+      else if ( std::min( a.swing_l, a.swing_r ) < 2.0 || std::min( a.swing_l, a.swing_r ) < 0.3 * std::max( a.swing_l, a.swing_r ) )
+        o << "No rhythm: only " << ( a.swing_l > a.swing_r ? "left_motor" : "right_motor" )
+          << " rises and falls; the other side stays flat. Both sides must burst in turn" << yet;
+      else
+        o << "No rhythm: left and right motor rates never alternate cleanly" << yet;
+    }
     else if ( f_ok == 0 )
-      o << "Rhythm at " << f << " Hz is outside the 1-10 Hz swimming range.";
-    else if ( std::fabs( ph - 180.0 ) > 40.0 )
-      o << "Left and right are " << static_cast< int >( ph ) << " degrees apart, not alternating (180).";
-    else if ( speed < 0.25 )
-      o << "Alternating at " << f << " Hz but only " << speed << " BL/s: too slow.";
+      o << "Rhythm at " << a.f << " Hz is outside the 1-10 Hz swimming range.";
+    else if ( std::fabs( a.phase - 180.0 ) > 40.0 )
+      o << "Left and right are " << static_cast< int >( a.phase ) << " degrees apart, not alternating (180).";
+    else if ( a.speed < 0.25 )
+      o << "Alternating at " << a.f << " Hz but only " << a.speed << " BL/s: too slow.";
     else
-      o << ( done ? "Swimming" : "Swimming so far" ) << " at " << f << " Hz, " << static_cast< int >( ph ) << " degrees L/R, "
-        << speed << " BL/s.";
+      o << ( done ? "Swimming" : "Swimming so far" ) << " at " << a.f << " Hz, " << static_cast< int >( a.phase ) << " degrees L/R, "
+        << a.speed << " BL/s.";
     s.verdict = o.str();
     return s;
   }
@@ -191,36 +224,57 @@ private:
     }
   }
 
-  void analyse( double& f, double& phase_deg, double& speed, double& swing ) const
+  struct Analysis
   {
-    f = phase_deg = speed = swing = 0;
+    double f = 0, phase = 0, speed = 0, swing_l = 0, swing_r = 0, amp_l = 0, amp_r = 0;
+    bool valid = false;  // both sides modulate coherently at f
+  };
+
+  // Samples are one per world tick (about 1 ms). Extra smoothing (tau 40 ms) removes spike ripple.
+  static std::vector< double > smooth( const std::vector< double >& x )
+  {
+    std::vector< double > y( x.size() );
+    double a = 1.0 - std::exp( -1.0 / 40.0 ), v = x.empty() ? 0.0 : x[ 0 ];
+    for ( size_t i = 0; i < x.size(); ++i )
+      y[ i ] = v += a * ( x[ i ] - v );
+    return y;
+  }
+
+  Analysis analyse() const
+  {
+    Analysis r;
     size_t n = dl_.size();
     if ( n < 100 )
-      return;
+      return r;
+    std::vector< double > l = smooth( dl_ ), rr = smooth( dr_ );
     double ml = 0, mr = 0, ms = 0;
     for ( size_t i = 0; i < n; ++i )
     {
-      ml += dl_[ i ];
-      mr += dr_[ i ];
+      ml += l[ i ];
+      mr += rr[ i ];
       ms += sp_[ i ];
     }
-    ml /= n; mr /= n; speed = ms / n;
-    double dmax = 0, dmin = 0;
-    for ( size_t i = 0; i < n; ++i )
+    ml /= n; mr /= n; r.speed = ms / n;
+    size_t skip = std::min< size_t >( n / 10, 200 );  // let the extra filter settle
+    double lmax = -1e18, lmin = 1e18, rmax = -1e18, rmin = 1e18, dmax = -1e18, dmin = 1e18;
+    for ( size_t i = skip; i < n; ++i )
     {
-      double d = ( dl_[ i ] - ml ) - ( dr_[ i ] - mr );
-      dmax = std::max( dmax, d );
-      dmin = std::min( dmin, d );
+      double d = ( l[ i ] - ml ) - ( rr[ i ] - mr );
+      lmax = std::max( lmax, l[ i ] ); lmin = std::min( lmin, l[ i ] );
+      rmax = std::max( rmax, rr[ i ] ); rmin = std::min( rmin, rr[ i ] );
+      dmax = std::max( dmax, d ); dmin = std::min( dmin, d );
     }
-    swing = dmax - dmin;
-    if ( swing < 2.0 )
-      return;
-    // zero crossings with hysteresis (10 % of the swing)
-    double hy = 0.1 * 0.5 * swing, first = -1, last = -1;
+    r.swing_l = lmax - lmin;
+    r.swing_r = rmax - rmin;
+    double smax = std::max( r.swing_l, r.swing_r ), smin = std::min( r.swing_l, r.swing_r );
+    if ( smin < 2.0 || smin < 0.3 * smax )
+      return r;  // one side (or both) does not modulate: no rhythm, no frequency, no phase
+    // zero crossings of L - R with 25 % hysteresis of the half swing
+    double hy = 0.25 * 0.5 * ( dmax - dmin ), first = -1, last = -1;
     int state = 0, crossings = 0;
-    for ( size_t i = 0; i < n; ++i )
+    for ( size_t i = skip; i < n; ++i )
     {
-      double d = ( dl_[ i ] - ml ) - ( dr_[ i ] - mr );
+      double d = ( l[ i ] - ml ) - ( rr[ i ] - mr );
       if ( d > hy && state <= 0 )
       {
         if ( state == -1 )
@@ -234,21 +288,27 @@ private:
       else if ( d < -hy && state >= 0 )
         state = -1;
     }
-    if ( crossings < 2 )
-      return;
-    double period_ms = ( last - first ) / ( crossings - 1 );  // samples are ~1 ms
-    f = 1000.0 / period_ms;
-    // phase by complex demodulation at f
-    double w = 2 * kPi * f / 1000.0, cl = 0, sl = 0, cr = 0, sr = 0;
-    for ( size_t i = 0; i < n; ++i )
+    if ( crossings < 3 )
+      return r;
+    r.f = 1000.0 / ( ( last - first ) / ( crossings - 1 ) );  // samples are ~1 ms
+    // amplitude and phase of each side at f (complex demodulation)
+    double w = 2 * kPi * r.f / 1000.0, cl = 0, sl = 0, cr = 0, sr = 0;
+    size_t m = n - skip;
+    for ( size_t i = skip; i < n; ++i )
     {
       double c = std::cos( w * i ), s = std::sin( w * i );
-      cl += ( dl_[ i ] - ml ) * c; sl += ( dl_[ i ] - ml ) * s;
-      cr += ( dr_[ i ] - mr ) * c; sr += ( dr_[ i ] - mr ) * s;
+      cl += ( l[ i ] - ml ) * c; sl += ( l[ i ] - ml ) * s;
+      cr += ( rr[ i ] - mr ) * c; sr += ( rr[ i ] - mr ) * s;
     }
+    r.amp_l = 2.0 * std::hypot( cl, sl ) / m;
+    r.amp_r = 2.0 * std::hypot( cr, sr ) / m;
+    double amax = std::max( r.amp_l, r.amp_r ), amin = std::min( r.amp_l, r.amp_r );
+    if ( amin < 1.0 || amin < 0.3 * amax )
+      return r;
     double d = std::atan2( sl, cl ) - std::atan2( sr, cr );
-    d = std::fabs( std::remainder( d, 2 * kPi ) );  // 0..pi
-    phase_deg = d * 180.0 / kPi;
+    r.phase = std::fabs( std::remainder( d, 2 * kPi ) ) * 180.0 / kPi;
+    r.valid = true;
+    return r;
   }
 
   double t_ = 0, U_ = 0, x_ = 0, y_ = 0, psi_ = 0, y_tail_prev_ = 0, tail_amp_ = 0;
@@ -257,6 +317,8 @@ private:
   std::vector< double > u_hist_, theta_, dl_, dr_, sp_;
   Lowpass rl_, rr_;
   MotorReader motor_;
+  Wiring wiring_;
+  double spikes_l_ = 0, spikes_r_ = 0;
 };
 
 } // namespace

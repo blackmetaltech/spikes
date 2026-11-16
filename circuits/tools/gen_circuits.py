@@ -60,8 +60,8 @@ def lamprey(P=None):
     pops, projs = [], []
     for s, x0, v0 in (("L", 100, d["V_L"]), ("R", 560, d["V_R"])):
         ep = dict(a=d["E_a"], b=d["E_b"], tau_w=d["E_tau_w"], tau_syn_ex=d["E_tau_syn"], tau_syn_in=d["E_tau_syn_in"], V_m=v0)
-        cp = dict(tau_syn_ex=d["CC_tau_syn"])
-        mp = dict(tau_syn_ex=d["MN_tau_syn"])
+        cp = dict(tau_syn_ex=d["CC_tau_syn"], V_m=-70.6)   # pinned at E_L (engine may randomise an unset V_m)
+        mp = dict(tau_syn_ex=d["MN_tau_syn"], V_m=-70.0)
         pops.append(pop(f"E_{s}", "aeif_cond_alpha", d["E_n"], ep, x0, 60))
         pops.append(pop(f"CC_{s}", "aeif_cond_alpha", d["CC_n"], cp, x0 + 120, 100, dy=50))
         pops.append(pop(f"MN_{s}", "iaf_cond_alpha", d["MN_n"], mp, x0 + 240, 60, dy=50, role="motor"))
@@ -86,9 +86,9 @@ def lamprey(P=None):
 
 # ---------------------------------------------------------------------------------------------------------------
 REFLEX = dict(
-    SN_n=8, IN_n=4, MN_n=3,
+    SN_n=16, IN_n=4, MN_n=3,
     w_touch=400.0,          # pA per Poisson spike, afferent input
-    w_SNIN=270.0, w_INMN=380.0,   # pA per spike
+    w_SNIN=55.0, w_INMN=380.0,   # pA per spike
     SN_extra=dict(), IN_extra=dict(), MN_extra=dict(),
     d_SNIN=1.0, d_INMN=1.0,
 )
@@ -97,10 +97,12 @@ REFLEX = dict(
 def reflex(P=None):
     d = dict(REFLEX)
     d.update(P or {})
+    # V_m is pinned at E_L so the result does not depend on the engine's random initial V_m (see docs/circuits/reflex.md)
+    v = dict(V_m=-70.0)
     pops = [
-        pop("SN", "iaf_psc_alpha", d["SN_n"], dict(d["SN_extra"]), 60, 40, dy=40, role="sensor"),
-        pop("IN", "iaf_psc_alpha", d["IN_n"], dict(d["IN_extra"]), 260, 80, dy=50),
-        pop("MN", "iaf_psc_alpha", d["MN_n"], dict(d["MN_extra"]), 460, 100, dy=50, role="motor"),
+        pop("SN", "iaf_psc_alpha", d["SN_n"], dict(v, **d["SN_extra"]), 60, 30, dy=24, role="sensor"),
+        pop("IN", "iaf_psc_alpha", d["IN_n"], dict(v, **d["IN_extra"]), 260, 80, dy=50),
+        pop("MN", "iaf_psc_alpha", d["MN_n"], dict(v, **d["MN_extra"]), 460, 100, dy=50, role="motor"),
     ]
     projs = [
         proj("SN", "IN", "all_to_all", d["w_SNIN"], d["d_SNIN"]),
@@ -118,7 +120,7 @@ def reflex(P=None):
 
 # ---------------------------------------------------------------------------------------------------------------
 WORM = dict(
-    n=2,
+    n=4,
     w_sens=1000.0,                # pA per Poisson spike: one input spike -> one ASE spike
     w_ASEL_AIY=800.0, w_AIY_AIB=-1500.0, w_ASER_AIB=1000.0,
     w_AIB_TR=1000.0, w_AIY_TL=0.0, w_AIB_TL=0.0,
@@ -131,7 +133,8 @@ def worm(P=None):
     d = dict(WORM)
     d.update(P or {})
     n = d["n"]
-    mk = lambda pid, x, y, role="neuron", I_e=0.0: pop(pid, "iaf_psc_alpha", n, dict(d["extra"], I_e=I_e), x, y, dy=44, role=role)
+    # V_m pinned at E_L: the result must not depend on the engine's random initial V_m
+    mk = lambda pid, x, y, role="neuron", I_e=0.0: pop(pid, "iaf_psc_alpha", n, dict(d["extra"], I_e=I_e, V_m=-70.0), x, y, dy=40, role=role)
     pops = [mk("ASEL", 60, 40, "sensor"), mk("ASER", 60, 220, "sensor"),
             mk("AIY", 250, 40), mk("AIB", 250, 220, I_e=d["AIB_Ie"]),
             mk("TL", 450, 40, "motor", I_e=d["TL_Ie"]), mk("TR", 450, 220, "motor")]

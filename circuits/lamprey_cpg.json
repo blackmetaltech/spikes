@@ -41,7 +41,8 @@
    "model": "aeif_cond_alpha",
    "n": 2,
    "params": {
-    "tau_syn_ex": 3.3
+    "tau_syn_ex": 3.3,
+    "V_m": -70.6
    },
    "pos": [
     [
@@ -60,7 +61,8 @@
    "model": "iaf_cond_alpha",
    "n": 3,
    "params": {
-    "tau_syn_ex": 4.4
+    "tau_syn_ex": 4.4,
+    "V_m": -70.0
    },
    "pos": [
     [
@@ -115,7 +117,8 @@
    "model": "aeif_cond_alpha",
    "n": 2,
    "params": {
-    "tau_syn_ex": 3.3
+    "tau_syn_ex": 3.3,
+    "V_m": -70.6
    },
    "pos": [
     [
@@ -134,7 +137,8 @@
    "model": "iaf_cond_alpha",
    "n": 3,
    "params": {
-    "tau_syn_ex": 4.4
+    "tau_syn_ex": 4.4,
+    "V_m": -70.0
    },
    "pos": [
     [

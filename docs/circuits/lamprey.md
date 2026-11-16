@@ -1,8 +1,10 @@
 # Reference circuit: lamprey half-centre swimmer (`circuits/lamprey_cpg.json`)
 
 Task `lamprey` (engine/src/tasks/lamprey.cpp): a 10-segment body whose segment bends follow (left - right) motor rate with
-a 36 ms lag per segment; Lighthill-style reactive thrust. Pass: 1-10 Hz, left/right within 40 degrees of 180, speed
->= 0.25 BL/s.
+a 36 ms lag per segment; a toy reactive-thrust model (inspired by, not equal to, Lighthill 1960). Pass: BOTH sides modulate (peak-to-peak >= 2 Hz
+each and the weaker >= 0.3 of the stronger, also at the swim frequency), 1-10 Hz, left/right within 40 degrees of 180,
+speed >= 0.25 BL/s. Frequency uses the motor rates smoothed an extra 40 ms and 25 % hysteresis, so spike ripple is not a rhythm;
+phase is only reported when both sides are coherent. Verdicts say when a motor channel never fired or is not wired.
 
 ## Biology
 The lamprey spinal cord generates the swimming rhythm locally (fictive swimming 0.3-10 Hz; Wallen & Williams 1984).
@@ -20,9 +22,9 @@ CC_s --(-19 nS)--> E_other                        CC_s --(-28 nS)--> MN_other
 ```
 | Population | Model | Parameters changed from NEST defaults |
 |---|---|---|
-| E_L / E_R | `aeif_cond_alpha` (Brette & Gerstner 2005) | a 8.4 nS, b 75 pA, tau_w 320 ms (slow adaptation, burst termination), tau_syn_ex 12 ms (NMDA-like), tau_syn_in 20 ms (glycinergic), V_m(0) -62 mV (L) / -70.6 mV (R) |
-| CC_L / CC_R | `aeif_cond_alpha` | tau_syn_ex 3.3 ms |
-| MN_L / MN_R | `iaf_cond_alpha` | tau_syn_ex 4.4 ms |
+| E_L / E_R | `aeif_cond_alpha` (Brette & Gerstner 2005) | a 8.4 nS, b 75 pA, tau_w 320 ms (slow adaptation, burst termination), tau_syn_ex 12 ms (NMDA-like), tau_syn_in 20 ms (glycinergic), V_m(0) -62 mV (L) / -70.6 mV (R) (pinned) |
+| CC_L / CC_R | `aeif_cond_alpha` | tau_syn_ex 3.3 ms, V_m(0) pinned at -70.6 mV (E_L) |
+| MN_L / MN_R | `iaf_cond_alpha` | tau_syn_ex 4.4 ms, V_m(0) pinned at -70 mV (E_L) |
 
 Delays: 1 ms within a side, 2 ms across the midline. The `drive` input is a `dc_generator`; the task sets its amplitude
 to 1.0 and the input weight (1050 pA) is the drive strength, so a player can scale the swim command by changing that weight.
@@ -47,9 +49,12 @@ to 1.0 and the input weight (1050 pA) is the drive strength, so a player can sca
 | Delete one crossing | phase 26 degrees, fail |
 | E -> CC x0 (CC silent) | in phase, fail |
 | E -> MN x0 | no motor output, fail |
+| E_R -> MN_R x0 (or E_L -> MN_L) | one-sided rhythm: the silent side is named, no phase, fail |
 | CC -> E x0.3 | still passes (3 Hz, 180 degrees): the half-centre tolerates weak inhibition |
 
 Credits: Brette R, Gerstner W (2005) J Neurophysiol 94:3637; Wang X-J, Rinzel J (1992) Neural Comput 4:84; Marder E,
 Calabrese RL (1996) Physiol Rev 76:687; Grillner S (2003) Nat Rev Neurosci 4:573; Buchanan JT (2001) Prog Neurobiol
 63:441; Wallen P, Williams TL (1984) J Physiol 347:225; Ekeberg O (1993) Biol Cybern 69:363; Lighthill MJ (1960)
 J Fluid Mech 9:305.
+
+The thrust model is a toy (T = 1/2 m v_tail^2 (1 - U/c)), not Lighthill's large-amplitude theory. Reference score 99.8 on 5 seeds (the network is noise free, so seeds give identical results).
