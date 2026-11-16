@@ -137,6 +137,14 @@ String SpikeSim::motif_json( int64_t sign, int64_t n_null, int64_t seed ) const
   return String::utf8( spike_gd::motif_json( *engine_, int( sign ), int( n_null ), uint64_t( seed ) ).c_str() );
 }
 
+String SpikeSim::motif_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed )
+{
+  std::vector< double > t( size_t( triples.size() ) );
+  for ( int64_t i = 0; i < triples.size(); ++i )
+    t[ size_t( i ) ] = triples[ i ];
+  return String::utf8( spike_gd::motif_json_edges( t, int( n ), int( sign ), int( n_null ), uint64_t( seed ) ).c_str() );
+}
+
 Dictionary SpikeSim::spike_stats( const PackedFloat64Array& pairs, int64_t n, double t0_ms, double t1_ms )
 {
   std::vector< spike::Spike > sp;
@@ -176,5 +184,6 @@ void SpikeSim::_bind_methods()
   ClassDB::bind_method( D_METHOD( "dropped" ), &SpikeSim::dropped );
   ClassDB::bind_method( D_METHOD( "stop" ), &SpikeSim::stop );
   ClassDB::bind_method( D_METHOD( "motif_json", "sign", "n_null", "seed" ), &SpikeSim::motif_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "motif_json_edges", "triples", "n", "sign", "n_null", "seed" ), &SpikeSim::motif_json_edges );
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "spike_stats", "pairs", "n", "t0_ms", "t1_ms" ), &SpikeSim::spike_stats );
 }

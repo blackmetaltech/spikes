@@ -40,6 +40,8 @@ public:
   /// 3-node motif census of the loaded circuit with z-scores vs degree-preserving nulls, as a JSON string (analysis.h).
   /// sign: 0 all, 1 excitatory only, 2 inhibitory only.
   String motif_json( int64_t sign, int64_t n_null, int64_t seed ) const;
+  /// Census of an explicit graph: `triples` = flat (pre, post, weight) per edge over nodes 0..n-1. No loaded circuit needed.
+  static String motif_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed );
   /// Spike-train statistics of a drained (neuron, t) pair array: rates, ISI CV, Golomb chi.
   static Dictionary spike_stats( const PackedFloat64Array& pairs, int64_t n, double t0_ms, double t1_ms );
 

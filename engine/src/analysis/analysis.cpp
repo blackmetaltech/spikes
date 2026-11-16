@@ -202,6 +202,11 @@ Census motif_census( const std::vector< Edge >& edges, int32_t n, Sign sign )
 
 Graph rewire( const Graph& g, uint64_t seed, int swaps_per_edge )
 {
+  return rewire( g, seed, swaps_per_edge, nullptr );
+}
+
+Graph rewire( const Graph& g, uint64_t seed, int swaps_per_edge, RewireStats* stats )
+{
   std::vector< std::pair< int32_t, int32_t > > e;
   std::unordered_set< uint64_t > present;
   const uint64_t N = static_cast< uint64_t >( std::max( g.n, 1 ) );
@@ -219,12 +224,16 @@ Graph rewire( const Graph& g, uint64_t seed, int swaps_per_edge )
     for ( uint64_t t = 0; t < tries; ++t )
     {
       const uint64_t i = rng.next() % m, j = rng.next() % m;
+      if ( stats )
+        ++stats->attempts;
       const auto [ a, b ] = e[ i ];
       const auto [ c, d ] = e[ j ];
       if ( a == c || b == d || a == d || c == b )
         continue;
       if ( present.count( a * N + d ) || present.count( c * N + b ) )
         continue;
+      if ( stats )
+        ++stats->accepted;
       present.erase( a * N + b );
       present.erase( c * N + d );
       present.insert( a * N + d );
@@ -249,8 +258,18 @@ MotifResult motif_zscores( const Graph& g, int n_null, uint64_t seed, int swaps_
   r.counts = motif_census( g );
   r.null_samples = n_null;
   std::vector< Census > nulls;
+  RewireStats rs;
   for ( int k = 0; k < n_null; ++k )
-    nulls.push_back( motif_census( rewire( g, seed + static_cast< uint64_t >( k ), swaps_per_edge ) ) );
+    nulls.push_back( motif_census( rewire( g, seed + static_cast< uint64_t >( k ), swaps_per_edge, &rs ) ) );
+  r.node_count = g.n;
+  r.edge_count = g.edge_count();
+  r.swap_attempts = rs.attempts;
+  r.swap_accepted = rs.accepted;
+  r.swap_acceptance = rs.attempts ? static_cast< double >( rs.accepted ) / static_cast< double >( rs.attempts ) : 0.0;
+  r.effective_swaps_per_edge =
+    ( n_null > 0 && r.edge_count > 0 ) ? static_cast< double >( rs.accepted ) / static_cast< double >( n_null ) / static_cast< double >( r.edge_count ) : 0.0;
+  r.degenerate = n_null > 0 && r.swap_acceptance < kMinSwapAcceptance;
+  r.significant.assign( kMotifClasses, 0 );
   r.null_mean.assign( kMotifClasses, 0.0 );
   r.null_sd.assign( kMotifClasses, 0.0 );
   r.z.assign( kMotifClasses, 0.0 );
@@ -277,6 +296,7 @@ MotifResult motif_zscores( const Graph& g, int n_null, uint64_t seed, int swaps_
       r.z[ c ] = 0.0;
     else
       r.z[ c ] = diff > 0 ? std::numeric_limits< double >::infinity() : -std::numeric_limits< double >::infinity();
+    r.significant[ c ] = ( std::isfinite( r.z[ c ] ) && std::fabs( r.z[ c ] ) > kSignificantZ && sd >= kMinNullSd && !r.degenerate ) ? 1 : 0;
   }
   return r;
 }
@@ -285,6 +305,11 @@ MotifResult motif_zscores(
   const std::vector< Edge >& edges, int32_t n, Sign sign, int n_null, uint64_t seed, int swaps_per_edge )
 {
   return motif_zscores( make_graph( edges, n, sign ), n_null, seed, swaps_per_edge );
+}
+
+bool motif_is_significant( const MotifResult& r, int c )
+{
+  return c >= 0 && c < static_cast< int >( r.significant.size() ) && r.significant[ c ] != 0;
 }
 
 static void json_num( std::ostringstream& o, double v )
@@ -302,7 +327,12 @@ static void json_num( std::ostringstream& o, double v )
 std::string motif_result_json( const MotifResult& r )
 {
   std::ostringstream o;
-  o << "{\"null_samples\":" << r.null_samples << ",\"motifs\":[";
+  o << "{\"null_samples\":" << r.null_samples << ",\"nodes\":" << r.node_count << ",\"edges\":" << r.edge_count
+    << ",\"swap_acceptance\":";
+  json_num( o, r.swap_acceptance );
+  o << ",\"effective_swaps_per_edge\":";
+  json_num( o, r.effective_swaps_per_edge );
+  o << ",\"degenerate\":" << ( r.degenerate ? "true" : "false" ) << ",\"motifs\":[";
   for ( int c = 0; c < kMotifClasses; ++c )
   {
     const auto& m = motif_info( c );
@@ -313,7 +343,8 @@ std::string motif_result_json( const MotifResult& r )
     json_num( o, c < static_cast< int >( r.null_sd.size() ) ? r.null_sd[ c ] : 0.0 );
     o << ",\"z\":";
     json_num( o, c < static_cast< int >( r.z.size() ) ? r.z[ c ] : 0.0 );
-    o << "}";
+    o << ",\"z_defined\":" << ( c < static_cast< int >( r.z.size() ) && std::isfinite( r.z[ c ] ) ? "true" : "false" )
+      << ",\"significant\":" << ( motif_is_significant( r, c ) ? "true" : "false" ) << "}";
   }
   o << "]}";
   return o.str();
