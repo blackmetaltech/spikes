@@ -414,3 +414,8 @@ Fix P0-1 and the P1 list. Then re-run the novice harness until every task passes
 - **A and H** both touch the lesion lab. H owns `lesion.gd` and the Runner API (multi-seed); A owns the lesion UI in `lab.gd`. Agree on `Runner.begin(task, circuit, sets, seeds)` first.
 - **G and E** share the `target_rad()` fix: E adds the override, G draws the ghost.
 - **J and A** share `telemetry.gd`. Whoever lands the `SpikeSim` modulator binding also deletes the fallbacks in `telemetry.gd:186-200`; nobody else edits that block.
+
+## Lead decisions (fix round)
+- **P0-1 route:** the engine applies per-model default modulation. Any population whose model has `ach`/`ne` parameters (the NESTML cells) follows the circuit-wide ACh/NE levels automatically unless the circuit's `modulation` table overrides it. The lab adds an output-kind switch (rate / modulator with gain and tau) so players can make vagal and sympathetic release pools. The sandbox dials then work on any circuit.
+- **G2:** the energy star and the 4-node, HRV, PRC and burst analysis panels land in 0.2. The "biologically faithful" motif star and plastic synapses in the editor are deferred to 0.3, and REQ-0.2 records this.
+- **Stars:** TEST x5 reseeds the circuit and records the mean, not the max. Any edit to a reference circuit marks it as "reference-derived", and a reference-derived circuit earns no stars.
