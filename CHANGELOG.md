@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] - Unreleased — Body systems
+## [0.2.0] - 2026-11-16 — Body systems
 
 The game widens from three small circuits to a campaign of eleven vertebrate-physiology tasks, with real effectors, new cell types and neuromodulators.
 
@@ -33,7 +33,11 @@ The game widens from three small circuits to a campaign of eleven vertebrate-phy
 - The `Telemetry` modulator dial calls `SpikeSim.set_modulator` directly; the fallbacks that created a `SpikeTask` per frame are gone.
 - Task order on the campaign map comes from the engine's registry; the map only keeps positions.
 
-### Known gaps (moved to 0.3, see `docs/REQ-0.2.md`)
+### Known gaps
+- **Reach is hard from an empty bench.** A beginner-built circuit passes about 2 of 6 seeds. The reference relies on spread synapse weights and cell parameters the editor cannot set yet. Planned for 0.3: a weight-spread control.
+- **Renshaw does not enforce its lesson.** A stretch-reflex circuit with no Renshaw cells can still pass, because the control tremor curve was measured on the reference, not on the player's own circuit.
+- **Sensor weights.** The first connection from a dc sensor uses one generic weight. A per-task default is planned.
+(moved to 0.3, see `docs/REQ-0.2.md`)
 - **Editor synapses:** the editor offers `static_synapse` only. STDP, dopamine STDP, Tsodyks, gap junctions and quantal STP still load from circuit files but cannot be added in the game.
 - **"Biologically faithful" star** (motif similarity to the reference): not implemented. The 3- and 4-node census is in the game, the comparison is not.
 - **Muscle from motor-unit spike trains:** the tasks drive the muscle from pool rates, as `docs/body/muscle.md` describes.
