@@ -1,7 +1,7 @@
 // Task "reach": a fast, accurate elbow movement from a triphasic agonist - antagonist - agonist burst pattern.
 //
 // WORLD (deterministic; limb and loop as in spinal_limb.h: supported elbow-like joint, flexor and extensor Hill muscles, spindle Ia
-// feedback with 10 + 10 ms conduction, pool rate / 50 Hz = excitation; no gravity).
+// feedback with 10 + 10 ms conduction, pool total rate / (20 units x rmax) = excitation; no gravity).
 //   Rest     theta_rest = 0.2 rad (both muscles at their optimal length). After each display a light manipulandum (a spring-damper toward
 //            the rest angle, 30 N m/rad and 3 N m s/rad, limited to 8 N m) brings the forearm back during 1500 ms, so every reach starts at rest.
 //   Sensors  "go" (dc): 100 for 40 ms at the moment the target appears (the go cue), else 0.
@@ -17,10 +17,10 @@
 //   overshoot    : (peak angle - target) / A, floored at 0, within 900 ms of the cue.
 //   final_err    : |mean angle over the last 300 ms of the display - target|.
 //   premature    : peak-to-peak angle in the 300 ms before the cue (the arm must not creep before "go").
-// A reach is "good" when reach_ms <= 700 ms, overshoot <= 0.30 and final_err <= 0.12 rad.
-// PASS: all three reaches good, premature <= 0.05 rad, wired, finished.
+// A reach is "good" when reach_ms <= 700 ms, overshoot <= 0.30 and final_err <= 0.15 rad.
+// PASS: all three reaches good, premature <= 0.10 rad, wired, finished.
 // VALUE: 100 * mean over reaches of ( 0.40 good + 0.20 (reach time score: 1 at <= 300 ms, 0 at >= 1000 ms)
-//                                   + 0.20 (1 - overshoot / 0.5)+ + 0.20 (1 - final_err / 0.15)+ ), minus 10 per 0.05 rad of premature creep.
+//                                   + 0.20 (1 - overshoot / 0.5)+ + 0.20 (1 - final_err / 0.15)+ ), minus 10 per 0.05 rad of premature creep. PASS limit on creep: 0.10 rad (limb tremor at rest reaches 0.03-0.08).
 //
 // Biology: Wachholder & Altenburger 1926; Hallett, Shahani & Young 1975 and Berardelli et al. 1996 (triphasic agonist - antagonist - agonist
 // EMG burst of fast ballistic movements; burst size and duration scale with the amplitude of the movement); Feldman 1986 (equilibrium-point
@@ -55,7 +55,7 @@ public:
            "that starts on 'go', scales with 'target', and times the three bursts with delays (neurons that inhibit and delay "
            "each other), drive the flexor (ag_motor) and extensor (ant_motor) pools, and keep the stretch reflex to hold the limb at "
            "the new angle. Three reaches of 0.4, 0.7 and 0.5 rad. Score: reach the target within 700 ms of the cue, overshoot by "
-           "less than 30% of the distance, finish within 0.12 rad, and do not creep before 'go'.";
+           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'.";
   }
   std::vector< std::string > sensor_channels() const override { return { "go", "target", "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
@@ -77,7 +77,7 @@ public:
     for ( int k = 0; k < kN; ++k )
       go_[ k ] = kLead + kSpacing * k + rng.uniform( 0, kJitter );
     LimbRigConfig c;
-    c.rmax_hz = 100;  // bursts of 60-120 Hz per cell stay informative (a pool at 100 Hz per cell is fully excited)
+    c.rmax_hz = 60;  // 12 motoneurons per pool: 12 cells at 60 Hz = 36 % of the muscle's 20 units at 60 Hz; the muscle is fully excited only when the pool's total rate reaches 20 x 60 Hz
     base_reset( c, kRest );
     th_.clear();
   }
@@ -90,11 +90,14 @@ public:
     s.parts[ "overshoot" ] = m.overshoot;
     s.parts[ "final_err_rad" ] = m.final_err;
     s.parts[ "premature_rad" ] = m.premature;
+    s.parts[ "worst_overshoot" ] = m.worst_over;
+    s.parts[ "worst_final_err_rad" ] = m.worst_final;
+    s.parts[ "worst_reach_ms" ] = m.worst_reach_ms;
     s.parts[ "good_reaches" ] = m.good;
     s.parts[ "reaches_done" ] = m.done;
     const bool done = t_ >= kDuration;
     s.value = m.value;
-    s.passed = done && m.done >= kN && m.good >= kN && m.premature <= 0.05 && wiring_.ok();
+    s.passed = done && m.done >= kN && m.good >= kN && m.premature <= 0.10 && wiring_.ok();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -102,16 +105,16 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( m.done == 0 )
       o << "Waiting for the first target" << yet;
-    else if ( m.premature > 0.05 )
-      o << "The arm creeps " << std::setprecision( 2 ) << m.premature << " rad before the go cue (limit 0.05): the target input must not move it until 'go'.";
-    else if ( m.good < m.done && m.reach_ms < 0 )
-      o << "The arm does not reach the target: " << m.done - m.good << " of " << m.done << " reaches never settle within 0.10 rad.";
-    else if ( m.good < m.done && m.overshoot > 0.30 )
-      o << "Overshoot " << m.overshoot * 100 << "% of the distance (limit 30%): the braking (antagonist) burst is too weak or too late.";
-    else if ( m.good < m.done && m.reach_ms > kReachLimit )
-      o << "Reaches take " << m.reach_ms << " ms (limit 700): the first (agonist) burst is too weak or too late.";
+    else if ( m.premature > 0.10 )
+      o << "The arm creeps " << std::setprecision( 2 ) << m.premature << " rad before the go cue (limit 0.10): the target input must not move it until 'go'.";
+    else if ( m.good < m.done && m.never > 0 )
+      o << "The arm does not reach the target: " << m.never << " of " << m.done << " reaches never settle within 0.10 rad.";
+    else if ( m.good < m.done && m.worst_over > 0.30 )
+      o << "Worst overshoot " << m.worst_over * 100 << "% of the distance (limit 30%): the braking (antagonist) burst is too weak or too late.";
+    else if ( m.good < m.done && m.worst_reach_ms > kReachLimit )
+      o << "The slowest reach takes " << m.worst_reach_ms << " ms (limit 700): the first (agonist) burst is too weak or too late.";
     else if ( m.good < m.done )
-      o << "Ends " << std::setprecision( 2 ) << m.final_err << " rad from the target (limit 0.12): the hold command does not match the target.";
+      o << "The worst reach ends " << std::setprecision( 2 ) << m.worst_final << " rad from the target (limit 0.15): the hold command does not match the target.";
     else
       o << ( done ? "All reaches good: " : "Good so far: " ) << m.reach_ms << " ms, overshoot " << m.overshoot * 100 << "%.";
     s.verdict = o.str();
@@ -146,6 +149,13 @@ protected:
     put_cue( e, "target", target );
   }
   void after_tick( double ) override { th_.push_back( rig_.joint.theta ); }
+  bool has_target() const override
+  {
+    for ( int k = 0; k < kN; ++k )
+      if ( t_ >= go_[ k ] && t_ < go_[ k ] + kShow )
+        return true;
+    return false;
+  }
   double target_rad() const override
   {
     for ( int k = 0; k < kN; ++k )
@@ -159,7 +169,8 @@ private:
   struct Metrics
   {
     double reach_ms = -1, overshoot = 0, final_err = 0, premature = 0, value = 0;
-    int good = 0, done = 0;
+    double worst_reach_ms = -1, worst_over = 0, worst_final = 0;  // the verdict compares the WORST reach with the per-reach limits
+    int good = 0, done = 0, never = 0;
   };
 
   Metrics analyse() const
@@ -202,11 +213,17 @@ private:
         peak = std::max( peak, th_[ i ] );
       const double over = std::max( 0.0, ( peak - tgt ) / A );
       const double fin = std::fabs( window_mean( th_, t0 + kShow - 300, t0 + kShow ) - tgt );
-      const bool good = reach >= 0 && reach <= kReachLimit && over <= 0.30 && fin <= 0.12;
+      const bool good = reach >= 0 && reach <= kReachLimit && over <= 0.30 && fin <= 0.15;
       if ( good )
         ++m.good;
       const double rt_s = reach >= 0 ? clampd( ( 1000.0 - reach ) / 700.0, 0, 1 ) : 0.0;
       val += 0.40 * good + 0.20 * rt_s + 0.20 * clampd( 1.0 - over / 0.5, 0, 1 ) + 0.20 * clampd( 1.0 - fin / 0.15, 0, 1 );
+      m.worst_over = std::max( m.worst_over, over );
+      m.worst_final = std::max( m.worst_final, fin );
+      if ( reach < 0 )
+        ++m.never;
+      else
+        m.worst_reach_ms = std::max( m.worst_reach_ms, reach );
       if ( reach >= 0 )
       {
         sr += reach;

@@ -139,19 +139,20 @@ def posture(P=None):
     d = dict(
         nIa=4, nII=3, nTONIC=6, nGAM=4, nMN=14, nIN=2,
         w_Ia_MN=2.4, w_II_MN=1.6, w_Ia_IN=3.0, w_IN_MN=-8.0,
-        w_T_F=12.0, w_T_E=5.0, w_T_G=6.0, tonic_w=200.0, I_e=650.0, I_e_G=650.0, spread=0.6,
+        w_T_F=18.5, w_T_E=5.0, w_T_G=6.0, tonic_w=200.0, I_e=650.0, I_e_G=650.0, spread=0.6,
     )
     d.update(P or {})
     mn = dict(MN, I_e=d["I_e"], **d.get("MN", {}))
+    mn_e = dict(mn, I_e=d.get("I_e_E", d["I_e"]))  # the extensor pool may sit lower under its rheobase (less standing co-contraction)
     gm = dict(MN, I_e=d["I_e_G"], **d.get("GM", {}))
     pops, projs = [], []
     for s, y0 in (("F", 40), ("E", 420)):
         pops.append(pop(f"Ia_{s}", "iaf_psc_alpha", d["nIa"], dict(AFF), 60, y0, dy=30, role="sensor"))
         pops.append(pop(f"II_{s}", "iaf_psc_alpha", d["nII"], dict(AFF), 60, y0 + 140, dy=30, role="sensor"))
         pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(IN), 260, y0 + 20, dy=40))
-        pops.append(pop(f"MN_{s}", "aeif_cond_alpha", d["nMN"], dict(mn), 460, y0, dy=30, role="motor"))
+        pops.append(pop(f"MN_{s}", "aeif_cond_alpha", d["nMN"], dict(mn if s == "F" else mn_e), 460, y0, dy=30, role="motor"))
     pops.append(pop("TONIC", "iaf_psc_alpha", d["nTONIC"], dict(AFF), 260, 240, dy=24, role="sensor"))
-    pops.append(pop("GAM", "aeif_cond_alpha", d["nGAM"], dict(gm), 460, 330, dy=24, role="motor"))
+    pops.append(pop("GAM", "aeif_cond_alpha", d["nGAM"], dict(gm), 560, 330, dy=20, role="motor"))
     for s, o in (("F", "E"), ("E", "F")):
         sfx = "" if s == "F" else "_E"
         projs.append(eproj(f"Ia_{s}", f"MN_{s}", edges_all(d["nIa"], d["nMN"], d.get("w_Ia_MN" + sfx, d["w_Ia_MN"]), 1.0, d["spread"], seed=7 + ord(s))))
@@ -194,7 +195,7 @@ def reach(P=None):
         w_T_MNF=5.95, w_T_MNE=-10.0,
         # burst generator: target scales each burst (sub-threshold drive), go triggers B1, delays chain B1 -> B2 -> B3
         w_T_B1=1.9, w_T_B2=1.32, w_T_B3=0.0, w_G_B1=24.0,
-        w_B1_MNF=2.4, w_B1_MNE=-1.86, w_B1_B2=6.0, d_B1_B2=212.4,
+        w_B1_MNF=2.85, w_B1_MNE=-1.86, w_B1_B2=6.0, d_B1_B2=212.4,
         w_B2_MNE=7.0, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
         w_B3_MNF=2.32, w_B3_B2=-10.74,
     )

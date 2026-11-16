@@ -1302,7 +1302,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 2.4,
+    "weight": 2.85,
     "delay": 1.0
    }
   },

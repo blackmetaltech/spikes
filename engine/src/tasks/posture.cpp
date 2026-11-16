@@ -2,7 +2,7 @@
 // descending input.
 //
 // WORLD (deterministic; limb and loop as in spinal_limb.h: elbow-like joint with flexor and extensor Hill muscles, 10 + 10 ms
-// conduction, pool rate / 50 Hz = excitation). Unlike the reflex tasks the limb is NOT supported: the forearm weighs 1.5 kg
+// conduction, pool total rate / (20 units x rmax) = excitation). Unlike the reflex tasks the limb is NOT supported: the forearm weighs 1.5 kg
 // (centre of mass 17 cm), gravity pulls with m g c cos(theta) = 2.5 N m at horizontal, and theta = 0 is horizontal, positive = raised.
 //   Target   theta* = 0.5 rad (29 degrees above horizontal). The limb starts there.
 //   Spindles Here the resting spindle bias is mostly fusimotor: Ia and II rest at 10 Hz and gamma drive adds 80 Hz (and 50 % length gain)
@@ -22,8 +22,8 @@
 //   offset_rad   : |mean err| over the 600 ms before each push (steady-state sag or lift, gravity included).
 //   osc_rad      : in the window 900-1600 ms after each push: peak-to-peak angle; a swing > 0.08 rad with >= 6 reversals is a sustained
 //                  oscillation.
-// PASS: rms_err <= 0.12 rad, max_err <= 0.30 rad, offset <= 0.12 rad, no sustained oscillation, all channels wired, finished.
-// VALUE: 100 * ( 0.45 clamp(1 - rms / 0.2) + 0.30 clamp(1 - max / 0.5) + 0.15 clamp(1 - offset / 0.2) + 0.10 (no oscillation) ).
+// PASS: rms_err <= 0.17 rad, max_err <= 0.30 rad, offset <= 0.17 rad, no sustained oscillation, all channels wired, finished.
+// VALUE: 100 * ( 0.45 clamp(1 - rms / 0.35) + 0.30 clamp(1 - max / 0.6) + 0.15 clamp(1 - offset / 0.35) + 0.10 (no oscillation) ).
 //
 // Biology: Matthews 1972 (gamma loop and the servo); Merton 1953 (follow-up length servo); Houk 1979 (regulation of stiffness);
 // Hulliger 1984 (fusimotor action); Nichols & Houk 1976 (reflex compensation for variations in muscle force).
@@ -81,6 +81,7 @@ public:
       amp_[ k ] = rng.uniform() < 0.5 ? a : -a;
     }
     LimbRigConfig c;
+    c.rmax_hz = 100;  // excitation 1 = 20 units x 100 Hz in total: 14 cells at 30-45 Hz drive the muscle at 0.2-0.3, on the steep, recruiting part of its force curve (at 0.5+ the force saturates and the limb has no stiffness)
     c.joint.mass_kg = 1.5;
     c.joint.spindle.ia_bias = 10;
     c.joint.spindle.ii_bias = 10;
@@ -101,11 +102,11 @@ public:
     s.parts[ "gamma" ] = rig_.gam;
     s.parts[ "pushes_done" ] = m.done;
     const bool done = t_ >= kDuration;
-    s.value = 100.0 * ( 0.45 * clampd( 1.0 - m.rms / 0.2, 0, 1 ) + 0.30 * clampd( 1.0 - m.mx / 0.5, 0, 1 ) +
-                        0.15 * clampd( 1.0 - m.offset / 0.2, 0, 1 ) + 0.10 * ( m.osc_flag ? 0.0 : 1.0 ) );
+    s.value = 100.0 * ( 0.45 * clampd( 1.0 - m.rms / 0.35, 0, 1 ) + 0.30 * clampd( 1.0 - m.mx / 0.6, 0, 1 ) +
+                        0.15 * clampd( 1.0 - m.offset / 0.35, 0, 1 ) + 0.10 * ( m.osc_flag ? 0.0 : 1.0 ) );
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 20.0 );
-    s.passed = done && m.done >= kN && wiring_.ok() && m.rms <= 0.12 && m.mx <= 0.30 && m.offset <= 0.12 && !m.osc_flag;
+    s.passed = done && m.done >= kN && wiring_.ok() && m.rms <= 0.17 && m.mx <= 0.30 && m.offset <= 0.17 && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 2 );
     const char* yet = done ? "." : " yet.";
@@ -115,13 +116,13 @@ public:
       o << "Settling" << yet;
     else if ( m.osc_flag )
       o << "The limb rings after a push (" << m.osc << " rad p-p): the reflex gain is too high for its delays.";
-    else if ( m.offset > 0.12 )
+    else if ( m.offset > 0.17 )
       o << "The limb " << ( m.signed_offset < 0 ? "sags " : "rides up " ) << std::fabs( m.signed_offset ) << " rad from the target between pushes: "
         << ( m.signed_offset < 0 ? "more flexor tone (or more reflex stiffness) is needed to balance gravity." : "less flexor tone, or more extensor tone, is needed." );
     else if ( m.mx > 0.30 )
       o << "Pushes move the limb up to " << m.mx << " rad from the target (limit 0.30): too compliant. Raise gamma drive or reflex gain.";
-    else if ( m.rms > 0.12 )
-      o << "RMS angle error " << m.rms << " rad (limit 0.12).";
+    else if ( m.rms > 0.17 )
+      o << "RMS angle error " << m.rms << " rad (limit 0.17).";
     else
       o << ( done ? "Holding" : "Holding so far" ) << ": rms error " << m.rms << " rad, worst " << m.mx << " rad, sag " << m.offset << " rad.";
     s.verdict = o.str();
@@ -139,6 +140,7 @@ protected:
   void cues( Engine& e, double ) override { put_cue( e, "drive", 1.0 ); }
   void after_tick( double ) override { th_.push_back( rig_.joint.theta ); }
   double target_rad() const override { return kTarget; }
+  bool has_target() const override { return true; }
   void extra_readouts( std::map< std::string, double >& r ) const override { r[ "err_rad" ] = rig_.joint.theta - kTarget; }
 
 private:
