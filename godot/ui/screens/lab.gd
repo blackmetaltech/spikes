@@ -34,6 +34,20 @@ var _brief_forced := false
 var _file_dlg: FileDialog
 var _connect_btn: Button
 var ext_ok := false
+var ov: Control                  # overlay layer: phone inspector sheet, menu, end-of-episode card
+var insp_scroll: ScrollContainer
+var _pending_banner := ""        # a message that arrived before the banner label existed (the first _reload runs before build)
+var _fail_shown := false
+var _adv_open := false           # the neuron inspector's ADVANCED fold
+var _rec_done := false           # this episode's result has been recorded
+var _rec_pass := false
+var _overlay: Control = null
+var _overlay_dismissed := false
+var _menu: Control = null
+var _palette_row: Control
+var _test := {}                  # the 5-seed TEST in progress: {seeds, i, res, sim, task, t}
+var _test_result := {}           # {passes, n, scores}: the last finished TEST on this circuit
+const TEST_SEEDS := [101, 102, 103, 104, 105]
 
 func default_focus() -> Control: return back_btn
 func on_back() -> bool: return false
@@ -48,21 +62,28 @@ func build() -> void:
 	for side in ["left", "right"]: margin.add_theme_constant_override("margin_" + side, mx)
 	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my); add_child(margin)
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(10 * f) if not phone else 6); margin.add_child(v)
-	v.add_child(_topbar(phone))
 	var compact := phone or get_viewport_rect().size.x < 1180.0
-	if compact: v.add_child(_tabs_row())
+	v.add_child(_topbar(phone, compact))
+	if compact and not phone: v.add_child(_tabs_row())
 	var body := HBoxContainer.new(); body.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(14 * f)); v.add_child(body)
 	# left: editor
 	var left := VBoxContainer.new(); left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left.size_flags_stretch_ratio = 1.55; left.add_theme_constant_override("separation", int(8 * f)); body.add_child(left)
 	panels["circuit"] = left
-	left.add_child(_palette(phone))
+	_palette_row = _palette(phone); left.add_child(_palette_row)
 	editor = CircuitEditor.new(); editor.size_flags_vertical = Control.SIZE_EXPAND_FILL; editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	editor.custom_minimum_size = Vector2(300, 200)
 	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Color("#080f1a"), Kit.LINE, 1, 12, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
 	editor.structure_changed.connect(_on_structure); editor.moved.connect(func(): pass)
 	editor.selection_changed.connect(func(_s): _build_inspector())
-	inspector = PanelContainer.new(); inspector.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 14, false)); left.add_child(inspector)
-	insp_body = VBoxContainer.new(); insp_body.add_theme_constant_override("separation", 8); inspector.add_child(insp_body)
+	inspector = PanelContainer.new(); inspector.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 12 if phone else 14, false))
+	insp_scroll = ScrollContainer.new(); insp_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; inspector.add_child(insp_scroll)
+	insp_body = VBoxContainer.new(); insp_body.add_theme_constant_override("separation", 8); insp_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; insp_scroll.add_child(insp_body)
+	ov = Control.new(); ov.set_anchors_preset(Control.PRESET_FULL_RECT); ov.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if phone:   # the inspector is a bottom sheet over the editor, so the canvas keeps the whole screen when nothing is selected
+		inspector.set_anchors_preset(Control.PRESET_BOTTOM_WIDE); inspector.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		inspector.offset_left = float(mx); inspector.offset_right = -float(mx); inspector.offset_bottom = -float(my)
+		ov.add_child(inspector)
+	else: left.add_child(inspector)
 	# right: instruments
 	var right := VBoxContainer.new(); right.size_flags_horizontal = Control.SIZE_EXPAND_FILL; right.size_flags_stretch_ratio = 1.0; right.add_theme_constant_override("separation", int(8 * f)); body.add_child(right)
 	panels["scopes"] = right
@@ -76,13 +97,18 @@ func build() -> void:
 	traces = TraceView.new(); traces.size_flags_vertical = Control.SIZE_EXPAND_FILL; traces.size_flags_stretch_ratio = 1.3; scopes.add_child(traces)
 	gauges = GaugeView.new(); gauges.custom_minimum_size = Vector2(0, 40.0 + 30.0 * maxi(1, tele.rates.size() if tele.sim != null else 2)); scopes.add_child(gauges)
 	banner = Kit.label("", 17, Kit.RED, true); banner.visible = false; v.add_child(banner)
+	add_child(ov)
+	if _pending_banner != "": _banner_raw(_pending_banner); _pending_banner = ""
 	_attach()
 	if OS.get_environment("SP_LABTAB") != "": tab = OS.get_environment("SP_LABTAB")
 	if compact: _apply_tab()
 	_file_dlg = FileDialog.new(); _file_dlg.access = FileDialog.ACCESS_FILESYSTEM; _file_dlg.filters = PackedStringArray(["*.json ; Circuit JSON"]); _file_dlg.current_dir = ProjectSettings.globalize_path(Circuits.user_dir())
-	_file_dlg.size = Vector2i(900, 560); add_child(_file_dlg)
+	add_child(_file_dlg)
 	_build_inspector()
+	if OS.get_environment("SP_ADV") != "": _adv_open = true
 	if OS.get_environment("SP_SEL") != "": _select_env(OS.get_environment("SP_SEL"))
+	if OS.get_environment("SP_MENU") != "": _open_menu()
+	if OS.get_environment("SP_TESTNOW") != "": _test_start.call_deferred()   # dev hook: run TEST x5 at once, print the result, quit
 
 func _exit_tree() -> void:
 	if app != null and not circuit.is_empty(): app.lab_keep[task_id] = circuit
@@ -101,13 +127,22 @@ func _start(tid: String) -> void:
 	if not loaded and ext_ok and task_id != "" and (OS.get_environment("SP_REF") != "" or app.lab_reference):
 		var txt := Circuits.read_reference(_ref_path(task_id))
 		var c := Circuits.parse(txt)
-		if not c.is_empty(): circuit = c; loaded = true
+		if not c.is_empty(): circuit = c; loaded = true; _mark_reference(true)
 	if not loaded:
 		var saved := _last_path()
 		if FileAccess.file_exists(saved) and OS.get_environment("SP_NOAUTOSAVE") == "": circuit = Circuits.parse(FileAccess.get_file_as_string(saved)); loaded = not circuit.is_empty()
 	if not loaded: circuit = _skeleton(task_id)
 	Circuits.ensure_pos(circuit)
 	_reload(true)
+	if task_id == "worm" and OS.get_environment("SP_SPEED") == "": tele.speed = 10.0   # a 120 s episode at 1x is a long wait
+
+## Reference circuits do not count for progress: remember that this circuit is one, until the player edits it.
+func _mark_reference(on: bool) -> void:
+	var meta: Dictionary = circuit.get("meta", {}); var ed: Dictionary = meta.get("editor", {})
+	if on: ed["from_reference"] = true
+	else: ed.erase("from_reference")
+	meta["editor"] = ed; circuit["meta"] = meta
+func _is_reference() -> bool: return bool(circuit.get("meta", {}).get("editor", {}).get("from_reference", false))
 
 func _ref_path(tid: String) -> String:
 	var t = ClassDB.instantiate("SpikeTask"); return str(t.call("reference_circuit_of", tid))
@@ -120,7 +155,7 @@ func _skeleton(tid: String) -> Dictionary:
 		var t = ClassDB.instantiate("SpikeTask")
 		if t.make(tid):
 			var kind: String = SENSOR_KIND.get(tid, "poisson")
-			for s in t.sensor_channels(): c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": 300.0 if kind == "dc" else 120.0, "value": 0.0})
+			for s in t.sensor_channels(): c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0})
 			for m in t.motor_channels(): c["outputs"].append({"name": str(m), "kind": "rate", "neurons": []})
 		c["meta"]["task"] = tid
 	return c
@@ -130,15 +165,13 @@ func _reload(first := false) -> void:
 	var was_running := tele.running if tele != null else true; var sp := tele.speed if tele != null else 1.0
 	if tele.sim != null: tele.sim.stop()
 	tele = Telemetry.new(); tele.running = was_running; tele.speed = sp
-	var ok := false
-	if Circuits.neuron_count(circuit) > 0: ok = tele.setup(circuit, task_id, ext_ok)
-	else:
-		tele.circuit = circuit; tele.error = ""
-		if ext_ok and task_id != "": tele.task = ClassDB.instantiate("SpikeTask"); tele.task.make(task_id); tele.body = tele.task.body(); tele.score = tele.task.score()
+	var ok := tele.setup(circuit, task_id, ext_ok)   # always makes the task, so the world and the brief show even for a half-built circuit
 	if ok and not keep.is_empty() and not first:
 		var valid := keep.filter(func(i): return i < tele.n)
 		if not valid.is_empty(): tele.set_watched(valid)
-	if not ok and tele.error != "": _banner(tele.error)
+	_fail_shown = false; _rec_done = false; _rec_pass = false; _overlay_dismissed = false; _test_result = {}
+	_overlay_hide()
+	if tele.error != "": _banner(tele.error)
 	elif banner != null: banner.visible = false
 	if first and OS.get_environment("SP_SPEED") != "": tele.speed = float(OS.get_environment("SP_SPEED"))
 	if editor != null: _attach()
@@ -148,17 +181,24 @@ func _attach() -> void:
 	gauges.custom_minimum_size = Vector2(0, 40.0 + 30.0 * maxi(1, tele.rates.size() if tele.sim != null else maxi(1, circuit.get("outputs", []).size())))
 	if run_btn != null: _sync_run_btn()
 
-func _banner(msg: String) -> void:
-	if banner == null: return
-	banner.text = "The engine rejected the circuit: " + msg; banner.visible = true
+func _banner(msg: String) -> void: _banner_raw("The engine rejected the circuit: " + msg)
 
-func _on_structure() -> void: _dirty = 0.0
+## Show `msg` in the red banner under the lab; before build() has made the label it is kept and shown at the end of build().
+func _banner_raw(msg: String) -> void:
+	if banner == null: _pending_banner = msg; return
+	banner.text = msg; banner.visible = true
+
+func _on_structure() -> void:
+	_dirty = 0.0
+	if _is_reference(): _mark_reference(false)   # an edited reference is the player's circuit now
 
 func _process(dt: float) -> void:
 	if _dirty >= 0.0:
 		_dirty += dt
 		if _dirty > 0.3: _dirty = -1.0; _reload(); _build_inspector()
-	if tele != null: tele.advance(dt)
+	if not _test.is_empty(): _test_step()
+	elif tele != null: tele.advance(dt)
+	_watch_episode()
 	if status != null and tele != null:
 		var spd := String.num(tele.speed) + "x"
 		if tele.sim != null and tele.running and tele.speed > 1.0 and tele.achieved < tele.speed * 0.85: spd = "%.1fx of %sx" % [tele.achieved, String.num(tele.speed)]
@@ -167,18 +207,25 @@ func _process(dt: float) -> void:
 static func _short(n: int) -> String: return "%.1fk" % (n / 1000.0) if n >= 10000 else str(n)
 
 # ---------- top bar, tabs, palette ----------
-func _topbar(phone: bool) -> Control:
-	var h := HFlowContainer.new(); h.add_theme_constant_override("h_separation", 10); h.add_theme_constant_override("v_separation", 6)
-	var bs := 22 if not phone else 20
-	back_btn = Kit.btn("BACK", func(): app.back(), "panel", bs, Vector2(96, 0)); h.add_child(back_btn)
+func _topbar(phone: bool, compact := false) -> Control:
+	var h := HFlowContainer.new(); h.add_theme_constant_override("h_separation", 10 if not phone else 8); h.add_theme_constant_override("v_separation", 6)
+	var bs := 22 if not phone else 18
+	back_btn = Kit.btn("BACK", func(): app.back(), "panel", bs, Vector2(96 if not phone else 70, 0)); h.add_child(back_btn)
 	if not phone: var ttl := Kit.shout(_title(), 34, Kit.TEXT); ttl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(ttl)
-	run_btn = Kit.btn("PAUSE", _toggle_run, "amber", bs, Vector2(120, 0)); h.add_child(run_btn)
-	h.add_child(Kit.btn("RESET", func(): _restart(), "panel", bs, Vector2(92, 0)))
-	h.add_child(Kit.stepper(SPEEDS, String.num(tele.speed), func(id): tele.speed = float(id), 76.0 if not phone else 64.0, 20, 44.0))
-	status = Kit.label("", 17 if not phone else 15, Kit.TEXT_SOFT); status.size_flags_vertical = Control.SIZE_SHRINK_CENTER; status.size_flags_horizontal = Control.SIZE_EXPAND_FILL; status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; status.custom_minimum_size.x = 220 if not phone else 120; h.add_child(status)
-	if phone: _sync_run_btn.call_deferred(); return h
-	if task_id != "": h.add_child(Kit.btn("BRIEF", func(): editor.select({}); _build_inspector(), "ghost", bs, Vector2(84, 0)))
+	if phone:   # one row: back, view tabs, run controls, and a single MENU for everything else
+		for t in [["circuit", "CIRCUIT"], ["world", "WORLD"], ["scopes_only", "SCOPES"]]:
+			var b := Kit.btn(t[1], func(): tab = t[0]; _apply_tab(), "panel", bs, Vector2(0, 0)); tab_btns[t[0]] = b; h.add_child(b)
+	run_btn = Kit.btn("PAUSE", _toggle_run, "amber", bs, Vector2(120 if not phone else 92, 0)); h.add_child(run_btn)
+	h.add_child(Kit.btn("RESET", func(): _restart(), "panel", bs, Vector2(92 if not phone else 70, 0)))
+	h.add_child(Kit.stepper(SPEEDS, String.num(tele.speed), func(id): tele.speed = float(id), 76.0 if not phone else 60.0, 20 if not phone else 18, 44.0 if not phone else 36.0))
+	status = Kit.label("", 17 if not phone else 15, Kit.TEXT_SOFT); status.size_flags_vertical = Control.SIZE_SHRINK_CENTER; status.size_flags_horizontal = Control.SIZE_EXPAND_FILL; status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; status.custom_minimum_size.x = 220 if not phone else 0
+	if phone:
+		status.visible = false; h.add_child(status)   # shown in the menu on a phone
+		h.add_child(Kit.btn("MENU", _toggle_menu, "cyan", bs, Vector2(84, 0))); _sync_run_btn.call_deferred(); return h
+	h.add_child(status)
+	if task_id != "": h.add_child(Kit.btn("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost", bs, Vector2(84, 0)))
 	if task_id != "": h.add_child(Kit.btn("REFERENCE", _load_reference, "cyan", bs, Vector2(150, 0)))
+	if task_id != "": h.add_child(Kit.btn("TEST x5", _test_start, "green", bs, Vector2(110, 0)))
 	h.add_child(Kit.btn("LOAD", _load_dialog, "panel", bs, Vector2(84, 0)))
 	h.add_child(Kit.btn("SAVE", _save_dialog, "panel", bs, Vector2(84, 0)))
 	h.add_child(Kit.btn("ANALYSIS", func(): app.open_analysis(circuit, tele, task_id), "green", bs, Vector2(130, 0)))
@@ -200,30 +247,33 @@ func _apply_tab() -> void:
 		var p: Control = panels[k]; p.visible = (k == tab)
 		if tab_btns.has(k): Kit.skin(tab_btns[k], "amber" if k == tab else "panel", 12)
 	panels["scopes"].visible = tab != "circuit"; panels["circuit"].visible = tab == "circuit"
+	_sheet_sync()
 
 func _palette(phone: bool) -> Control:
 	var h := HFlowContainer.new(); h.add_theme_constant_override("h_separation", 8); h.add_theme_constant_override("v_separation", 6)
-	var sz := 18 if not phone else 18
-	var models := []
-	for m in Circuits.MODELS: models.append([m, m])
-	h.add_child(Kit.stepper(models, Circuits.MODELS[model_idx], func(id): model_idx = Circuits.MODELS.find(id); preset_idx = 0; _refresh_presets(), 176.0 if not phone else 150.0, 18, 40.0))
-	_preset_holder = HBoxContainer.new(); h.add_child(_preset_holder); _refresh_presets()
+	var sz := 18
+	if not phone: _type_pickers(h)   # on a phone the model and preset pickers live in the MENU
 	h.add_child(Kit.btn("+ EXCITATORY", func(): _add_neuron("E"), "amber", sz))
 	h.add_child(Kit.btn("+ INHIBITORY", func(): _add_neuron("I"), "cyan", sz))
+	h.add_child(Kit.btn("+ NOISE", _add_noise, "panel", sz))
 	_connect_btn = Kit.btn("CONNECT", _toggle_connect, "panel", sz); h.add_child(_connect_btn)
 	h.add_child(Kit.btn("FIT", func(): editor.fit(), "ghost", sz))
-	if phone:
-		if task_id != "": h.add_child(Kit.btn("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost", sz)); h.add_child(Kit.btn("REFERENCE", _load_reference, "cyan", sz))
-		h.add_child(Kit.btn("LOAD", _load_dialog, "panel", sz)); h.add_child(Kit.btn("SAVE", _save_dialog, "panel", sz))
-		h.add_child(Kit.btn("ANALYSIS", func(): app.open_analysis(circuit, tele, task_id), "green", sz))
 	return h
+
+## Model and preset steppers for the next neuron to add.
+func _type_pickers(parent: Control) -> void:
+	var phone := Layout.phone
+	var models := []
+	for m in Circuits.MODELS: models.append([m, m])
+	parent.add_child(Kit.stepper(models, Circuits.MODELS[model_idx], func(id): model_idx = Circuits.MODELS.find(id); preset_idx = 0; _refresh_presets(), 150.0 if not phone else 190.0, 18, 40.0))
+	_preset_holder = HBoxContainer.new(); parent.add_child(_preset_holder); _refresh_presets()
 
 var _preset_holder: HBoxContainer
 func _refresh_presets() -> void:
 	for c in _preset_holder.get_children(): c.queue_free()
 	var m: String = Circuits.MODELS[model_idx]; var opts := []
 	for i in Circuits.PRESETS[m].size(): opts.append([str(i), Circuits.PRESETS[m][i][0]])
-	_preset_holder.add_child(Kit.stepper(opts, str(preset_idx), func(id): preset_idx = int(id), 168.0 if not Layout.phone else 130.0, 18, 40.0))
+	_preset_holder.add_child(Kit.stepper(opts, str(preset_idx), func(id): preset_idx = int(id), 130.0 if not Layout.phone else 190.0, 18, 40.0))
 
 func _toggle_connect() -> void:
 	editor.tool = "connect" if editor.tool == "select" else "select"; editor._connect_from = {}
@@ -233,12 +283,17 @@ func _add_neuron(kind: String) -> void:
 	var id := Circuits.add_neuron(circuit, Circuits.MODELS[model_idx], preset_idx, editor.free_spot(), kind)
 	editor.select({"t": "pop", "id": id}); editor.fit(); _on_structure()
 
+func _add_noise() -> void:
+	var name := Circuits.add_noise(circuit)
+	editor.select({"t": "in", "name": name}); editor.fit(); _on_structure(); _build_inspector()
+
 # ---------- run controls ----------
 func _toggle_run() -> void: tele.running = not tele.running; _sync_run_btn()
 func _sync_run_btn() -> void:
 	if run_btn != null: run_btn.text = "PAUSE" if tele.running else "RUN"
 func _restart() -> void:
-	if tele.sim != null: tele.reset()
+	_overlay_hide(); _overlay_dismissed = false; _rec_done = false; _rec_pass = false; _fail_shown = false
+	if tele.sim != null: tele.reset(); tele.running = true; _sync_run_btn()
 	elif tele.task != null: tele.task.reset(int(circuit.get("seed", 1)))
 	task_view.attach(tele)
 
@@ -246,14 +301,14 @@ func _load_reference() -> void:
 	var txt := Circuits.read_reference(_ref_path(task_id))
 	var c := Circuits.parse(txt)
 	if c.is_empty(): _banner("the reference circuit for this task is not installed (circuits/%s)" % _ref_path(task_id)); return
-	circuit = c; Circuits.ensure_pos(circuit); editor.select({}); _reload(true); _build_inspector()
+	circuit = c; Circuits.ensure_pos(circuit); _mark_reference(true); editor.select({}); _reload(true); _build_inspector()
 
 func _save_dialog() -> void:
 	for cn in _file_dlg.file_selected.get_connections(): _file_dlg.file_selected.disconnect(cn["callable"])
 	_file_dlg.file_mode = FileDialog.FILE_MODE_SAVE_FILE; _file_dlg.title = "Save circuit"
 	_file_dlg.current_file = str(circuit.get("name", "circuit")).to_lower().replace(" ", "_") + ".json"
 	_file_dlg.file_selected.connect(func(p): var fh := FileAccess.open(p, FileAccess.WRITE); if fh != null: fh.store_string(Circuits.to_json(circuit)))
-	_file_dlg.popup_centered()
+	_popup_file()
 
 func _load_dialog() -> void:
 	for cn in _file_dlg.file_selected.get_connections(): _file_dlg.file_selected.disconnect(cn["callable"])
@@ -262,13 +317,179 @@ func _load_dialog() -> void:
 		var c := Circuits.parse(FileAccess.get_file_as_string(p))
 		if c.is_empty(): _banner("not a circuit JSON file: " + p); return
 		circuit = c; Circuits.ensure_pos(circuit); editor.select({}); _reload(true); _build_inspector())
-	_file_dlg.popup_centered()
+	_popup_file()
+
+func _popup_file() -> void: _file_dlg.popup_centered_clamped(Vector2i(900, 560), 0.9)
 
 ## Persist the player's circuit per task (user://circuits/last_<task>.json) after each edit.
 func _autosave() -> void:
 	if OS.get_environment("SP_NOAUTOSAVE") != "" or Settings.no_save: return
 	var fh := FileAccess.open(_last_path(), FileAccess.WRITE)
 	if fh != null: fh.store_string(Circuits.to_json(circuit))
+
+# ---------- phone menu ----------
+func _toggle_menu() -> void:
+	if _menu != null: _close_menu()
+	else: _open_menu()
+
+func _close_menu() -> void:
+	if _menu != null: _menu.queue_free(); _menu = null
+
+## The phone's single menu: everything the desktop top bar and palette hold besides the run controls and the add-neuron buttons.
+func _open_menu() -> void:
+	_close_menu()
+	var scrim := Button.new(); scrim.flat = true; scrim.set_anchors_preset(Control.PRESET_FULL_RECT); scrim.focus_mode = Control.FOCUS_NONE
+	scrim.pressed.connect(_close_menu); ov.add_child(scrim); _menu = scrim
+	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 12, false)); scrim.add_child(pn)
+	pn.set_anchors_preset(Control.PRESET_TOP_RIGHT); pn.grow_horizontal = Control.GROW_DIRECTION_BEGIN; pn.offset_right = -14.0; pn.offset_top = 66.0
+	var sc := ScrollContainer.new(); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.custom_minimum_size = Vector2(430, 120); pn.add_child(sc)
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 8); v.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sc.add_child(v)
+	var st := Kit.label(status.text if status != null else "", 16, Kit.TEXT_SOFT); v.add_child(st)
+	v.add_child(Kit.label("NEW NEURON TYPE", 15, Kit.TEXT_SOFT)); _type_pickers(v)
+	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 8); row.add_theme_constant_override("v_separation", 8); v.add_child(row)
+	var item := func(t: String, cb: Callable, kind := "panel"): row.add_child(Kit.btn(t, func(): _close_menu(); cb.call(), kind, 18))
+	if task_id != "":
+		item.call("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost")
+		item.call("REFERENCE", _load_reference, "cyan")
+		item.call("TEST x5", _test_start, "green")
+	item.call("LOAD", _load_dialog); item.call("SAVE", _save_dialog)
+	item.call("ANALYSIS", func(): app.open_analysis(circuit, tele, task_id), "green")
+	_size_menu.call_deferred(sc, v)
+
+func _size_menu(sc: ScrollContainer, v: Control) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(sc) and is_instance_valid(v): sc.custom_minimum_size.y = minf(v.get_combined_minimum_size().y, size.y - 90.0)
+
+# ---------- progress, end-of-episode card, 5-seed test ----------
+func _stars_now() -> int:
+	if tele == null or tele.task == null: return 0
+	return Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit))
+
+## Called every frame: record a pass the moment it happens and the final result at the end of the episode; raise the end card; report a stopped run.
+func _watch_episode() -> void:
+	if tele == null: return
+	if tele.failed and not _fail_shown: _fail_shown = true; _banner_raw("The simulation stopped: " + tele.error + ". Fix the circuit and press RESET.")
+	if tele.task == null or tele.sim == null or tele.failed or not _test.is_empty(): return
+	var passed := bool(tele.score.get("passed", false))
+	if passed and not _rec_pass:
+		_rec_pass = true
+		if not _is_reference(): Progress.record(task_id, float(tele.score.get("value", 0.0)), true, 1)
+	if tele.finished and not _rec_done:
+		_rec_done = true
+		if not _is_reference(): Progress.record(task_id, float(tele.score.get("value", 0.0)), passed, 1 if passed else 0)
+		if not _overlay_dismissed: _overlay_show()
+
+func _overlay_hide() -> void:
+	if _overlay != null and is_instance_valid(_overlay): _overlay.queue_free()
+	_overlay = null
+
+func _ov_passed() -> bool:
+	if not _test_result.is_empty(): return int(_test_result["passes"]) == int(_test_result["n"])
+	return bool(tele.score.get("passed", false))
+
+func _end_text() -> String:
+	var sc: Dictionary = tele.score; var passed := _ov_passed(); var parts := []
+	if not _test_result.is_empty():
+		parts.append("Test: %d of %d seeds passed." % [int(_test_result["passes"]), int(_test_result["n"])])
+	if _is_reference():
+		parts.append("This is the reference circuit. Build your own from an empty bench to earn stars.")
+	elif not passed:
+		if _test_result.is_empty(): parts.append(str(sc.get("verdict", "")))
+		parts.append("Try: open the motor neuron's inspector and raise the weights into it, or add a neuron between sensor and motor.")
+	else:
+		var st := Progress.best(task_id)["stars"] as int
+		var nn := Circuits.neuron_count(circuit); var bud := Progress.budget(task_id)
+		if _test_result.is_empty() and st < 2: parts.append("Next star: press TEST x5. It runs 5 other random worlds; all must pass.")
+		elif st == 2 and nn > bud: parts.append("Third star: pass again with %d neurons or fewer (you have %d)." % [bud, nn])
+		elif st >= 3: parts.append("Three stars. Try the next task, or open ANALYSIS to see which motifs your circuit uses.")
+		elif st < 3 and _test_result.has("passes") and int(_test_result["passes"]) < int(_test_result["n"]): parts.append("It passes the fixed world but not every seed: make it less fragile, then TEST again.")
+	return "  ".join(parts)
+
+## The card that rises when an episode ends (or a TEST runs): score, stars, best, what to try next, and the buttons that matter.
+func _overlay_show(testing := false) -> void:
+	_overlay_hide()
+	var phone := Layout.phone
+	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; ov.add_child(root); _overlay = root
+	var dim := ColorRect.new(); dim.color = Color(Kit.BENCH, 0.62); dim.set_anchors_preset(Control.PRESET_FULL_RECT); dim.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(dim)
+	var cc := CenterContainer.new(); cc.set_anchors_preset(Control.PRESET_FULL_RECT); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(cc)
+	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 16, 14 if phone else 24, true)); cc.add_child(pn)
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6 if phone else 12); v.custom_minimum_size.x = 560 if not phone else 600; pn.add_child(v)
+	var passed := _ov_passed(); var val := int(roundf(float(tele.score.get("value", 0.0))))
+	if not _test_result.is_empty():
+		var tot := 0.0
+		for x in _test_result["scores"]: tot += float(x)
+		val = int(roundf(tot / maxf(float((_test_result["scores"] as Array).size()), 1.0)))
+	if testing:
+		var i := int(_test.get("i", 0))
+		v.add_child(Kit.shout("TESTING  %d of %d" % [mini(i + 1, TEST_SEEDS.size()), TEST_SEEDS.size()], 34 if not phone else 26, Kit.TEXT))
+		var pl := Kit.label("", 20 if not phone else 17, Kit.TEXT_SOFT, true); pl.name = "TestProg"; v.add_child(pl)
+		v.add_child(Kit.btn("CANCEL", _test_cancel, "panel", 20))
+		return
+	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 18); v.add_child(hd)
+	var col := Kit.GREEN if passed else Kit.RED
+	var tl := Kit.shout(("PASSED" if passed else "NOT PASSED") if _test_result.is_empty() else "%d OF %d SEEDS PASSED" % [int(_test_result["passes"]), int(_test_result["n"])], 40 if not phone else 28, col); tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hd.add_child(tl)
+	hd.add_child(Kit.shout(str(val), 54 if not phone else 36, Kit.TEXT))
+	var sr := HBoxContainer.new(); sr.add_theme_constant_override("separation", 14); v.add_child(sr)
+	var best := Progress.best(task_id); var ev := _OvStars.new(); ev.n = int(best["stars"]) if not _is_reference() else 0; ev.custom_minimum_size = Vector2(110, 30); sr.add_child(ev)
+	var bl := Kit.label("best %d" % int(roundf(float(best["value"]))) if not _is_reference() else "reference run: not recorded", 18 if not phone else 16, Kit.TEXT_SOFT); bl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(bl)
+	v.add_child(Kit.label(_end_text(), 19 if not phone else 16, Kit.TEXT, true))
+	var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 10); br.add_theme_constant_override("v_separation", 8); v.add_child(br)
+	br.add_child(Kit.btn("RUN AGAIN", _restart, "amber", 20))
+	br.add_child(Kit.btn("TEST x5", _test_start, "green", 20))
+	var nx := Progress.next_task(task_id)
+	if passed and nx != "": br.add_child(Kit.btn("NEXT TASK", func(): app.open_lab(nx), "cyan", 20))
+	br.add_child(Kit.btn("ANALYSIS", func(): app.open_analysis(circuit, tele, task_id), "panel", 20))
+	br.add_child(Kit.btn("CLOSE", func(): _overlay_dismissed = true; _overlay_hide(), "ghost", 20))
+
+class _OvStars extends Control:
+	var n := 0
+	func _draw() -> void:
+		for k in 3: ScoreCard.draw_star_on(self, Vector2(14.0 + 34.0 * k, size.y * 0.5), 13.0, Kit.AMBER if k < n else Color(Kit.LINE, 0.95))
+
+## TEST x5: five headless episodes of the task on five other seeds, run a slice of each frame. Pass on all five earns the second star.
+func _test_start() -> void:
+	if task_id == "" or tele.task == null or Circuits.neuron_count(circuit) == 0 or not _test.is_empty(): return
+	if tele.wiring_issue() != "": _banner_raw(tele.wiring_issue()); return
+	_close_menu(); _overlay_dismissed = false
+	if tele.sim != null: tele.sim.stop()
+	var sim = ClassDB.instantiate("SpikeSim"); var task = ClassDB.instantiate("SpikeTask"); task.make(task_id)
+	_test = {"i": 0, "res": [], "sim": sim, "task": task, "t": -1.0}
+	tele.running = false
+	_overlay_show(true)
+
+func _test_cancel() -> void:
+	_test = {}; _overlay_hide(); _reload(); _build_inspector()
+
+func _test_step() -> void:
+	var sim = _test["sim"]; var task = _test["task"]
+	if float(_test["t"]) < 0.0:   # begin episode i
+		if not sim.load_circuit(Circuits.to_json(Telemetry.sanitized(circuit))): _test = {}; _overlay_hide(); _reload(); _banner(str(sim.error())); return
+		task.reset(int(TEST_SEEDS[int(_test["i"])])); _test["t"] = 0.0
+	var t0 := Time.get_ticks_usec(); var dur := float(task.duration_ms())
+	while float(_test["t"]) < dur and Time.get_ticks_usec() - t0 < 12000:
+		task.step(sim, 1.0); _test["t"] = float(_test["t"]) + 1.0
+		if not bool(task.step_ok(sim)):
+			_test = {}; _overlay_hide(); _reload(); _banner_raw("The test stopped: " + str(sim.error())); return
+		if int(_test["t"]) % 200 == 0: sim.drain_spikes()
+	if _overlay != null:
+		var pl := _overlay.find_child("TestProg", true, false) as Label
+		if pl != null:
+			pl.text = "Seed %d: %d%% of the episode simulated." % [int(TEST_SEEDS[int(_test["i"])]), int(100.0 * float(_test["t"]) / maxf(dur, 1.0))]
+			var done: Array = _test["res"]
+			if not done.is_empty(): pl.text += "  Finished: " + ", ".join(done.map(func(r): return "%d%s" % [int(r["value"]), "" if r["passed"] else " (miss)"]))
+	if float(_test["t"]) < dur: return
+	var sc: Dictionary = task.score(); (_test["res"] as Array).append({"value": float(sc.get("value", 0.0)), "passed": bool(sc.get("passed", false))})
+	_test["i"] = int(_test["i"]) + 1; _test["t"] = -1.0
+	if int(_test["i"]) < TEST_SEEDS.size(): return
+	var res: Array = _test["res"]; var passes := 0
+	for r in res: passes += 1 if r["passed"] else 0
+	sim.stop(); _test = {}
+	_reload()   # the live view again (the engine is a process-wide singleton and the test used it)
+	_test_result = {"passes": passes, "n": res.size(), "scores": res.map(func(r): return r["value"])}
+	if not _is_reference() and passes > 0:
+		Progress.record(task_id, float(res.map(func(r): return r["value"]).max()), true, Progress.stars_for(task_id, true, passes == res.size(), Circuits.neuron_count(circuit)) if passes == res.size() else 1)
+	_rec_done = true; _overlay_show(); _build_inspector()
+	if OS.get_environment("SP_TESTNOW") != "" and OS.get_environment("SP_SHOT") == "": print("TEST RESULT ", _test_result, " best ", Progress.best(task_id)); get_tree().quit()
 
 # ---------- inspector ----------
 func _select_env(s: String) -> void:   # SP_SEL=pop:L | proj:0 | in:drive | out:left_motor
@@ -285,18 +506,43 @@ func _build_inspector() -> void:
 	_autosave()
 	var sel := editor.sel if editor != null else {}
 	var small := 17 if not Layout.phone else 16
-	inspector.visible = not (Layout.phone and sel.is_empty() and not _brief_forced)
-	if sel.is_empty(): _inspect_brief(small); return
-	match sel["t"]:
-		"pop": _inspect_pop(str(sel["id"]), small)
-		"proj": _inspect_proj(int(sel["i"]), small)
-		"in": _inspect_channel("inputs", str(sel["name"]), small)
-		"out": _inspect_channel("outputs", str(sel["name"]), small)
+	if sel.is_empty(): _inspect_brief(small)
+	else:
+		match sel["t"]:
+			"pop": _inspect_pop(str(sel["id"]), small)
+			"proj": _inspect_proj(int(sel["i"]), small)
+			"in": _inspect_channel("inputs", str(sel["name"]), small)
+			"out": _inspect_channel("outputs", str(sel["name"]), small)
+	_sheet_sync()
+	_fit_inspector.call_deferred()
+
+## On a phone the inspector is a bottom sheet that shows only while something is selected (or the brief is asked for) and only on the circuit tab.
+func _sheet_sync() -> void:
+	if inspector == null or editor == null: return
+	if not Layout.phone: inspector.visible = true; return
+	var show := (not editor.sel.is_empty() or _brief_forced) and tab == "circuit"
+	inspector.visible = show
+	if _palette_row != null: _palette_row.visible = not show   # the sheet needs the room
+	if not show and editor.inset_bottom != 0.0: editor.inset_bottom = 0.0; editor.fit()
+
+## Size the inspector's scroll area to its content (capped), and keep the phone editor's neurons above the sheet.
+func _fit_inspector() -> void:
+	await get_tree().process_frame
+	if not is_inside_tree() or insp_scroll == null or insp_body == null: return
+	var want := insp_body.get_combined_minimum_size().y
+	var cap := size.y * (0.46 if Layout.phone else 0.36)
+	insp_scroll.custom_minimum_size.y = minf(want, cap)
+	if Layout.phone:
+		await get_tree().process_frame
+		if not is_inside_tree() or editor == null: return
+		var inset: float = (inspector.size.y + 12.0) if inspector.visible else 0.0
+		if absf(inset - editor.inset_bottom) > 12.0: editor.inset_bottom = inset; editor.fit()
 
 func _head(title: String, kind_col: Color, tag := "") -> HBoxContainer:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10)
 	h.add_child(Kit.chip(title, kind_col, 18))
-	if tag != "": var l := Kit.label(tag, 17, Kit.TEXT_SOFT); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; l.clip_text = true; h.add_child(l)
+	var l := Kit.label(tag, 17, Kit.TEXT_SOFT); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; l.clip_text = true; h.add_child(l)
+	if Layout.phone: h.add_child(Kit.btn("DONE", func(): _brief_forced = false; editor.select({}); _build_inspector(), "panel", 18))
 	return h
 
 func _inspect_brief(small: int) -> void:
@@ -306,13 +552,14 @@ func _inspect_brief(small: int) -> void:
 	insp_body.add_child(_head("BRIEF" if task_id != "" else "FREE RUN", Kit.exc(), _title() if task_id != "" else "build any circuit and watch it run"))
 	var txt := t if t != "" else "Add neurons, connect them by dragging from one disc's rim to another, and watch the raster and the voltage traces."
 	var l := Kit.label(txt, small, Kit.TEXT_SOFT, true); insp_body.add_child(l)
+	if task_id != "" and Progress.budget(task_id) > 0: insp_body.add_child(Kit.label("Stars: 1 pass.  2 pass on 5 seeds (TEST x5).  3 the same with %d neurons or fewer." % Progress.budget(task_id), small, Kit.TEXT_SOFT, true))
 	var leg := HBoxContainer.new(); leg.add_theme_constant_override("separation", 8)
 	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.GREEN, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
 	insp_body.add_child(leg)
 
 func _val_row(name: String, lo: float, hi: float, step: float, val: float, unit: String, cb: Callable) -> Control:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10); h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var nm := Kit.label(name, 17, Kit.TEXT_SOFT); nm.custom_minimum_size.x = 84; h.add_child(nm)
+	var nm := Kit.label(name, 17, Kit.TEXT_SOFT); nm.custom_minimum_size.x = 100; h.add_child(nm)
 	var s := HSlider.new(); s.min_value = lo; s.max_value = hi; s.step = step; s.value = val; s.size_flags_horizontal = Control.SIZE_EXPAND_FILL; s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.custom_minimum_size = Vector2(120, maxf(30.0, Layout.tap())); s.focus_mode = Kit.focus_mode(); h.add_child(s)
 	var vl := Kit.label(_num(val) + " " + unit, 17, Kit.TEXT); vl.custom_minimum_size.x = 96; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; h.add_child(vl)
@@ -342,6 +589,13 @@ func _inspect_pop(id: String, small: int) -> void:
 	insp_body.add_child(nrow)
 	var info: String = str(presets[cur][2]) if cur >= 0 else "Custom parameters."
 	insp_body.add_child(Kit.label(info + "  Drag the disc to move it, drag from its rim to connect.", small, Kit.TEXT_SOFT, true))
+	insp_body.add_child(Kit.btn("HIDE ADVANCED" if _adv_open else "ADVANCED", func(): _adv_open = not _adv_open; _build_inspector(), "ghost", 18))
+	if _adv_open and Circuits.ADVANCED.has(model):
+		var prm: Dictionary = p.get("params", {})
+		for a in Circuits.ADVANCED[model]:
+			var key: String = a[0]
+			insp_body.add_child(_val_row(str(a[1]), float(a[2]), float(a[3]), float(a[4]), float(prm.get(key, a[5])), str(a[6]), func(x): var pp: Dictionary = p.get("params", {}); pp[key] = x; p["params"] = pp; _on_structure()))
+		insp_body.add_child(Kit.btn("RESET PARAMETERS", func(): Circuits.set_model(circuit, id, model, 0); _on_structure(); _build_inspector(), "panel", 18))
 
 func _toggle_trace(id: String) -> void:
 	var pi := Circuits.pop_index(circuit, id); var g := Circuits.pop_first(circuit, pi); var w: Array = tele.watched.duplicate()
@@ -369,13 +623,13 @@ func _inspect_proj(i: int, small: int) -> void:
 	var pi := Circuits.pop_index(circuit, post); var wmax: float = 4.0 * float(Circuits.WEIGHT.get(str(circuit["populations"][pi].get("model", "")), 100.0)) if pi >= 0 else 400.0
 	var unit := "nS" if pi >= 0 and str(circuit["populations"][pi].get("model", "")).contains("cond") else "pA"
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); insp_body.add_child(r1)
-	r1.add_child(Kit.stepper(SYNAPSE_OPTS, Circuits.proj_model(pr), func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; _on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
+	var cur_syn := Circuits.proj_model(pr)
+	if cur_syn != "static_synapse": r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; _on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
 	r1.add_child(Kit.btn("E / I", func(): Circuits.set_proj_weight(pr, -Circuits.proj_weight(pr)); _on_structure(); _build_inspector(), "panel", 18))
 	r1.add_child(Kit.btn("DELETE", func(): editor.delete_selected(), "danger", 18))
 	insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); _on_structure()))
 	insp_body.add_child(_val_row("delay", 0.1, 20.0, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, x); _on_structure()))
 
-const SYNAPSE_OPTS := [["static_synapse", "static"], ["stdp_synapse", "STDP"], ["tsodyks_synapse", "Tsodyks"]]
 
 func _inspect_channel(key: String, name: String, small: int) -> void:
 	var ch := {}
@@ -391,6 +645,13 @@ func _inspect_channel(key: String, name: String, small: int) -> void:
 	var l := Kit.label(("Connected to: " + ", ".join(names)) if not names.is_empty() else ("Not connected yet: drag from the card's right edge onto a neuron." if is_in else "Not connected yet: drag from a neuron's rim onto this card."), small, Kit.TEXT_SOFT, true); insp_body.add_child(l)
 	if is_in:
 		var kind := str(ch.get("kind", "dc")); var unit := "pA" if kind == "dc" else "Hz"
-		insp_body.add_child(_val_row("weight", 0.0, 1500.0, 5.0, float(ch.get("weight", 1.0)), "pA", func(x): ch["weight"] = x; _on_structure()))
-		if not driven: insp_body.add_child(_val_row("value", 0.0, 1000.0 if kind == "dc" else 400.0, 1.0, float(ch.get("value", 0.0)), unit, func(x): ch["value"] = x; _on_structure()))
+		var wunit := "pA"; var wmax := 1500.0
+		if not tg.is_empty():
+			var tpi := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
+			if tpi >= 0:
+				var tm := str(circuit["populations"][tpi].get("model", ""))
+				wunit = "nS" if tm.contains("cond") else "pA"; wmax = 8.0 * float(Circuits.WEIGHT.get(tm, 100.0))
+		insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 300.0, float(ch.get("weight", 1.0)), wunit, func(x): ch["weight"] = x; _on_structure()))
+		if not driven: insp_body.add_child(_val_row("rate" if kind != "dc" else "value", 0.0, 1000.0 if kind == "dc" else 400.0, 1.0, float(ch.get("value", 0.0)), unit, func(x): ch["value"] = x; _on_structure()))
+		if not driven: insp_body.add_child(Kit.btn("REMOVE INPUT", func(): editor.delete_selected(), "danger", 18))
 	insp_body.add_child(Kit.btn("DISCONNECT ALL", func(): ch["targets" if is_in else "neurons"] = []; _on_structure(); _build_inspector(), "panel", 18))

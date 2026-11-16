@@ -20,9 +20,10 @@ var _connect_from := {}            # tool == connect: the first tap
 var _cards := {}                   # cached channel card rects (screen space) by "in:name" / "out:name"
 var _r := 20.0
 var _fit_pending := true
+var inset_bottom := 0.0            # px at the bottom covered by the phone inspector sheet: fit() keeps the neurons above it
 
 func _ready() -> void:
-	clip_contents = true; mouse_filter = Control.MOUSE_FILTER_STOP; focus_mode = Control.FOCUS_NONE
+	clip_contents = true; mouse_filter = Control.MOUSE_FILTER_STOP; focus_mode = Control.FOCUS_CLICK
 	resized.connect(func(): _fit_pending = true)
 
 func _process(_dt: float) -> void:
@@ -46,7 +47,7 @@ func _bbox(ns: Array) -> Rect2:
 	return Rect2(lo, hi - lo)
 
 func _card_size() -> Vector2:
-	var k := clampf(Kit.f(), 0.85, 1.0); return Vector2(150.0, 52.0) * k
+	var k := clampf(Kit.f(), 0.85, 1.0); return Vector2(150.0 * k, maxf(52.0 * k, float(Kit.fs(14)) * 2.0 + 18.0))
 
 ## Fit the neuron block into the canvas, leaving room (in screen px) for the sensor cards on the left and the motor cards on the right.
 func _do_fit(ns: Array) -> void:
@@ -54,9 +55,9 @@ func _do_fit(ns: Array) -> void:
 	var cw := _card_size().x
 	var side_in := cw + 76.0 if not circuit.get("inputs", []).is_empty() else 0.0
 	var side_out := cw + 76.0 if not circuit.get("outputs", []).is_empty() else 0.0
-	var avail := Vector2(size.x - 24.0 - side_in - side_out, size.y - 80.0)
+	var avail := Vector2(size.x - 24.0 - side_in - side_out, size.y - (44.0 if inset_bottom > 0.0 else 80.0) - inset_bottom)
 	view_scale = clampf(minf(avail.x / maxf(bb.size.x, 1.0), avail.y / maxf(bb.size.y, 1.0)), 0.3, 2.0)
-	view_off = Vector2(12.0 + side_in + avail.x * 0.5, size.y * 0.5 + 6.0) - bb.get_center() * view_scale
+	view_off = Vector2(12.0 + side_in + avail.x * 0.5, (size.y - inset_bottom) * 0.5 + 6.0) - bb.get_center() * view_scale
 	_fit_pending = false
 
 func to_screen(m: Vector2) -> Vector2: return m * view_scale + view_off
@@ -197,17 +198,6 @@ func _draw() -> void:
 		var tip := cp[3]
 		if w < 0.0: Gfx.bar_head(self, tip, tan, Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
 		else: Gfx.arrow_head(self, tip, tan, Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
-	# --- the selected axon names its weight and delay
-	if sel.get("t", "") == "proj" and int(sel.get("i", -1)) < projs.size() and int(sel.get("i", -1)) >= 0:
-		var cp: PackedVector2Array = geo[int(sel["i"])]
-		if cp.size() == 4:
-			var pr: Dictionary = projs[int(sel["i"])]; var w := Circuits.proj_weight(pr)
-			var pi2 := Circuits.pop_index(circuit, Circuits.proj_pop(pr.get("post", ""))); var unit := "nS" if pi2 >= 0 and str(circuit["populations"][pi2].get("model", "")).contains("cond") else "pA"
-			var txt := "%s%s %s   %s ms" % ["+" if w >= 0.0 else "-", str(snappedf(absf(w), 0.1)), unit, str(snappedf(Circuits.proj_delay(pr), 0.1))]
-			var mid := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
-			var rect := Rect2(mid - Vector2(tw * 0.5, float(fz) * 0.9 + 4.0), Vector2(tw, float(fz) + 8.0))
-			Gfx.rounded_rect(self, rect, Kit.PANEL_HI, _kind_col("I" if w < 0.0 else "E"), 6.0, 1.4)
-			draw_string(font, rect.position + Vector2(8, float(fz) + 2.0), txt, HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.TEXT)
 	# --- pulses
 	if tele != null and tele.sim != null:
 		for pj in projs.size():
@@ -261,6 +251,17 @@ func _draw() -> void:
 		if tele != null and tele.watched.has(gi):
 			var idx := tele.watched.find(gi)
 			draw_circle(p + Vector2(rr * 0.9, -rr * 0.9), 7.0, Color(Kit.BENCH, 0.9)); draw_circle(p + Vector2(rr * 0.9, -rr * 0.9), 5.0, col)
+	# --- the selected axon names its weight and delay
+	if sel.get("t", "") == "proj" and int(sel.get("i", -1)) < projs.size() and int(sel.get("i", -1)) >= 0:
+		var cp: PackedVector2Array = geo[int(sel["i"])]
+		if cp.size() == 4:
+			var pr: Dictionary = projs[int(sel["i"])]; var w := Circuits.proj_weight(pr)
+			var pi2 := Circuits.pop_index(circuit, Circuits.proj_pop(pr.get("post", ""))); var unit := "nS" if pi2 >= 0 and str(circuit["populations"][pi2].get("model", "")).contains("cond") else "pA"
+			var txt := "%s%s %s   %s ms" % ["+" if w >= 0.0 else "-", str(snappedf(absf(w), 0.1)), unit, str(snappedf(Circuits.proj_delay(pr), 0.1))]
+			var mid := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
+			var rect := Rect2(mid - Vector2(tw * 0.5, float(fz) * 0.9 + 4.0), Vector2(tw, float(fz) + 8.0))
+			Gfx.rounded_rect(self, rect, Kit.PANEL_HI, _kind_col("I" if w < 0.0 else "E"), 6.0, 1.4)
+			draw_string(font, rect.position + Vector2(8, float(fz) + 2.0), txt, HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.TEXT)
 	# --- labels
 	for p in pops:
 		var c: Vector2 = p["c"]; var rr: float = p["rad"]
@@ -286,7 +287,8 @@ func _draw() -> void:
 		var pd := _pop_dict(pops, str(_connect_from.get("id", "")))
 		if not pd.is_empty(): draw_arc(pd["c"], float(pd["rad"]) + 12.0, 0, TAU, 48, Color(1, 1, 1, 0.8), 2.0, true)
 	if circuit.get("populations", []).is_empty():
-		draw_string(font, Vector2(0, size.y * 0.5), "An empty bench. Add a neuron below, or load the reference circuit.", HORIZONTAL_ALIGNMENT_CENTER, size.x, Kit.fs(20), Kit.TEXT_SOFT)
+		var hw := maxf(size.x * 0.8, 160.0)
+		draw_multiline_string(font, Vector2((size.x - hw) * 0.5, size.y * 0.16), "An empty bench. Press + EXCITATORY above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 4, Kit.TEXT_SOFT)
 
 func _draw_card(font: Font, fz: int, side: String, ch: Dictionary, task_driven: bool, now: float) -> void:
 	var name := str(ch.get("name", "")); var r: Rect2 = _cards[side + ":" + name]
@@ -356,6 +358,7 @@ func _gui_input(e: InputEvent) -> void:
 	elif e is InputEventKey and e.pressed and (e.keycode == KEY_DELETE or e.keycode == KEY_BACKSPACE): delete_selected()
 
 func _press(p: Vector2) -> void:
+	if not Kit.pad_mode: grab_focus()   # so the Delete key reaches _gui_input
 	var h := _hit(p)
 	if tool == "connect" and editable:
 		if h.is_empty(): _connect_from = {}; select({}); return
@@ -392,6 +395,9 @@ func _make_link(src: Dictionary, dst: Dictionary) -> void:
 				var tg: Array = ch.get("targets", [])
 				for x in tg:
 					if Circuits.proj_pop(x) == str(dst["id"]): return
+				if tg.is_empty():   # first connection: a weight that makes that neuron model fire (not a silent 120 pA onto a 20 nS cell)
+					var pi := Circuits.pop_index(circuit, str(dst["id"]))
+					if pi >= 0: ch["weight"] = Circuits.input_weight(str(circuit["populations"][pi].get("model", "iaf_psc_alpha")), str(ch.get("kind", "poisson")))
 				tg.append(str(dst["id"])); ch["targets"] = tg; structure_changed.emit(); return
 	elif src["t"] == "pop" and dst["t"] == "out":
 		for ch in circuit["outputs"]:
@@ -419,8 +425,19 @@ func delete_selected() -> void:
 	match sel["t"]:
 		"pop": Circuits.remove_population(circuit, str(sel["id"]))
 		"proj": circuit["projections"].remove_at(int(sel["i"]))
+		"in":
+			if not is_free_input(str(sel["name"])): return   # a task's sensors stay
+			var keep := []
+			for ch in circuit["inputs"]:
+				if str(ch.get("name", "")) != str(sel["name"]): keep.append(ch)
+			circuit["inputs"] = keep
 		_: return
 	sel = {}; selection_changed.emit(sel); structure_changed.emit(); queue_redraw()
+
+## True for an input the player added (noise): not one of the task's sensors.
+func is_free_input(name: String) -> bool:
+	if tele != null and tele.task != null and (tele.task.sensor_channels() as PackedStringArray).has(name): return false
+	return true
 
 ## A free spot right of the existing neurons for a newly added one.
 func free_spot() -> Vector2:
