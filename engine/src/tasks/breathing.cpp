@@ -26,6 +26,7 @@
 // Respiratory Physiology). The chemoreflex gain here is a game value (a few L/min per mmHg PaCO2 for real subjects).
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/body/lungs.h"
 #include "task_util.h"
@@ -53,13 +54,29 @@ public:
     return "Breathing is rhythmic because a small network in the brainstem, the preBotzinger complex, contains neurons that burst "
            "on their own (persistent sodium current) and excite each other into a shared burst every few seconds. The bursts excite "
            "phrenic motoneurons, the phrenic nerve drives the diaphragm, and the lungs fill. Blood CO2 closes the loop: chemoreceptors "
-           "report PaCO2, and the brainstem answers with faster and deeper breaths. Build a rhythm generator from butera_burster cells "
-           "(excitatory coupling makes them burst together), give it the brainstem 'drive', route the 'chemo' afferent to it and "
-           "to the phrenic motor pool, and read out 'phrenic'. Score: 12-20 breaths per minute at rest; when the air gets 5% CO2 "
-           "(50-110 s) ventilation must at least 1.6x and PaCO2 must stay below 52 mmHg; it must come back afterwards.";
+           "report PaCO2, and the brainstem answers with faster and deeper breaths. Score: 12-20 breaths per minute at rest; when the air "
+           "gets 5% CO2 (50-110 s) ventilation must rise at least 1.6x and PaCO2 must stay below 52 mmHg; it must come back afterwards. "
+           "A recipe that works, in steps (units: weights of burster synapses are nS, of iaf cells pA; 'drive' is a Poisson train, "
+           "'chemo' is a current in pA): (1) about 10 butera_burster cells (PBC), g_NaP 2.8 nS and g_tonic 0.29 nS, each excited by every "
+           "other with a WEAK weight of about 0.03 nS (not 1: strong coupling gives 100+ breaths a minute); 'drive' onto PBC at weight "
+           "0.005. Alone a burster fires a burst every 4-5 s. (2) 8 iaf_psc_alpha phrenic cells (PHR) with I_e about 380 pA, excited by "
+           "PBC at about 2 pA, read out as 'phrenic'. (3) A few tonic iaf 'expiratory' cells (I_e about 430 pA) that PBC inhibits "
+           "(weight about -60) and that inhibit PHR (about -30): they keep the phrenic pool quiet between breaths. (4) Route 'chemo' "
+           "through relay cells (iaf, I_e about 335 pA, weight 1) to PBC (about 0.09 nS: breathing gets faster, the 'frequency' path) and "
+           "to PHR (about 8 pA: breaths get deeper). If the rate is wrong, change the burster drive, not the coupling: g_tonic 0.30 gives a "
+           "burst every 4.9 s, 0.35 every 2.6 s.";
   }
   std::vector< std::string > sensor_channels() const override { return { "drive", "chemo" }; }
   std::vector< std::string > motor_channels() const override { return { "phrenic" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    ChannelKind d, c;
+    d.kind = "poisson";
+    d.value = kDriveHz;
+    c.kind = "dc";  // graded current (pA)
+    c.value = 51;
+    return { { "drive", d }, { "chemo", c }, { "phrenic", ChannelKind{ "rate" } } };
+  }
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "breathing"; }
   std::string view() const override { return "lungs"; }
@@ -164,11 +181,15 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_ < 1 )
-      o << "The phrenic pool never fired" << yet << " Check that the rhythm generator is driven and excites the phrenic motoneurons.";
+      o << "The phrenic pool never fired" << yet << " Do the bursters burst (g_tonic about 0.3 nS)? Iaf phrenic cells need a standing current (I_e about 380 pA) and a PBC -> PHR weight of about 2.";
     else if ( rest.n < 5 )
-      o << "Only " << static_cast< int >( rest.n ) << " breaths in the 36 s of rest" << yet << " Need a regular rhythm of 12-20 per minute.";
+      o << "Only " << static_cast< int >( rest.n ) << " breaths in the 36 s of rest" << yet << " Need a regular rhythm of 12-20 per minute: raise the burster drive "
+        << "(g_tonic 0.30 nS = a burst every 4.9 s, 0.35 = 2.6 s) and make sure the bursters are coupled so they burst together; if the phrenic pool is "
+        << "held silent, check the expiratory inhibition.";
     else if ( rest.rate < 12 || rest.rate > 20 )
-      o << "Resting rate " << rest.rate << " /min is outside 12-20.";
+      o << "Resting rate " << rest.rate << " /min is outside 12-20: "
+        << ( rest.rate > 20 ? "too fast. Weaken the burster coupling (about 0.03 nS) or lower g_tonic / the chemo weight to the bursters (a burster bursts every 4.9 s at g_tonic 0.30)."
+                            : "too slow. Raise the drive to the bursters (g_tonic about 0.3-0.35 nS, or more chemo weight) or strengthen the coupling a little." );
     else if ( pa_rest < 35 || pa_rest > 45 )
       o << "Resting PaCO2 " << pa_rest << " mmHg is outside 35-45: the breaths are too " << ( pa_rest > 45 ? "shallow" : "deep" ) << ".";
     else if ( !done && t_ < kChB * 1000.0 )

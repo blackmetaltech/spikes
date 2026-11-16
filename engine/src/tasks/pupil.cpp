@@ -13,9 +13,11 @@
 //   dim     = mean D over 3-4 s (adapted to the dark), bright = mean D over 9.5-11 s, dim2 = mean D over 18.5-20 s,
 //   medium  = mean D over 24.5-26 s, fright = mean D over 32.5-34 s.
 //   constriction = dim - bright, redilation = dim2 - bright, fright dilation = fright - medium.
-//   latency (constriction) = time after the 4 s step until D has fallen 10 % of the way from dim to bright; (redilation) likewise after 11 s.
+//   latency (constriction) = time after the 4 s step until D has fallen 20 % of the way from its value just before the step (mean of the preceding 200 ms,
+//   not the 3-4 s mean, which pupil noise already crosses) to the bright plateau and stays there for 50 ms; (redilation) likewise after 11 s.
+//   A crossing within 50 ms of the step is not a reflex and is ignored; no persistent crossing = no response.
 //   pass  : constriction >= 2.5 mm and bright <= 4.5 mm (direction and amplitude), redilation >= 2.5 mm and dim2 >= 6 mm (both directions),
-//           constriction latency 120-450 ms (human 200-250 ms), fright dilation >= 0.8 mm.
+//           constriction latency 150-350 ms (human 200-250 ms), fright dilation >= 0.8 mm.
 //   value = 100 * mean of five 0..1 soft scores (constriction amplitude, redilation amplitude, constriction latency, redilation latency (0.1-2 s), fright).
 //
 // Biology: retinal ganglion cells (incl. melanopsin) -> olivary pretectal nucleus -> Edinger-Westphal nucleus -> ciliary ganglion -> iris sphincter
@@ -24,6 +26,7 @@
 // Human light-reflex latency 200-250 ms (Ellis 1981; Loewenfeld 1993).
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/body/eye.h"
 #include "task_util.h"
@@ -36,7 +39,7 @@ namespace
 
 constexpr double kDuration = 40000;
 constexpr double kFibres = 4, kThreatHz = 250, kSphRef = 40, kDilRef = 40;
-constexpr double kDim = 1, kBright = 200, kMedium = 30;
+constexpr double kDim = 1, kBright = 200, kMedium = 30, kLatFrac = 0.2;
 constexpr double kBrightOn = 4000, kBrightOff = 11000, kMediumOn = 20000, kThreatOn = 30000, kThreatOff = 34000;
 
 class PupilTask : public Task
@@ -57,6 +60,14 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "retina", "threat" }; }
   std::vector< std::string > motor_channels() const override { return { "sphincter", "dilator" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    ChannelKind r, t;
+    r.kind = t.kind = "poisson";
+    r.value = kFibres * 5;
+    t.value = kThreatHz;
+    return { { "retina", r }, { "threat", t }, { "sphincter", ChannelKind{ "rate" } }, { "dilator", ChannelKind{ "rate" } } };
+  }
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "eye"; }
@@ -146,12 +157,12 @@ public:
     s.parts[ "dilator_spikes" ] = spikes_d_;
     double c_amp = clampd( con / 2.5, 0, 1 ) * ( bright <= 4.5 ? 1.0 : 0.5 );
     double r_amp = clampd( red / 2.5, 0, 1 ) * ( dim2 >= 6.0 ? 1.0 : 0.5 );
-    double c_lat = ( lat_c > 0 && con > 0.5 ) ? soft( lat_c, 120, 450, 300 ) : 0.0;
+    double c_lat = ( lat_c > 0 && con > 0.5 ) ? soft( lat_c, 150, 350, 250 ) : 0.0;
     double r_lat = ( lat_r > 0 && red > 0.5 ) ? soft( lat_r, 100, 2000, 1500 ) : 0.0;
     double fr_s = clampd( fright / 0.8, 0, 1 );
     s.value = 100.0 * ( c_amp + r_amp + c_lat + r_lat + fr_s ) / 5.0;
     bool done = t_ >= kDuration;
-    s.passed = done && con >= 2.5 && bright <= 4.5 && red >= 2.5 && dim2 >= 6.0 && lat_c >= 120 && lat_c <= 450 && fright >= 0.8;
+    s.passed = done && con >= 2.5 && bright <= 4.5 && red >= 2.5 && dim2 >= 6.0 && lat_c >= 150 && lat_c <= 350 && fright >= 0.8;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
@@ -167,8 +178,10 @@ public:
       o << "The pupil only constricted " << con << " mm in bright light (need 2.5): " << ( spikes_s_ < 1 ? "the sphincter never fires." : "the parasympathetic arm is too weak or the dilator is not switched off." );
     else if ( bright > 4.5 )
       o << "Bright-light pupil is " << bright << " mm (needs 4.5 or less).";
-    else if ( lat_c < 120 || lat_c > 450 )
-      o << "Constriction latency " << lat_c << " ms is outside 120-450 ms (human: 200-250 ms).";
+    else if ( lat_c < 0 )
+      o << "No clean constriction onset after the light step (the diameter never settled past 20 % of the way to its bright-light value).";
+    else if ( lat_c < 150 || lat_c > 350 )
+      o << "Constriction latency " << lat_c << " ms is outside 150-350 ms (human: 200-250 ms).";
     else if ( red < 2.5 || dim2 < 6.0 )
       o << "Back in the dark the pupil only reopened to " << dim2 << " mm: the sympathetic dilator is too weak.";
     else if ( t_ < kThreatOff )
@@ -205,15 +218,36 @@ private:
         s += d_[ i ], ++n;
     return n ? s / n : eye_.diameter_mm;
   }
-  // ms after t0 until D has moved 10 % of the way from `from` to `to` (-1 if it never did, or the change is under 0.5 mm)
-  double latency( double t0, double from, double to ) const
+  // Latency in ms after t0: time until D has moved 20 % of the way from its value just BEFORE t0 (mean of the preceding 200 ms) to the
+  // plateau `to`, and stays past that threshold for 50 ms. A crossing under 50 ms cannot be a reflex (it is noise or drift) and is skipped.
+  // -1 if there is none, or the total change is under 0.5 mm.
+  double latency( double t0, double /*from*/, double to ) const
   {
-    if ( std::fabs( to - from ) < 0.5 )
+    size_t i0 = static_cast< size_t >( t0 ), lo = i0 > 200 ? i0 - 200 : 0;
+    if ( d_.size() <= i0 || i0 == lo )
       return -1;
-    double thr = from + 0.1 * ( to - from );
-    for ( size_t i = static_cast< size_t >( t0 ); i < d_.size(); ++i )
-      if ( ( to > from ) ? d_[ i ] >= thr : d_[ i ] <= thr )
-        return static_cast< double >( i + 1 ) - t0;
+    double base = 0;
+    for ( size_t i = lo; i < i0; ++i )
+      base += d_[ i ];
+    base /= static_cast< double >( i0 - lo );
+    if ( std::fabs( to - base ) < 0.5 )
+      return -1;
+    double thr = base + kLatFrac * ( to - base );
+    auto past = [ & ]( size_t i ) { return ( to > base ) ? d_[ i ] >= thr : d_[ i ] <= thr; };
+    for ( size_t i = i0 + 50; i + 50 <= d_.size(); ++i )
+    {
+      if ( !past( i ) )
+        continue;
+      // first sample of the run that starts at or before i
+      size_t j = i;
+      while ( j > i0 && past( j - 1 ) )
+        --j;
+      bool stays = true;
+      for ( size_t k = j; k < j + 50 && stays; ++k )
+        stays = past( k );
+      if ( stays && j - i0 + 1 >= 50 )
+        return static_cast< double >( j - i0 + 1 );
+    }
     return -1;
   }
 

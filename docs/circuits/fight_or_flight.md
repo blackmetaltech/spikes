@@ -25,24 +25,27 @@ SA x1: sa_node_pacemaker, NE -> ne, ACh -> ach (modulation table)
 | NA (4), VG (6) | 377, 340 | nucleus ambiguus and cardiac vagal ganglion: 13-18 Hz tone, ACh about 0.37 at rest, 0 during the threat |
 | EW (4), CG (4) | 377, 340 | Edinger-Westphal and ciliary ganglion: tonic sphincter drive, withdrawn by the cue |
 | VRG (4) | 377 | ventral respiratory group: 18 Hz tone, about 54 Hz during the cue |
-| SA (1) | | `sa_node_pacemaker`: 63 bpm with ACh 0.37 and NE 0 |
+| SA (1) | | `sa_node_pacemaker`: about 71 bpm at rest with ACh 0.37 and NE 0 (intrinsic rate about 100 bpm; see `docs/models/sa_node_pacemaker.md`) |
 
-## What the numbers do (3 seeds, same to within noise)
-rest -> threat -> recovery: HR 63.2 -> 97 -> 63.2 bpm (rest ACh 0.37; during the cue ACh 0 and NE 0.5); MAP 88 -> 129 -> 88 mmHg; pupil 4.3 -> 7.5 -> 4.1 mm; ventilation 7.0 -> 16.4 -> 7.0 L/min (x2.3). Heart rate first rises by vagal withdrawal and then with NE (the NE pool has a 1.5 s time constant); recovery is vagal reactivation (ACh tone returns in about 0.5 s) and slower NE washout. Scores 99 (value weights 0.2 rest, 0.6 response, 0.2 recovery per system; failing lesions score 76-87).
+## What the numbers do (10 seeds, same to within noise)
+The reference passes 10/10 seeds (1-10): score 99.1-99.9, HR 70.8 -> 129 bpm (the SA cell is now intrinsically about 100 bpm, so vagal withdrawal alone takes it to roughly 100 and the pass bar is +40 bpm, which needs the stellate NE as well: a stellate-cut circuit fails), MAP 92.5 -> 131 mmHg, pupil threat 7.5-7.6 mm, ventilation 7.0 -> 16.4 L/min.
+
+**Building it.** `sympathetic` (NE) and `vagal` (ACh) must be declared as *modulator* outputs (gain per spike and decay tau: the reference uses 0.0015 / 1500 ms and 0.007 / 500 ms), and the SA cell must respond to them (the engine applies the per-model default modulation, `docs/CIRCUIT-FORMAT.md`). The task reports `channel_kinds()` so the lab skeleton declares them correctly; if they are plain rate outputs the verdict says "make it a modulator output".
+rest -> threat -> recovery: HR 70.8 -> 129 -> 70.8 bpm (rest ACh 0.37; during the cue ACh 0 and NE 0.5); MAP 92.5 -> 131 -> 92.4 mmHg; pupil 4.3 -> 7.5 -> 4.1 mm; ventilation 7.0 -> 16.4 -> 7.0 L/min (x2.3). Heart rate first rises by vagal withdrawal and then with NE (the NE pool has a 1.5 s time constant); recovery is vagal reactivation (ACh tone returns in about 0.5 s) and slower NE washout. Scores 99 (value weights 0.2 rest, 0.6 response, 0.2 recovery per system; failing lesions score 76-87).
 
 ## Why this wiring
-* The SA cell's response is the NESTML one: ACh 0.37 slows 68 to about 63 bpm, NE 0.3-0.5 with ACh 0 gives 92-100 bpm (`docs/models/sa_node_pacemaker.md`); the stellate ganglion is *silent* at rest so the resting heart is under vagal control and the sympathetic response is a clear step. Vessels and iris carry their own sympathetic tone (SV, SCG at 18 Hz).
+* The SA cell's response is the NESTML one: ACh 0.37 slows the cell from its intrinsic rate to about 71 bpm, ACh 0 with NE gives about 129 bpm; numbers as of the SA re-fit, the SA doc is authoritative (`docs/models/sa_node_pacemaker.md`); the stellate ganglion is *silent* at rest so the resting heart is under vagal control and the sympathetic response is a clear step. Vessels and iris carry their own sympathetic tone (SV, SCG at 18 Hz).
 * The cue acts on both sides of the autonomic balance: excitation of RVLM and VRG, and *inhibition* of the vagal (NA) and Edinger-Westphal (EW) tone. A hypothalamus that only excited the sympathetic side would still pass the heart and pressure bands but give a smaller HR and pupil response (see lesions below).
 * **Pressure.** The body model gives a MAP rise mainly through cardiac output (HR x stroke volume) plus resistance; the vasomotor pool is deliberately modest (30 pA from RVLM) so MAP stays under 150 mmHg (the test asserts that).
 
 ## What breaks it (tests in `engine/tests/tasks_autonomic_test.cpp`)
 | Lesion | Result |
 |---|---|
-| HYP -> RVLM x0 | no sympathetic outflow: heart rate rises only from vagal withdrawal (63 -> 68 bpm), MAP +3 mmHg; the pupil still opens by 1.9 mm through Edinger-Westphal withdrawal: fails |
+| HYP -> RVLM x0 | no sympathetic outflow: heart rate rises only from vagal withdrawal (71 -> about 99 bpm, +28, under the +40 bar), MAP +9 mmHg; the pupil still opens by 1.9 mm through Edinger-Westphal withdrawal: fails |
 | RVLM -> SG x0 | no NE on the pacemaker: HR +4.8 bpm, below 25: fails (pressure and pupil still respond) |
 | HYP -> VRG x0 | ventilation unchanged (x1.0): fails |
 | RVLM -> SCG and HYP -> EW x0 | pupil fixed (4.3 mm), the rest of the response intact: fails |
-Milder cuts do not fail the task and show up as smaller responses: HYP -> NA x0 (vagal not withdrawn: HR 92 instead of 97 bpm), HYP -> EW x0 alone (pupil 5.6 mm instead of 7.5), RVLM -> SV x0 (MAP 112 instead of 129).
+Milder cuts do not fail the task and show up as smaller responses: HYP -> NA x0 (vagal not withdrawn: lower HR, not re-measured after the SA re-fit), HYP -> EW x0 alone (pupil 5.6 mm instead of 7.5), RVLM -> SV x0 (MAP 112 instead of 129).
 
 ## Limits
 No baroreflex in this circuit (the baroreflex task is separate), so pressure is not regulated; no metabolic CO2 production change with the fight, so PaCO2 falls with hyperventilation but nothing feeds back on it; the premotor and ganglion levels of each sympathetic branch are lumped (RVLM -> ganglion cells). The recovery is passive (decay and vagal rebound), not an active parasympathetic overshoot.

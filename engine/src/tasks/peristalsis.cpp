@@ -5,9 +5,12 @@
 //   tube is at 7.4, the centre can go no further). It moves only by the luminal pressure difference between its oral and aboral sides.
 //   Sensors "dist0".."dist7": distension of segment i = Poisson rate kDistHz (500 Hz) x overlap(bolus, segment i), 0..1 (an intrinsic primary
 //                     afferent neuron fires when the bolus stretches its segment).
-//   Motors  "ach0".."ach7": excitatory motoneuron pool of segment i, mean Hz / kExRef (45 Hz), lowpass 300 ms (ACh / substance P) -> Gut ex_i.
-//           "no0".."no7": inhibitory motoneuron pool of segment i, mean Hz / kInhRef (50 Hz), lowpass 300 ms (NO / VIP) -> Gut inh_i.
-//           "icc0".."icc7": interstitial cells of Cajal of segment i (icc_slow_wave: one spike = one slow-wave onset). Each spike starts a
+//   Motors  "ach0".."ach7": excitatory motoneuron pool of segment i, mean Hz / kExRef (45 Hz), lowpass 300 ms (ACh / substance P) -> Gut ex_i. REQUIRED.
+//           "no0".."no7": inhibitory motoneuron pool of segment i, mean Hz / kInhRef (50 Hz), lowpass 300 ms (NO / VIP) -> Gut inh_i. OPTIONAL: without
+//                     them there is no relaxation ahead of the bolus (a simpler, slower gut).
+//           "icc0".."icc7": interstitial cells of Cajal of segment i (icc_slow_wave: one spike = one slow-wave onset). OPTIONAL: if the circuit declares
+//                     none of them, the gut runs its own built-in 12 /min slow wave (so a first circuit needs only dist -> ach). If it declares them,
+//                     they ARE the clock (silence them and nothing contracts). Each spike starts a
 //           depolarising slow-wave plateau, half a sine of 2.5 s (the depolarising half of a 12 /min wave), amplitude 0.4, which the gut adds to the
 //           membrane drive (m = ex - inh + 0.4 sw; the body's own built-in slow wave is switched off, the ICC cells of the circuit ARE the clock).
 //   Contraction needs m above 0.6 (threshold), so slow waves alone and weak excitation alone do nothing: ICC timing gates propulsion.
@@ -23,6 +26,7 @@
 // (Sanders 1996 Gastroenterology 111:492; Huizinga & Lammers 2009 Am J Physiol 296:G1). Rates and gains here are game values.
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/body/gut.h"
 #include "task_util.h"
@@ -59,17 +63,25 @@ public:
            "interneuron chains answer: an ascending one excites the motoneurons just oral (behind) the bolus, which release ACh and contract, "
            "and a descending one excites inhibitory motoneurons aboral (ahead), which release NO and VIP and relax. That is the law of the "
            "intestine: squeeze behind, open ahead. Interstitial cells of Cajal run a slow wave (12 per minute) that decides when the muscle can "
-           "contract. Build the chain for 8 segments: 'dist0..7' (stretch sensors), 'ach0..7' (excitatory motor pools), 'no0..7' (inhibitory "
-           "motor pools) and 'icc0..7' (slow-wave pacemakers). Score: the bolus must reach the end of the tube within 25 s.";
+           "contract. Start simple: wire 'dist0..7' (stretch sensors) through interneurons to 'ach0..7' (excitatory motor pools), each stretch "
+           "segment exciting the pool just oral of it; the gut then runs its own slow wave. Then improve it: add 'no0..7' outputs (inhibitory "
+           "motor pools, ahead of the bolus: they make it faster) and 'icc0..7' outputs (slow-wave pacemakers of your own, which then replace "
+           "the built-in clock). Score: the bolus must reach the end of the tube within 25 s.";
   }
   std::vector< std::string > sensor_channels() const override { return dist_ch_; }
-  std::vector< std::string > motor_channels() const override
+  // Required: the eight excitatory pools. "no0..7" and "icc0..7" are optional: they are read only if the circuit declares them.
+  std::vector< std::string > motor_channels() const override { return ach_ch_; }
+  // sensors dist0..7 are Poisson trains (500 Hz when the bolus fills the segment); outputs are rate pools; icc*/no* are optional
+  std::map< std::string, ChannelKind > channel_kinds() const override
   {
-    std::vector< std::string > m;
-    for ( int i = 0; i < kSeg; ++i ) m.push_back( ach_ch_[ i ] );
-    for ( int i = 0; i < kSeg; ++i ) m.push_back( no_ch_[ i ] );
-    for ( int i = 0; i < kSeg; ++i ) m.push_back( icc_ch_[ i ] );
-    return m;
+    std::map< std::string, ChannelKind > k;
+    for ( int i = 0; i < kSeg; ++i )
+    {
+      k[ dist_ch_[ i ] ].kind = "poisson";
+      k[ dist_ch_[ i ] ].value = kDistHz;
+      k[ ach_ch_[ i ] ].kind = "rate";
+    }
+    return k;
   }
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "autonomic"; }
@@ -96,6 +108,7 @@ public:
     sw_.assign( kSeg, 0.0 );
     icc_spikes_.assign( kSeg, 0 );
     arrival_ms_ = -1;
+    probed_ = has_no_ = has_icc_ = false;
     spikes_ex_ = spikes_inh_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
@@ -104,6 +117,16 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( !probed_ )
+    {
+      probed_ = true;
+      has_no_ = has_icc_ = false;
+      for ( const auto& o : e.outputs() )
+      {
+        if ( o.name == no_ch_[ 0 ] ) has_no_ = true;
+        if ( o.name == icc_ch_[ 0 ] ) has_icc_ = true;
+      }
+    }
     const double half = 0.5 * gut_.params().bolus_len;
     for ( int i = 0; i < kSeg; ++i )
     {
@@ -113,12 +136,12 @@ public:
     e.step( dt );
     for ( int i = 0; i < kSeg; ++i )
     {
-      double hx = motor_.hz_per_neuron( e, ach_ch_[ i ] ), hi = motor_.hz_per_neuron( e, no_ch_[ i ] );
+      double hx = motor_.hz_per_neuron( e, ach_ch_[ i ] ), hi = has_no_ ? motor_.hz_per_neuron( e, no_ch_[ i ] ) : 0.0;
       spikes_ex_ += motor_.spike_count( e, ach_ch_[ i ], dt );
-      spikes_inh_ += motor_.spike_count( e, no_ch_[ i ], dt );
+      if ( has_no_ ) spikes_inh_ += motor_.spike_count( e, no_ch_[ i ], dt );
       ex_[ i ] = clampd( ex_lp_[ i ].step( hx / kExRef, dt ), 0, 1 );
       inh_[ i ] = clampd( inh_lp_[ i ].step( hi / kInhRef, dt ), 0, 1 );
-      if ( motor_.spike_count( e, icc_ch_[ i ], dt ) > 0.5 )
+      if ( has_icc_ && motor_.spike_count( e, icc_ch_[ i ], dt ) > 0.5 )
       {
         sw_start_[ i ] = t_;
         ++icc_spikes_[ i ];
@@ -133,7 +156,7 @@ public:
     body::GutInput in;
     in.excitatory = &ex_total;
     in.inhibitory = &inh_;
-    in.slow_waves = false;
+    in.slow_waves = !has_icc_;  // no ICC channels declared: the gut's own clock
     gut_.step( dt, in );
     t_ += dt;
     if ( arrival_ms_ < 0 && gut_.bolus_pos >= kGoal )
@@ -187,10 +210,11 @@ public:
     else if ( s.passed )
       o << "The bolus reached the end in " << arrival_ms_ / 1000.0 << " s.";
     else if ( arrived )
-      o << "The bolus arrived, but after " << arrival_ms_ / 1000.0 << " s (limit 25 s).";
+      o << "The bolus arrived, but after " << arrival_ms_ / 1000.0 << " s (limit 25 s)."
+        << ( !has_no_ ? " Add 'no0..7' inhibitory outputs (descending interneurons -> motoneurons ahead of the bolus): relaxing the segments ahead makes it much faster." : "" );
     else if ( spikes_ex_ < 1 )
       o << "The excitatory motoneurons (ach0..7) never fire" << yet << " Nothing squeezes behind the bolus.";
-    else if ( cycles < 1 )
+    else if ( has_icc_ && cycles < 1 )
       o << "No slow waves: the icc0..7 cells never fire" << yet << " Without the ICC clock the muscle never reaches contraction threshold.";
     else if ( gut_.distance < -0.5 )
       o << "The bolus was pushed back toward the mouth (" << gut_.distance << " segments): the wrong side is contracting.";
@@ -198,7 +222,8 @@ public:
       o << "The bolus is at segment " << gut_.bolus_pos << " of 7" << yet;
     else
       o << "The bolus only got to segment " << gut_.bolus_pos << " of 7 (net " << gut_.distance << ")."
-        << ( spikes_inh_ < 1 ? " The inhibitory motoneurons (no0..7) never fire: nothing relaxes the segments ahead." : "" );
+        << ( !has_no_ ? " No 'no0..7' outputs: nothing relaxes the segments ahead of the bolus (add inhibitory motoneurons from the descending interneurons)."
+                   : ( spikes_inh_ < 1 ? " The inhibitory motoneurons (no0..7) never fire: nothing relaxes the segments ahead." : "" ) );
     s.verdict = o.str();
     return s;
   }
@@ -207,6 +232,7 @@ public:
 
 private:
   double t_ = 0, arrival_ms_ = -1, spikes_ex_ = 0, spikes_inh_ = 0;
+  bool probed_ = false, has_no_ = false, has_icc_ = false;
   body::Gut gut_;
   std::vector< std::string > dist_ch_, ach_ch_, no_ch_, icc_ch_;
   std::vector< double > ex_, inh_, sw_start_, sw_;
