@@ -12,6 +12,7 @@ These are the same as 0.1:
 - Do not commit.
 
 ## A. Neuron parts bin (engine + game)
+Contract additions already in `task.h` (chapter, view, par_neurons, timeline, bands, modulators). Engine additions go into `engine.h` add-only: `set_modulator(name, conc)`, `modulator(name)`, catalog queries.
 - **Catalogue** (`engine/src/catalog/*`, `godot` parts bin). Every model is a card with a plain-language description, its key parameters with units, a typical f–I or voltage trace thumbnail rendered live by the engine, and its biological examples. The NEST models are:
   - integrate-and-fire: `iaf_psc_alpha`, `iaf_cond_exp`, `iaf_cond_exp_sfa_rr` (adapting);
   - adaptive exponential: `aeif_cond_alpha` / `aeif_cond_exp`;

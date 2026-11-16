@@ -50,6 +50,23 @@ public:
   /// (e.g. the salt gradient), sampled on demand.
   virtual std::array< double, 4 > world_bounds() const = 0;
   virtual double field( double x, double y ) const { return 0; }
+
+  // ---- v0.2 additions (add-only, with defaults so 0.1 tasks keep compiling) ----
+
+  /// Campaign grouping: "invertebrates", "spinal", "heart", "breathing", "autonomic".
+  virtual std::string chapter() const { return "invertebrates"; }
+  /// Renderer hint: which body view the game draws ("polyline" = 0.1 generic, "limb", "heart", "lungs", "eye", "gut", "dashboard").
+  virtual std::string view() const { return "polyline"; }
+  /// Neuron budget for the "under par" star (the reference circuit's size is a good default).
+  virtual int par_neurons() const { return 0; }
+  /// Scripted perturbations shown on the timeline under the world (a push, standing up, exercise, light flash, CO2 rise…).
+  struct Event { double t_ms; double dur_ms; std::string label; };
+  virtual std::vector< Event > timeline() const { return {}; }
+  /// Traces the score is judged on, for the timeline plot: name -> (target band lo, hi), and the current value via body().readouts[name].
+  struct Band { std::string name; std::string unit; double lo; double hi; };
+  virtual std::vector< Band > bands() const { return {}; }
+  /// Neuromodulator channels the task reads from the circuit ("NE", "ACh", "DA") or writes (task-driven modulators).
+  virtual std::vector< std::string > modulators() const { return {}; }
 };
 
 std::vector< std::string > task_ids();
