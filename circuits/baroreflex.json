@@ -1,0 +1,423 @@
+{
+ "schema_version": 1,
+ "name": "Baroreflex",
+ "resolution_ms": 0.1,
+ "seed": 31,
+ "populations": [
+  {
+   "id": "AFF",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     40,
+     120
+    ],
+    [
+     66,
+     120
+    ],
+    [
+     40,
+     146
+    ],
+    [
+     66,
+     146
+    ],
+    [
+     40,
+     172
+    ],
+    [
+     66,
+     172
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "NTS",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {},
+   "pos": [
+    [
+     180,
+     120
+    ],
+    [
+     206,
+     120
+    ],
+    [
+     180,
+     146
+    ],
+    [
+     206,
+     146
+    ],
+    [
+     180,
+     172
+    ],
+    [
+     206,
+     172
+    ],
+    [
+     180,
+     198
+    ],
+    [
+     206,
+     198
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "NA",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 372.0
+   },
+   "pos": [
+    [
+     320,
+     40
+    ],
+    [
+     346,
+     40
+    ],
+    [
+     320,
+     66
+    ],
+    [
+     346,
+     66
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "VG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     460,
+     40
+    ],
+    [
+     486,
+     40
+    ],
+    [
+     460,
+     66
+    ],
+    [
+     486,
+     66
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "CVLM",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     320,
+     200
+    ],
+    [
+     346,
+     200
+    ],
+    [
+     320,
+     226
+    ],
+    [
+     346,
+     226
+    ],
+    [
+     320,
+     252
+    ],
+    [
+     346,
+     252
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "RVLM",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 380.0
+   },
+   "pos": [
+    [
+     460,
+     200
+    ],
+    [
+     486,
+     200
+    ],
+    [
+     460,
+     226
+    ],
+    [
+     486,
+     226
+    ],
+    [
+     460,
+     252
+    ],
+    [
+     486,
+     252
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "IML",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     600,
+     200
+    ],
+    [
+     626,
+     200
+    ],
+    [
+     600,
+     226
+    ],
+    [
+     626,
+     226
+    ],
+    [
+     600,
+     252
+    ],
+    [
+     626,
+     252
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SG",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     740,
+     200
+    ],
+    [
+     766,
+     200
+    ],
+    [
+     740,
+     226
+    ],
+    [
+     766,
+     226
+    ],
+    [
+     740,
+     252
+    ],
+    [
+     766,
+     252
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SA",
+   "model": "sa_node_pacemaker",
+   "n": 1,
+   "params": {
+    "V_m": -60.0
+   },
+   "pos": [
+    [
+     740,
+     40
+    ]
+   ],
+   "role": "neuron"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "AFF",
+   "post": "NTS",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 280.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "NTS",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 30.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "NA",
+   "post": "VG",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "NTS",
+   "post": "CVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 200.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "CVLM",
+   "post": "RVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -140.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "RVLM",
+   "post": "IML",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "IML",
+   "post": "SG",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "baroreceptor",
+   "kind": "poisson",
+   "targets": [
+    "AFF"
+   ],
+   "weight": 1600.0,
+   "value": 41.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "sa_beat",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SA"
+    }
+   ]
+  },
+  {
+   "name": "vagal",
+   "kind": "modulator",
+   "modulator": "ACh",
+   "neurons": [
+    {
+     "pop": "VG"
+    }
+   ],
+   "gain": 0.006,
+   "tau_ms": 500.0
+  },
+  {
+   "name": "sympathetic",
+   "kind": "modulator",
+   "modulator": "NE",
+   "neurons": [
+    {
+     "pop": "SG"
+    }
+   ],
+   "gain": 0.0076,
+   "tau_ms": 1000.0
+  }
+ ],
+ "modulation": [
+  {
+   "modulator": "ACh",
+   "pop": "SA",
+   "param": "ach",
+   "gain": 0.5
+  },
+  {
+   "modulator": "NE",
+   "pop": "SA",
+   "param": "ne",
+   "gain": 0.25
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "baroreflex",
+  "notes": "docs/circuits/baroreflex.md"
+ }
+}
