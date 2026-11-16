@@ -15,3 +15,6 @@ build/
 *.egg-info/
 third_party/godot-cpp/
 docs/screenshots/critique/
+third_party/nestml-gen/
+third_party/nestml-venv/
+third_party/nestml-py/

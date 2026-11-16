@@ -1,0 +1,129 @@
+# sa_node_pacemaker: reduced sinoatrial-node pacemaker cell (rabbit-like), spikes = "beats".
+#
+# Reduced from the Maltsev & Lakatta (2009) / Demir et al. (1994) / Kurata et al. (2002) family of
+# rabbit SAN cell models: only the five currents that carry the pacemaker cycle are kept (no Na/K pump,
+# no Ca clock/SR, no fixed ion concentrations), each as a Hodgkin-Huxley gate with a sigmoid steady state
+# and a sech-shaped time constant. Parameters were re-fitted so that the isolated cell beats at about 68/min.
+# The kinetics are NOT a copy of any published model; see docs/models/sa_node_pacemaker.md.
+#
+#   C dV/dt = -(I_f + I_CaT + I_CaL + I_K + I_KACh + I_leak) - I_syn + I_e + I_stim
+#
+# Autonomic modulation (dimensionless "concentrations", 0 = none, ~1 = near saturating):
+#   ach   acetylcholine (vagal, M2 receptors):  activates I_KACh, shifts I_f activation to more negative V,
+#         reduces I_CaL                         -> slows the cell
+#   ne    noradrenaline (sympathetic, beta):    raises I_f conductance and shifts its activation to more
+#         positive V, raises I_CaL, speeds I_K  -> speeds the cell
+# Each saturates as x / (x + K_mod).
+#
+# Output: one spike ("beat") on every upward crossing of V_th (re-armed below V_rearm).
+model sa_node_pacemaker:
+
+    state:
+        V_m mV = -60 mV        # membrane potential
+        y real = 0.1           # I_f activation
+        d_L real = 0.          # I_CaL activation
+        f_L real = 1.          # I_CaL inactivation
+        d_T real = 0.          # I_CaT activation
+        f_T real = 0.5         # I_CaT inactivation
+        n_K real = 0.1         # I_K (delayed rectifier) activation
+        armed boolean = true   # beat detector
+
+    equations:
+        # --- modulation ---
+        inline a_ach real = ach / (ach + K_mod)          # 0..1
+        inline a_ne real = ne / (ne + K_mod)             # 0..1
+        inline shift_f mV = (-shift_f_ach * a_ach + shift_f_ne * a_ne)
+
+        # --- steady states and time constants ---
+        inline y_inf real = 1. / (1. + exp((V_m - (V_y + shift_f)) / k_y))
+        inline tau_y ms = 60. ms + 900. ms / cosh((V_m + 75. mV) / 25. mV)
+        inline dL_inf real = 1. / (1. + exp((V_m - V_dL) / (-6. mV)))
+        inline tau_dL ms = 1.5 ms + 8. ms / cosh((V_m + 20. mV) / 15. mV)
+        inline fL_inf real = 1. / (1. + exp((V_m + 45. mV) / 5. mV))
+        inline tau_fL ms = 20. ms + 100. ms / cosh((V_m + 30. mV) / 20. mV)
+        inline dT_inf real = 1. / (1. + exp((V_m + 50. mV) / (-5. mV)))
+        inline tau_dT ms = 2. ms + 6. ms / cosh((V_m + 40. mV) / 20. mV)
+        inline fT_inf real = 1. / (1. + exp((V_m + 68. mV) / 6. mV))
+        inline tau_fT ms = 10. ms + 60. ms / cosh((V_m + 60. mV) / 20. mV)
+        inline nK_inf real = 1. / (1. + exp((V_m + 25. mV) / (-9. mV)))
+        inline tau_nK ms = (100. ms + 1485. ms / cosh((V_m + 30. mV) / 20. mV)) / (1. + tau_K_ne * a_ne)
+
+        # --- currents ---
+        inline I_f pA = g_f * (1. + g_f_ne * a_ne) * y * (V_m - E_f)
+        inline I_CaL pA = g_CaL * (1. + g_CaL_ne * a_ne) * (1. - g_CaL_ach * a_ach) * d_L * f_L * (V_m - E_CaL)
+        inline I_CaT pA = g_CaT * d_T * f_T * (V_m - E_CaT)
+        inline I_K pA = g_K * n_K * (V_m - E_K)
+        inline I_KACh pA = g_KACh * a_ach * (V_m - E_K)
+        inline I_leak pA = g_L * (V_m - E_L)
+
+        # --- synaptic input (conductance based, exponential) ---
+        kernel g_exc = exp(-t / tau_syn_exc)
+        kernel g_inh = exp(-t / tau_syn_inh)
+        inline I_syn pA = unit_psg * (convolve(g_exc, exc_spikes) * (V_m - E_exc) + convolve(g_inh, inh_spikes) * (V_m - E_inh))
+
+        V_m' = (-(I_f + I_CaL + I_CaT + I_K + I_KACh + I_leak) - I_syn + I_e + I_stim) / C_m
+        y' = (y_inf - y) / tau_y
+        d_L' = (dL_inf - d_L) / tau_dL
+        f_L' = (fL_inf - f_L) / tau_fL
+        d_T' = (dT_inf - d_T) / tau_dT
+        f_T' = (fT_inf - f_T) / tau_fT
+        n_K' = (nK_inf - n_K) / tau_nK
+
+    parameters:
+        C_m pF = 32 pF
+        g_f nS = 0.34 nS
+        E_f mV = -30 mV
+        V_y mV = -64 mV          # I_f half-activation (baseline)
+        k_y mV = 9 mV
+        g_CaL nS = 3.53 nS
+        E_CaL mV = 46 mV
+        V_dL mV = -25 mV
+        g_CaT nS = 0.78 nS
+        E_CaT mV = 45 mV
+        g_K nS = 3.71 nS
+        E_K mV = -85 mV
+        g_KACh nS = 0.03 nS      # maximal I_KACh conductance
+        g_L nS = 0.035 nS
+        E_L mV = -30 mV
+
+        # modulators (settable at runtime through set_status)
+        ach real = 0.
+        ne real = 0.
+        K_mod real = 0.3
+        shift_f_ach mV = 5 mV
+        shift_f_ne mV = 10 mV
+        g_f_ne real = 1.0
+        g_CaL_ne real = 0.3
+        g_CaL_ach real = 0.1
+        tau_K_ne real = 1.0
+
+        # synapses
+        E_exc mV = 0 mV
+        E_inh mV = -85 mV
+        tau_syn_exc ms = 5 ms
+        tau_syn_inh ms = 10 ms
+
+        # beat detector
+        V_th mV = 0 mV
+        V_rearm mV = -30 mV
+
+        I_e pA = 0 pA
+
+    internals:
+        unit_psg nS = 1 nS     # spike weights are dimensionless multiples of 1 nS
+
+    input:
+        exc_spikes <- excitatory spike
+        inh_spikes <- inhibitory spike
+        I_stim pA <- continuous
+
+    output:
+        spike
+
+    update:
+        integrate_odes()
+        if armed and V_m > V_th:
+            armed = false
+            emit_spike()
+        elif not armed and V_m < V_rearm:
+            armed = true

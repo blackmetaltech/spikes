@@ -1,0 +1,73 @@
+# icc_slow_wave: interstitial cell of Cajal gastric/intestinal slow-wave pacemaker, two variables.
+#
+# A FitzHugh-Nagumo relaxation oscillator (FitzHugh 1961; Nagumo et al. 1962) rescaled to physiological units:
+# x is the (dimensionless) membrane excitation and w the slow recovery variable; V_m = V_base + V_amp * (x + 2) / 4
+# gives a slow wave rising from about -70 mV to a plateau near -45 mV (amplitude ~25 mV, typical of ICC/smooth
+# muscle slow waves) with a plateau phase, repeating about 3 times per minute (period 20 s). This is a
+# phenomenological pacemaker, not a model of the ion channels (Ano1, Cav3.2, ...); see docs/models/icc_slow_wave.md.
+#
+#   tau_x x' = x - x^3/3 - w + I_drive + I_syn/I_scale + I_e/I_scale + I_stim/I_scale
+#   tau_w w' = x + a - b w
+#   I_drive = drive + k_ach * ach - k_ne * ne      (ACh depolarises / speeds, NE hyperpolarises / slows)
+#
+# Output: a spike ("slow-wave onset") on every upward crossing of x = x_th (re-armed below x_rearm).
+# Synaptic input is current based (exponential PSCs, weights in pA).
+model icc_slow_wave:
+
+    state:
+        V_m mV = -65 mV        # membrane potential, a read-out of x (updated every step)
+        x real = -1.2
+        w real = -0.6
+        armed boolean = true
+
+    equations:
+        kernel I_exc = exp(-t / tau_syn_exc)
+        kernel I_inh = exp(-t / tau_syn_inh)
+        inline I_syn pA = unit_psc * (convolve(I_exc, exc_spikes) - convolve(I_inh, inh_spikes))
+        inline I_drive real = drive + k_ach * ach - k_ne * ne
+
+        x' = (x - x**3 / 3. - w + I_drive + (I_syn + I_e + I_stim) / I_scale) / tau_x
+        w' = (x + a_fhn - b_fhn * w) / tau_w
+
+    parameters:
+        tau_x ms = 600 ms
+        tau_w ms = 6000 ms
+        a_fhn real = 0.7
+        b_fhn real = 0.8
+        drive real = 0.5
+        I_scale pA = 100 pA      # input current that shifts the excitation x by one unit
+        V_base mV = -70 mV
+        V_amp mV = 25 mV
+        I_e pA = 0 pA
+
+        # modulators (settable at runtime through set_status)
+        ach real = 0.
+        ne real = 0.
+        k_ach real = 0.3
+        k_ne real = 0.1
+
+        tau_syn_exc ms = 50 ms
+        tau_syn_inh ms = 50 ms
+
+        x_th real = 0.
+        x_rearm real = -0.5
+
+    internals:
+        unit_psc pA = 1 pA
+
+    input:
+        exc_spikes <- excitatory spike
+        inh_spikes <- inhibitory spike
+        I_stim pA <- continuous
+
+    output:
+        spike
+
+    update:
+        integrate_odes()
+        V_m = V_base + V_amp * (x + 2.) / 4.
+        if armed and x > x_th:
+            armed = false
+            emit_spike()
+        if not armed and x < x_rearm:
+            armed = true
