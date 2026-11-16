@@ -130,7 +130,161 @@ void sort_unique( std::vector< int32_t >& v )
   std::sort( v.begin(), v.end() );
   v.erase( std::unique( v.begin(), v.end() ), v.end() );
 }
+
+bool opt_number( const json& o, const char* key, const std::string& path, double& out )
+{
+  auto it = o.find( key );
+  if ( it == o.end() )
+    return false;
+  if ( not it->is_number() )
+    fail( sub( path, key ), "must be a number" );
+  out = it->get< double >();
+  return true;
+}
+
+bool is_gap_model( const std::string& m ) { return m == "hh_psc_alpha_gap" or m == "hh_cond_beta_gap_traub"; }
+
+// Synapse-model specific validation and defaults (docs/CIRCUIT-FORMAT.md "Synapse models"). `path` is "projections[i]".
+void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& path )
+{
+  const std::string model = pr.synapse[ "synapse_model" ].get< std::string >();
+  const std::string spath = sub( path, "synapse" );
+  const PopSpec& a = c.pops[ pr.pre_pop ];
+  const PopSpec& b = c.pops[ pr.post_pop ];
+  double v = 0;
+
+  // weight(s): the single number of a rule projection, or every edge weight
+  auto weights = [ & ]() {
+    std::vector< double > w;
+    if ( pr.has_edges )
+      for ( const auto& e : pr.edge_wd )
+        w.push_back( e[ 0 ] );
+    else if ( pr.synapse.contains( "weight" ) and pr.synapse[ "weight" ].is_number() )
+      w.push_back( pr.synapse[ "weight" ].get< double >() );
+    else if ( not pr.synapse.contains( "weight" ) )
+      w.push_back( 1.0 );  // NEST default
+    return w;
+  };
+
+  if ( model == "gap_junction" )
+  {
+    pr.gap = true;
+    if ( not is_gap_model( a.model ) or not is_gap_model( b.model ) )
+      fail( sub( spath, "synapse_model" ),
+        "gap_junction needs gap-capable neurons on both sides (hh_psc_alpha_gap or hh_cond_beta_gap_traub); '" + a.id + "' is " + a.model + ", '" + b.id +
+          "' is " + b.model );
+    if ( pr.synapse.contains( "delay" ) )
+      fail( sub( spath, "delay" ), "gap junctions are instantaneous: remove 'delay'" );
+    for ( double w : weights() )
+      if ( not( w > 0 ) )
+        fail( spath + ".weight", "gap_junction weight is a conductance in nS and must be > 0" );
+    if ( not pr.has_edges )
+    {
+      const std::string rn = pr.rule[ "rule" ].get< std::string >();
+      if ( rn != "one_to_one" and rn != "all_to_all" )
+        fail( sub( path, "rule" ), "gap_junction supports the rules one_to_one and all_to_all (within one population), or edges (got '" + rn + "')" );
+      if ( pr.rule.contains( "make_symmetric" ) and pr.rule[ "make_symmetric" ] != true )
+        fail( sub( path, "make_symmetric" ), "gap junctions must be symmetric: make_symmetric is always true" );
+      pr.rule.erase( "make_symmetric" );
+      if ( rn == "one_to_one" )
+        pr.rule[ "make_symmetric" ] = true;  // NEST mirrors every connection
+      else if ( rn == "all_to_all" and pr.pre_pop != pr.post_pop )
+        fail( sub( path, "rule" ), "gap_junction all_to_all needs pre and post to be the same population (use one_to_one or edges between two populations)" );
+      if ( rn == "all_to_all" and not pr.rule.contains( "allow_autapses" ) )
+        pr.rule[ "allow_autapses" ] = false;
+    }
+  }
+  else if ( model == "tsodyks2_synapse" or model == "quantal_stp_synapse" )
+  {
+    if ( opt_number( pr.synapse, "U", spath, v ) and not( v >= 0 and v <= 1 ) )
+      fail( sub( spath, "U" ), "utilisation U must be in [0, 1]" );
+    if ( opt_number( pr.synapse, "u", spath, v ) and not( v >= 0 and v <= 1 ) )
+      fail( sub( spath, "u" ), "initial utilisation u must be in [0, 1]" );
+    if ( opt_number( pr.synapse, "tau_rec", spath, v ) and not( v > 0 ) )
+      fail( sub( spath, "tau_rec" ), "recovery time constant tau_rec must be > 0 ms" );
+    if ( opt_number( pr.synapse, "tau_fac", spath, v ) and not( v >= 0 ) )
+      fail( sub( spath, "tau_fac" ), "facilitation time constant tau_fac must be >= 0 ms (0 = depression only)" );
+    if ( model == "tsodyks2_synapse" )
+    {
+      if ( opt_number( pr.synapse, "x", spath, v ) and not( v >= 0 and v <= 1 ) )
+        fail( sub( spath, "x" ), "initial resources x must be in [0, 1]" );
+    }
+    else
+    {
+      long n = 1;
+      if ( auto it = pr.synapse.find( "n" ); it != pr.synapse.end() )
+      {
+        if ( not it->is_number_integer() or it->get< long >() < 1 )
+          fail( sub( spath, "n" ), "number of release sites n must be an integer >= 1" );
+        n = it->get< long >();
+      }
+      if ( auto it = pr.synapse.find( "a" ); it != pr.synapse.end() )
+      {
+        if ( not it->is_number_integer() or it->get< long >() < 0 )
+          fail( sub( spath, "a" ), "number of available sites a must be an integer >= 0" );
+        if ( it->get< long >() > n )
+          fail( sub( spath, "a" ), "available sites a must not exceed n" );
+      }
+    }
+  }
+  else if ( model == "stdp_synapse" or model == "stdp_dopamine_synapse" )
+  {
+    const bool da = model == "stdp_dopamine_synapse";
+    pr.dopamine = da;
+    auto w = weights();
+    for ( double x : w )
+      if ( not( x > 0 ) )
+        fail( spath + ".weight",
+          model + " supports excitatory (positive) weights only, got " + std::to_string( x ) +
+            ". Inhibitory plasticity is not available: use static_synapse (or tsodyks2_synapse) for inhibitory connections" );
+    if ( opt_number( pr.synapse, "tau_plus", spath, v ) and not( v > 0 ) )
+      fail( sub( spath, "tau_plus" ), "tau_plus must be > 0 ms" );
+    // Wmax default: 2 * |weight| (rule projection: the weight; edges: the largest edge weight). Must be given for a weight distribution.
+    double wmax = 0;
+    if ( opt_number( pr.synapse, "Wmax", spath, wmax ) )
+    {
+      if ( not( wmax > 0 ) )
+        fail( sub( spath, "Wmax" ), "Wmax must be > 0" );
+      for ( double x : w )
+        if ( x > wmax )
+          fail( sub( spath, "Wmax" ), "weight " + std::to_string( x ) + " exceeds Wmax " + std::to_string( wmax ) );
+    }
+    else if ( w.empty() and not pr.has_edges )
+      fail( sub( spath, "Wmax" ), "Wmax is required when weight is not a plain number (the default is 2 * weight)" );
+    else if ( w.empty() )
+      pr.synapse[ "Wmax" ] = 1.0;  // no edges: nothing is connected
+    else
+      pr.synapse[ "Wmax" ] = 2.0 * *std::max_element( w.begin(), w.end() );
+    if ( not da )
+    {
+      if ( pr.synapse.contains( "volume_transmitter" ) )
+        fail( spath, "volume_transmitter is only valid for stdp_dopamine_synapse" );
+    }
+    else
+    {
+      if ( opt_number( pr.synapse, "Wmin", spath, v ) and ( v < 0 or v > pr.synapse[ "Wmax" ].get< double >() ) )
+        fail( sub( spath, "Wmin" ), "Wmin must be in [0, Wmax]" );
+      for ( const char* k : { "tau_c", "tau_n" } )
+        if ( opt_number( pr.synapse, k, spath, v ) and not( v > 0 ) )
+          fail( sub( spath, k ), std::string( k ) + " must be > 0 ms" );
+      if ( pr.synapse.contains( "volume_transmitter" ) )
+        fail( sub( spath, "volume_transmitter" ), "set by the engine from \"dopamine_source\"" );
+      if ( pr.dopamine_pop < 0 )
+        fail( sub( path, "dopamine_source" ),
+          "stdp_dopamine_synapse needs a \"dopamine_source\" population (its spikes drive the volume_transmitter)" );
+      // common properties are set on a copy of the model, not per connection
+      for ( const char* k : { "A_plus", "A_minus", "Wmin", "Wmax", "b", "tau_c", "tau_n", "tau_plus" } )
+        if ( pr.synapse.contains( k ) )
+        {
+          pr.common[ k ] = pr.synapse[ k ];
+          pr.synapse.erase( k );
+        }
+    }
+  }
+}
 } // namespace
+
+bool is_modulator_name( const std::string& s ) { return s == "NE" or s == "ACh" or s == "DA"; }
 
 bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error )
 {
@@ -147,7 +301,7 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
     }
     c = CircuitSpec();
     require_object( j, "$" );
-    check_keys( j, { "schema_version", "name", "resolution_ms", "seed", "populations", "projections", "inputs", "outputs", "record", "meta" }, "$" );
+    check_keys( j, { "schema_version", "name", "resolution_ms", "seed", "populations", "projections", "inputs", "outputs", "modulation", "record", "meta" }, "$" );
 
     const json& sv = need( j, "schema_version", "$" );
     if ( not sv.is_number_integer() or sv.get< long >() != 1 )
@@ -222,6 +376,14 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           fail( sub( path, "pre" ), "unknown population '" + pr.pre + "'" );
         if ( pr.post_pop < 0 )
           fail( sub( path, "post" ), "unknown population '" + pr.post + "'" );
+        if ( auto ds = p.find( "dopamine_source" ); ds != p.end() )
+        {
+          if ( not ds->is_string() )
+            fail( sub( path, "dopamine_source" ), "must be a population id" );
+          pr.dopamine_pop = find_pop( c, ds->get< std::string >() );
+          if ( pr.dopamine_pop < 0 )
+            fail( sub( path, "dopamine_source" ), "unknown population '" + ds->get< std::string >() + "'" );
+        }
         bool has_rule = p.contains( "rule" );
         pr.has_edges = p.contains( "edges" );
         if ( has_rule == pr.has_edges )
@@ -240,12 +402,12 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           if ( not p[ "rule" ].is_string() )
             fail( sub( path, "rule" ), "must be a string (NEST connection rule name)" );
           for ( auto e = p.begin(); e != p.end(); ++e )
-            if ( e.key() != "pre" and e.key() != "post" and e.key() != "synapse" )
+            if ( e.key() != "pre" and e.key() != "post" and e.key() != "synapse" and e.key() != "dopamine_source" )
               pr.rule[ e.key() ] = e.value();
         }
         else
         {
-          check_keys( p, { "pre", "post", "edges", "synapse" }, path );
+          check_keys( p, { "pre", "post", "edges", "synapse", "dopamine_source" }, path );
           const json& ed = p[ "edges" ];
           if ( not ed.is_array() )
             fail( sub( path, "edges" ), "must be an array of [pre_idx, post_idx, weight, delay]" );
@@ -270,6 +432,9 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             pr.edge_wd.push_back( { e[ 2 ].get< double >(), d } );
           }
         }
+        if ( pr.dopamine_pop >= 0 and pr.synapse[ "synapse_model" ] != "stdp_dopamine_synapse" )
+          fail( sub( path, "dopamine_source" ), "only valid with synapse_model stdp_dopamine_synapse" );
+        validate_synapse( c, pr, path );
         c.projs.push_back( std::move( pr ) );
       }
     }
@@ -315,17 +480,65 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         const json& p = ( *it )[ i ];
         std::string path = at( "outputs", i );
         require_object( p, path );
-        check_keys( p, { "name", "kind", "neurons" }, path );
+        check_keys( p, { "name", "kind", "neurons", "modulator", "gain", "tau_ms" }, path );
         OutputSpec o;
         o.name = get_string( p, "name", path, true );
         if ( o.name.empty() or not names.insert( o.name ).second )
           fail( sub( path, "name" ), "must be non-empty and unique among outputs" );
         o.kind = get_string( p, "kind", path, false, "rate" );
-        if ( o.kind != "rate" )
-          fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate)" );
+        if ( o.kind != "rate" and o.kind != "modulator" )
+          fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate, modulator)" );
+        if ( o.kind == "modulator" )
+        {
+          o.modulator = get_string( p, "modulator", path, true );
+          if ( not is_modulator_name( o.modulator ) )
+            fail( sub( path, "modulator" ), "unknown modulator '" + o.modulator + "' (NE, ACh or DA)" );
+          o.gain = get_number( p, "gain", path, o.gain );
+          o.tau_ms = get_number( p, "tau_ms", path, o.tau_ms );
+          if ( not( o.gain >= 0 ) )
+            fail( sub( path, "gain" ), "must be >= 0 (concentration added per spike)" );
+          if ( not( o.tau_ms > 0 ) )
+            fail( sub( path, "tau_ms" ), "must be > 0" );
+        }
+        else if ( p.contains( "modulator" ) or p.contains( "gain" ) or p.contains( "tau_ms" ) )
+          fail( path, "'modulator', 'gain' and 'tau_ms' are only valid for kind \"modulator\"" );
         parse_selector_list( c, need( p, "neurons", path ), sub( path, "neurons" ), o.neurons );
         sort_unique( o.neurons );
         c.outputs.push_back( std::move( o ) );
+      }
+    }
+
+    // modulation table
+    if ( auto it = j.find( "modulation" ); it != j.end() )
+    {
+      if ( not it->is_array() )
+        fail( "modulation", "must be an array" );
+      for ( size_t i = 0; i < it->size(); ++i )
+      {
+        const json& p = ( *it )[ i ];
+        std::string path = at( "modulation", i );
+        require_object( p, path );
+        check_keys( p, { "modulator", "pop", "param", "gain", "scale_per_unit", "min", "max" }, path );
+        ModulationSpec m;
+        m.modulator = get_string( p, "modulator", path, true );
+        if ( not is_modulator_name( m.modulator ) )
+          fail( sub( path, "modulator" ), "unknown modulator '" + m.modulator + "' (NE, ACh or DA)" );
+        m.pop = get_string( p, "pop", path, true );
+        m.pop_index = find_pop( c, m.pop );
+        if ( m.pop_index < 0 )
+          fail( sub( path, "pop" ), "unknown population '" + m.pop + "'" );
+        m.param = get_string( p, "param", path, true );
+        if ( p.contains( "gain" ) == p.contains( "scale_per_unit" ) )
+          fail( path, "exactly one of 'gain' (value += gain * conc) or 'scale_per_unit' (value *= 1 + scale_per_unit * conc) is required" );
+        m.scale = p.contains( "scale_per_unit" );
+        m.amount = get_number( p, m.scale ? "scale_per_unit" : "gain", path, 0.0 );
+        m.has_min = p.contains( "min" );
+        m.has_max = p.contains( "max" );
+        m.vmin = get_number( p, "min", path, 0.0 );
+        m.vmax = get_number( p, "max", path, 0.0 );
+        if ( m.has_min and m.has_max and m.vmin > m.vmax )
+          fail( path, "min must be <= max" );
+        c.modulation.push_back( std::move( m ) );
       }
     }
 

@@ -1,0 +1,128 @@
+{
+ "schema_version": 1,
+ "name": "Short-term plasticity net",
+ "resolution_ms": 0.1,
+ "seed": 21,
+ "populations": [
+  {
+   "id": "P",
+   "model": "parrot_neuron",
+   "n": 6
+  },
+  {
+   "id": "E",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {}
+  },
+  {
+   "id": "Q",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {}
+  }
+ ],
+ "projections": [
+  {
+   "pre": "P",
+   "post": "E",
+   "rule": "fixed_indegree",
+   "indegree": 4,
+   "synapse": {
+    "synapse_model": "tsodyks2_synapse",
+    "weight": 220.0,
+    "delay": 1.5,
+    "U": 0.5,
+    "tau_rec": 600.0,
+    "tau_fac": 50.0
+   }
+  },
+  {
+   "pre": "P",
+   "post": "Q",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "quantal_stp_synapse",
+    "weight": 30.0,
+    "delay": 1.0,
+    "U": 0.6,
+    "tau_rec": 500.0,
+    "n": 4
+   }
+  },
+  {
+   "pre": "E",
+   "post": "Q",
+   "edges": [
+    [
+     0,
+     0,
+     40.0,
+     1.0
+    ],
+    [
+     1,
+     1,
+     60.0,
+     2.0
+    ],
+    [
+     2,
+     2,
+     80.0,
+     1.0
+    ]
+   ],
+   "synapse": {
+    "synapse_model": "stdp_synapse",
+    "tau_plus": 15.0
+   }
+  },
+  {
+   "pre": "P",
+   "post": "E",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "stdp_synapse",
+    "weight": 50.0,
+    "delay": 1.0,
+    "Wmax": 120.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "stim",
+   "kind": "poisson",
+   "targets": [
+    "P"
+   ],
+   "weight": 1.0,
+   "value": 40.0
+  },
+  {
+   "name": "bias",
+   "kind": "dc",
+   "targets": [
+    "Q"
+   ],
+   "weight": 1.0,
+   "value": 120.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "rate_E",
+   "kind": "rate",
+   "neurons": [
+    "E"
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "notes": "parity: tsodyks2, quantal_stp, stdp (default and explicit Wmax)"
+ }
+}

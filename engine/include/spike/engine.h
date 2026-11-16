@@ -85,6 +85,14 @@ public:
   bool set_weight( int32_t projection, int32_t edge, double weight );
   bool set_neuron_param( int32_t neuron, const std::string& key, double value );
 
+  /// Additions (v0.2, add-only): neuromodulators NE, ACh, DA (docs/CIRCUIT-FORMAT.md "Modulation").
+  /// set_modulator() sets the externally driven level (arbitrary units, >= 0; typically 0..1) and returns immediately; the circuit's
+  /// "modulation" table is re-applied to the affected neuron parameters at the start of the next step() (between steps, never inside one).
+  /// modulator() is the total level as of the last step(): the external level plus every "modulator" output's release pool
+  /// (spikes of a population -> concentration, first-order decay). Unknown names set error() and return false / 0.
+  bool set_modulator( const std::string& name, double conc );
+  double modulator( const std::string& name ) const;
+
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.
   void stop();
@@ -93,6 +101,9 @@ private:
   struct Impl;
   Impl* impl_;
 };
+
+/// The modulator names the engine accepts: "NE", "ACh", "DA".
+const std::vector< std::string >& modulator_names();
 
 /// Kernel threads (OpenMP builds only). Call before load().
 void set_threads( int n );
