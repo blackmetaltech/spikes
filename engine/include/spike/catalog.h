@@ -47,14 +47,20 @@ struct CatalogModel
   bool params_provisional = false;      // parameter list not yet checked against the model (never set once the model exists)
   // How the thumbnail is measured (slow oscillators need longer runs): each drive level runs run_ms and the first skip_ms are
   // discarded for the rate; the V_m trace is trace_ms long sampled every trace_dt_ms (a multiple of the 0.1 ms resolution).
+  // Slow cells: the rate is measured over >= min_cycles spikes (one per cycle for pacemakers): a level is extended in run_ms chunks until
+  // that many spikes were seen or max_ms is reached (max_ms <= run_ms: fixed window). With >= 2 spikes the rate is (n-1) / (t_last - t_first).
   double run_ms = 1200, skip_ms = 200, trace_ms = 300, trace_dt_ms = 0.5;
+  double max_ms = 0;        // 0: same as run_ms (no extension)
+  int min_cycles = 10;
+  /// Seeded random initial V_m range [lo, hi] mV the engine uses for this card's model (vm_init_range); both 0 = not a membrane-potential cell.
+  double vm_lo = 0, vm_hi = 0;
 };
 
 /// All cards, in display order.
 const std::vector< CatalogModel >& catalog();
 const CatalogModel* catalog_find( const std::string& id );
 /// {"schema":1,"models":[{id, model, title, family, summary, examples, source, params:[{name,unit,desc,default,min,max}], preset, input_weight,
-///   weight_unit, ei, ei_note, drive:{kind,unit,levels}, gap_capable, nestml}, ...]}
+///   weight_unit, ei, ei_note, drive:{kind,unit,levels}, gap_capable, nestml, probe:{run_ms,skip_ms,max_ms,min_cycles,...}}, ...]}
 std::string catalog_json();
 /// A one-neuron circuit (JSON, docs/CIRCUIT-FORMAT.md) for the card, driven by input channel "drive" at `level`.
 std::string catalog_circuit_json( const CatalogModel& m, double level );
