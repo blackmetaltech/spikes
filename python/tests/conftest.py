@@ -59,4 +59,24 @@ def analysis_test_exe():
     return find_exe("analysis_test", "SPIKE_ANALYSIS_TEST")
 
 
-requires_nest = pytest.mark.skipif(not have_nest(), reason="PyNEST not importable (set SPIKE_PYNEST to the NEST site-packages)")
+_REQUIRE = os.environ.get("SPIKE_REQUIRE_NEST", "") not in ("", "0")
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "requires_nest_mark: needs PyNEST (skips, or fails with SPIKE_REQUIRE_NEST=1)")
+
+
+def _need_nest():
+    if not have_nest():
+        if _REQUIRE:
+            pytest.fail("SPIKE_REQUIRE_NEST=1 but PyNEST is not importable (run scripts/build-nest.sh --pynest or set SPIKE_PYNEST)")
+        pytest.skip("PyNEST not importable (set SPIKE_PYNEST to the NEST site-packages)")
+
+
+@pytest.fixture(autouse=True)
+def _nest_gate(request):
+    if request.node.get_closest_marker("requires_nest_mark"):
+        _need_nest()
+
+
+requires_nest = pytest.mark.requires_nest_mark

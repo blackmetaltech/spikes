@@ -68,6 +68,9 @@ public:
   double output_count( const std::string& channel ) const;
   /// Membrane potential samples of a watched neuron, one per step() (taken at the step's end), since the last call.
   std::vector< double > drain_voltage( int32_t neuron );
+  /// True when the last step() completed (false after a failed step(); error() then says why; true again after the next
+  /// successful step() or load()). Tasks and the game should stop and surface error() when this is false.
+  bool last_step_ok() const;
   /// Resolution of the loaded circuit (ms); 0 when nothing is loaded.
   double resolution_ms() const;
   /// Wall time (us) spent inside NEST's run() during the last step(); step() wall time minus this is the engine overhead.

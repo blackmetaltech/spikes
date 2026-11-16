@@ -137,6 +137,7 @@ struct Engine::Impl
   std::vector< RingSpike > scratch;
   uint64_t spikes = 0, checksum = kFnvOffset, overflow = 0;
   int64_t steps_done = 0;
+  bool step_ok = true;
   double last_step_ms = 0, last_run_us = 0;
   std::map< int32_t, std::deque< double > > watched;
 
@@ -158,6 +159,7 @@ struct Engine::Impl
     spikes = overflow = 0;
     checksum = kFnvOffset;
     steps_done = 0;
+    step_ok = true;
     last_step_ms = last_run_us = 0;
     watched.clear();
   }
@@ -228,6 +230,35 @@ void Engine::Impl::build()
       catch ( const std::exception& e )
       {
         throw std::runtime_error( path + ".params: " + e.what() );
+      }
+    }
+    // Seeded random initial V_m (docs/CIRCUIT-FORMAT.md "Initial membrane potential"): only when the
+    // population's params give no V_m and the model has V_m, E_L and V_th. Mirrored in python/spike/circuit.py.
+    if ( not p.params.contains( "V_m" ) )
+    {
+      try
+      {
+        Dictionary d0 = nest::get_node_status( ( *nc )[ 0 ] );
+        if ( d0.known( "V_m" ) and d0.known( "E_L" ) and d0.known( "V_th" ) )
+        {
+          const double e_l = d0.get< double >( "E_L" ), v_th = d0.get< double >( "V_th" );
+          if ( v_th > e_l )
+            for ( int32_t j = 0; j < p.n; ++j )
+            {
+              uint64_t z = spec.seed + static_cast< uint64_t >( p.first + j + 1 ) * 0x9E3779B97F4A7C15ULL;
+              z = ( z ^ ( z >> 30 ) ) * 0xBF58476D1CE4E5B9ULL;
+              z = ( z ^ ( z >> 27 ) ) * 0x94D049BB133111EBULL;
+              z ^= z >> 31;
+              const double u = static_cast< double >( z >> 11 ) * ( 1.0 / 9007199254740992.0 );
+              Dictionary v;
+              v[ "V_m" ] = e_l + u * ( v_th - e_l );
+              nest::set_node_status( ( *nc )[ j ], v );
+            }
+        }
+      }
+      catch ( const std::exception& e )
+      {
+        throw std::runtime_error( path + ": initial V_m: " + e.what() );
       }
     }
     pop_nc.push_back( nc );
@@ -326,6 +357,8 @@ void Engine::Impl::build()
     syn[ "synapse_model" ] = std::string( "static_synapse" );
     syn[ "weight" ] = in.weight;
     syn[ "delay" ] = in.delay > 0 ? in.delay : spec.resolution_ms;
+    if ( in.targets.empty() )
+      continue;  // unwired channel: the device exists, nothing is connected
     try
     {
       nest::connect( nest::make_nodecollection( { devs[ i ].node_id } ), nest::make_nodecollection( node_ids( in.targets ) ), rule, { syn } );
@@ -477,6 +510,7 @@ bool Engine::load( const std::string& circuit_json )
 }
 
 const std::string& Engine::error() const { return impl_->error; }
+bool Engine::last_step_ok() const { return impl_->step_ok; }
 int32_t Engine::neuron_count() const { return impl_->loaded ? impl_->spec.n_neurons : 0; }
 
 std::string Engine::neuron_population( int32_t n ) const
@@ -520,6 +554,7 @@ void Engine::set_input( const std::string& channel, double value )
 void Engine::step( double ms )
 {
   Impl& m = *impl_;
+  m.step_ok = false;
   if ( not m.loaded )
   {
     m.error = "step: no circuit loaded";
@@ -555,18 +590,28 @@ void Engine::step( double ms )
       nest::prepare();
     }
     std::fill( m.out_count.begin(), m.out_count.end(), 0.0 );
-    auto t0 = clk::now();
-    nest::run( ms );
-    m.last_run_us = us_since( t0 );
+    // Long steps run in slices of <= 100 ms (identical spikes) so the spike ring cannot overflow.
+    const int64_t total = static_cast< int64_t >( std::llround( n ) );
+    const int64_t chunk = std::max< int64_t >( 1, static_cast< int64_t >( std::llround( 100.0 / res ) ) );
+    m.last_run_us = 0;
+    for ( int64_t done = 0; done < total; )
+    {
+      const int64_t k = std::min( chunk, total - done );
+      auto t0 = clk::now();
+      nest::run( k == total ? ms : static_cast< double >( k ) * res );
+      m.last_run_us += us_since( t0 );
+      m.steps_done += k;
+      m.collect();
+      done += k;
+    }
     m.last_step_ms = ms;
-    m.steps_done += static_cast< int64_t >( std::llround( n ) );
-    m.collect();
     for ( auto& w : m.watched )
     {
       w.second.push_back( m.read_vm( w.first ) );
       if ( w.second.size() > kVoltageCap )
         w.second.pop_front();
     }
+    m.step_ok = true;
   }
   catch ( const std::exception& e )
   {

@@ -52,3 +52,19 @@ def test_bad_schema():
 
     with pytest.raises(spike.circuit.CircuitError):
         spike.build('{"schema_version": 2, "populations": []}')
+
+
+def test_empty_channels_and_initial_vm():
+    import spike
+
+    c = {
+        "schema_version": 1, "seed": 3,
+        "populations": [{"id": "A", "model": "iaf_psc_alpha", "n": 3}, {"id": "B", "model": "iaf_psc_alpha", "n": 1, "params": {"V_m": -60.0}}],
+        "inputs": [{"name": "touch", "kind": "poisson", "targets": [], "value": 50.0}],
+        "outputs": [{"name": "m", "kind": "rate", "neurons": []}],
+    }
+    net = spike.build(c)
+    spike.run(net, 1.0)
+    vm = net.neurons.get("V_m")
+    assert len(set(vm[:3])) == 3 and all(-70.0 <= v < -55.0 for v in vm[:3])
+    assert vm[3] == -60.0 or abs(vm[3] + 60.0) < 1.0

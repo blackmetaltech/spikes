@@ -205,6 +205,36 @@ static void test_live_edits()
   CHECK( not e.set_neuron_param( 99, "I_e", 1.0 ) );
 }
 
+static void test_empty_channels_and_vm()
+{
+  // Unwired channels load (device created, nothing connected); an empty output reads 0.
+  json c = {
+    { "schema_version", 1 }, { "seed", 3 },
+    { "populations", { { { "id", "A" }, { "model", "iaf_psc_alpha" }, { "n", 3 } } } },
+    { "inputs", { { { "name", "touch" }, { "kind", "poisson" }, { "targets", json::array() }, { "value", 50.0 } } } },
+    { "outputs", { { { "name", "m" }, { "kind", "rate" }, { "neurons", json::array() } } } },
+  };
+  Engine e;
+  CHECK_MSG( e.load( c.dump() ), e.error() );
+  CHECK( e.inputs().size() == 1 and e.inputs()[ 0 ].neurons.empty() );
+  CHECK( e.outputs().size() == 1 and e.outputs()[ 0 ].neurons.empty() );
+  e.set_input( "touch", 100.0 );
+  e.step( 10.0 );
+  CHECK( e.last_step_ok() );
+  CHECK( e.output_rate( "m" ) == 0.0 );
+  // initial V_m: seeded, distinct per neuron, within [E_L, V_th); explicit V_m is respected
+  double v0 = e.voltage( 0 ), v1 = e.voltage( 1 );
+  CHECK( v0 != v1 and v0 >= -70.0 - 1e-9 and v0 < -55.0 and v1 >= -70.0 - 1e-9 and v1 < -55.0 );
+  c[ "populations" ][ 0 ][ "params" ] = { { "V_m", -60.0 } };
+  CHECK_MSG( e.load( c.dump() ), e.error() );
+  CHECK( e.voltage( 0 ) == -60.0 and e.voltage( 2 ) == -60.0 );
+  // step failure is flagged
+  e.step( 0.05 );
+  CHECK( not e.last_step_ok() );
+  e.step( 1.0 );
+  CHECK( e.last_step_ok() );
+}
+
 int main()
 {
   test_single_instance();
@@ -213,5 +243,6 @@ int main()
   test_errors();
   test_reload();
   test_live_edits();
+  test_empty_channels_and_vm();
   return chk::finish( "test_engine" );
 }

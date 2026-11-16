@@ -1,5 +1,5 @@
 {
- "checksum": "281c897f32aabd9a",
+ "checksum": "7b76f6be69b9471a",
  "circuit": {
   "inputs": [
    {
@@ -257,5 +257,5 @@
  },
  "description": "Balanced E/I network, 800 E + 200 I iaf_psc_alpha, fixed in-degree 80/20, Poisson drive; about 14 Hz (cf. engine/tests/feasibility_loop.cpp).",
  "ms": 1000.0,
- "spikes": 13720
+ "spikes": 14308
 }
