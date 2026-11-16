@@ -63,3 +63,9 @@ See [python/README.md](python/README.md).
 ## Command line
 
 `build/engine/spike-run circuit.json 1000` prints one JSON line per spike.
+
+## Custom cells and the parts bin (0.2)
+- `scripts/build-nestml.sh [--pynest]` generates the NESTML cells (`models/nestml/*.nestml`: SA-node pacemaker, Butera burster, ICC slow wave) into `third_party/nestml-gen/`, which CMake compiles into libspike. Without it those models are unavailable and their tests skip. See `docs/models/`.
+- `build/engine/spike-catalog` probes every parts-bin model and writes `catalog/thumbs.json` (f–I points and V_m traces) for the game's model cards.
+- Body physics (muscle, joint, heart, lungs, eye, gut) is documented in `docs/body/`.
+- New tasks register themselves: add `engine/src/tasks/<id>.cpp` ending with `SPIKE_REGISTER_TASK( <id>, <order>, "<circuit>.json", make_<id> )`; the file stem must equal the id.

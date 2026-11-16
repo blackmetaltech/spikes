@@ -284,3 +284,5 @@ private:
 std::unique_ptr< Task > make_worm() { return std::make_unique< WormTask >(); }
 
 } // namespace spike::tasks
+
+namespace spike::tasks { SPIKE_REGISTER_TASK( worm, 20, "worm_chemotaxis.json", make_worm ) }
