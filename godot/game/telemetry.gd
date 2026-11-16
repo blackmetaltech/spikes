@@ -16,6 +16,7 @@ var sim = null
 var task = null
 var circuit := {}
 var error := ""
+var failed := false              # the engine reported an error while stepping: the run was stopped
 var running := true
 var speed := 1.0
 var achieved := 1.0              # simulated ms per wall ms, as actually delivered
@@ -49,13 +50,25 @@ var _wall := 0.0
 
 func now() -> float: return _wall
 
-## Build everything for `c` (circuit Dictionary) and `task_id` ("" = free run). Returns false and sets `error` if the engine rejects the circuit.
+## Build everything for `c` (circuit Dictionary) and `task_id` ("" = free run). The task is ALWAYS created first, so a circuit the engine rejects (or one with
+## nothing in it yet) still shows the task's world and brief, with a verdict that names what is missing. Returns true when the engine is running the circuit;
+## on false `error` holds the engine's message ("" for a bench with no neurons yet).
 func setup(c: Dictionary, task_id: String, ext_ok: bool) -> bool:
-	circuit = c; error = ""; finished = false
+	circuit = c; error = ""; finished = false; failed = false; sim = null; task = null; body = {}; score = {}
 	if not ext_ok: error = "The spike-gd GDExtension is not loaded. Run scripts/build-gd.sh."; return false
+	if task_id != "":
+		task = ClassDB.instantiate("SpikeTask")
+		if not task.make(task_id): task = null; error = "unknown task " + task_id; return false
+		task.reset(int(c.get("seed", 1))); body = task.body(); score = task.score()
+	n = Circuits.neuron_count(c); kinds = Circuits.kind_per_neuron(c)
+	rates = {}
+	for ch in c.get("outputs", []): rates[str(ch.get("name", ""))] = 0.0
+	_apply_issue()
+	if n == 0: return false
 	sim = ClassDB.instantiate("SpikeSim")
-	if not sim.load_circuit(Circuits.to_json(c)): error = str(sim.error()); sim = null; return false
-	n = int(sim.neuron_count()); kinds = Circuits.kind_per_neuron(c)
+	if not sim.load_circuit(Circuits.to_json(sanitized(c))):
+		error = str(sim.error()); sim = null; _apply_issue(); return false
+	n = int(sim.neuron_count())
 	pop_of = PackedInt32Array(); out_projs = []
 	for pi in c["populations"].size():
 		out_projs.append([])
@@ -65,19 +78,61 @@ func setup(c: Dictionary, task_id: String, ext_ok: bool) -> bool:
 		if pre >= 0: out_projs[pre].append(i)
 	pulses = []; pulses.resize(c["projections"].size())
 	for i in pulses.size(): pulses[i] = PackedFloat64Array()
-	task = null
-	if task_id != "":
-		task = ClassDB.instantiate("SpikeTask")
-		if not task.make(task_id): task = null; error = "unknown task " + task_id; return false
 	watched = Circuits.default_watch(c)
 	reset()
 	return true
 
+## The circuit as the engine takes it: channels that select no neuron yet are left out (their input is never driven and their output reads 0).
+static func sanitized(c: Dictionary) -> Dictionary:
+	var out := c.duplicate(true)
+	var ins := []; var outs := []
+	for ch in out.get("inputs", []):
+		if not (ch.get("targets", []) as Array).is_empty(): ins.append(ch)
+	for ch in out.get("outputs", []):
+		if not (ch.get("neurons", []) as Array).is_empty(): outs.append(ch)
+	out["inputs"] = ins; out["outputs"] = outs
+	return out
+
+## What stops the task from being playable yet, in the player's words ("" when the circuit is wired from every sensor to every motor).
+func wiring_issue() -> String:
+	if task == null: return ""
+	var miss_in := []; var miss_out := []
+	for s in task.sensor_channels():
+		var ok := false
+		for ch in circuit.get("inputs", []):
+			if str(ch.get("name", "")) == str(s) and not (ch.get("targets", []) as Array).is_empty(): ok = true
+		if not ok: miss_in.append(str(s))
+	for m in task.motor_channels():
+		var ok := false
+		for ch in circuit.get("outputs", []):
+			if str(ch.get("name", "")) == str(m) and not (ch.get("neurons", []) as Array).is_empty(): ok = true
+		if not ok: miss_out.append(str(m))
+	if n == 0:
+		return "Add a neuron, then connect %s to it and it to %s." % [_list(task.sensor_channels()), _list(task.motor_channels())]
+	var parts := []
+	if not miss_in.is_empty(): parts.append("connect %s to a neuron" % _list(miss_in))
+	if not miss_out.is_empty(): parts.append("connect a neuron to %s" % _list(miss_out))
+	if parts.is_empty(): return ""
+	var t := " and ".join(parts)
+	return t.substr(0, 1).to_upper() + t.substr(1) + "."
+
+static func _list(a) -> String:
+	var l := []
+	for x in a: l.append(str(x))
+	return " and ".join(l) if l.size() <= 2 else ", ".join(l.slice(0, l.size() - 1)) + " and " + l[l.size() - 1]
+
+## Put the wiring problem (if any) into the score's verdict, unless the engine itself failed (then that message is shown by the lab).
+func _apply_issue() -> void:
+	if task == null: return
+	var iss := wiring_issue()
+	if iss != "": score["verdict"] = iss; score["passed"] = false
+
 func reset(seed := -1) -> void:
 	if sim == null: return
 	episode += 1
-	var circ := Circuits.to_json(circuit)
-	sim.load_circuit(circ)   # a fresh kernel: same circuit, same seed, so an episode is repeatable
+	var circ := Circuits.to_json(sanitized(circuit))
+	failed = false
+	if not sim.load_circuit(circ): error = str(sim.error()); failed = true; running = false; return   # a fresh kernel: same circuit, same seed, so an episode is repeatable
 	t_ms = 0.0; view_t = 0.0; _owed = 0.0; finished = false; total_spikes = 0
 	sp_n = PackedInt32Array(); sp_t = PackedFloat64Array()
 	count = PackedInt32Array(); count.resize(n); first_t = PackedFloat64Array(); first_t.resize(n); last_t = PackedFloat64Array(); last_t.resize(n)
@@ -88,11 +143,12 @@ func reset(seed := -1) -> void:
 	volt = {}; rates = {}
 	for w in watched: sim.watch(w); volt[w] = PackedFloat32Array()
 	out_mask = {}
+	for ch in circuit.get("outputs", []): rates[str(ch.get("name", ""))] = 0.0   # unwired ones stay at 0
 	for ch in sim.outputs():
 		var m := PackedByteArray(); m.resize(n)
 		for i in ch["neurons"]: m[int(i)] = 1
 		out_mask[str(ch["name"])] = m; rates[str(ch["name"])] = 0.0
-	if task != null: task.reset(int(circuit.get("seed", 1)) if seed < 0 else seed); body = task.body(); score = task.score()
+	if task != null: task.reset(int(circuit.get("seed", 1)) if seed < 0 else seed); body = task.body(); score = task.score(); _apply_issue()
 
 func set_watched(list: Array) -> void:
 	watched = list.slice(0, 4)
@@ -118,6 +174,7 @@ func advance(dt: float) -> void:
 		while _owed >= SLICE_MS:
 			if task != null: task.step(sim, SLICE_MS)
 			else: sim.step(SLICE_MS)
+			if _step_failed(): break
 			t_ms += SLICE_MS; _owed -= SLICE_MS; stepped += SLICE_MS
 			for w in watched: _push_volt(w)
 			if task != null and t_ms >= duration(): finished = true; break
@@ -128,6 +185,7 @@ func advance(dt: float) -> void:
 	_collect()
 	if sim != null:
 		for ch in rates.keys():
+			if not out_mask.has(ch): continue   # an output nothing is wired to reads 0
 			var m: PackedByteArray = out_mask[ch]; var cnt := 0; var nn := 0
 			for i in n: nn += m[i]
 			var j := sp_t.size() - 1; var t0 := t_ms - RATE_WIN_MS
@@ -136,9 +194,21 @@ func advance(dt: float) -> void:
 				j -= 1
 			var hz := float(cnt) / (RATE_WIN_MS * 0.001 * maxf(float(nn), 1.0))
 			rates[ch] = lerpf(float(rates[ch]), hz, clampf(dt * 10.0, 0.0, 1.0))
-	if task != null and stepped > 0.0: body = task.body(); score = task.score()
+	if task != null and stepped > 0.0: body = task.body(); score = task.score(); _apply_issue()
 	if running and not finished: view_t = clampf(view_t + dt * 1000.0 * achieved_or_speed(), t_ms - 40.0, t_ms)
 	else: view_t = t_ms
+
+## The engine reports step failures through its error text (or `last_step_ok()` where the extension has it). A task's set_input on a channel the circuit
+## does not declare is not a failure of the run: unwired sensors are simply never driven.
+func _step_failed() -> bool:
+	var bad := false
+	if task != null: bad = not bool(task.step_ok(sim))
+	elif sim.has_method("last_step_ok"): bad = not bool(sim.call("last_step_ok"))
+	var e := str(sim.error())
+	if e != "" and not e.begins_with("set_input"): bad = true
+	if not bad: return false
+	error = e if e != "" else "the simulation step failed"; failed = true; running = false
+	return true
 
 func achieved_or_speed() -> float: return minf(speed, maxf(achieved, 0.01) if speed > 1.5 else speed)
 

@@ -17,6 +17,8 @@ public:
   bool make( const String& id );
   void reset( int64_t seed );
   void step( const Ref< SpikeSim >& sim, double ms );
+  /// False when the last engine step failed (Engine::last_step_ok).
+  bool step_ok( const Ref< SpikeSim >& sim ) const;
   Dictionary body() const;
   Dictionary score() const;
   String brief() const;

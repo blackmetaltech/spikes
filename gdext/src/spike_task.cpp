@@ -30,6 +30,10 @@ void SpikeTask::step( const Ref< SpikeSim >& sim, double ms )
   if ( task_ && sim.is_valid() && sim->owns() )
     task_->step( sim->engine(), ms );
 }
+bool SpikeTask::step_ok( const Ref< SpikeSim >& sim ) const
+{
+  return !sim.is_valid() || !sim->owns() || sim->engine().last_step_ok();
+}
 Dictionary SpikeTask::body() const
 {
   Dictionary d;
@@ -85,6 +89,7 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "make", "id" ), &SpikeTask::make );
   ClassDB::bind_method( D_METHOD( "reset", "seed" ), &SpikeTask::reset );
   ClassDB::bind_method( D_METHOD( "step", "sim", "ms" ), &SpikeTask::step );
+  ClassDB::bind_method( D_METHOD( "step_ok", "sim" ), &SpikeTask::step_ok );
   ClassDB::bind_method( D_METHOD( "body" ), &SpikeTask::body );
   ClassDB::bind_method( D_METHOD( "score" ), &SpikeTask::score );
   ClassDB::bind_method( D_METHOD( "brief" ), &SpikeTask::brief );

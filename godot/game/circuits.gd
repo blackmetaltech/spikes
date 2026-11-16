@@ -16,7 +16,21 @@ const PRESETS := {
 
 ## Synaptic weight of a typical single connection per target model, in the model's own synapse units (pA for current-based, nS for conductance-based).
 const WEIGHT := {"iaf_psc_alpha": 250.0, "aeif_cond_alpha": 20.0, "izhikevich": 25.0, "hh_psc_alpha": 400.0}
-const SYNAPSES := ["static_synapse", "stdp_synapse", "tsodyks_synapse"]
+const SYNAPSES := ["static_synapse"]   # plasticity (STDP, Tsodyks) is the 0.2 theme; circuits that already use it still load
+
+## "Advanced" neuron parameters per model, in NEST's names and units: [key, label, min, max, step, NEST default, unit]. `V_m` is the initial membrane
+## potential: different starting values are what lets two identical cells break symmetry (a half-centre oscillator needs that).
+const ADVANCED := {
+	"iaf_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -70.0, "mV"], ["tau_m", "tau m", 2.0, 60.0, 0.5, 10.0, "ms"], ["V_th", "threshold", -60.0, -40.0, 0.5, -55.0, "mV"], ["I_e", "bias", -400.0, 800.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]],
+	"aeif_cond_alpha": [["V_m", "start V", -85.0, -45.0, 0.5, -70.6, "mV"], ["a", "a", -2.0, 10.0, 0.1, 4.0, "nS"], ["b", "b", 0.0, 200.0, 1.0, 80.5, "pA"], ["tau_w", "tau w", 5.0, 400.0, 1.0, 144.0, "ms"], ["I_e", "bias", -400.0, 1000.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 0.2, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]],
+	"izhikevich": [["V_m", "start V", -85.0, -45.0, 0.5, -65.0, "mV"], ["a", "a", 0.01, 0.15, 0.005, 0.02, ""], ["b", "b", 0.1, 0.3, 0.005, 0.2, ""], ["c", "c", -70.0, -45.0, 0.5, -65.0, "mV"], ["d", "d", 0.5, 10.0, 0.5, 8.0, ""], ["I_e", "bias", -10.0, 30.0, 0.5, 0.0, "pA"]],
+	"hh_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -65.0, "mV"], ["I_e", "bias", -100.0, 600.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 20.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 20.0, 0.1, 2.0, "ms"]]}
+
+## Default weight of a sensor / noise input onto a neuron of `model`: a bit above one internal synapse (WEIGHT), so a lone neuron wired straight from a
+## 400 Hz sensor fires at once instead of sitting silent. Dc inputs keep their own scale (pA of drive).
+static func input_weight(model: String, kind: String) -> float:
+	if kind == "dc": return 300.0
+	return snappedf(float(WEIGHT.get(model, 100.0)) * 1.2, 0.5)
 
 static func empty(name := "New circuit") -> Dictionary:
 	return {"schema_version": 1, "name": name, "resolution_ms": 0.1, "seed": 1, "populations": [], "projections": [], "inputs": [], "outputs": [], "record": {"spikes": "all"}, "meta": {"author": "", "notes": ""}}
@@ -182,6 +196,12 @@ static func add_neuron(c: Dictionary, model: String, preset: int, at: Vector2, k
 	var meta: Dictionary = c.get("meta", {}); var ed: Dictionary = meta.get("editor", {}); var ei: Dictionary = ed.get("ei", {})
 	ei[id] = kind; ed["ei"] = ei; meta["editor"] = ed; c["meta"] = meta
 	return id
+
+## A free background input: a Poisson source (rate in `value`) that the player wires to any neurons. Returns its name.
+static func add_noise(c: Dictionary) -> String:
+	var name := unique_id(c, "noise")
+	c["inputs"].append({"name": name, "kind": "poisson", "targets": [], "weight": input_weight("iaf_psc_alpha", "poisson") * 0.5, "value": 30.0})
+	return name
 
 static func default_weight(c: Dictionary, pre: String, post: String) -> float:
 	var pi := pop_index(c, post); var model := "iaf_psc_alpha"

@@ -25,7 +25,9 @@ func build() -> void:
 	var scroll := ScrollContainer.new(); scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; v.add_child(scroll)
 	var row: BoxContainer = HBoxContainer.new() if not phone else HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.size_flags_vertical = Control.SIZE_EXPAND_FILL; row.add_theme_constant_override("separation", int(24 * f) if not phone else 12); scroll.add_child(row)
-	for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+	var ids: Array = Array(ClassDB.instantiate("SpikeTask").call("task_ids"))
+	ids.sort_custom(func(a, b): return (Progress.ORDER.find(a) if Progress.ORDER.has(a) else 99) < (Progress.ORDER.find(b) if Progress.ORDER.has(b) else 99))   # easy to hard
+	for id in ids:
 		var t = ClassDB.instantiate("SpikeTask"); if not t.make(id): continue
 		row.add_child(_card(id, t, f, phone))
 
@@ -43,14 +45,21 @@ func _card(id: String, t, f: float, phone: bool) -> Control:
 		var kl := Kit.label(pair[0], int(16 * f) if not phone else 15, Kit.TEXT_SOFT); kl.custom_minimum_size.x = 100 * f if not phone else 80; kl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; row.add_child(kl)
 		for ch in pair[1]: row.add_child(Kit.chip(str(ch), pair[2], 16))
 	var best: Dictionary = Progress.best(id)
+	var open := Progress.unlocked(id)
+	var sr := HBoxContainer.new(); sr.add_theme_constant_override("separation", 10); v.add_child(sr)
+	var stars := StarRow.new(); stars.n = int(best["stars"]); stars.custom_minimum_size = Vector2(84, 26); sr.add_child(stars)
+	var tier := "pass  /  5 seeds  /  %d neurons or fewer" % Progress.budget(id)
+	var tl := Kit.label(tier, int(15 * f) if not phone else 15, Kit.TEXT_SOFT); tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(tl)
 	var chips := HBoxContainer.new(); chips.add_theme_constant_override("separation", 8); v.add_child(chips)
 	chips.add_child(Kit.chip("%d s episode" % int(round(float(t.duration_ms()) / 1000.0)), Kit.PANEL_HI, 15)); (chips.get_child(0).get_child(0) as Label).label_settings = Kit.ls(15, Kit.TEXT, true)
 	chips.add_child(Kit.chip("BEST %d" % int(round(float(best["value"]))) if float(best["value"]) > 0.0 else "NOT TRIED", Kit.GREEN if bool(best["passed"]) else Kit.exc(), 15))
 	if bool(best["passed"]): chips.add_child(Kit.chip("PASSED", Kit.GREEN, 15))
+	if not open: chips.add_child(Kit.chip("LOCKED", Kit.RED, 15))
 	var bt := HBoxContainer.new(); bt.add_theme_constant_override("separation", 10); v.add_child(bt)
-	var b := Kit.btn("BUILD", func(): app.open_lab(id), "amber", int(26 * f) if not phone else 20); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
+	var b := Kit.btn("BUILD" if open else "PASS %s FIRST" % str(Progress.ORDER[maxi(Progress.ORDER.find(id) - 1, 0)]).to_upper(), func(): if open: app.open_lab(id), "amber" if open else "panel", int(26 * f) if not phone else 20); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
+	if not open: b.disabled = true
 	var r := Kit.btn("REFERENCE", func(): app.open_lab(id, true), "cyan", int(26 * f) if not phone else 20); r.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(r)
-	if first == null: first = b
+	if first == null and open: first = b
 	return p
 
 ## The first sentences of a brief that fit in `n` characters.
@@ -61,6 +70,12 @@ static func _lead(t: String, n: int) -> String:
 		if out != "" and nxt.length() > n: break
 		out = nxt
 	return out
+
+## Three stars, `n` of them lit.
+class StarRow extends Control:
+	var n := 0
+	func _draw() -> void:
+		for k in 3: ScoreCard.draw_star_on(self, Vector2(11.0 + 26.0 * k, size.y * 0.5), 10.0, Kit.AMBER if k < n else Color(Kit.LINE, 0.95))
 
 ## A small vector emblem of the task's creature.
 class TaskIcon extends Control:

@@ -29,8 +29,8 @@ shot() {   # shot <name> <WxH> <env assignments...>
   if [ "$SS" != 1 ] && [ -n "$im" ]; then "$im" "$png" -filter Lanczos -resize "${w}x${h}!" "$out/$name-$size.png"; else cp "$png" "$out/$name-$size.png"; fi
   echo "wrote docs/screenshots/$name-$size.png"
 }
-ONLY=${ONLY:-"title tasks lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes analysis settings credits"}
-PHONE_ONLY=" lab-world lab-scopes "
+ONLY=${ONLY:-"title tasks lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings credits"}
+PHONE_ONLY=" lab-world lab-scopes lab-menu "
 for size in 1920x1080 844x390; do
   for s in $ONLY; do
     [[ "$PHONE_ONLY" == *" $s "* && "$size" != 844x390 ]] && continue
@@ -44,6 +44,10 @@ for size in 1920x1080 844x390; do
       lab-edit) shot lab-edit $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SEL=proj:3 SP_SIM_UNTIL=6000 SP_SHOT_AT=3 ;;
       lab-world) shot lab-world $size SP_SCREEN=lab SP_TASK=worm SP_REF=1 SP_SPEED=20 SP_SIM_UNTIL=40000 SP_LABTAB=world SP_SHOT_AT=3 ;;
       lab-scopes) shot lab-scopes $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=6000 SP_LABTAB=scopes_only SP_SHOT_AT=3 ;;
+      lab-empty) shot lab-empty $size SP_SCREEN=lab SP_TASK=reflex SP_SPEED=1 SP_SHOT_AT=2 ;;
+      lab-overlay) shot lab-overlay $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=50 SP_SIM_UNTIL=20000 SP_SHOT_AT=3 ;;
+      lab-adv) shot lab-adv $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SEL=pop:E_L SP_ADV=1 SP_SIM_UNTIL=3000 SP_SHOT_AT=3 ;;
+      lab-menu) shot lab-menu $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=1 SP_MENU=1 SP_SIM_UNTIL=3000 SP_SHOT_AT=3 ;;
       analysis) shot analysis $size SP_SCREEN=analysis SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SHOT_AT=7 ;;
       credits) shot credits $size SP_SCREEN=credits ;;
       *) echo "unknown screen $s" >&2; exit 2 ;;
