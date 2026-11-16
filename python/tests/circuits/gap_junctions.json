@@ -1,0 +1,132 @@
+{
+ "schema_version": 1,
+ "name": "Gap-junction clusters",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "A",
+   "model": "hh_psc_alpha_gap",
+   "n": 3,
+   "params": {},
+   "role": "neuron"
+  },
+  {
+   "id": "B",
+   "model": "hh_psc_alpha_gap",
+   "n": 3,
+   "params": {
+    "I_e": 60.0
+   }
+  },
+  {
+   "id": "C",
+   "model": "hh_cond_beta_gap_traub",
+   "n": 2,
+   "params": {
+    "V_T": -50.0,
+    "I_e": 200.0
+   }
+  },
+  {
+   "id": "D",
+   "model": "hh_cond_beta_gap_traub",
+   "n": 2,
+   "params": {
+    "V_T": -50.0
+   }
+  }
+ ],
+ "projections": [
+  {
+   "pre": "A",
+   "post": "B",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "gap_junction",
+    "weight": 2.0
+   }
+  },
+  {
+   "pre": "A",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "gap_junction",
+    "weight": 0.5
+   }
+  },
+  {
+   "pre": "C",
+   "post": "D",
+   "edges": [
+    [
+     0,
+     0,
+     3.0,
+     1.0
+    ],
+    [
+     1,
+     1,
+     1.5,
+     1.0
+    ]
+   ],
+   "synapse": {
+    "synapse_model": "gap_junction"
+   }
+  },
+  {
+   "pre": "A",
+   "post": "B",
+   "rule": "fixed_indegree",
+   "indegree": 1,
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 40.0,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "drive_A",
+   "kind": "dc",
+   "targets": [
+    "A"
+   ],
+   "weight": 1.0,
+   "value": 160.0
+  },
+  {
+   "name": "kick",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "B",
+     "idx": [
+      0
+     ]
+    }
+   ],
+   "weight": 120.0,
+   "value": 30.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "rate_B",
+   "kind": "rate",
+   "neurons": [
+    "B"
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "notes": "parity: gap junctions (one_to_one make_symmetric, all_to_all within a population, mirrored edges)"
+ }
+}

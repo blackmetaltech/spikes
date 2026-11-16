@@ -13,6 +13,7 @@
 
 #include "circuit.h"
 #include "ring_backend.h"
+#include "modules/nestml_models.h" // NESTML custom cell models (models/nestml)
 
 #include "connection_id.h"
 #include "dictionary.h"
@@ -34,6 +35,9 @@ constexpr uint64_t kFnvOffset = 1469598103934665603ULL;
 constexpr uint64_t kFnvPrime = 1099511628211ULL;
 constexpr size_t kPendingCap = size_t( 1 ) << 22;
 constexpr size_t kVoltageCap = 4096;
+constexpr double kDaVtHzPerUnit = 100.0;  // DA concentration 1.0 = 100 Hz of dopamine "spikes" onto every volume_transmitter
+
+int modulator_index( const std::string& n ) { return n == "NE" ? 0 : n == "ACh" ? 1 : n == "DA" ? 2 : -1; }
 
 inline uint64_t fnv_bytes( uint64_t h, uint64_t v, int nbytes )
 {
@@ -133,6 +137,27 @@ struct Engine::Impl
   };
   std::vector< Proj > projs;
 
+  // neuromodulation (v0.2)
+  struct Pool  // release pool of one "modulator" output: spikes -> concentration with first-order decay
+  {
+    double c = 0, t = 0;
+  };
+  std::vector< Pool > pools;                 // per output (used by kind "modulator")
+  double mod_ext[ 3 ] = { 0, 0, 0 };         // set_modulator()
+  double mod_pool[ 3 ] = { 0, 0, 0 };        // sum of release pools at the end of the last step
+  struct ModTarget                           // one (population, parameter) written by the modulation table
+  {
+    int pop;
+    std::string param;
+    double base;
+    double applied;
+    bool is_long;
+    std::vector< size_t > rows;              // indices into spec.modulation, file order
+  };
+  std::vector< ModTarget > mod_targets;
+  int da_dev = -1;                           // index into devs: poisson_generator feeding the volume_transmitters
+  double mod_total( int m ) const { return mod_ext[ m ] + mod_pool[ m ]; }
+
   std::vector< Spike > pending;
   std::vector< RingSpike > scratch;
   uint64_t spikes = 0, checksum = kFnvOffset, overflow = 0;
@@ -154,6 +179,11 @@ struct Engine::Impl
     out_count.clear();
     out_of_neuron.clear();
     projs.clear();
+    pools.clear();
+    for ( int m = 0; m < 3; ++m )
+      mod_ext[ m ] = mod_pool[ m ] = 0;
+    mod_targets.clear();
+    da_dev = -1;
     pending.clear();
     scratch.clear();
     spikes = overflow = 0;
@@ -188,6 +218,8 @@ struct Engine::Impl
 
   void build();
   void collect();
+  void apply_modulation();
+  void decay_pools();
   double read_vm( int32_t neuron ) const;
   std::deque< nest::ConnectionID > find_conns( const Proj& p, int32_t pre_neuron, int32_t post_neuron ) const;
 };
@@ -205,6 +237,8 @@ void Engine::Impl::build()
   if ( g_threads > 1 )
     k[ "local_num_threads" ] = static_cast< long >( g_threads );
   nest::set_kernel_status( k );
+  // NESTML models: must follow set_kernel_status (a thread-count change drops every registered model) and ResetKernel
+  register_nestml_models();
 
   // (1) populations
   for ( size_t i = 0; i < spec.pops.size(); ++i )
@@ -266,6 +300,43 @@ void Engine::Impl::build()
       neuron_pop.push_back( p.id );
   }
 
+  // modulation table: remember each target parameter's base value (after the population's params were applied)
+  for ( size_t i = 0; i < spec.modulation.size(); ++i )
+  {
+    const ModulationSpec& m = spec.modulation[ i ];
+    const std::string path = "modulation[" + std::to_string( i ) + "]";
+    ModTarget* mt = nullptr;
+    for ( auto& t : mod_targets )
+      if ( t.pop == m.pop_index and t.param == m.param )
+        mt = &t;
+    if ( not mt )
+    {
+      ModTarget t{ m.pop_index, m.param, 0.0, std::numeric_limits< double >::quiet_NaN(), false, {} };
+      Dictionary d0 = nest::get_node_status( ( *pop_nc[ m.pop_index ] )[ 0 ] );
+      if ( not d0.known( m.param ) )
+        throw std::runtime_error( path + ".param: model " + spec.pops[ m.pop_index ].model + " has no parameter '" + m.param + "'" );
+      try
+      {
+        t.base = d0.get< double >( m.param );
+      }
+      catch ( const std::exception& )
+      {
+        try
+        {
+          t.base = static_cast< double >( d0.get< long >( m.param ) );
+          t.is_long = true;
+        }
+        catch ( const std::exception& )
+        {
+          throw std::runtime_error( path + ".param: '" + m.param + "' of " + spec.pops[ m.pop_index ].model + " is not a scalar number" );
+        }
+      }
+      mod_targets.push_back( t );
+      mt = &mod_targets.back();
+    }
+    mt->rows.push_back( i );
+  }
+
   // (2) input devices
   for ( size_t i = 0; i < spec.inputs.size(); ++i )
   {
@@ -296,6 +367,50 @@ void Engine::Impl::build()
     nest::set_nc_status( rec, ds );
   }
 
+  // (4) dopamine plumbing, only if a stdp_dopamine_synapse projection exists: one volume_transmitter per distinct
+  // "dopamine_source" (in order of first use), then one poisson_generator -> parrot_neuron chain (the engine's DA
+  // concentration: kDaVtHzPerUnit Hz per unit) that feeds all of them (a device cannot connect to a volume_transmitter directly).
+  std::map< int, nest::NodeCollectionPTR > vt_of;
+  std::vector< int > vt_order;
+  for ( const ProjSpec& p : spec.projs )
+    if ( p.dopamine and not vt_of.count( p.dopamine_pop ) )
+    {
+      try
+      {
+        vt_of[ p.dopamine_pop ] = nest::create( "volume_transmitter", 1 );
+        vt_order.push_back( p.dopamine_pop );
+      }
+      catch ( const std::exception& e )
+      {
+        throw std::runtime_error( std::string( "volume_transmitter: " ) + e.what() );
+      }
+    }
+  if ( not vt_order.empty() )
+  {
+    auto connect_static = [ & ]( nest::NodeCollectionPTR a, nest::NodeCollectionPTR b ) {
+      Dictionary rule, syn;
+      rule[ "rule" ] = std::string( "all_to_all" );
+      syn[ "synapse_model" ] = std::string( "static_synapse" );
+      syn[ "weight" ] = 1.0;
+      syn[ "delay" ] = spec.resolution_ms;
+      nest::connect( a, b, rule, { syn } );
+    };
+    auto gen = nest::create( "poisson_generator", 1 );
+    auto relay = nest::create( "parrot_neuron", 1 );
+    da_dev = static_cast< int >( devs.size() );
+    {
+      Dictionary v;
+      v[ "rate" ] = 0.0;
+      nest::set_node_status( ( *gen )[ 0 ], v );
+    }
+    devs.push_back( Dev{ "rate", ( *gen )[ 0 ], 0.0, false } );
+    for ( int pp : vt_order )
+      connect_static( pop_nc[ pp ], vt_of[ pp ] );
+    connect_static( gen, relay );
+    for ( int pp : vt_order )
+      connect_static( relay, vt_of[ pp ] );
+  }
+
   // connections: projections
   for ( size_t i = 0; i < spec.projs.size(); ++i )
   {
@@ -304,10 +419,19 @@ void Engine::Impl::build()
     Proj pr{ pop_nc[ p.pre_pop ], pop_nc[ p.post_pop ], p.synapse[ "synapse_model" ].get< std::string >() };
     try
     {
+      if ( p.dopamine )
+      {
+        // stdp_dopamine_synapse keeps A_plus, Wmax, ... and its volume_transmitter as common properties: set them on a model copy
+        pr.model = "stdp_dopamine_synapse__p" + std::to_string( i );
+        Dictionary cm = to_dict( p.common );
+        cm[ "volume_transmitter" ] = vt_of[ p.dopamine_pop ];
+        nest::copy_model( "stdp_dopamine_synapse", pr.model, cm );
+      }
       if ( not p.has_edges )
       {
         Dictionary rule = to_dict( p.rule );
         Dictionary syn = to_dict( p.synapse );
+        syn[ "synapse_model" ] = pr.model;
         nest::connect( pr.src, pr.tgt, rule, { syn } );
       }
       else if ( not p.edges.empty() )
@@ -315,14 +439,24 @@ void Engine::Impl::build()
         const PopSpec& a = spec.pops[ p.pre_pop ];
         const PopSpec& b = spec.pops[ p.post_pop ];
         size_t n = p.edges.size();
+        if ( p.gap )
+          n *= 2;  // gap junctions are symmetric: every edge also gets its mirror (post -> pre)
         std::vector< long > src( n ), tgt( n );
         std::vector< double > w( n ), d( n );
-        for ( size_t e = 0; e < n; ++e )
+        const size_t ne = p.edges.size();
+        for ( size_t e = 0; e < ne; ++e )
         {
           src[ e ] = a.first + p.edges[ e ].first + 1;
           tgt[ e ] = b.first + p.edges[ e ].second + 1;
           w[ e ] = p.edge_wd[ e ][ 0 ];
           d[ e ] = p.edge_wd[ e ][ 1 ];
+          if ( p.gap )
+          {
+            src[ ne + e ] = tgt[ e ];
+            tgt[ ne + e ] = src[ e ];
+            w[ ne + e ] = w[ e ];
+            d[ ne + e ] = d[ e ];
+          }
         }
         // extra constant synapse parameters (e.g. tau_plus) are passed as per-edge columns
         std::vector< std::string > keys;
@@ -338,7 +472,7 @@ void Engine::Impl::build()
         for ( size_t kx = 0; kx < keys.size(); ++kx )
           for ( size_t e = 0; e < n; ++e )
             vals[ e * keys.size() + kx ] = p.synapse[ keys[ kx ] ].get< double >();
-        nest::connect_arrays( src.data(), tgt.data(), w.data(), d.data(), keys, vals.empty() ? nullptr : vals.data(), n, pr.model );
+        nest::connect_arrays( src.data(), tgt.data(), w.data(), p.gap ? nullptr : d.data(), keys, vals.empty() ? nullptr : vals.data(), n, pr.model );
       }
       projs.push_back( pr );
     }
@@ -397,8 +531,66 @@ void Engine::Impl::build()
     for ( int32_t n : spec.outputs[ o ].neurons )
       out_of_neuron[ n ].push_back( static_cast< int >( o ) );
   }
+  pools.assign( spec.outputs.size(), Pool{} );
   for ( int32_t n : spec.record_voltage )
     watched[ n ];
+}
+
+// Neuromodulation, applied between steps: write every (population, parameter) of the modulation table whose value changed.
+void Engine::Impl::apply_modulation()
+{
+  for ( ModTarget& t : mod_targets )
+  {
+    double v = t.base;
+    for ( size_t r : t.rows )
+    {
+      const ModulationSpec& m = spec.modulation[ r ];
+      const double conc = mod_total( modulator_index( m.modulator ) );
+      v = m.scale ? v * ( 1.0 + m.amount * conc ) : v + m.amount * conc;
+      if ( m.has_min )
+        v = std::max( v, m.vmin );
+      if ( m.has_max )
+        v = std::min( v, m.vmax );
+    }
+    if ( v == t.applied or ( t.applied != t.applied and v == t.base ) )
+      continue;  // unchanged (initially NaN: nothing to write while the value equals the base)
+    Dictionary d;
+    if ( t.is_long )
+      d[ t.param ] = static_cast< long >( std::llround( v ) );
+    else
+      d[ t.param ] = v;
+    std::vector< Dictionary > ds{ d };
+    nest::set_nc_status( pop_nc[ t.pop ], ds );
+    t.applied = v;
+  }
+  if ( da_dev >= 0 )
+  {
+    Dev& d = devs[ da_dev ];
+    const double rate = std::max( 0.0, mod_total( 2 ) ) * kDaVtHzPerUnit;
+    if ( std::fabs( rate - d.value ) > 0.05 or ( rate == 0.0 and d.value != 0.0 ) )
+    {
+      d.value = rate;
+      d.dirty = true;
+    }
+  }
+}
+
+// Decay every release pool to the end of the step and refresh the per-modulator sums.
+void Engine::Impl::decay_pools()
+{
+  const double now = steps_done * spec.resolution_ms;
+  for ( int m = 0; m < 3; ++m )
+    mod_pool[ m ] = 0;
+  for ( size_t o = 0; o < spec.outputs.size(); ++o )
+  {
+    const OutputSpec& os = spec.outputs[ o ];
+    if ( os.kind != "modulator" )
+      continue;
+    Pool& pl = pools[ o ];
+    pl.c *= std::exp( -std::max( 0.0, now - pl.t ) / os.tau_ms );
+    pl.t = std::max( pl.t, now );
+    mod_pool[ modulator_index( os.modulator ) ] += pl.c;
+  }
 }
 
 void Engine::Impl::collect()
@@ -420,10 +612,20 @@ void Engine::Impl::collect()
     checksum = fnv_bytes( checksum, static_cast< uint32_t >( n ), 4 );
     checksum = fnv_bytes( checksum, static_cast< uint64_t >( s.step ), 8 );
     ++spikes;
+    const double t_spike = static_cast< double >( s.step ) * res - s.offset;
     for ( int o : out_of_neuron[ n ] )
+    {
       out_count[ o ] += 1.0;
+      const OutputSpec& os = spec.outputs[ o ];
+      if ( os.kind == "modulator" )
+      {
+        Pool& pl = pools[ o ];
+        pl.c = pl.c * std::exp( -std::max( 0.0, t_spike - pl.t ) / os.tau_ms ) + os.gain;
+        pl.t = std::max( pl.t, t_spike );
+      }
+    }
     if ( pending.size() < kPendingCap )
-      pending.push_back( Spike{ n, static_cast< double >( s.step ) * res - s.offset } );
+      pending.push_back( Spike{ n, t_spike } );
     else
       ++overflow;
   }
@@ -574,6 +776,7 @@ void Engine::step( double ms )
       nest::prepare();
       m.prepared = true;
     }
+    m.apply_modulation();
     bool reprep = false;
     for ( auto& d : m.devs )
       if ( d.dirty )
@@ -605,6 +808,7 @@ void Engine::step( double ms )
       done += k;
     }
     m.last_step_ms = ms;
+    m.decay_pools();
     for ( auto& w : m.watched )
     {
       w.second.push_back( m.read_vm( w.first ) );
@@ -713,6 +917,17 @@ bool Engine::set_weight( int32_t projection, int32_t edge, double weight )
     Dictionary d;
     d[ "weight" ] = weight;
     nest::set_connection_status( std::deque< nest::ConnectionID >{ conns[ pick ] }, d );
+    if ( ps.gap )
+    {
+      // gap junctions stay symmetric: set the mirror connection (target -> source) too
+      Dictionary q;
+      q[ "source" ] = nest::make_nodecollection( { static_cast< size_t >( conns[ pick ].get_target_node_id() ) } );
+      q[ "target" ] = nest::make_nodecollection( { static_cast< size_t >( conns[ pick ].get_source_node_id() ) } );
+      q[ "synapse_model" ] = pr.model;
+      for ( auto& dq : nest::get_connections( q ) )
+        if ( not dq.empty() )
+          nest::set_connection_status( dq, d );
+    }
     return true;
   }
   catch ( const std::exception& e )
@@ -744,6 +959,30 @@ bool Engine::set_neuron_param( int32_t neuron, const std::string& key, double va
   }
 }
 
+bool Engine::set_modulator( const std::string& name, double conc )
+{
+  Impl& m = *impl_;
+  const int k = modulator_index( name );
+  if ( k < 0 )
+  {
+    m.error = "set_modulator: unknown modulator '" + name + "' (NE, ACh or DA)";
+    return false;
+  }
+  m.mod_ext[ k ] = conc > 0.0 ? conc : 0.0;
+  return true;
+}
+
+double Engine::modulator( const std::string& name ) const
+{
+  const int k = modulator_index( name );
+  if ( k < 0 )
+  {
+    impl_->error = "modulator: unknown modulator '" + name + "' (NE, ACh or DA)";
+    return 0.0;
+  }
+  return impl_->mod_total( k );
+}
+
 RunStats Engine::stats() const
 {
   RunStats s;
@@ -754,6 +993,12 @@ RunStats Engine::stats() const
 }
 
 void Engine::stop() { impl_->do_stop(); }
+
+const std::vector< std::string >& modulator_names()
+{
+  static const std::vector< std::string > n{ "NE", "ACh", "DA" };
+  return n;
+}
 
 void set_threads( int n ) { g_threads = n < 1 ? 1 : n; }
 

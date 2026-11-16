@@ -1,0 +1,83 @@
+{
+ "schema_version": 1,
+ "name": "Dopamine-gated STDP",
+ "resolution_ms": 0.1,
+ "seed": 5,
+ "populations": [
+  {
+   "id": "P",
+   "model": "parrot_neuron",
+   "n": 4
+  },
+  {
+   "id": "N",
+   "model": "iaf_psc_alpha",
+   "n": 4
+  },
+  {
+   "id": "D",
+   "model": "parrot_neuron",
+   "n": 2
+  }
+ ],
+ "projections": [
+  {
+   "pre": "P",
+   "post": "N",
+   "rule": "one_to_one",
+   "dopamine_source": "D",
+   "synapse": {
+    "synapse_model": "stdp_dopamine_synapse",
+    "weight": 30.0,
+    "delay": 1.0,
+    "A_plus": 2.0,
+    "A_minus": 2.0,
+    "tau_c": 100.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "stim",
+   "kind": "poisson",
+   "targets": [
+    "P"
+   ],
+   "weight": 1.0,
+   "value": 30.0
+  },
+  {
+   "name": "reward",
+   "kind": "poisson",
+   "targets": [
+    "D"
+   ],
+   "weight": 1.0,
+   "value": 15.0
+  },
+  {
+   "name": "bias",
+   "kind": "dc",
+   "targets": [
+    "N"
+   ],
+   "weight": 1.0,
+   "value": 420.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "rate",
+   "kind": "rate",
+   "neurons": [
+    "N"
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "notes": "parity: stdp_dopamine_synapse with a volume_transmitter fed by population D"
+ }
+}

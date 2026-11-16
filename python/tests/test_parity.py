@@ -12,7 +12,13 @@ from conftest import requires_nest
 
 pytestmark = requires_nest
 
-CASES = [("ei_net.json", 500.0), ("half_centre.json", 800.0)]
+CASES = [
+    ("ei_net.json", 500.0),
+    ("half_centre.json", 800.0),
+    ("gap_junctions.json", 400.0),
+    ("short_term_plasticity.json", 600.0),
+    ("dopamine_stdp.json", 600.0),
+]
 
 
 def cpp_spikes(exe, path, ms, threads):
