@@ -681,14 +681,24 @@ func _inspect_brief(small: int) -> void:
 	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.GREEN, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
 	insp_body.add_child(leg)
 
-func _val_row(name: String, lo: float, hi: float, step: float, val: float, unit: String, cb: Callable, dec := -1) -> Control:
+## A slider row. `quad` makes the slider square-law (value = hi * s^2 for s in 0..1): fine steps near zero for weights, which run from fractions of a pA (a burster
+## onto an integrate-and-fire cell) to thousands (a relay), with the same slider.
+func _val_row(name: String, lo: float, hi: float, step: float, val: float, unit: String, cb: Callable, dec := -1, quad := false) -> Control:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10); h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var nm := Kit.label(name, 17, Kit.TEXT_SOFT); nm.custom_minimum_size.x = 100; h.add_child(nm)
-	var s := HSlider.new(); s.min_value = lo; s.max_value = hi; s.step = step; s.value = val; s.size_flags_horizontal = Control.SIZE_EXPAND_FILL; s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var s := HSlider.new(); s.size_flags_horizontal = Control.SIZE_EXPAND_FILL; s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if quad: s.min_value = 0.0; s.max_value = 1.0; s.step = QUAD_STEP; s.value = sqrt(clampf(val, 0.0, hi) / maxf(hi, 1e-9))
+	else: s.min_value = lo; s.max_value = hi; s.step = step; s.value = val
 	s.custom_minimum_size = Vector2(120, maxf(30.0, Layout.tap())); s.focus_mode = Kit.focus_mode(); h.add_child(s)
-	var vl := Kit.label(_numd(val, dec) + " " + unit, 17, Kit.TEXT); vl.custom_minimum_size.x = 96; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; h.add_child(vl)
-	s.value_changed.connect(func(x): vl.text = _numd(x, dec) + " " + unit; cb.call(x))
+	var vl := Kit.label(_numd(val, dec if dec >= 0 or not quad else _quad_dec(val)) + " " + unit, 17, Kit.TEXT); vl.custom_minimum_size.x = 96; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; h.add_child(vl)
+	s.value_changed.connect(func(x):
+		var v: float = hi * x * x if quad else x
+		vl.text = _numd(v, dec if dec >= 0 else (-1 if not quad else _quad_dec(v))) + " " + unit; cb.call(v))
 	return h
+
+const QUAD_STEP := 0.0025
+## Decimals for a square-law weight: whole numbers above 100, one decimal above 1, else three.
+static func _quad_dec(v: float) -> int: return 0 if v >= 100.0 else (1 if v >= 1.0 else 3)
 
 static func _numd(x: float, dec: int) -> String: return _num(x) if dec < 0 else String.num(x, dec)
 static func _num(x: float) -> String: return "%d" % int(roundf(x)) if absf(x) >= 100.0 or is_equal_approx(x, roundf(x)) else "%.1f" % x
@@ -771,8 +781,8 @@ func _inspect_proj(i: int, small: int) -> void:
 	var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight(pr)
 	var pre := Circuits.proj_pop(pr.get("pre", "")); var post := Circuits.proj_pop(pr.get("post", ""))
 	insp_body.add_child(_head("%s > %s" % [pre, post], Kit.inh() if w < 0.0 else Kit.exc(), "%s synapse   %s" % ["inhibitory" if w < 0.0 else "excitatory", str(pr.get("rule", "explicit edges"))]))
-	var pi := Circuits.pop_index(circuit, post); var wmax: float = 12.0 * Circuits.weight_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else 400.0
-	var unit := "nS" if pi >= 0 and str(circuit["populations"][pi].get("model", "")).contains("cond") else "pA"
+	var pi := Circuits.pop_index(circuit, post); var wmax: float = Circuits.proj_wmax(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else 400.0
+	var unit := Catalog.unit_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else "pA"
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); insp_body.add_child(r1)
 	var cur_syn := Circuits.proj_model(pr)
 	if cur_syn != "static_synapse": r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; _on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
@@ -789,8 +799,8 @@ func _inspect_proj(i: int, small: int) -> void:
 			wr.add_child(Kit.label("shift", small, Kit.TEXT_SOFT))
 			wr.add_child(Kit.stepper([[-2, "-2"], [-1, "-1"], [0, "0"], [1, "+1"], [2, "+2"]], str(off), func(o): Circuits.set_wiring(circuit, pr, "segment", int(o)); _on_structure(); _build_inspector(), 64.0, 18, 40.0))
 		insp_body.add_child(Kit.label("Segment wiring connects neuron k of %s to neuron k%s of %s, one synapse per segment, instead of all %d x %d pairs." % [pre, ("" if off == 0 else " %+d" % off), post, na, nb], small, Kit.TEXT_SOFT, true))
-	insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); _on_structure()))
-	insp_body.add_child(_val_row("delay", 0.1, 20.0, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, x); _on_structure()))
+	insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); _on_structure(), -1, true))
+	insp_body.add_child(_val_row("delay", 0.0, Circuits.DELAY_MAX, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, maxf(0.1, snappedf(x, 0.1))); _on_structure(), -1, true))
 
 
 func _inspect_channel(key: String, name: String, small: int) -> void:
@@ -822,13 +832,13 @@ func _inspect_channel(key: String, name: String, small: int) -> void:
 				var tp0 := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
 				if tp0 >= 0: tm0 = str(circuit["populations"][tp0].get("model", tm0))
 			ch["weight"] = Circuits.input_weight(tm0, str(k)); _on_structure(); _build_inspector(), 250.0 if not Layout.phone else 200.0, 18, 40.0))
-		var wunit := "pA"; var wmax := 1500.0
-		if not tg.is_empty():
+		var wunit := "pA"; var wmax := Circuits.DC_WMAX if kind == "dc" else 1500.0   # a dc input is a current: pA of drive per unit of value, whatever the cell
+		if not tg.is_empty() and kind != "dc":
 			var tpi := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
 			if tpi >= 0:
 				var tm := str(circuit["populations"][tpi].get("model", ""))
-				wunit = "nS" if tm.contains("cond") else "pA"; wmax = 20.0 * Circuits.weight_of(tm)
-		insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 300.0, float(ch.get("weight", 1.0)), wunit, func(x): ch["weight"] = x; _on_structure()))
+				wunit = Catalog.unit_of(tm); wmax = Circuits.proj_wmax(tm)
+		insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 300.0, float(ch.get("weight", 1.0)), wunit + ("/unit" if kind == "dc" else ""), func(x): ch["weight"] = x; _on_structure(), -1, true))
 		if not driven: insp_body.add_child(_val_row("rate" if kind != "dc" else "value", 0.0, 1000.0 if kind == "dc" else 400.0, 1.0, float(ch.get("value", 0.0)), unit, func(x): ch["value"] = x; _on_structure()))
 		if not driven: insp_body.add_child(Kit.btn("REMOVE INPUT", func(): editor.delete_selected(), "danger", 18))
 	if not is_in: _inspect_output_kind(ch, small)
@@ -852,7 +862,7 @@ func _inspect_output_kind(ch: Dictionary, small: int) -> void:
 		return
 	var mod := str(ch.get("modulator", "NE")); var gain := float(ch.get("gain", Circuits.MOD_GAIN)); var tau := float(ch.get("tau_ms", Circuits.MOD_TAU))
 	r.add_child(Kit.stepper(Circuits.MODULATORS.map(func(m): return [m, m]), mod, func(m): ch["modulator"] = str(m); _on_structure(); _build_inspector(), 90.0, 18, 40.0))
-	insp_body.add_child(_val_row("gain", 0.005, 0.5, 0.005, gain, "/spike", func(x): ch["gain"] = x; _on_structure(), 3))
+	insp_body.add_child(_val_row("gain", 0.001, 0.5, 0.001, gain, "/spike", func(x): ch["gain"] = x; _on_structure(), 3))
 	insp_body.add_child(_val_row("tau", 50.0, 5000.0, 50.0, tau, "ms", func(x): ch["tau_ms"] = x; _on_structure()))
 	insp_body.add_child(Kit.label("Each spike adds %s to the %s level, which fades with tau %s ms. At 20 spikes/s the level settles near %s." % [String.num(gain, 3), mod, str(int(roundf(tau))), String.num(gain * 20.0 * tau * 0.001, 2)], small, Kit.TEXT_SOFT, true))
 

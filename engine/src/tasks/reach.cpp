@@ -55,7 +55,14 @@ public:
            "that starts on 'go', scales with 'target', and times the three bursts with delays (neurons that inhibit and delay "
            "each other), drive the flexor (ag_motor) and extensor (ant_motor) pools, and keep the stretch reflex to hold the limb at "
            "the new angle. Three reaches of 0.4, 0.7 and 0.5 rad. Score: reach the target within 700 ms of the cue, overshoot by "
-           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'.";
+           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'. A starting point (iaf_psc_alpha groups; pA; the "
+           "sensors are dc inputs; passes on some seeds only, so expect to tune it): the stretch-reflex loop (Ia sensors at weight 3 onto relay "
+           "groups of 6 with tau m 60 ms; pools of 20 cells; Ia > pool 160; Ia > inhibitory groups of 4 at 80; those > opposite pool -160) with the "
+           "drive weight lowered to 160 so the pools are nearly silent at rest (a busy resting pool creeps); target (weight 2) onto a relay group of 3 "
+           "(tau m 60) > ag_motor pool +800 and > ant_motor pool -320 (the hold command: the target shifts the balance, Feldman); go (weight 3) onto a "
+           "relay group of 3 > burst group B1 (4 cells, tau syn 50 ms) 800 > ag_motor 1000 and ant_motor -400; B1 > B2 (4 cells, tau syn 50) "
+           "150 with delay 150 ms (the target relay also drives B2 at 160) > ant_motor 200 (the brake), B2 > B3 (4 cells, tau syn 50) 400 with delay 100 ms > ag_motor 900 (the final clamp), "
+           "each stage inhibiting the one before at -400. Delays go up to 250 ms and tau syn up to 50 ms.";
   }
   std::vector< std::string > sensor_channels() const override { return { "go", "target", "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }

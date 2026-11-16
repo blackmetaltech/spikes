@@ -65,7 +65,10 @@ public:
            "pools with mutual inhibition, give them the drive, and read out left_motor and right_motor. Both sides must "
            "burst (a rhythm on one side only does not count). Score: "
            "swim frequency inside 1-10 Hz, left and right about 180 degrees apart, and forward speed (the body "
-           "makes a travelling wave and a simple reactive-thrust model pushes it along).";
+           "makes a travelling wave and a simple reactive-thrust model pushes it along). A recipe that works: two groups of 8 aeif_cond_alpha "
+           "cells (preset Adapting), each set inhibitory (E / I) and wired to the other with the default weight (-8 nS), drive (a dc "
+           "input: the weight is pA of current per unit of drive) onto both with about 600 pA, each group onto its own motor channel. "
+           "Below about 550 pA nothing fires; above about 700 the rhythm is lost on some seeds.";
   }
   std::vector< std::string > sensor_channels() const override { return { "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "left_motor", "right_motor" }; }

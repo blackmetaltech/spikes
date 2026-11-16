@@ -68,7 +68,12 @@ public:
            "spinal cord, and a ganglion cell releases noradrenaline: the 'sympathetic' output, which speeds the heart and "
            "raises its force and the tone of the vessels. High pressure must therefore reduce sympathetic output and raise "
            "vagal output, low pressure the reverse. Include the SA node so that the heart beats (sa_beat). "
-           "Score: keep mean arterial pressure at 90 +- 10 mmHg through standing, lying down and a blood loss of 300 ml.";
+           "Score: keep mean arterial pressure at 90 +- 10 mmHg through standing, lying down and a blood loss of 300 ml. A recipe that works "
+           "(iaf_psc_alpha groups; pA; bias = ADVANCED I_e): baroreceptor at the largest sensor weight (1600) onto AFF (6 cells); AFF > NTS "
+           "(8) 280; NTS > NA (4, bias 370) 30; NA > VG (4, segment wiring, 1500) > vagal output (ACh, gain 0.012, tau 500 ms); NTS > CVLM "
+           "(6, set inhibitory) 200 and CVLM > RVLM (6, bias 380) -140; RVLM > IML (6, segment, 1500) > SG (6, segment, 1500) > sympathetic "
+           "output (NE, gain 0.0076, tau 1000 ms); one SA-node cell onto sa_beat. With a bias of 375 on RVLM, or a sensor weight of 1000, "
+           "the sympathetic side stays silent and the pressure collapses.";
   }
   std::map< std::string, ChannelKind > channel_kinds() const override
   {

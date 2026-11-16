@@ -59,7 +59,9 @@ public:
            "listening to one afferent cannot do it, because noise spikes bunch up by chance. Give the touch input "
            "several receptor cells, and let the motor cells need several of their spikes at the same time "
            "(convergence averages the noise away). Too much weight makes the motor cells fire on noise, too little "
-           "and they stay silent: tune the weights between the two.";
+           "and they stay silent: tune the weights between the two. A recipe that works (weights are pA): touch onto 10 cells (the first "
+           "connection sets the sensor weight), those onto 6 motor cells with a link of about 140 (the default 80 misses pokes, above about "
+           "200 the motor cells fire on noise), the motor cells onto withdraw.";
   }
   std::vector< std::string > sensor_channels() const override { return { "touch" }; }
   std::vector< std::string > motor_channels() const override { return { "withdraw" }; }

@@ -63,7 +63,11 @@ public:
            "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with the task's reference cord "
            "without Renshaw cells, a control curve of tremor against pool rate measured once on the reference circuit's pool sizes and weights "
            "(not re-measured on yours, so a very different pool is judged against that curve; at least a quarter less to pass), while the stretch reflex still resists the pushes and the "
-           "limb does not ring.";
+           "limb does not ring. A recipe that works (iaf_psc_alpha groups; weights pA): the stretch-reflex circuit (Ia sensors at weight 3 onto "
+           "relay groups of 6 with tau m 60 ms; pools MNF, MNE of 20 cells; Ia > MN 320, Ia > inhibitory IN groups of 4 at 240, IN > opposite "
+           "MN -320) with the drive weight lowered to 200; noise (a Poisson input, weight 100) onto one shared group of 2 cells DESC, and DESC > "
+           "both pools at 40 (shared fibres: every cell gets the same wave); Renshaw groups RF and RE (4 cells, inhibitory): MNF > RF and "
+           "MNE > RE at 80, RF > MNF and RE > MNE at -160, RF > INF and RE > INE at -40, RF > RE and RE > RF at -160.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive", "noise" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
