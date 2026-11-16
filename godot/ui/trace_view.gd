@@ -68,7 +68,7 @@ func _draw() -> void:
 		var a: PackedFloat32Array = tele.volt.get(nid, PackedFloat32Array())
 		if a.size() > 0:
 			draw_rect(Rect2(Vector2(r.end.x - 96, r.position.y + 2), Vector2(94, float(fz) + 6.0)), Color(Kit.BENCH, 0.78))
-			draw_string(f, Vector2(r.end.x - 120, r.position.y + float(fz) + 3.0), "%.1f mV" % a[a.size() - 1], HORIZONTAL_ALIGNMENT_RIGHT, 112, fz, Kit.TEXT)
+			draw_string(f, Vector2(r.end.x - 120, r.position.y + float(fz) + 3.0), ("%.1f mV" % a[a.size() - 1]) if is_finite(a[a.size() - 1]) else "no membrane", HORIZONTAL_ALIGNMENT_RIGHT, 112, fz, Kit.TEXT)
 	var tt2 := ceilf(t_left / 100.0) * 100.0
 	var bot: Rect2 = lanes[lanes.size() - 1]["rect"]
 	while tt2 <= vt:

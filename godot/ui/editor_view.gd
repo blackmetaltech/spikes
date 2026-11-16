@@ -6,6 +6,7 @@ extends Control
 signal structure_changed          # populations / projections / channels added or removed: the lab must reload the engine
 signal selection_changed(sel: Dictionary)
 signal moved                       # editor positions changed (no reload needed)
+signal lesion_clicked(h: Dictionary)   # lesion lab: a population, axon or sensor card was clicked
 
 var tele: Telemetry = null
 var circuit := {}
@@ -20,6 +21,8 @@ var _connect_from := {}            # tool == connect: the first tap
 var _cards := {}                   # cached channel card rects (screen space) by "in:name" / "out:name"
 var _r := 20.0
 var _fit_pending := true
+var lesion_mode := false           # lesion lab: clicks cut and silence instead of selecting and dragging
+var lesions := {}                  # the lab's lesion set ("proj:<i>", "pop:<id>", "in:<name>"): drawn cut / silenced
 var inset_bottom := 0.0            # px at the bottom covered by the phone inspector sheet: fit() keeps the neurons above it
 
 func _ready() -> void:
@@ -189,7 +192,7 @@ func _draw() -> void:
 		var w := Circuits.proj_weight(pr); var col := _kind_col("I" if w < 0.0 else "E")
 		var isel: bool = sel.get("t", "") == "proj" and int(sel.get("i", -1)) == pj
 		var ihov: bool = _hover.get("t", "") == "proj" and int(_hover.get("i", -1)) == pj
-		var width := (1.6 + clampf(sqrt(absf(w) / float(Circuits.WEIGHT.get(str(circuit["populations"][Circuits.pop_index(circuit, str(pb["id"]))].get("model", "")), 100.0))), 0.0, 2.0) * 1.2) * clampf(view_scale, 0.85, 1.2)
+		var width := (1.6 + clampf(sqrt(absf(w) / Circuits.weight_of(str(circuit["populations"][Circuits.pop_index(circuit, str(pb["id"]))].get("model", "")))), 0.0, 2.0) * 1.2) * clampf(view_scale, 0.85, 1.2)
 		var pts := Gfx.bez_points(cp[0], cp[1], cp[2], cp[3], 28)
 		if isel or ihov: draw_polyline(pts, Color(col, 0.34 if isel else 0.2), width + 9.0, true)
 		draw_polyline(pts, Color(col, 0.30), width + 3.0, true)
@@ -198,6 +201,10 @@ func _draw() -> void:
 		var tip := cp[3]
 		if w < 0.0: Gfx.bar_head(self, tip, tan, Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
 		else: Gfx.arrow_head(self, tip, tan, Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
+		if lesions.has("proj:%d" % pj):   # a cut axon: dashed red with an X at its middle
+			draw_polyline(pts, Color(Kit.BENCH, 0.75), width + 6.0, true); Gfx.dashed(self, pts, Color(Kit.RED, 0.95), 2.2, 5.0, 7.0)
+			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); draw_circle(cm, 13.0, Kit.BENCH); draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
+			draw_line(cm + Vector2(-6, -6), cm + Vector2(6, 6), Kit.RED, 3.0, true); draw_line(cm + Vector2(-6, 6), cm + Vector2(6, -6), Kit.RED, 3.0, true)
 	# --- pulses
 	if tele != null and tele.sim != null:
 		for pj in projs.size():
@@ -244,10 +251,13 @@ func _draw() -> void:
 		# membrane potential as a thin arc of the traced neurons
 		if tele != null and tele.volt.has(gi):
 			var a: PackedFloat32Array = tele.volt[gi]
-			if a.size() > 0:
+			if a.size() > 0 and is_finite(a[a.size() - 1]):   # a model without a membrane (relay, generator) reports NaN
 				var u := clampf((float(a[a.size() - 1]) + 80.0) / 50.0, 0.0, 1.0)
 				draw_arc(p, rr + 5.0, -PI * 0.5, -PI * 0.5 + TAU * u, 40, Color(col.lightened(0.3), 0.85), 2.0, true)
 		if isel: draw_arc(p, rr + 10.0, 0, TAU, 48, Color(1, 1, 1, 0.85), 1.6, true)
+		if lesions.has("pop:" + pid):   # a silenced population: greyed out and struck through
+			draw_circle(p, rr + 1.0, Color(Kit.BENCH, 0.7)); draw_arc(p, rr + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
+			draw_line(p + Vector2(-rr, rr) * 0.75, p + Vector2(rr, -rr) * 0.75, Kit.RED, 3.0, true)
 		if tele != null and tele.watched.has(gi):
 			var idx := tele.watched.find(gi)
 			draw_circle(p + Vector2(rr * 0.9, -rr * 0.9), 7.0, Color(Kit.BENCH, 0.9)); draw_circle(p + Vector2(rr * 0.9, -rr * 0.9), 5.0, col)
@@ -314,6 +324,9 @@ func _draw_card(font: Font, fz: int, side: String, ch: Dictionary, task_driven: 
 		var lit := float(k) < act * 5.0
 		draw_circle(Vector2(r.end.x - 12.0 - k * 9.0, r.position.y + 12.0), 3.0, Color(col, 0.95 if lit else 0.16))
 	if isel: draw_rect(r.grow(5.0), Color(1, 1, 1, 0.6), false, 1.4)
+	if lesions.has(side + ":" + name):   # a cut sensor
+		draw_rect(r, Color(Kit.BENCH, 0.55)); draw_rect(r.grow(2.0), Kit.RED, false, 2.2)
+		draw_string(font, r.position + Vector2(r.size.x - 52.0, float(fz) + 3.0), "CUT", HORIZONTAL_ALIGNMENT_RIGHT, 46.0, fz, Kit.RED)
 
 # ---------- hit testing & input ----------
 func _hit(p: Vector2) -> Dictionary:
@@ -360,6 +373,9 @@ func _gui_input(e: InputEvent) -> void:
 func _press(p: Vector2) -> void:
 	if not Kit.pad_mode: grab_focus()   # so the Delete key reaches _gui_input
 	var h := _hit(p)
+	if lesion_mode:
+		if not h.is_empty() and ["pop", "proj", "in"].has(str(h["t"])): lesion_clicked.emit(h)
+		return
 	if tool == "connect" and editable:
 		if h.is_empty(): _connect_from = {}; select({}); return
 		if _connect_from.is_empty():

@@ -4,6 +4,7 @@ extends Control
 ## light up with the activity of the motor pools; the field is a smooth heat map with contour lines. Follows `Telemetry.body`, `Telemetry.score`.
 var tele: Telemetry = null
 var _tid := ""
+var _view := "polyline"           # Task::view(): which generic body renderer to use for tasks without their own drawing here
 var _episode := -1
 var _tex: ImageTexture = null
 var _contours: Array = []        # PackedVector2Array in world coordinates
@@ -39,7 +40,7 @@ func _process(dt: float) -> void:
 	queue_redraw()
 
 func _rebuild() -> void:
-	_episode = tele.episode; _tid = str(tele.task.id()); _trail = PackedVector2Array(); _contours = []; _tex = null; _hist_t = PackedFloat32Array(); _hist_v = PackedFloat32Array(); _wake = PackedVector2Array()
+	_episode = tele.episode; _tid = str(tele.task.id()); _view = str(Campaign.info(_tid)["view"]); _trail = PackedVector2Array(); _contours = []; _tex = null; _hist_t = PackedFloat32Array(); _hist_v = PackedFloat32Array(); _wake = PackedVector2Array()
 	_bounds = tele.task.bounds()
 	var n := 72; var vals := PackedFloat32Array(); vals.resize(n * n)
 	var lo := 1e9; var hi := -1e9
@@ -96,8 +97,10 @@ func w2s(p: Vector2) -> Vector2: return size * 0.5 + Vector2((p.x - _view_c.x) *
 func _draw() -> void:
 	var fz := Kit.fs(14); var font := Fonts.regular
 	draw_style_box(Kit.sb(Color("#081019"), Kit.LINE, 1, 12, 0, false), Rect2(Vector2.ZERO, size))
-	if tele == null or tele.task == null or _bounds.size == Vector2.ZERO:
+	if tele == null or tele.task == null or (_bounds.size == Vector2.ZERO and not BodyViews.KINDS.has(_view)):
 		draw_string(font, Vector2(0, size.y * 0.5), "Free run: no task selected. Pick a task to see its world here.", HORIZONTAL_ALIGNMENT_CENTER, size.x, Kit.fs(18), Kit.TEXT_SOFT); return
+	if BodyViews.KINDS.has(_view) and not ["worm", "lamprey", "reflex"].has(_tid):   # a v0.2 body view: drawn from the task's readouts
+		_draw_body_view(font, fz); return
 	var id := _tid; var pts: PackedVector2Array = tele.body.get("points", PackedVector2Array()); var ro: Dictionary = tele.body.get("readouts", {})
 	var margin := 26.0; var inner := Rect2(Vector2(margin, margin + 22.0), size - Vector2(margin * 2.0, margin * 2.0 + 30.0))
 	var follow := id == "lamprey" and pts.size() > 1
@@ -123,6 +126,18 @@ func _draw() -> void:
 			"lamprey": _draw_lamprey(pts, ro)
 			"reflex": _draw_limb(pts, ro)
 	# HUD
+	var t := tele.t_ms * 0.001; var dur := tele.duration() * 0.001
+	draw_string(font, Vector2(14, 22), str(tele.task.title()).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, fz, Kit.TEXT_SOFT)
+	draw_string(font, Vector2(size.x - 190, 22), "t %5.1f / %.0f s" % [t, dur], HORIZONTAL_ALIGNMENT_RIGHT, 176, fz, Kit.TEXT)
+	var pw := size.x - 28.0
+	draw_rect(Rect2(14, size.y - 14, pw, 3), Color(Kit.LINE, 0.8))
+	draw_rect(Rect2(14, size.y - 14, pw * clampf(t / maxf(dur, 0.001), 0, 1), 3), Color(Kit.exc(), 0.9))
+
+func _draw_body_view(font: Font, fz: int) -> void:
+	var margin := 14.0
+	var r := Rect2(Vector2(margin, 34.0), size - Vector2(margin * 2.0, 34.0 + 22.0))
+	if _view == "dashboard": r = Rect2(Vector2(margin, 30.0), size - Vector2(margin * 2.0, 30.0 + 18.0))
+	BodyViews.draw(_view, self, tele, r)
 	var t := tele.t_ms * 0.001; var dur := tele.duration() * 0.001
 	draw_string(font, Vector2(14, 22), str(tele.task.title()).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, fz, Kit.TEXT_SOFT)
 	draw_string(font, Vector2(size.x - 190, 22), "t %5.1f / %.0f s" % [t, dur], HORIZONTAL_ALIGNMENT_RIGHT, 176, fz, Kit.TEXT)

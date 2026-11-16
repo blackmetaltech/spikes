@@ -1,5 +1,6 @@
 #include "spike_task.h"
 #include "spike_sim.h"
+#include "spike/catalog.h"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 
@@ -81,6 +82,51 @@ double SpikeTask::duration_ms() const { return task_ ? task_->duration_ms() : 0.
 PackedStringArray SpikeTask::sensor_channels() const { return task_ ? strs( task_->sensor_channels() ) : PackedStringArray(); }
 PackedStringArray SpikeTask::motor_channels() const { return task_ ? strs( task_->motor_channels() ) : PackedStringArray(); }
 String SpikeTask::reference_circuit() const { return task_ ? S( spike::reference_circuit( task_->id() ) ) : String(); }
+String SpikeTask::chapter() const { return task_ ? S( task_->chapter() ) : String(); }
+String SpikeTask::view() const { return task_ ? S( task_->view() ) : String(); }
+int64_t SpikeTask::par_neurons() const { return task_ ? int64_t( task_->par_neurons() ) : 0; }
+Array SpikeTask::timeline() const
+{
+  Array a;
+  if ( !task_ )
+    return a;
+  for ( const auto& e : task_->timeline() )
+  {
+    Dictionary d;
+    d[ "t_ms" ] = e.t_ms;
+    d[ "dur_ms" ] = e.dur_ms;
+    d[ "label" ] = S( e.label );
+    a.push_back( d );
+  }
+  return a;
+}
+Array SpikeTask::bands() const
+{
+  Array a;
+  if ( !task_ )
+    return a;
+  for ( const auto& b : task_->bands() )
+  {
+    Dictionary d;
+    d[ "name" ] = S( b.name );
+    d[ "unit" ] = S( b.unit );
+    d[ "lo" ] = b.lo;
+    d[ "hi" ] = b.hi;
+    a.push_back( d );
+  }
+  return a;
+}
+PackedStringArray SpikeTask::modulators() const { return task_ ? strs( task_->modulators() ) : PackedStringArray(); }
+String SpikeTask::catalog_json() { return S( spike::catalog_json() ); }
+PackedStringArray SpikeTask::modulator_names() { return strs( spike::modulator_names() ); }
+bool SpikeTask::set_modulator( const Ref< SpikeSim >& sim, const String& name, double conc )
+{
+  return sim.is_valid() && sim->owns() && sim->engine().set_modulator( to_std( name ), conc );
+}
+double SpikeTask::modulator( const Ref< SpikeSim >& sim, const String& name )
+{
+  return ( sim.is_valid() && sim->owns() ) ? sim->engine().modulator( to_std( name ) ) : 0.0;
+}
 PackedStringArray SpikeTask::task_ids() { return strs( spike::task_ids() ); }
 String SpikeTask::reference_circuit_of( const String& id ) { return S( spike::reference_circuit( to_std( id ) ) ); }
 
@@ -101,6 +147,16 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "sensor_channels" ), &SpikeTask::sensor_channels );
   ClassDB::bind_method( D_METHOD( "motor_channels" ), &SpikeTask::motor_channels );
   ClassDB::bind_method( D_METHOD( "reference_circuit" ), &SpikeTask::reference_circuit );
+  ClassDB::bind_method( D_METHOD( "chapter" ), &SpikeTask::chapter );
+  ClassDB::bind_method( D_METHOD( "view" ), &SpikeTask::view );
+  ClassDB::bind_method( D_METHOD( "par_neurons" ), &SpikeTask::par_neurons );
+  ClassDB::bind_method( D_METHOD( "timeline" ), &SpikeTask::timeline );
+  ClassDB::bind_method( D_METHOD( "bands" ), &SpikeTask::bands );
+  ClassDB::bind_method( D_METHOD( "modulators" ), &SpikeTask::modulators );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "catalog_json" ), &SpikeTask::catalog_json );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "modulator_names" ), &SpikeTask::modulator_names );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_modulator", "sim", "name", "conc" ), &SpikeTask::set_modulator );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "modulator", "sim", "name" ), &SpikeTask::modulator );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "task_ids" ), &SpikeTask::task_ids );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "reference_circuit_of", "id" ), &SpikeTask::reference_circuit_of );
 }
