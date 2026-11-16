@@ -326,3 +326,5 @@ private:
 std::unique_ptr< Task > make_lamprey() { return std::make_unique< LampreyTask >(); }
 
 } // namespace spike::tasks
+
+namespace spike::tasks { SPIKE_REGISTER_TASK( lamprey, 30, "lamprey_cpg.json", make_lamprey ) }

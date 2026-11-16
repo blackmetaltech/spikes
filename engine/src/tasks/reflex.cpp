@@ -230,3 +230,5 @@ private:
 std::unique_ptr< Task > make_reflex() { return std::make_unique< ReflexTask >(); }
 
 } // namespace spike::tasks
+
+namespace spike::tasks { SPIKE_REGISTER_TASK( reflex, 10, "reflex_arc.json", make_reflex ) }
