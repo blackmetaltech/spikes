@@ -1,5 +1,6 @@
 // sa_node_pacemaker (models/nestml/sa_node_pacemaker.nestml, docs/models/sa_node_pacemaker.md):
-// spontaneous beating at 60-80/min, slowed by ACh, sped up by NE, input-responsive, deterministic.
+// spontaneous beating at ~100/min intrinsic (ACh = NE = 0), 60-70/min under resting vagal tone (ACh ~ 0.5), slowed by ACh,
+// sped up by NE, input-responsive, deterministic.
 #include "nestml_util.h"
 
 using namespace nm;
@@ -28,7 +29,7 @@ static void test_baseline()
   double bpm = rate_bpm( 0, 0, 24000, json::object(), &sp );
   std::vector< double > t = sp.get< std::vector< double > >();
   std::printf( "  baseline %.1f beats/min over %zu beats, ISI CV %.4f\n", bpm, t.size(), isi_cv( t ) );
-  CHECK( bpm >= 60.0 and bpm <= 80.0 );
+  CHECK( bpm >= 92.0 and bpm <= 108.0 );  // intrinsic rate (autonomic blockade), human 100-110: Jose & Collison 1970
   CHECK( t.size() >= 15 );
   CHECK( isi_cv( t ) < 0.02 );  // a limit cycle: strictly regular
 }
@@ -62,6 +63,19 @@ static void test_ach_slows()
   CHECK( a1 < base and a2 < a1 );
   CHECK( a2 < 0.9 * base );  // ~20-25 % slowing at saturating ACh
   CHECK( a2 > 0.0 );
+}
+
+static void test_resting_tone()
+{
+  // resting vagal tone brings the intrinsic ~100/min to the human resting range, gradually (no arrest) up to strong ACh
+  double base = rate_bpm( 0, 0 ), r = rate_bpm( 0.5, 0 ), strong = rate_bpm( 1.5, 0 );
+  std::printf( "  ACh 0.5 / 1.5: %.1f / %.1f beats/min (intrinsic %.1f)\n", r, strong, base );
+  CHECK( r >= 60.0 and r <= 72.0 );
+  CHECK( strong > 45.0 and strong < r );
+  CHECK( base > 1.35 * r );  // vagal tone dominates the resting rate
+  // exercise range: moderate NE with the vagal tone withdrawn
+  double ex = rate_bpm( 0, 0.3 );
+  CHECK( ex >= 115.0 and ex <= 135.0 );
 }
 
 static void test_ne_speeds()
@@ -127,6 +141,7 @@ int main()
   test_baseline();
   test_membrane_waveform();
   test_ach_slows();
+  test_resting_tone();
   test_ne_speeds();
   test_param_via_set_neuron_param();
   test_input();

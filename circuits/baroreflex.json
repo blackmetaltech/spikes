@@ -382,7 +382,7 @@
      "pop": "VG"
     }
    ],
-   "gain": 0.006,
+   "gain": 0.012,
    "tau_ms": 500.0
   },
   {
@@ -403,7 +403,7 @@
    "modulator": "ACh",
    "pop": "SA",
    "param": "ach",
-   "gain": 0.5
+   "gain": 1.0
   },
   {
    "modulator": "NE",

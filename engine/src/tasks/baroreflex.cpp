@@ -34,6 +34,7 @@
 // Circ Res 32:564).
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/body/heart.h"
 #include "task_util.h"
@@ -68,6 +69,12 @@ public:
            "raises its force and the tone of the vessels. High pressure must therefore reduce sympathetic output and raise "
            "vagal output, low pressure the reverse. Include the SA node so that the heart beats (sa_beat). "
            "Score: keep mean arterial pressure at 90 +- 10 mmHg through standing, lying down and a blood loss of 300 ml.";
+  }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    // ChannelKind: kind, value (typical input level), modulator, gain per spike, tau_ms
+    return { { "baroreceptor", { "poisson", 41 } }, { "sa_beat", { "rate" } }, { "vagal", { "modulator", 0, "ACh", 0.012, 500 } },
+      { "sympathetic", { "modulator", 0, "NE", 0.0076, 1000 } } };
   }
   std::vector< std::string > sensor_channels() const override { return { "baroreceptor" }; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat", "vagal", "sympathetic" }; }

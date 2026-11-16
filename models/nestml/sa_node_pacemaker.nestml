@@ -3,7 +3,8 @@
 # Reduced from the Maltsev & Lakatta (2009) / Demir et al. (1994) / Kurata et al. (2002) family of
 # rabbit SAN cell models: only the five currents that carry the pacemaker cycle are kept (no Na/K pump,
 # no Ca clock/SR, no fixed ion concentrations), each as a Hodgkin-Huxley gate with a sigmoid steady state
-# and a sech-shaped time constant. Parameters were re-fitted so that the isolated cell beats at about 68/min.
+# and a sech-shaped time constant. Parameters were re-fitted so that the isolated cell with no autonomic input (ach = ne = 0, the intrinsic rate, as after
+# autonomic blockade) beats at about 100/min; resting vagal tone (ach ~ 0.5) brings it to 60-70/min.
 # The kinetics are NOT a copy of any published model; see docs/models/sa_node_pacemaker.md.
 #
 #   C dV/dt = -(I_f + I_CaT + I_CaL + I_K + I_KACh + I_leak) - I_syn + I_e + I_stim
@@ -78,11 +79,11 @@ model sa_node_pacemaker:
         g_CaL nS = 3.53 nS
         E_CaL mV = 46 mV
         V_dL mV = -25 mV
-        g_CaT nS = 0.78 nS
+        g_CaT nS = 1.9 nS
         E_CaT mV = 45 mV
         g_K nS = 3.71 nS
         E_K mV = -85 mV
-        g_KACh nS = 0.03 nS      # maximal I_KACh conductance
+        g_KACh nS = 0.2 nS       # maximal I_KACh conductance
         g_L nS = 0.035 nS
         E_L mV = -30 mV
 
@@ -90,7 +91,7 @@ model sa_node_pacemaker:
         ach real = 0.
         ne real = 0.
         K_mod real = 0.3
-        shift_f_ach mV = 5 mV
+        shift_f_ach mV = 35 mV
         shift_f_ne mV = 10 mV
         g_f_ne real = 1.0
         g_CaL_ne real = 0.3
