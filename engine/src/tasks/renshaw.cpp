@@ -1,7 +1,7 @@
 // Task "renshaw": recurrent (Renshaw) inhibition steadies a motoneuron pool and lowers force tremor.
 //
 // WORLD (deterministic; see spinal_limb.h and stretch_reflex.cpp for the limb: supported elbow-like joint, flexor and extensor Hill
-// muscles with size-principle recruitment, spindle Ia feedback with 10 + 10 ms conduction, pool rate / 50 Hz = excitation).
+// muscles with size-principle recruitment, spindle Ia feedback with 10 + 10 ms conduction, pool total rate / (20 units x rmax) = excitation).
 //   Sensors  "ag_Ia", "ant_Ia" (spindle Ia rate, Hz, dc input), "drive" (tonic descending drive, dc, 1.0) and "noise" (Poisson, set to
 //            400 Hz every slice): the background synaptic input of the cord. A circuit that sends "noise" through shared fibres to
 //            both motoneuron pools gives the pools COMMON input, which is what makes real motor pools fluctuate together and the
@@ -20,7 +20,7 @@
 //                 central drive that physiological tremor is made of (Elble & Koller 1990).
 //   rate_cv     : motoneuron-rate instability: sd / mean of the pool rate (Hz per neuron, smoothed with tau 15 ms) in the hold window.
 //   improvement : 1 - tremor_pct / tremor_ref(rate), floored 0: relative reduction against an unbraked cord (the same reference circuit
-//                 with Renshaw cells cut) firing at the same mean rate; tremor_ref is a measured control curve (table below).
+//                 with Renshaw cells cut) firing at the same mean rate; tremor_ref is a measured control curve of the REFERENCE circuit (table below); it is not re-measured on the player's circuit.
 //                 0.5 means the tremor is halved.
 //   resistance  : as in stretch_reflex (the recurrent loop must not abolish the reflex), mean of the two stretches.
 // PASS: improvement >= 0.25 (tremor cut by a quarter or more), resistance >= 0.30, no sustained oscillation, pools fire (>= 5 Hz mean
@@ -60,8 +60,9 @@ public:
            "motoneurons excite them, they inhibit their own motoneurons (and, as in the real cord, the Ia inhibitory interneurons and "
            "the opposite Renshaw cells). The cord is bathed in background synaptic noise that reaches both pools through shared "
            "fibres, which makes the pools fire in waves and the muscle force wobble (tremor). Hold the limb for six seconds, then "
-           "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with a cord "
-           "without Renshaw cells (at least a quarter less to pass), while the stretch reflex still resists the pushes and the "
+           "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with the task's reference cord "
+           "without Renshaw cells, a control curve of tremor against pool rate measured once on the reference circuit's pool sizes and weights "
+           "(not re-measured on yours, so a very different pool is judged against that curve; at least a quarter less to pass), while the stretch reflex still resists the pushes and the "
            "limb does not ring.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive", "noise" }; }
@@ -87,7 +88,7 @@ public:
     for ( int k = 0; k < 3; ++k )
       phase_[ k ] = rng.uniform( 0, 2 * kPi );
     LimbRigConfig c;
-    c.rmax_hz = 70;  // a pool at 70 Hz per cell is fully excited: keeps 25-45 Hz on the steep part of the force curve, so tremor does not depend on saturation
+    c.rmax_hz = 56;  // 16 cells per pool: excitation 1 = 20 units x 56 Hz in total (a pool at 70 Hz per cell): keeps 25-45 Hz on the steep part of the force curve, so tremor does not depend on saturation
     base_reset( c, 0.2 );
     th_.clear();
     sh_.clear();
@@ -133,13 +134,13 @@ public:
     else if ( m.osc_flag )
       o << "The limb rings after the push (" << std::setprecision( 2 ) << m.osc << " rad p-p): too much loop gain.";
     else if ( m.improvement < 0.25 )
-      o << "Force tremor " << m.tremor << "% is only " << std::setprecision( 0 ) << m.improvement * 100 << "% below a cord without Renshaw cells ("
+      o << "Force tremor " << m.tremor << "% is only " << std::setprecision( 0 ) << m.improvement * 100 << "% below the reference cord without Renshaw cells ("
         << std::setprecision( 1 ) << tremor_ref( m.rate_mean ) << "% at this rate): the recurrent loop is too weak, or missing.";
     else if ( m.resistance < 0.30 )
       o << "The stretch reflex only cuts the deflection by " << std::setprecision( 0 ) << m.resistance * 100
         << "%: the recurrent inhibition is smothering the reflex.";
     else
-      o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below an unbraked cord, reflex cuts deflection by "
+      o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below the reference unbraked cord, reflex cuts deflection by "
         << m.resistance * 100 << "%.";
     s.verdict = o.str();
     return s;
@@ -204,6 +205,8 @@ protected:
       tremor_now_ += a * ( std::fabs( tq_hp_.back() ) / std::max( 1e-6, ft_.back() ) * 100.0 - tremor_now_ );
     }
   }
+  double target_rad() const override { return theta_pre_; }  // the angle to hold: the one before each push
+  bool has_target() const override { return true; }
   void extra_readouts( std::map< std::string, double >& r ) const override
   {
     r[ "theta_dev_rad" ] = rig_.joint.theta - theta_pre_;
@@ -218,7 +221,8 @@ private:
     int done = 0, osc_flag = 0;
   };
 
-  /// Control curve: force tremor (%) of the same reference circuit WITHOUT Renshaw cells (MN -> RC cut) at tonic drives 450..1000 pA,
+  /// Control curve (a fixed table, NOT re-measured on the player's circuit: a second silenced copy of an arbitrary circuit cannot be run
+  /// inside the task): force tremor (%) of the same reference circuit WITHOUT Renshaw cells (MN -> RC cut) at tonic drives 450..1000 pA,
   /// mean of seeds 1-3, against the pool's mean rate. Tremor falls with rate (the muscle's force curve flattens, the pool's spike
   /// noise shrinks), so "less tremor" is judged against an unbraked cord firing at the SAME rate, not against a fixed number.
   static double tremor_ref( double rate_hz )

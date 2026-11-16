@@ -19,6 +19,10 @@ recruitment threshold geometrically from 0.02 to 0.80 of pool excitation, peak r
 fatigue rate 0.002 -> 0.03 /s. Rate coding: a unit fires at `min_rate (8 Hz) + 50 Hz * (e - threshold)`, capped at its peak.
 - **Rate mode** `MuscleInput::excitation` (0..1): regular, phase-staggered spike trains per unit (optional `rate_cv` jitter, seeded).
   Force rises monotonically with excitation and units are recruited strictly small to large (tests).
+- **Drive from a motor pool (spinal tasks)**: the limb rig (`engine/src/tasks/spinal_limb.h`) sets `excitation` = the pool's *total* rate (cells x
+  mean rate, low-passed 15 ms) / (20 units x `rmax_hz`), so the drive scales with how many motoneurons fire and how fast: one motoneuron at `rmax_hz`
+  excites 1/20 of the muscle (one unit's share), not all of it. Pool size is therefore part of every spinal design. Motoneuron spike timing is still
+  not delivered unit by unit (that would be spike mode, below); the muscle makes its own regular unit trains.
 - **Spike mode** `MuscleInput::spikes[i]`: spike count of unit `i` this slice (e.g. one motor neuron per unit, ordered small to large).
 
 ## Hill mechanics (Zajac 1989; Millard et al. 2013)

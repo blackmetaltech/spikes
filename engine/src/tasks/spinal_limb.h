@@ -7,8 +7,8 @@
 //
 // Sensor channels are dc generators: the task writes the receptor's firing rate (Hz) and the circuit's input weight turns it into a
 // current (4 pA per Hz) for the afferent neurons it targets, which then fire regularly at about that rate (real primary endings are
-// very regular, CV ~ 0.1). Poisson trains were tried first: their noise, multiplied by the spindle's velocity derivative, made the loop tremble. Motor channels read alpha motoneuron pools: pool mean rate / 50 Hz is the muscle's
-// pool excitation (0..1); the Muscle then recruits its motor units by size (Henneman). An optional gamma pool sets the
+// very regular, CV ~ 0.1). Poisson trains were tried first: their noise, multiplied by the spindle's velocity derivative, made the loop tremble. Motor channels read alpha motoneuron pools: the muscle's pool excitation (0..1) is the pool's
+// total rate (cells x mean rate) / (20 units x rmax); the Muscle then recruits its motor units by size (Henneman). An optional gamma pool sets the
 // fusimotor drive of both spindles.
 //
 // Required channels differ per task; "optional" afferent channels (Ib, II, ...) are driven only if the circuit declares them,
@@ -16,6 +16,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -33,7 +34,8 @@ struct LimbRigConfig
   double eff_delay_ms = 10;  // alpha motoneuron -> muscle conduction
   double rate_tau_ms = 15;   // pool rate -> excitation smoothing (neuromuscular transmission, EPSP-to-twitch lag)
   double emg_tau_ms = 8;     // faster smoothing used only for the EMG-like readouts and latency detection
-  double rmax_hz = 50;       // mean motoneuron rate that means excitation 1.0
+  double rmax_hz = 50;       // rate of ONE motoneuron when all `units_ref` units of the muscle fire at it: excitation 1.0 = units_ref * rmax_hz spikes/s in total
+  double units_ref = 20;     // motor units of a muscle (Muscle::n_units): a pool of N cells can drive at most N / units_ref of the muscle
   double gamma_rmax_hz = 40; // mean gamma motoneuron rate that means fusimotor drive 1.0
   double gamma_default = 0.3;// fusimotor drive when the circuit has no gamma pool
   double gamma_tau_ms = 100; // fusimotor action builds up slowly (intrafusal contraction)
@@ -84,15 +86,18 @@ public:
   }
 
   /// Advance one tick of h ms (<= 1). ag_hz / ant_hz / gam_hz: pool mean rate per neuron (Hz) read from the circuit.
-  void tick( double h, double ag_hz, double ant_hz, double gam_hz, bool has_gamma, double torque )
+  void tick( double h, double ag_hz, double ant_hz, double gam_hz, bool has_gamma, double torque, double n_ag = 20, double n_ant = 20 )
   {
     const double lpa = lp_ag_.step( ag_hz, h ), lpn = lp_ant_.step( ant_hz, h ), lpg = lp_gam_.step( gam_hz, h );
     emg_ag = emg_ag_f_.step( ag_hz, h );
     emg_ant = emg_ant_f_.step( ant_hz, h );
     rate_ag = lpa;
     rate_ant = lpn;
-    exc_ag = clampd( d_ag_.step( lpa, h ) / cfg.rmax_hz, 0, 1 );
-    exc_ant = clampd( d_ant_.step( lpn, h ) / cfg.rmax_hz, 0, 1 );
+    // Muscle drive = total pool rate (cells x mean rate) over the rate of the whole muscle, so it scales with the number of recruited motor
+    // units and their rates: one motoneuron at rmax can excite one unit of 20, not the muscle. Pool size is therefore part of the design.
+    const double full = cfg.units_ref * cfg.rmax_hz;
+    exc_ag = clampd( d_ag_.step( lpa * n_ag, h ) / full, 0, 1 );
+    exc_ant = clampd( d_ant_.step( lpn * n_ant, h ) / full, 0, 1 );
     gam = has_gamma ? clampd( d_gam_.step( lpg, h ) / cfg.gamma_rmax_hz, 0, 1 ) : cfg.gamma_default;
     body::JointInput in;
     in.ag.excitation = exc_ag;
@@ -217,7 +222,7 @@ public:
       cnt_ag_.push_back( sc_ag / n );  // pool spikes in this tick (one sample per ms when the harness steps 1 ms)
       cnt_ant_.push_back( sc_ant / n );
       const double tq = torque( t_ );
-      rig_.tick( h, ag, ant, gm, hg, tq );
+      rig_.tick( h, ag, ant, gm, hg, tq, pool_ag_, pool_ant_ );
       t_ += h;
       tq_ = tq;
       after_tick( h );
@@ -237,6 +242,7 @@ public:
     r[ "theta_rad" ] = th;
     r[ "theta_deg" ] = th * 180.0 / kPi;
     r[ "target_rad" ] = target_rad();
+    r[ "has_target" ] = has_target() ? 1.0 : 0.0;  // 0: no angle target at the moment, the view must not print "off by ..."
     r[ "ag_force_N" ] = rig_.joint.agonist.force_N;
     r[ "ant_force_N" ] = rig_.joint.antagonist.force_N;
     r[ "ag_Ia_hz" ] = rig_.joint.ag_aff.ia;
@@ -255,11 +261,35 @@ public:
 
   std::array< double, 4 > world_bounds() const override { return { -0.45, -0.40, 0.45, 0.45 }; }
 
+  /// Every spinal sensor is a dc source whose value the task writes each slice (receptor rate in Hz, or a cue level); the weight
+  /// turns it into a current. Only the background "noise" of the Renshaw task is a Poisson train (value = Hz). Motors are rates.
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    std::map< std::string, ChannelKind > m;
+    for ( const auto& s : sensor_channels() )
+    {
+      ChannelKind k;
+      k.kind = s == "noise" ? "poisson" : "dc";
+      k.value = s == "noise" ? 400 : ( s == "drive" ? 1 : ( s == "go" || s == "target" ) ? 0 : 40 );
+      m[ s ] = k;
+    }
+    for ( const auto& s : motor_channels() )
+    {
+      ChannelKind k;
+      k.kind = "rate";
+      m[ s ] = k;
+    }
+    return m;
+  }
+
 protected:
   virtual double torque( double t_ms ) const = 0;
   virtual void cues( Engine&, double /*t_ms*/ ) {}
   virtual void after_tick( double /*h*/ ) {}
-  virtual double target_rad() const { return 0; }
+  /// Angle the limb is asked to hold (rad). Meaningful only while has_target(); otherwise it follows the limb, so a view that prints
+  /// "off by theta - target" shows 0 rather than the angle itself.
+  virtual double target_rad() const { return rig_.joint.theta; }
+  virtual bool has_target() const { return false; }
   virtual void extra_readouts( std::map< std::string, double >& ) const {}
 
   void put( Engine& e, const char* ch, double v )

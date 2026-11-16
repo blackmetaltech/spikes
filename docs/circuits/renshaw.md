@@ -23,7 +23,8 @@ Lindstrom 1971) and the Renshaw cells of the antagonist (Ryall 1970). RC rate in
 fit the 6 s hold), root-sum-square, over the mean force. (Spike noise of the pool drops out; a plain high-pass rms was dominated by it and
 RC could not change it. Force is summed over both muscles because common input moves both in phase: in the net joint torque it cancels.)
 `improvement = 1 - tremor / tremor_ref(rate)`, where `tremor_ref` is a measured **control curve**: the same reference circuit with the
-Renshaw cells cut, at tonic drives of 450-1000 pA (mean of seeds 1-3):
+Renshaw cells cut (it is a fixed table, measured once on the *reference* circuit's pool sizes and weights; it is **not** re-measured on a player's circuit,
+because the task cannot run a silenced copy of an arbitrary circuit. The brief and the verdict say so: a player with very different pools is judged against this curve), at tonic drives of 450-1000 pA (mean of seeds 1-3):
 
 | pool rate (Hz) | 16.6 | 18.5 | 21.8 | 24.1 | 27.0 | 30.1 | 33.1 | 36.5 | 39.6 | 42.6 | 45.5 | 48.0 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -32,15 +33,24 @@ Renshaw cells cut, at tonic drives of 450-1000 pA (mean of seeds 1-3):
 (Tremor falls with rate because the muscle's force curve flattens, so judging against a fixed number would reward any lesion that raises
 the rate: removing Renshaw inhibition raises it from 30 to 48 Hz, which alone would cut the tremor to 1.1 %. Judged against the control
 curve at the same rate, the cut circuit scores no improvement.) Pass: improvement >= 0.25, stretch resistance >= 0.30, no ringing, pools
-firing >= 5 Hz. Seeds 1-3:
+firing >= 5 Hz. Measured:
 
-| Seed | Value | Pool rate | Tremor | Control at this rate | Improvement | Resistance |
-|---|---|---|---|---|---|---|
-| 1 | 100 | 30.3 Hz | 1.89 % | 5.04 % | 0.63 | 0.66 |
-| 2 | 100 | 30.8 Hz | 2.26 % | 4.90 % | 0.54 | 0.64 |
-| 3 | 100 | 32.0 Hz | 1.52 % | 4.60 % | 0.67 | 0.57 |
+| Seed | Tremor | Improvement | Resistance |
+|---|---|---|---|
+| 1 | 1.89 % | 0.63 | 0.66 |
+| 2 | 2.26 % | 0.54 | 0.64 |
+| 3 | 1.52 % | 0.67 | 0.57 |
+| 4 | 1.48 % | 0.67 | 0.44 |
+| 5 | 2.13 % | 0.57 | 0.60 |
+| 6 | 1.79 % | 0.63 | 0.52 |
+| 7 | 1.95 % | 0.62 | 0.56 |
+| 8 | 1.62 % | 0.67 | 0.63 |
+| 9 | 1.58 % | 0.64 | 0.57 |
+| 10 | 1.57 % | 0.66 | 0.38 |
+| 11 | 1.58 % | 0.65 | 0.47 |
+| 12 | 1.42 % | 0.70 | 0.57 |
 
-## Parameter provenance
+Seeds 1-12 (the test runs 1-10): improvement 0.54-0.70 (limit 0.25), resistance 0.38-0.66 (limit 0.30).## Parameter provenance
 * Recurrent loop gain from a closed-loop sweep of w_MN_RC (0.5-6 nS), w_RC_MN (-1 to -20 nS) and drive (650-1200 pA): weak settings
   (RC -> MN of -1 to -2 nS) cut the tremor only 10-15 % at equal rate; -10 nS with 3 nS MN -> RC cut it 55-67 % while the motoneuron rate fell
   only from 36 to 30 Hz (the drive was raised to 1000 pA to compensate). Stronger loops (-20 nS) reduce the pool rate further and start to
