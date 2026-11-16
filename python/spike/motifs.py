@@ -145,8 +145,9 @@ class SplitMix64:
         return z ^ (z >> 31)
 
 
-def rewire(g: Graph, seed: int, swaps_per_edge: int = 10) -> Graph:
-    """Degree-preserving edge-swap randomisation (no self-loops or multi-edges)."""
+def rewire(g: Graph, seed: int, swaps_per_edge: int = 10, stats: dict | None = None) -> Graph:
+    """Degree-preserving edge-swap randomisation (no self-loops or multi-edges). `stats`, if given, accumulates
+    {"attempts", "accepted"} swap counts (the C++ RewireStats)."""
     e = [(a, b) for a in range(g.n) for b in g.out[a]]
     present = set(e)
     m = len(e)
@@ -155,12 +156,16 @@ def rewire(g: Graph, seed: int, swaps_per_edge: int = 10) -> Graph:
         for _ in range(m * max(swaps_per_edge, 0)):
             i = rng.next() % m
             j = rng.next() % m
+            if stats is not None:
+                stats["attempts"] = stats.get("attempts", 0) + 1
             a, b = e[i]
             c, d = e[j]
             if a == c or b == d or a == d or c == b:
                 continue
             if (a, d) in present or (c, b) in present:
                 continue
+            if stats is not None:
+                stats["accepted"] = stats.get("accepted", 0) + 1
             present.discard((a, b))
             present.discard((c, d))
             present.add((a, d))
@@ -238,3 +243,158 @@ def edges_from_nest(net) -> list[tuple[int, int, float]]:
         if 0 <= a < n and 0 <= b < n:
             out.append((a, b, float(wt)))
     return out
+
+
+# ---------------------------------------------------------------- 4-node census (199 connected directed classes)
+
+MIN_NULL_SD = 0.5
+SIGNIFICANT_Z = 2.0
+MIN_SWAP_ACCEPTANCE = 0.2
+
+_P4 = ((0, 1), (0, 2), (0, 3), (1, 0), (1, 2), (1, 3), (2, 0), (2, 1), (2, 3), (3, 0), (3, 1), (3, 2))
+
+
+def _build_table4():
+    perms = list(itertools.permutations(range(4)))
+    canon = []
+    for code in range(4096):
+        edges = [_P4[b] for b in range(12) if code >> b & 1]
+        parent = list(range(4))
+
+        def find(x):
+            while parent[x] != x:
+                x = parent[x]
+            return x
+
+        for a, b in edges:
+            parent[find(a)] = find(b)
+        if len({find(i) for i in range(4)}) != 1:
+            canon.append(-1)
+            continue
+        canon.append(min(sum(1 << (15 - (4 * p[a] + p[b])) for a, b in edges) for p in perms))
+    ids = sorted({c for c in canon if c >= 0})
+    index = {c: i for i, c in enumerate(ids)}
+    return ids, [index.get(c, -1) for c in canon]
+
+
+IDS4, _TABLE4 = _build_table4()
+N_CLASSES4 = len(IDS4)  # 199
+assert N_CLASSES4 == 199
+
+
+@dataclass(frozen=True)
+class Motif4:
+    index: int
+    id: int
+    edges: int
+    mutual_pairs: int
+
+
+def _info4(i: int, cid: int) -> Motif4:
+    bit = lambda a, b: cid >> (15 - (4 * a + b)) & 1
+    edges = sum(bit(a, b) for a in range(4) for b in range(4) if a != b)
+    mutual = sum(1 for a in range(4) for b in range(a + 1, 4) if bit(a, b) and bit(b, a))
+    return Motif4(i, cid, edges, mutual)
+
+
+MOTIFS4: tuple[Motif4, ...] = tuple(_info4(i, c) for i, c in enumerate(IDS4))
+BY_ID4 = {m.id: m for m in MOTIFS4}
+
+
+def census4(g_or_edges, n: int | None = None, sign: str = "any") -> list[int]:
+    """Counts of induced weakly connected 4-node subgraphs per class (ESU enumeration, Wernicke 2006)."""
+    g = g_or_edges if isinstance(g_or_edges, Graph) else make_graph(g_or_edges, n, sign)
+    nb: list[list[int]] = [[] for _ in range(g.n)]
+    for a in range(g.n):
+        for b in g.out[a]:
+            nb[a].append(b)
+            nb[b].append(a)
+    nb = [sorted(set(x)) for x in nb]
+    cover = [0] * g.n
+    counts = [0] * N_CLASSES4
+    sub = [0, 0, 0, 0]
+    sets = g._sets
+
+    def classify():
+        code = 0
+        for b, (x, y) in enumerate(_P4):
+            if sub[y] in sets[sub[x]]:
+                code |= 1 << b
+        counts[_TABLE4[code]] += 1
+
+    def add(x, d):
+        cover[x] += d
+        for y in nb[x]:
+            cover[y] += d
+
+    def extend(k, ext, v):
+        if k == 3:
+            for w in ext:
+                sub[3] = w
+                classify()
+            return
+        ext = list(ext)
+        while ext:
+            w = ext.pop()
+            ext2 = ext + [u for u in nb[w] if u > v and cover[u] == 0]
+            sub[k] = w
+            add(w, 1)
+            extend(k + 1, ext2, v)
+            add(w, -1)
+
+    for v in range(g.n):
+        sub[0] = v
+        add(v, 1)
+        extend(1, [u for u in nb[v] if u > v], v)
+        add(v, -1)
+    return counts
+
+
+@dataclass
+class MotifResult4:
+    counts: list[int]
+    null_mean: list[float]
+    null_sd: list[float]
+    z: list[float]
+    null_samples: int = 0
+    node_count: int = 0
+    edge_count: int = 0
+    swap_attempts: int = 0
+    swap_accepted: int = 0
+    swap_acceptance: float = 0.0
+    effective_swaps_per_edge: float = 0.0
+    degenerate: bool = False
+    significant: list[int] = field(default_factory=list)
+
+
+def zscores4(g_or_edges, n: int | None = None, sign: str = "any", n_null: int = 100, seed: int = 1, swaps_per_edge: int = 10) -> MotifResult4:
+    """4-node census plus z-scores against `n_null` rewired graphs (null k uses seed + k), with the same significance rule as 3 nodes."""
+    g = g_or_edges if isinstance(g_or_edges, Graph) else make_graph(g_or_edges, n, sign)
+    counts = census4(g)
+    st: dict = {}
+    nulls = [census4(rewire(g, seed + k, swaps_per_edge, st)) for k in range(n_null)]
+    att, acc = st.get("attempts", 0), st.get("accepted", 0)
+    m = g.edge_count()
+    r = MotifResult4(counts, [], [], [], n_null, g.n, m, att, acc)
+    r.swap_acceptance = acc / att if att else 0.0
+    r.effective_swaps_per_edge = acc / n_null / m if n_null > 0 and m > 0 else 0.0
+    r.degenerate = n_null > 0 and r.swap_acceptance < MIN_SWAP_ACCEPTANCE
+    for c in range(N_CLASSES4):
+        xs = [float(x[c]) for x in nulls]
+        mu = sum(xs) / n_null if n_null else 0.0
+        var = 0.0
+        for x in xs:
+            var += (x - mu) * (x - mu)
+        s = math.sqrt(var / (n_null - 1)) if n_null > 1 else 0.0
+        diff = counts[c] - mu
+        if s > 0:
+            zc = diff / s
+        elif diff == 0 or n_null == 0:
+            zc = 0.0
+        else:
+            zc = math.inf if diff > 0 else -math.inf
+        r.null_mean.append(mu)
+        r.null_sd.append(s)
+        r.z.append(zc)
+        r.significant.append(int(math.isfinite(zc) and abs(zc) > SIGNIFICANT_Z and s >= MIN_NULL_SD and not r.degenerate))
+    return r
