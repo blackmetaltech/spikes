@@ -6,6 +6,7 @@ var circuit := {}
 var tele: Telemetry = null
 var task_id := ""
 var sign_idx := 0
+var level_idx := 0   # 0 = populations (one node per population), 1 = neurons (every cell, as NEST sees it)
 var null_n := 100
 var result := {}
 var back_btn: Button
@@ -26,6 +27,8 @@ func build() -> void:
 	var head := HFlowContainer.new(); head.add_theme_constant_override("h_separation", 12); head.add_theme_constant_override("v_separation", 6); v.add_child(head)
 	back_btn = Kit.btn("BACK", func(): app.back(), "panel", 22, Vector2(110, 0)); head.add_child(back_btn)
 	var ttl := Kit.shout("Analysis", int(46 * f) if not phone else 30, Kit.TEXT); ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(ttl)
+	head.add_child(Kit.label("graph", 18, Kit.TEXT_SOFT))
+	head.add_child(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0))
 	head.add_child(Kit.label("edges", 18, Kit.TEXT_SOFT))
 	head.add_child(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0))
 	head.add_child(Kit.label("nulls", 18, Kit.TEXT_SOFT))
@@ -40,39 +43,62 @@ func compute() -> void:
 	result = {}
 	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: chart.message = "No circuit yet. Build one in the lab."; chart.queue_redraw(); return
 	if not ClassDB.class_exists("SpikeSim"): chart.message = "The spike-gd GDExtension is not loaded."; chart.queue_redraw(); return
-	# A throwaway engine just to read the connection graph from NEST (the lab's engine is stopped while this screen is open).
-	var sim = ClassDB.instantiate("SpikeSim")
-	if not sim.load_circuit(Circuits.to_json(circuit)): chart.message = "The engine rejected the circuit: " + str(sim.error()); chart.queue_redraw(); return
-	var txt := str(sim.motif_json(sign_idx, null_n, int(circuit.get("seed", 1))))
-	sim.stop()
+	var txt := ""
+	if level_idx == 0:
+		var g := population_graph(circuit)
+		if int(g["n"]) < 3: chart.message = "Fewer than 3 populations: wire at least three to count three-node motifs."; chart.result = {}; chart.queue_redraw(); return
+		var sim0 = ClassDB.instantiate("SpikeSim")
+		txt = str(sim0.motif_json_edges(g["edges"], int(g["n"]), sign_idx, null_n, int(circuit.get("seed", 1))))
+	else:
+		# A throwaway engine just to read the connection graph from NEST (the lab's engine is stopped while this screen is open).
+		var sim = ClassDB.instantiate("SpikeSim")
+		if not sim.load_circuit(Circuits.to_json(circuit)): chart.message = "The engine rejected the circuit: " + str(sim.error()); chart.queue_redraw(); return
+		txt = str(sim.motif_json(sign_idx, null_n, int(circuit.get("seed", 1))))
+		sim.stop()
 	var d := Circuits.parse(txt)
 	if d.has("error"): chart.message = str(d["error"])
 	else: result = d; chart.message = ""
-	chart.result = result; chart.queue_redraw()
+	chart.level = level_idx; chart.result = result; chart.queue_redraw()
 	if stats_view != null: stats_view.queue_redraw()
+
+## Population-level graph: node = population (index in circuit.populations), edge = at least one projection between two different
+## populations; the edge weight carries the projection's sign. Returns {n, edges: PackedFloat64Array of (pre, post, weight) triples}.
+static func population_graph(c: Dictionary) -> Dictionary:
+	var tr := PackedFloat64Array()
+	for pr in c.get("projections", []):
+		var a := Circuits.pop_index(c, Circuits.proj_pop(pr.get("pre", "")))
+		var b := Circuits.pop_index(c, Circuits.proj_pop(pr.get("post", "")))
+		if a < 0 or b < 0 or a == b: continue
+		tr.append(float(a)); tr.append(float(b)); tr.append(Circuits.proj_weight(pr))
+	return {"n": c.get("populations", []).size(), "edges": tr}
 
 ## 13 motif classes as a diverging z-score chart with their glyphs.
 class MotifChart extends Control:
 	var result := {}
 	var message := ""
+	var level := 0
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(380, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
 		draw_style_box(Kit.sb(Kit.PANEL, Kit.LINE, 1, 14, 0, false), Rect2(Vector2.ZERO, size))
 		draw_string(fb, Vector2(16, 28), "THREE-NODE MOTIFS", HORIZONTAL_ALIGNMENT_LEFT, 300, fz + 2, Kit.exc())
-		draw_string(f, Vector2(16 + 230, 28), "count, and z-score against degree-preserving rewiring", HORIZONTAL_ALIGNMENT_LEFT, size.x - 260, fz, Kit.TEXT_SOFT)
+		if size.x > 700.0: draw_string(f, Vector2(16 + 230, 28), "count, and z-score against degree-preserving rewiring", HORIZONTAL_ALIGNMENT_LEFT, size.x - 260, fz, Kit.TEXT_SOFT)
 		if message != "" or not result.has("motifs"):
 			draw_string(f, Vector2(0, size.y * 0.5), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_CENTER, size.x, Kit.fs(20), Kit.TEXT_SOFT); return
-		var ms: Array = result["motifs"]; var top := 46.0; var rh := (size.y - top - 16.0) / 13.0
+		var ms: Array = result["motifs"]; var top := 46.0
+		var degenerate := bool(result.get("degenerate", false)); var acc := float(result.get("swap_acceptance", 0.0))
+		var foot_txt := _footer(degenerate, acc)
+		var fw := size.x - 32.0; var foot_h := f.get_multiline_string_size(foot_txt, HORIZONTAL_ALIGNMENT_LEFT, fw, fz).y + 8.0
+		var rh := (size.y - top - foot_h - 6.0) / 13.0
 		var gx := 16.0; var gw := minf(rh * 1.5, 56.0)
 		var name_w := float(fz) * 12.5; var cnt_w := float(fz) * 3.4
 		var bx := gx + gw + name_w + cnt_w + 14.0; var bw := size.x - bx - 16.0
 		var zmax := 8.0
 		var mid := bx + bw * 0.5
-		draw_line(Vector2(mid, top), Vector2(mid, size.y - 12.0), Color(Kit.LINE, 1.0), 1.5)
+		draw_line(Vector2(mid, top), Vector2(mid, top + rh * 13.0), Color(Kit.LINE, 1.0), 1.5)
 		for zz in [-4, -2, 2, 4]:
-			var x := mid + bw * 0.5 * float(zz) / zmax; draw_line(Vector2(x, top), Vector2(x, size.y - 12.0), Color(Kit.LINE, 0.4), 1.0)
+			var x := mid + bw * 0.5 * float(zz) / zmax; draw_line(Vector2(x, top), Vector2(x, top + rh * 13.0), Color(Kit.LINE, 0.4), 1.0)
 		draw_string(f, Vector2(mid - 12, top - 4), "z=0", HORIZONTAL_ALIGNMENT_CENTER, 24, fz, Kit.TEXT_SOFT)
 		var maxc := 1.0
 		for m in ms: maxc = maxf(maxc, float(m["count"]))
@@ -82,19 +108,32 @@ class MotifChart extends Control:
 			_glyph(Vector2(gx + gw * 0.5, cy), minf(rh * 0.42, 14.0), int(m["milo_id"]))
 			draw_string(f, Vector2(gx + gw + 8, cy + float(fz) * 0.35), _pretty(str(m["name"])), HORIZONTAL_ALIGNMENT_LEFT, name_w, fz, Kit.TEXT)
 			var cnt := int(m["count"]); draw_string(fb, Vector2(gx + gw + name_w + 8, cy + float(fz) * 0.35), str(cnt), HORIZONTAL_ALIGNMENT_RIGHT, cnt_w, fz, Kit.TEXT if cnt > 0 else Kit.TEXT_SOFT)
-			var zv = m.get("z", 0.0); var z := float(zv) if zv != null else 0.0
-			if is_inf(z) or is_nan(z): z = zmax if (zv == null and cnt > 0) else 0.0
-			z = clampf(z, -zmax, zmax); var x1 := mid + bw * 0.5 * z / zmax; var col := Kit.exc() if z > 0.0 else Kit.inh()
+			var zv = m.get("z", 0.0); var defined := bool(m.get("z_defined", zv != null)) and zv != null
+			var sig := bool(m.get("significant", false))
+			if not defined:   # sd = 0: the count is fixed by the degree sequence, so z is undefined (not infinite): no bar, greyed
+				draw_string(f, Vector2(mid - 60.0, cy + float(fz) * 0.35), "n/a (fixed by degrees)" if bw > 300.0 else "n/a", HORIZONTAL_ALIGNMENT_CENTER, 120.0 if bw > 300.0 else 60.0, fz, Color(Kit.TEXT_SOFT, 0.6))
+				continue
+			var z := clampf(float(zv), -zmax, zmax); var x1 := mid + bw * 0.5 * z / zmax; var col := Kit.exc() if z > 0.0 else Kit.inh()
 			if absf(z) > 0.02:
-				Gfx.glow(self, Vector2(x1, cy), rh * 0.9, Color(col, 0.12 if absf(z) > 2.0 else 0.0))
-				draw_rect(Rect2(minf(mid, x1), cy - rh * 0.27, absf(x1 - mid), rh * 0.54), Color(col, 0.95 if absf(z) >= 2.0 else 0.45))
-			var zs := ("%+.1f" % z) if cnt > 0 or absf(z) > 0.0 else "-"
-			zs += "*" if absf(z) >= 2.0 else ""
+				Gfx.glow(self, Vector2(x1, cy), rh * 0.9, Color(col, 0.12 if sig else 0.0))
+				draw_rect(Rect2(minf(mid, x1), cy - rh * 0.27, absf(x1 - mid), rh * 0.54), Color(col, 0.95 if sig else 0.4))
+			var zs := ("%+.1f" % float(zv)) if cnt > 0 or absf(z) > 0.0 else "-"
+			zs += "*" if sig else ""
 			if absf(x1 - mid) > 70.0:   # a long bar carries its label inside, at the far end
 				draw_string(fb, Vector2(x1 - 74.0 if z > 0.0 else x1 + 6.0, cy + float(fz) * 0.35), zs, HORIZONTAL_ALIGNMENT_RIGHT if z > 0.0 else HORIZONTAL_ALIGNMENT_LEFT, 68, fz, Kit.BENCH)
 			else:
 				draw_string(f, Vector2(x1 + (6.0 if z >= 0 else -6.0 - 48.0), cy + float(fz) * 0.35), zs, HORIZONTAL_ALIGNMENT_LEFT if z >= 0 else HORIZONTAL_ALIGNMENT_RIGHT, 48, fz, Kit.TEXT_SOFT)
-		draw_string(f, Vector2(size.x - 16 - 260, size.y - 4), "* |z| >= 2     nulls: %d" % int(result.get("null_samples", 0)), HORIZONTAL_ALIGNMENT_RIGHT, 260, fz, Kit.TEXT_SOFT)
+		draw_multiline_string(f, Vector2(16, top + rh * 13.0 + float(fz) + 4.0), foot_txt, HORIZONTAL_ALIGNMENT_LEFT, fw, fz, -1, Kit.RED if degenerate else Kit.TEXT_SOFT)
+
+	func _footer(degenerate: bool, acc: float) -> String:
+		var g := "populations" if level == 0 else "neurons"
+		if size.x < 600.0:   # phone: one short line (plus a short warning), the full legend does not fit
+			var c := "%s: %d nodes, %d edges, swaps %.0f%%  * = |z|>2  n/a = fixed" % [g, int(result.get("nodes", 0)), int(result.get("edges", 0)), acc * 100.0]
+			return c + ("\nWARNING: null too weak (<20%% swaps), no stars" if degenerate else "")
+		var t := "%s graph: %d nodes, %d edges. Nulls: %d, swaps accepted %.0f%% (about %.1f per edge)." % [g, int(result.get("nodes", 0)), int(result.get("edges", 0)), int(result.get("null_samples", 0)), acc * 100.0, float(result.get("effective_swaps_per_edge", 0.0))]
+		if degenerate: t += "\nWARNING: under 20%% of swaps were possible, so this graph is too small or dense to randomise and the nulls barely differ from the data: z-scores are not trustworthy, nothing is starred."
+		t += "\n* = |z| > 2 and null sd >= 0.5.  n/a = count fixed by the degree sequence.  'all' edges ignores sign (Milo-style nulls that keep mutual pairs are planned)."
+		return t
 
 	static func _pretty(n: String) -> String: return n.replace("_", " ")
 

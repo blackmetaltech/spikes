@@ -3,22 +3,53 @@
 
 namespace spike_gd
 {
+static std::string error_json( const std::string& what )
+{
+  std::string m;
+  for ( unsigned char c : what )
+  {
+    if ( c == '"' || c == '\\' )
+      ( m += '\\' ) += static_cast< char >( c );
+    else if ( c < 0x20 )
+      m += ' ';
+    else
+      m += static_cast< char >( c );
+  }
+  return "{\"error\": \"" + m + "\"}";
+}
+
+static spike::analysis::Sign to_sign( int sign )
+{
+  return sign == 1 ? spike::analysis::Sign::Excitatory : sign == 2 ? spike::analysis::Sign::Inhibitory : spike::analysis::Sign::Any;
+}
+
 std::string motif_json( const spike::Engine& engine, int sign, int n_null, unsigned long long seed )
 {
   try
   {
     auto edges = spike::analysis::edges_from_engine( engine );
-    auto sg = sign == 1 ? spike::analysis::Sign::Excitatory : sign == 2 ? spike::analysis::Sign::Inhibitory : spike::analysis::Sign::Any;
-    auto r = spike::analysis::motif_zscores( edges, engine.neuron_count(), sg, n_null, seed );
+    auto r = spike::analysis::motif_zscores( edges, engine.neuron_count(), to_sign( sign ), n_null, seed );
     return spike::analysis::motif_result_json( r );
   }
   catch ( const std::exception& e )
   {
-    std::string m = e.what();
-    for ( auto& c : m )
-      if ( c == '"' || c == '\\' )
-        c = '\'';
-    return "{\"error\": \"" + m + "\"}";
+    return error_json( e.what() );
+  }
+}
+
+std::string motif_json_edges( const std::vector< double >& triples, int n, int sign, int n_null, unsigned long long seed )
+{
+  try
+  {
+    std::vector< spike::analysis::Edge > edges;
+    for ( size_t i = 0; i + 2 < triples.size(); i += 3 )
+      edges.push_back( { static_cast< int32_t >( triples[ i ] ), static_cast< int32_t >( triples[ i + 1 ] ), triples[ i + 2 ] } );
+    auto r = spike::analysis::motif_zscores( edges, n, to_sign( sign ), n_null, seed );
+    return spike::analysis::motif_result_json( r );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
   }
 }
 

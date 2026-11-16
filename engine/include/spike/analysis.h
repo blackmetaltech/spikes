@@ -67,6 +67,22 @@ Census motif_census( const std::vector< Edge >& edges, int32_t n = -1, Sign sign
 /// `swaps_per_edge` attempted swaps per edge. Deterministic for a given seed (SplitMix64, identical in Python).
 Graph rewire( const Graph& g, uint64_t seed, int swaps_per_edge = 10 );
 
+/// What rewire() did: swap attempts vs accepted swaps. Small dense graphs reject most attempts, so the null barely differs from
+/// the real graph; acceptance = accepted / attempts says how much randomisation actually happened.
+struct RewireStats
+{
+  uint64_t attempts = 0;
+  uint64_t accepted = 0;
+};
+Graph rewire( const Graph& g, uint64_t seed, int swaps_per_edge, RewireStats* stats );  // same result as the 3-argument form
+
+/// Below this swap acceptance rate the null ensemble is called degenerate (too little randomisation to trust a z-score).
+constexpr double kMinSwapAcceptance = 0.2;
+/// A z-score counts as significant only if |z| > kSignificantZ and the null sd is at least kMinNullSd counts (counts are
+/// integers: an sd below ~0.5 means the null is essentially a constant, and z explodes on a difference of one).
+constexpr double kSignificantZ = 2.0;
+constexpr double kMinNullSd = 0.5;
+
 struct MotifResult
 {
   Census counts;                  // real graph
@@ -74,12 +90,24 @@ struct MotifResult
   std::vector< double > null_sd;  // sample sd (n-1) across the null ensemble
   std::vector< double > z;        // (count - mean) / sd; 0 if count == mean, +-inf if sd == 0 and count != mean
   int null_samples = 0;
+  // --- add-only diagnostics of the null model
+  int32_t node_count = 0;
+  int64_t edge_count = 0;
+  uint64_t swap_attempts = 0;       // summed over the null ensemble
+  uint64_t swap_accepted = 0;
+  double swap_acceptance = 0.0;     // accepted / attempts (0 if no swap was possible)
+  double effective_swaps_per_edge = 0.0;  // accepted swaps per edge per null graph
+  bool degenerate = false;          // swap_acceptance < kMinSwapAcceptance (or fewer than 2 edges): nulls hardly differ from the data
+  std::vector< int > significant;   // 1 if finite z, |z| > kSignificantZ and null_sd >= kMinNullSd; infinite/undefined z is never significant
 };
 
 /// Census plus z-scores against `n_null` rewired graphs (null k uses seed + k).
 MotifResult motif_zscores( const Graph& g, int n_null, uint64_t seed, int swaps_per_edge = 10 );
 MotifResult motif_zscores( const std::vector< Edge >& edges, int32_t n, Sign sign, int n_null, uint64_t seed,
   int swaps_per_edge = 10 );
+
+/// True if the z-score of class c is finite and trustworthy enough to mark (see kSignificantZ / kMinNullSd) and the null is not degenerate.
+bool motif_is_significant( const MotifResult& r, int c );
 
 /// Results as one JSON object (class table + counts + z), for the Godot analysis screen and the CLI tool.
 std::string motif_result_json( const MotifResult& r );

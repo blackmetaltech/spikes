@@ -8,6 +8,8 @@ namespace spike_gd
 {
 /// Motif census JSON (analysis.h motif_result_json) or {"error": "..."} if the graph can't be read.
 std::string motif_json( const spike::Engine& engine, int sign, int n_null, unsigned long long seed );
+/// Same census on an explicit edge list (flat triples pre, post, weight; node indices 0..n-1), e.g. the population graph.
+std::string motif_json_edges( const std::vector< double >& triples, int n, int sign, int n_null, unsigned long long seed );
 struct Stats
 {
   std::vector< double > rates, cv;
