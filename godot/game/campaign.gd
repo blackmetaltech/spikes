@@ -68,15 +68,9 @@ static func info(id: String) -> Dictionary:
 	if t != null:
 		d["title"] = str(t.title()); d["brief"] = str(t.brief()); d["duration_ms"] = float(t.duration_ms())
 		d["sensors"] = Array(t.sensor_channels()); d["motors"] = Array(t.motor_channels())
-		for k in ["chapter", "view", "par_neurons", "timeline", "bands", "modulators"]:   # v0.2 additions; absent on an older extension
-			if t.has_method(k):
-				var v: Variant = t.call(k)
-				match k:
-					"chapter": d["chapter"] = str(v) if str(v) != "" else "invertebrates"
-					"view": d["view"] = str(v) if str(v) != "" else "polyline"
-					"par_neurons": d["par"] = int(v)
-					"modulators": d["modulators"] = Array(v)
-					_: d[k] = Array(v)
+		var ch := str(t.chapter()); var vw := str(t.view())
+		d["chapter"] = ch if ch != "" else "invertebrates"; d["view"] = vw if vw != "" else "polyline"; d["par"] = int(t.par_neurons())
+		d["timeline"] = Array(t.timeline()); d["bands"] = Array(t.bands()); d["modulators"] = Array(t.modulators())
 	_info[id] = d; return d
 
 static func chapter_index(ch: String) -> int:
@@ -86,17 +80,20 @@ static func chapter_index(ch: String) -> int:
 
 static func chapter_def(ch: String) -> Dictionary: return CHAPTERS[chapter_index(ch)]
 
-## Nodes of a chapter in play order: [{id, title, installed, pos}]. Planned ones first (ghosts when not installed), then unknown engine tasks.
+## Nodes of a chapter in play order: [{id, title, installed, pos}]. The engine's registry order decides the order of installed tasks (so there is one
+## source of truth); PLANNED only supplies the map positions and the ghost nodes for tasks that have not landed. Planned ghosts come last.
 static func nodes(ch: String) -> Array:
-	var out := []; var seen := {}
-	for p in PLANNED.get(ch, []):
-		var ins := is_installed(p[0])
-		out.append({"id": p[0], "title": str(info(p[0])["title"]) if ins else p[1], "installed": ins, "pos": p[2]}); seen[p[0]] = true
+	var out := []; var pos := {}; var title := {}
+	for p in PLANNED.get(ch, []): pos[p[0]] = p[2]; title[p[0]] = p[1]
 	var spare := 0
-	var extra := installed().filter(func(i): return not seen.has(i) and str(info(i)["chapter"]) == ch)
-	extra.sort()
-	for id in extra:
-		out.append({"id": id, "title": str(info(id)["title"]), "installed": true, "pos": SPARE[spare % SPARE.size()]}); spare += 1
+	for id in installed():
+		if str(info(id)["chapter"]) != ch: continue
+		var at: Vector2
+		if pos.has(id): at = pos[id]
+		else: at = SPARE[spare % SPARE.size()]; spare += 1
+		out.append({"id": id, "title": str(info(id)["title"]), "installed": true, "pos": at})
+	for p in PLANNED.get(ch, []):
+		if not is_installed(p[0]): out.append({"id": p[0], "title": p[1], "installed": false, "pos": p[2]})
 	return out
 
 ## Installed task ids in play order across all chapters.

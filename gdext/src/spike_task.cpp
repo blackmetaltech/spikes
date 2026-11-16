@@ -117,6 +117,42 @@ Array SpikeTask::bands() const
   return a;
 }
 PackedStringArray SpikeTask::modulators() const { return task_ ? strs( task_->modulators() ) : PackedStringArray(); }
+Dictionary SpikeTask::channel_kinds() const
+{
+  Dictionary in, out, all;
+  if ( task_ )
+  {
+    const auto ck = task_->channel_kinds();
+    for ( const auto& name : task_->sensor_channels() )
+    {
+      auto it = ck.find( name );
+      if ( it == ck.end() )
+        continue;
+      Dictionary d;
+      d[ "kind" ] = S( it->second.kind );
+      d[ "value" ] = it->second.value;
+      in[ S( name ) ] = d;
+    }
+    for ( const auto& name : task_->motor_channels() )
+    {
+      auto it = ck.find( name );
+      if ( it == ck.end() )
+        continue;
+      Dictionary d;
+      d[ "kind" ] = S( it->second.kind );
+      if ( it->second.kind == "modulator" )
+      {
+        d[ "modulator" ] = S( it->second.modulator );
+        d[ "gain" ] = it->second.gain;
+        d[ "tau_ms" ] = it->second.tau_ms;
+      }
+      out[ S( name ) ] = d;
+    }
+  }
+  all[ "inputs" ] = in;
+  all[ "outputs" ] = out;
+  return all;
+}
 String SpikeTask::catalog_json() { return S( spike::catalog_json() ); }
 PackedStringArray SpikeTask::modulator_names() { return strs( spike::modulator_names() ); }
 bool SpikeTask::set_modulator( const Ref< SpikeSim >& sim, const String& name, double conc )
@@ -153,6 +189,7 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "timeline" ), &SpikeTask::timeline );
   ClassDB::bind_method( D_METHOD( "bands" ), &SpikeTask::bands );
   ClassDB::bind_method( D_METHOD( "modulators" ), &SpikeTask::modulators );
+  ClassDB::bind_method( D_METHOD( "channel_kinds" ), &SpikeTask::channel_kinds );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "catalog_json" ), &SpikeTask::catalog_json );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "modulator_names" ), &SpikeTask::modulator_names );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_modulator", "sim", "name", "conc" ), &SpikeTask::set_modulator );

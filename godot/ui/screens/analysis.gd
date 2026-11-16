@@ -1,7 +1,14 @@
 class_name AnalysisScreen
 extends Screen
-## Analysis: the 3-node motif census of the circuit (13 connected directed classes, Milo et al. 2002) with z-scores against degree-preserving
-## nulls, from the C++ engine; plus spike statistics of the run so far (firing rate, ISI CV per neuron, Golomb synchrony).
+## Analysis, from the C++ engine (SpikeSim bindings of engine/include/spike/analysis.h). Tabs:
+##   3-node    motif census of the circuit (13 connected directed classes, Milo et al. 2002), z-scores against degree-preserving nulls
+##   4-node    the same for the 199 connected 4-node classes (strongest |z| listed); refuses, with a message, when the work estimate is too big
+##   HRV       heart-rate variability (SDNN, RMSSD, pNN50, LF/HF) of the beats of one population (spikes merged within 150 ms are one beat)
+##   PRC       phase-response curve of that population to the task's scripted perturbations (task timeline events), from the recorded spikes
+##   bursts    burst detection (max ISI 170 ms, min 3 spikes) on that population
+##   energy    mean spikes per second per neuron against the task's energy budget (the energy star, Progress.ENERGY_HZ) and the ATP it costs
+## HRV, PRC and bursts need a recording: RECORD re-runs the circuit on the task (a throwaway engine, the lab's is stopped while this screen is open)
+## for 10 s, 30 s, 60 s or the full episode and keeps every spike. Beside the tabs, spike statistics of the lab run so far (rate, ISI CV, Golomb chi).
 var circuit := {}
 var tele: Telemetry = null
 var task_id := ""
@@ -11,7 +18,19 @@ var null_n := 100
 var result := {}
 var back_btn: Button
 var chart: MotifChart
+var panel: SeriesPanel
 var stats_view: StatsView
+const TABS := [[0, "3-node"], [1, "4-node"], [2, "HRV"], [3, "PRC"], [4, "bursts"], [5, "energy"]]
+const RECORDS := [[10, "10 s"], [30, "30 s"], [60, "60 s"], [0, "full"]]
+const BEAT_GAP_MS := 150.0
+const MOTIF4_MAX_WORK := 5.0e7
+var tab := 0
+var pop_idx := 0          # population whose spikes HRV / PRC / bursts read
+var rec_s := 30           # recording length in s (0 = the task's whole episode)
+var rec := {}             # {pairs, n, t_ms, task_id}: the last recording
+var _rec_run := {}        # a recording in progress
+var _head_motif: Array = []
+var _head_rec: Array = []
 
 func default_focus() -> Control: return back_btn
 
@@ -27,19 +46,50 @@ func build() -> void:
 	var head := HFlowContainer.new(); head.add_theme_constant_override("h_separation", 12); head.add_theme_constant_override("v_separation", 6); v.add_child(head)
 	back_btn = Kit.btn("BACK", func(): app.back(), "panel", 22, Vector2(110, 0)); head.add_child(back_btn)
 	var ttl := Kit.shout("Analysis", int(46 * f) if not phone else 30, Kit.TEXT); ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(ttl)
-	head.add_child(Kit.label("graph", 18, Kit.TEXT_SOFT))
-	head.add_child(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0))
-	head.add_child(Kit.label("edges", 18, Kit.TEXT_SOFT))
-	head.add_child(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0))
-	head.add_child(Kit.label("nulls", 18, Kit.TEXT_SOFT))
-	head.add_child(Kit.stepper([[20, "20"], [100, "100"], [500, "500"]], str(null_n), func(i): null_n = int(i); compute(), 80.0))
+	head.add_child(Kit.stepper(TABS, str(tab), func(i): tab = int(i); _tab_changed(), 380.0 if not phone else 260.0, 20 if not phone else 18))
+	var mrow := HFlowContainer.new(); mrow.add_theme_constant_override("h_separation", 12); mrow.add_theme_constant_override("v_separation", 6); v.add_child(mrow)
+	_head_motif.append(Kit.label("graph", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.label("edges", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.label("nulls", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.stepper([[20, "20"], [100, "100"], [500, "500"]], str(null_n), func(i): null_n = int(i); compute(), 80.0)); mrow.add_child(_head_motif[-1])
+	var pops: Array = circuit.get("populations", [])
+	if pops.size() > 0:
+		pop_idx = _default_pop()
+		_head_rec.append(Kit.label("population", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
+		var popts := []
+		for i in pops.size(): popts.append([i, str(pops[i].get("id", i))])
+		_head_rec.append(Kit.stepper(popts, str(pop_idx), func(i): pop_idx = int(i); compute(), 200.0 if not phone else 150.0)); mrow.add_child(_head_rec[-1])
+	_head_rec.append(Kit.label("record", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
+	_head_rec.append(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0)); mrow.add_child(_head_rec[-1])
+	_head_rec.append(Kit.btn("RECORD", func(): _start_record(), "green", 20, Vector2(120, 0))); mrow.add_child(_head_rec[-1])
 	var cols := HBoxContainer.new(); cols.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_theme_constant_override("separation", int(16 * f)); v.add_child(cols)
 	chart = MotifChart.new(); chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chart.size_flags_stretch_ratio = 1.5; chart.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(chart)
+	panel = SeriesPanel.new(); panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; panel.size_flags_stretch_ratio = 1.5; panel.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(panel)
 	stats_view = StatsView.new(); stats_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL; stats_view.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(stats_view)
 	stats_view.tele = tele; stats_view.circuit = circuit
+	_tab_changed()
+
+func _tab_changed() -> void:
+	chart.visible = tab <= 0; panel.visible = tab > 0
+	for c in _head_motif: c.visible = tab <= 1
+	for c in _head_rec: c.visible = tab >= 2 and tab <= 4
 	compute()
 
+## The population the heart / breathing tasks read first: the one behind the task's first motor output (the SA node, the preBotC...), else the first.
+func _default_pop() -> int:
+	var outs: Array = circuit.get("outputs", [])
+	for o in outs:
+		var ns: Array = (o as Dictionary).get("neurons", [])
+		if ns.size() > 0:
+			var pi := Circuits.pop_index(circuit, str((ns[0] as Dictionary).get("pop", "")))
+			if pi >= 0: return pi
+	return 0
+
 func compute() -> void:
+	if tab == 1: _compute_motif4(); return
+	if tab >= 2: _compute_series(); return
 	result = {}
 	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: chart.message = "No circuit yet. Build one in the lab."; chart.queue_redraw(); return
 	if not ClassDB.class_exists("SpikeSim"): chart.message = "The spike-gd GDExtension is not loaded."; chart.queue_redraw(); return
@@ -60,6 +110,130 @@ func compute() -> void:
 	else: result = d; chart.message = ""
 	chart.level = level_idx; chart.result = result; chart.queue_redraw()
 	if stats_view != null: stats_view.queue_redraw()
+
+
+# ---------- 4-node census ----------
+func _compute_motif4() -> void:
+	panel.kind = "m4"; panel.data = {}; panel.message = ""
+	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: panel.message = "No circuit yet. Build one in the lab."; panel.queue_redraw(); return
+	if not ClassDB.class_exists("SpikeSim"): panel.message = "The spike-gd GDExtension is not loaded."; panel.queue_redraw(); return
+	var txt := ""
+	var seed := int(circuit.get("seed", 1))
+	if level_idx == 0:
+		var g := population_graph(circuit)
+		if int(g["n"]) < 4: panel.message = "Fewer than 4 populations: wire at least four to count four-node motifs."; panel.queue_redraw(); return
+		txt = str(ClassDB.instantiate("SpikeSim").motif4_json_edges(g["edges"], int(g["n"]), sign_idx, null_n, seed, MOTIF4_MAX_WORK))
+	else:
+		var sim = ClassDB.instantiate("SpikeSim")
+		if not sim.load_circuit(Circuits.to_json(circuit)): panel.message = "The engine rejected the circuit: " + str(sim.error()); panel.queue_redraw(); return
+		txt = str(sim.motif4_json(sign_idx, null_n, seed, MOTIF4_MAX_WORK)); sim.stop()
+	var d := Circuits.parse(txt)
+	if d.has("error"): panel.message = str(d["error"]) + ("\nThe work guard stopped it: use populations, fewer nulls, or 'excitatory' / 'inhibitory' edges only." if str(d["error"]).find("work") >= 0 else "")
+	else: panel.data = d; panel.extra = {"level": level_idx}
+	panel.queue_redraw()
+
+# ---------- recordings: HRV, PRC, bursts ----------
+func _start_record() -> void:
+	if not ClassDB.class_exists("SpikeSim"): panel.message = "The spike-gd GDExtension is not loaded."; panel.queue_redraw(); return
+	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: panel.message = "No circuit yet. Build one in the lab."; panel.queue_redraw(); return
+	var sim = ClassDB.instantiate("SpikeSim")
+	if not sim.load_circuit(Circuits.to_json(Telemetry.sanitized(circuit))): panel.message = "The engine rejected the circuit: " + str(sim.error()); panel.queue_redraw(); return
+	var t = Campaign.make(task_id) if task_id != "" else null
+	if t != null: t.reset(int(circuit.get("seed", 1)))
+	var total := float(rec_s) * 1000.0
+	if t != null and (rec_s == 0 or total > float(t.duration_ms())): total = float(t.duration_ms())
+	if t == null and rec_s == 0: total = 30000.0
+	_rec_run = {"sim": sim, "task": t, "t": 0.0, "total": total, "pairs": PackedFloat64Array()}
+	rec = {}; _compute_series()
+
+func _process(_dt: float) -> void:
+	if _rec_run.is_empty(): return
+	var t0 := Time.get_ticks_msec()
+	var sim = _rec_run["sim"]; var t = _rec_run["task"]
+	while float(_rec_run["t"]) < float(_rec_run["total"]) and Time.get_ticks_msec() - t0 < 12:
+		for _k in 20:
+			if t != null: t.step(sim, 1.0)
+			else: sim.step(1.0)
+			_rec_run["t"] = float(_rec_run["t"]) + 1.0
+		var pa: PackedFloat64Array = _rec_run["pairs"]; pa.append_array(sim.drain_spikes()); _rec_run["pairs"] = pa   # packed arrays are values: store the appended copy back
+	if float(_rec_run["t"]) >= float(_rec_run["total"]):
+		rec = {"pairs": _rec_run["pairs"], "n": int(sim.neuron_count()), "t_ms": float(_rec_run["t"]), "task_id": task_id}
+		sim.stop(); _rec_run = {}
+	if tab >= 2 and tab <= 4: _compute_series()
+
+## Neuron ids of the chosen population.
+func _pop_neurons() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	var pops: Array = circuit.get("populations", [])
+	if pop_idx < 0 or pop_idx >= pops.size(): return out
+	var first := Circuits.pop_first(circuit, pop_idx)
+	for k in Circuits.pop_n(pops[pop_idx]): out.append(first + k)
+	return out
+
+## Beat times: spike times of the neurons, a spike within BEAT_GAP_MS of the previous one belongs to the same beat.
+static func beat_times(pairs: PackedFloat64Array, neurons: PackedInt32Array, gap_ms: float) -> PackedFloat64Array:
+	var want := {}
+	for n in neurons: want[int(n)] = true
+	var ts := PackedFloat64Array()
+	var i := 0
+	while i + 1 < pairs.size():
+		if want.has(int(pairs[i])): ts.append(pairs[i + 1])
+		i += 2
+	ts.sort()
+	var out := PackedFloat64Array(); var last := -1.0e18
+	for t in ts:
+		if t - last > gap_ms: out.append(t)
+		last = t
+	return out
+
+func _compute_series() -> void:
+	panel.kind = ["", "", "hrv", "prc", "bursts", "energy"][tab]; panel.data = {}; panel.message = ""; panel.extra = {}
+	if tab == 5: _compute_energy(); return
+	if not _rec_run.is_empty():
+		panel.message = "Recording... %.0f of %.0f s" % [float(_rec_run["t"]) * 0.001, float(_rec_run["total"]) * 0.001]; panel.queue_redraw(); return
+	if rec.is_empty():
+		panel.message = "Press RECORD: the circuit is run on the task for the length chosen and every spike is kept, then analysed here."
+		panel.queue_redraw(); return
+	var pairs: PackedFloat64Array = rec["pairs"]; var n := int(rec["n"]); var t_ms := float(rec["t_ms"]); var ns := _pop_neurons()
+	var pops: Array = circuit.get("populations", [])
+	panel.extra = {"pop": str(pops[pop_idx].get("id", "")) if pop_idx < pops.size() else "", "t_ms": t_ms}
+	var txt := ""
+	match tab:
+		2:
+			var beats := beat_times(pairs, ns, BEAT_GAP_MS)
+			txt = str(SpikeSim.hrv_json(beats)); panel.extra["beats"] = beats
+		3:
+			var perturb := PackedFloat64Array()
+			for e in Campaign.info(task_id).get("timeline", []): perturb.append(float((e as Dictionary).get("t_ms", 0.0)))
+			panel.extra["perturb"] = perturb
+			if perturb.is_empty():
+				panel.message = "This task has no scripted perturbation to measure a phase response to. A PRC needs pulses at known times (tasks with a timeline: baroreflex, heart autonomic, pupil...)."; panel.queue_redraw(); return
+			txt = str(SpikeSim.prc_json(pairs, n, ns, perturb, 0.0, BEAT_GAP_MS, 10))
+		4:
+			txt = str(SpikeSim.bursts_json(pairs, n, ns, 0.0, t_ms))
+	var d := Circuits.parse(txt)
+	if d.has("error"): panel.message = str(d["error"])
+	else: panel.data = d
+	panel.queue_redraw()
+
+func _compute_energy() -> void:
+	var spikes := 0; var n := 0; var t_ms := 0.0; var src := ""
+	var per_pop := []
+	if tele != null and tele.n > 0 and tele.t_ms >= 200.0:
+		spikes = tele.total_spikes; n = tele.n; t_ms = tele.t_ms; src = "the lab run so far"
+		var pops: Array = circuit.get("populations", [])
+		for pi in pops.size():
+			var first := Circuits.pop_first(circuit, pi); var k := Circuits.pop_n(pops[pi]); var c := 0
+			for j in k: c += int(tele.count[first + j])
+			per_pop.append([str(pops[pi].get("id", "")), Progress.energy_hz(c, k, t_ms)])
+	elif not rec.is_empty():
+		var pairs: PackedFloat64Array = rec["pairs"]; spikes = pairs.size() / 2; n = int(rec["n"]); t_ms = float(rec["t_ms"]); src = "the last recording"
+	if n == 0 or t_ms < 200.0:
+		panel.message = "Run the circuit for a few seconds in the lab (or RECORD in another tab), then come back: the energy bill is measured from the spikes it produced."; panel.queue_redraw(); return
+	var hz := Progress.energy_hz(spikes, n, t_ms)
+	panel.data = {"hz": hz, "budget": Progress.energy_budget(task_id), "neurons": n, "par": Progress.budget(task_id), "t_ms": t_ms, "spikes": spikes,
+		"has_task": task_id != "", "per_pop": per_pop, "src": src, "gap": Progress.star3_gap(task_id, n, hz)}
+	panel.queue_redraw()
 
 ## Population-level graph: node = population (index in circuit.populations), edge = at least one projection between two different
 ## populations; the edge weight carries the projection's sign. Returns {n, edges: PackedFloat64Array of (pre, post, weight) triples}.
@@ -147,6 +321,139 @@ class MotifChart extends Control:
 					var a2 := a + d * r * 0.28 + n; var b2 := b - d * r * 0.28 + n
 					draw_line(a2, b2, Color(Kit.TEXT_SOFT, 0.95), 1.3, true); Gfx.arrow_head(self, b2, d, Kit.TEXT_SOFT, r * 0.34)
 		for p in pos: draw_circle(p, r * 0.22, Kit.TEXT)
+
+## One panel for the 4-node table, HRV, PRC, bursts and energy: draws `data` (the engine's JSON, parsed) by `kind`.
+class SeriesPanel extends Control:
+	var kind := ""
+	var data := {}
+	var extra := {}
+	var message := ""
+	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(380, 300)
+	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
+	func _title() -> String:
+		return {"m4": "FOUR-NODE MOTIFS", "hrv": "HEART-RATE VARIABILITY", "prc": "PHASE-RESPONSE CURVE", "bursts": "BURSTS", "energy": "ENERGY"}.get(kind, "")
+	func _num(v: Variant, fmt := "%.1f") -> String: return "-" if v == null else fmt % float(v)
+	func _draw() -> void:
+		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
+		draw_style_box(Kit.sb(Kit.PANEL, Kit.LINE, 1, 14, 0, false), Rect2(Vector2.ZERO, size))
+		draw_string(fb, Vector2(16, 28), _title(), HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz + 2, Kit.exc())
+		if message != "" or data.is_empty():
+			draw_multiline_string(f, Vector2(16, 64), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(18), -1, Kit.TEXT_SOFT); return
+		match kind:
+			"m4": _draw_m4(f, fb, fz)
+			"hrv": _draw_hrv(f, fb, fz)
+			"prc": _draw_prc(f, fb, fz)
+			"bursts": _draw_bursts(f, fb, fz)
+			"energy": _draw_energy(f, fb, fz)
+	func _rows(rows: Array, y0: float, f: Font, fb: Font) -> float:
+		var y := y0
+		for kv in rows:
+			draw_string(f, Vector2(16, y), str(kv[0]), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.62, Kit.fs(17), Kit.TEXT_SOFT)
+			draw_string(fb, Vector2(size.x - 176, y), str(kv[1]), HORIZONTAL_ALIGNMENT_RIGHT, 160, Kit.fs(17), Kit.TEXT); y += 28.0
+		return y
+	func _note(txt: String, y: float, f: Font, fz: int, col := Kit.TEXT_SOFT) -> void:
+		draw_multiline_string(f, Vector2(16, y), txt, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, -1, col)
+	func _draw_m4(f: Font, fb: Font, fz: int) -> void:
+		var cl: Array = (data.get("classes", []) as Array).filter(func(c): return bool(c.get("z_defined", false)) and int(c.get("count", 0)) > 0)
+		cl.sort_custom(func(a, b): return absf(float(a["z"])) > absf(float(b["z"])))
+		var g := "populations" if int(extra.get("level", 0)) == 0 else "neurons"
+		draw_string(f, Vector2(16, 52), "%s graph: %d nodes, %d edges, %d nulls, swaps accepted %.0f%%. %d of 199 classes present; the ten strongest:" % [g, int(data.get("nodes", 0)), int(data.get("edges", 0)), int(data.get("null_samples", 0)), float(data.get("swap_acceptance", 0.0)) * 100.0, (data.get("classes", []) as Array).size()], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		var y := 84.0; var cols := [16.0, size.x * 0.22, size.x * 0.40, size.x * 0.58, size.x * 0.76]
+		for i in 5: draw_string(f, Vector2(cols[i], y), ["class", "edges / mutual", "count", "null mean", "z"][i], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.2, fz, Kit.TEXT_SOFT)
+		y += 8.0
+		for c in cl.slice(0, 10):
+			y += 26.0; var sig := bool(c.get("significant", false))
+			var z := float(c["z"]); var col: Color = (Kit.exc() if z > 0.0 else Kit.inh()) if sig else Kit.TEXT
+			draw_string(f, Vector2(cols[0], y), "#%d (id %d)" % [int(c["index"]), int(c["id"])], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.2, fz, Kit.TEXT)
+			draw_string(f, Vector2(cols[1], y), "%d / %d" % [int(c["edges"]), int(c["mutual_pairs"])], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.17, fz, Kit.TEXT)
+			draw_string(fb, Vector2(cols[2], y), str(int(c["count"])), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.17, fz, Kit.TEXT)
+			draw_string(f, Vector2(cols[3], y), _num(c.get("null_mean"), "%.1f"), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.17, fz, Kit.TEXT_SOFT)
+			draw_string(fb, Vector2(cols[4], y), ("%+.1f" % z) + ("*" if sig else ""), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.2, fz, col)
+		if cl.is_empty(): draw_string(f, Vector2(16, y + 30.0), "No four-node class has a defined z-score here (counts fixed by the degrees).", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		_note("* = |z| > 2 and null sd >= 0.5.  Class numbers follow the engine's 199 connected directed 4-node classes (analysis.h).%s" % ("\nWARNING: under 20% of swaps were possible; the nulls barely differ from the data." if bool(data.get("degenerate", false)) else ""), size.y - 40.0, f, fz)
+	func _draw_hrv(f: Font, fb: Font, fz: int) -> void:
+		var d := data
+		var y := _rows([["population", str(extra.get("pop", ""))], ["beats / RR intervals", "%d / %d" % [int(d.get("n_beats", 0)), int(d.get("n_rr", 0))]],
+			["mean heart rate", _num(d.get("mean_hr_bpm")) + " /min"], ["mean RR", _num(d.get("mean_rr_ms")) + " ms"], ["SDNN", _num(d.get("sdnn_ms")) + " ms"],
+			["RMSSD", _num(d.get("rmssd_ms")) + " ms"], ["pNN50", _num(d.get("pnn50_pct")) + " %"],
+			["LF power (0.04-0.15 Hz)", _num(d.get("lf_ms2")) + " ms2"], ["HF power (0.15-0.4 Hz)", _num(d.get("hf_ms2")) + " ms2"], ["LF / HF", _num(d.get("lf_hf"), "%.2f")]], 60.0, f, fb)
+		var beats: PackedFloat64Array = extra.get("beats", PackedFloat64Array())
+		if int(d.get("n_beats", 0)) < 3:
+			_note("Fewer than three beats in %.0f s: record longer, or pick the population that makes the beat." % (float(extra.get("t_ms", 0.0)) * 0.001), y + 6.0, f, fz, Kit.RED); return
+		if not bool(d.get("spectrum_ok", false)): _note("Fewer than 9 beats: no spectrum (LF, HF). Record longer.", y, f, fz, Kit.TEXT_SOFT); y += 28.0
+		# tachogram: RR interval against beat number
+		var r := Rect2(16, y + 24.0, size.x - 32.0, maxf(size.y - y - 70.0, 40.0)); draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		draw_string(f, Vector2(16, y + 16.0), "RR interval per beat (ms)", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		var rr := PackedFloat64Array()
+		for i in range(1, beats.size()): rr.append(beats[i] - beats[i - 1])
+		var lo := 1.0e18; var hi := -1.0e18
+		for v in rr: lo = minf(lo, v); hi = maxf(hi, v)
+		if rr.size() > 1:
+			hi = maxf(hi, lo + 20.0)
+			var pts := PackedVector2Array()
+			for i in rr.size(): pts.append(Vector2(r.position.x + r.size.x * float(i) / float(rr.size() - 1), r.end.y - 4.0 - (r.size.y - 8.0) * (rr[i] - lo) / (hi - lo)))
+			draw_polyline(pts, Kit.exc(), 1.8, true)
+			draw_string(f, Vector2(r.position.x + 6, r.position.y + float(fz) + 2.0), "%.0f" % hi, HORIZONTAL_ALIGNMENT_LEFT, 80, fz, Kit.TEXT_SOFT)
+			draw_string(f, Vector2(r.position.x + 6, r.end.y - 6.0), "%.0f" % lo, HORIZONTAL_ALIGNMENT_LEFT, 80, fz, Kit.TEXT_SOFT)
+		_note("Beats = spikes of the population, those within 150 ms count once. Time domain after the Task Force (1996); LF/HF by Lomb-Scargle.", size.y - 18.0 - float(fz), f, fz)
+	func _draw_prc(f: Font, fb: Font, fz: int) -> void:
+		var d := data; var r := Rect2(56, 96, size.x - 80.0, maxf(size.y - 190.0, 80.0))
+		draw_string(f, Vector2(16, 54), "%d perturbations kept of %d (%d fell in unclean cycles), period %s ms, %d clean cycles" % [int(d.get("n_perturbations", 0)), int(d.get("n_perturbations", 0)) + int(d.get("n_rejected", 0)), int(d.get("n_rejected", 0)), _num(d.get("period_ms"), "%.0f"), int(d.get("n_clean_cycles", 0))], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		var pts: Array = d.get("points", [])
+		if pts.is_empty(): draw_string(f, Vector2(16, 90), "No perturbation fell into a clean cycle: the beat is irregular, or the pulses are too few or too close together.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.RED); return
+		var smax := 0.1
+		for p in pts: smax = maxf(smax, absf(float(p["shift"])))
+		smax = ceilf(smax * 10.0) / 10.0
+		draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		var y0 := r.position.y + r.size.y * 0.5; draw_line(Vector2(r.position.x, y0), Vector2(r.end.x, y0), Color(Kit.LINE, 0.9), 1.0)
+		draw_string(f, Vector2(8, r.position.y + float(fz)), "+%.1f" % smax, HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(8, y0 + 5.0), "0", HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(8, r.end.y), "-%.1f" % smax, HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT)
+		for p in pts:
+			var x := r.position.x + r.size.x * float(p["phase"]); var yy := y0 - r.size.y * 0.5 * float(p["shift"]) / smax
+			draw_circle(Vector2(x, yy), 3.5, Color(Kit.inh(), 0.7))
+		var line := PackedVector2Array()
+		for b in d.get("bins", []):
+			if b.get("mean_shift") != null and int(b.get("count", 0)) > 0: line.append(Vector2(r.position.x + r.size.x * float(b["phase"]), y0 - r.size.y * 0.5 * float(b["mean_shift"]) / smax))
+		if line.size() > 1: draw_polyline(line, Kit.exc(), 2.4, true)
+		draw_string(f, Vector2(r.position.x, r.end.y + float(fz) + 6.0), "phase of the perturbation in the cycle (0 = beat, 1 = next beat)", HORIZONTAL_ALIGNMENT_LEFT, r.size.x, fz, Kit.TEXT_SOFT)
+		_note("shift (cycles): positive = the next beat came early (phase advance). Dots: single perturbations; line: mean per phase bin.", r.end.y + float(fz) * 2.0 + 14.0, f, fz)
+	func _draw_bursts(f: Font, fb: Font, fz: int) -> void:
+		var d := data; var s: Dictionary = d.get("summary", {})
+		var y := _rows([["population", str(extra.get("pop", ""))], ["bursts", str(int(d.get("n_bursts", 0)))], ["spikes in bursts", "%d of %d (%s %%)" % [int(s.get("spikes_in_bursts", 0)), int(s.get("n_spikes", 0)), _num(float(s.get("fraction_in_bursts", 0.0)) * 100.0, "%.0f")]],
+			["mean burst duration", _num(s.get("mean_duration_ms"), "%.0f") + " ms"], ["spikes per burst", _num(s.get("mean_spikes_per_burst"))], ["burst period", _num(s.get("mean_period_ms"), "%.0f") + " ms"],
+			["intra-burst ISI", _num(s.get("mean_intra_burst_isi_ms")) + " ms"]], 60.0, f, fb)
+		var r := Rect2(16, y + 24.0, size.x - 32.0, 50.0); var tt := maxf(float(extra.get("t_ms", 1.0)), 1.0)
+		draw_string(f, Vector2(16, y + 16.0), "bursts over the recording", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		for b in d.get("bursts", []):
+			var x0 := r.position.x + r.size.x * float(b["onset_ms"]) / tt; var x1 := r.position.x + r.size.x * float(b["offset_ms"]) / tt
+			draw_rect(Rect2(x0, r.position.y + 6.0, maxf(x1 - x0, 2.0), r.size.y - 12.0), Color(Kit.exc(), 0.85))
+		_note("A burst starts at an ISI under 170 ms, ends at one over 170 ms, has at least 3 spikes and 10 ms, and is 200 ms or more from the last one.", r.end.y + 20.0, f, fz)
+	func _draw_energy(f: Font, fb: Font, fz: int) -> void:
+		var d := data; var hz := float(d["hz"]); var bud := float(d["budget"]); var ok := hz <= bud
+		var atp := Telemetry.atp_text(hz * float(d["neurons"]))
+		var y := _rows([["measured over", "%.0f s, %s" % [float(d["t_ms"]) * 0.001, str(d.get("src", ""))]], ["neurons / spikes", "%d / %d" % [int(d["neurons"]), int(d["spikes"])]],
+			["mean rate per neuron", "%.1f spikes/s" % hz], ["energy budget" if bool(d["has_task"]) else "reference budget", "%.0f spikes/s" % bud], ["ATP (network)", atp]], 60.0, f, fb)
+		var r := Rect2(16, y + 6.0, size.x - 32.0, 22.0); var mx := maxf(hz, bud) * 1.15
+		draw_rect(r, Color(Kit.LINE, 0.5)); draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(hz / mx, 0.0, 1.0), r.size.y)), Color(Kit.exc() if ok else Kit.RED, 0.9))
+		var bx := r.position.x + r.size.x * bud / mx; draw_line(Vector2(bx, r.position.y - 4.0), Vector2(bx, r.end.y + 4.0), Kit.TEXT, 2.0)
+		y = r.end.y + 34.0
+		if bool(d["has_task"]):
+			var gap := str(d.get("gap", ""))
+			draw_string(fb, Vector2(16, y), "Energy: within budget." if ok else "Energy: over budget, no third star.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(17), Kit.exc() if ok else Kit.RED); y += 28.0
+			if gap != "": draw_string(f, Vector2(16, y), "Third star blocked by: " + gap, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT); y += 24.0
+		var pp: Array = d.get("per_pop", [])
+		if pp.size() > 0 and y < size.y - 70.0:
+			y += 6.0; draw_string(f, Vector2(16, y), "per population (spikes/s per neuron)", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+			var pmx := 1.0
+			for q in pp: pmx = maxf(pmx, float(q[1]))
+			for q in pp:
+				y += 22.0
+				if y > size.y - 40.0: break
+				draw_string(f, Vector2(16, y), str(q[0]), HORIZONTAL_ALIGNMENT_LEFT, 110, fz, Kit.TEXT)
+				var bw := size.x - 32.0 - 190.0
+				draw_rect(Rect2(130, y - 11.0, bw, 9.0), Color(Kit.LINE, 0.5)); draw_rect(Rect2(130, y - 11.0, bw * clampf(float(q[1]) / pmx, 0.0, 1.0), 9.0), Color(Kit.exc(), 0.9))
+				draw_string(f, Vector2(size.x - 66.0, y), "%.1f" % float(q[1]), HORIZONTAL_ALIGNMENT_RIGHT, 50, fz, Kit.TEXT)
+		_note("Order of magnitude: 1e8 to 1e9 ATP per spike (Attwell and Laughlin 2001; Lennie 2003). The budget is 1.6 x the reference circuit's rate.", size.y - 18.0 - float(fz), f, fz)
 
 ## Whole-run spike statistics.
 class StatsView extends Control:
