@@ -146,205 +146,307 @@ class _Star extends Control:
 	var lit := false
 	func _draw() -> void: ScoreCard.draw_star_on(self, size * 0.5, minf(size.x, size.y) * 0.46, Kit.AMBER if lit else Color(Kit.LINE, 0.95))
 
-## One task on the map: a button that draws itself (title, stars, best, lock / ghost state).
+## One task on the map: a pin on the anatomy with a small label (title and stars). The detail (brief, lock reason, best score) lives in the side panel.
 class NodeCard extends Button:
 	var node := {}
 	var screen: TasksScreen
+	var idx := 0
+	var side := "r"
+	var gap := 0.0
+	var disc := Vector2.ZERO      # centre of the pin disc in local coordinates
+	var _plate := Rect2()
 	func _init() -> void:
 		flat = true; focus_mode = Kit.focus_mode()
 		for n in ["normal", "hover", "pressed", "disabled", "focus"]: add_theme_stylebox_override(n, StyleBoxEmpty.new())
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
-	func _draw() -> void:
+	func _R() -> float: return 13.0 if Layout.phone else 17.0
+	func _status() -> Array:
 		var id := str(node["id"]); var inst: bool = node["installed"]
 		var best: Dictionary = Progress.best(id) if inst else {"value": 0.0, "passed": false, "stars": 0}
+		if not inst: return ["NOT YET", Kit.TEXT_SOFT, best]
+		if not Campaign.unlocked(id): return ["LOCKED", Kit.RED, best]
+		if float(best["value"]) > 0.0: return ["best %d" % int(round(float(best["value"]))), Kit.TEXT_SOFT, best]
+		return ["NOT TRIED", Kit.exc(), best]
+	## Size the button for its label and put the disc on `anchor` (map coordinates), keeping the whole label inside `bounds`.
+	func place(anchor: Vector2, side_: String, bounds: Rect2, gap_ := 0.0) -> void:
+		side = side_; gap = gap_; var R := _R(); var ft := Kit.fs(16 if not Layout.phone else 15); var fz := Kit.fs(14)
+		var title := str(node["title"]); var st := _status()
+		var tw := Fonts.bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, ft).x
+		var sw := 56.0 + (0.0 if Layout.phone else Fonts.regular.get_string_size(str(st[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x)
+		var lw := maxf(tw, sw) + 18.0; var lh := float(ft) + float(fz) + 16.0
+		var W := 0.0; var H := 0.0; var d := Vector2.ZERO
+		match side:
+			"l": W = lw + gap + 2.0 * R + 8.0; H = maxf(lh, 2.0 * R + 6.0); d = Vector2(W - R - 2.0, H * 0.5); _plate = Rect2(0, (H - lh) * 0.5, lw, lh)
+			"u": W = maxf(lw, 2.0 * R + 6.0); H = lh + gap + 2.0 * R + 8.0; d = Vector2(W * 0.5, H - R - 2.0); _plate = Rect2((W - lw) * 0.5, 0, lw, lh)
+			"d": W = maxf(lw, 2.0 * R + 6.0); H = lh + gap + 2.0 * R + 8.0; d = Vector2(W * 0.5, R + 2.0); _plate = Rect2((W - lw) * 0.5, H - lh, lw, lh)
+			_: W = lw + gap + 2.0 * R + 8.0; H = maxf(lh, 2.0 * R + 6.0); d = Vector2(R + 2.0, H * 0.5); _plate = Rect2(2.0 * R + 8.0 + gap, (H - lh) * 0.5, lw, lh)
+		size = Vector2(W, H)
+		var pos := anchor - d
+		var cl := Vector2(clampf(pos.x, bounds.position.x + 4.0, maxf(bounds.end.x - W - 4.0, bounds.position.x + 4.0)), clampf(pos.y, bounds.position.y + 4.0, maxf(bounds.end.y - H - 4.0, bounds.position.y + 4.0)))
+		position = cl; disc = anchor - cl
+		custom_minimum_size = Vector2.ZERO
+	func _has_point(p: Vector2) -> bool: return Rect2(Vector2.ZERO, size).grow(4.0).has_point(p)
+	func _draw() -> void:
+		var id := str(node["id"]); var inst: bool = node["installed"]; var st := _status(); var best: Dictionary = st[2]
 		var open := inst and Campaign.unlocked(id); var passed := bool(best["passed"]); var selected := screen != null and screen.sel == id
-		var edge := Kit.GREEN if passed else (Kit.exc() if open else Kit.LINE)
-		var fill := Color("#101c30") if open else Color("#0c1422")
-		var hov := is_hovered()
-		var r := Rect2(Vector2.ZERO, size)
-		if open: Gfx.glow(self, size * 0.5, size.x * 0.72, Color(edge, 0.10 if not hov else 0.2))
-		draw_style_box(Kit.sb(fill.lightened(0.06) if hov else fill, Color(edge, 0.9 if (open or passed) else 0.7), 2 if selected else 1, 12, 0, false), r)
-		if selected: draw_style_box(Kit.sb(Color(0, 0, 0, 0), Color(1, 1, 1, 0.9), 2, 15, 0, false), r.grow(4.0))
-		var fz := Kit.fs(14); var ft := Kit.fs(22 if not Layout.phone else 17); var pad := 14.0
+		var edge := Kit.GREEN if passed else (Kit.exc() if open else Kit.LINE.lightened(0.35))
+		var hov := is_hovered(); var R := _R()
+		var ft := Kit.fs(16 if not Layout.phone else 15); var fz := Kit.fs(14)
+		# the label plate
+		draw_style_box(Kit.sb(Color(Kit.BENCH, 0.86 if not hov else 0.95), Color(edge, 0.85 if (selected or hov) else 0.45), 2 if selected else 1, 9, 0, false), _plate)
 		var tcol := Kit.TEXT if open else Kit.TEXT_SOFT
-		draw_string(Fonts.bold, Vector2(pad, pad + float(ft) * 0.88), str(node["title"]), HORIZONTAL_ALIGNMENT_LEFT, size.x - pad * 2.0 - (22.0 if passed else 0.0), ft, tcol)
-		if passed:   # a tick
-			var c := Vector2(size.x - pad - 8.0, pad + float(ft) * 0.5)
-			draw_circle(c, 9.0, Kit.GREEN); draw_polyline(PackedVector2Array([c + Vector2(-4, 0), c + Vector2(-1, 3.5), c + Vector2(5, -3.5)]), Kit.BENCH, 2.2, true)
-		var y2 := pad + float(ft) + 8.0
-		for k in 3: ScoreCard.draw_star_on(self, Vector2(pad + 9.0 + 22.0 * k, y2 + 9.0), 8.5, Kit.AMBER if k < int(best["stars"]) else Color(Kit.LINE, 0.95))
-		var line3 := ""; var col3 := Kit.TEXT_SOFT
-		if not inst: line3 = "NOT YET"
-		elif not open: line3 = "LOCKED"; col3 = Kit.RED
-		elif float(best["value"]) > 0.0: line3 = "best %d" % int(round(float(best["value"])))
-		else: line3 = "NOT TRIED"; col3 = Kit.exc()
-		draw_string(Fonts.regular, Vector2(pad + 78.0, y2 + 15.0), line3, HORIZONTAL_ALIGNMENT_LEFT, size.x - pad - 78.0, fz, col3)
-		var par := Progress.budget(id) if inst else 0
-		var y3 := size.y - pad + 2.0
-		if not inst: draw_string(Fonts.regular, Vector2(pad, y3), "comes with the engine", HORIZONTAL_ALIGNMENT_LEFT, size.x - pad * 2.0, fz, Color(Kit.TEXT_SOFT, 0.8))
+		var tx := _plate.position.x + 9.0; var ty := _plate.position.y + 6.0 + float(ft) * 0.86
+		draw_string(Fonts.bold, Vector2(tx, ty), str(node["title"]), HORIZONTAL_ALIGNMENT_LEFT, _plate.size.x - 14.0, ft, tcol)
+		var y2 := ty + 7.0
+		for k in 3: ScoreCard.draw_star_on(self, Vector2(tx + 8.0 + 18.0 * k, y2 + float(fz) * 0.5), 7.0, Kit.AMBER if k < int(best["stars"]) else Color(Kit.LINE, 0.95))
+		if not Layout.phone: draw_string(Fonts.regular, Vector2(tx + 56.0, y2 + float(fz) * 0.86), str(st[0]), HORIZONTAL_ALIGNMENT_LEFT, _plate.size.x - 64.0, fz, st[1])
+		if gap > 0.0:
+			var q := Vector2(clampf(disc.x, _plate.position.x, _plate.end.x), clampf(disc.y, _plate.position.y, _plate.end.y))
+			draw_line(disc + (q - disc).normalized() * R, q, Color(edge, 0.7), 1.6, true)
+		# the pin
+		if open: Gfx.glow(self, disc, R * (3.4 if hov else 2.6), Color(edge, 0.30 if hov else 0.20))
+		if selected:
+			var pu := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.004) if Kit.motion() else 1.0
+			draw_arc(disc, R + 6.0 + 2.0 * pu, 0, TAU, 40, Color(1, 1, 1, 0.55 + 0.4 * pu), 2.0, true)
+		draw_circle(disc, R, Color("#0a1424", 0.96))
+		draw_arc(disc, R, 0, TAU, 40, Color(edge, 0.95), 3.0 if open or passed else 2.0, true)
+		if not inst:
+			Gfx.dashed(self, PackedVector2Array([disc + Vector2(-R * 0.5, 0), disc + Vector2(R * 0.5, 0)]), Color(Kit.TEXT_SOFT, 0.6), 1.6, 3.0, 3.0)
+		elif passed:
+			draw_circle(disc, R - 3.5, Kit.GREEN)
+			draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.35, 0), disc + Vector2(-R * 0.08, R * 0.28), disc + Vector2(R * 0.40, -R * 0.26)]), Kit.BENCH, 2.6, true)
 		elif not open:
-			_lock_icon(Vector2(pad + 8.0, y3 - 7.0))
-			draw_string(Fonts.regular, Vector2(pad + 22.0, y3), Campaign.lock_reason(id), HORIZONTAL_ALIGNMENT_LEFT, size.x - pad * 2.0 - 22.0, fz, Kit.TEXT_SOFT)
-		else: draw_string(Fonts.regular, Vector2(pad, y3), ("par %d neurons" % par) if par > 0 else ("%d s" % int(round(float(Campaign.info(id)["duration_ms"]) / 1000.0))), HORIZONTAL_ALIGNMENT_LEFT, size.x - pad * 2.0, fz, Kit.TEXT_SOFT)
-		if has_focus(): draw_style_box(Kit.ring_sb(), r)
-	func _lock_icon(c: Vector2) -> void:
-		draw_rect(Rect2(c + Vector2(-5, -1), Vector2(10, 8)), Kit.TEXT_SOFT); draw_arc(c + Vector2(0, -1), 3.6, PI, TAU, 10, Kit.TEXT_SOFT, 1.8, true)
+			draw_rect(Rect2(disc + Vector2(-R * 0.30, -R * 0.02), Vector2(R * 0.60, R * 0.46)), Kit.TEXT_SOFT); draw_arc(disc + Vector2(0, -R * 0.02), R * 0.22, PI, TAU, 10, Kit.TEXT_SOFT, 1.8, true)
+		else:
+			draw_string(Fonts.bold, disc + Vector2(-R, float(fz) * 0.36), str(idx + 1), HORIZONTAL_ALIGNMENT_CENTER, R * 2.0, fz, Kit.exc())
+		if has_focus(): draw_style_box(Kit.ring_sb(), Rect2(Vector2.ZERO, size))
 
-## The organ and the node cards on it. Cards sit at the chapter's planned positions; the organ is a quiet vector drawing behind them.
+## The anatomy of the chapter with the task pins on it. Each chapter scene draws its organs, returns {task id: [anchor, label side]}, and the pins are placed on them.
 class MapCanvas extends Control:
 	var screen: TasksScreen
 	var chapter := ""
 	var nodes: Array = []
 	var cards: Array = []
-	var _t := 0.0
+	var _t := 0.35
 	func _ready() -> void: clip_contents = true
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func first_card() -> Control:
 		for c in cards:
 			if bool(c.node["installed"]) and Campaign.unlocked(str(c.node["id"])): return c
 		return cards[0] if not cards.is_empty() else null
-	func card_size() -> Vector2:
-		var f := Kit.f()
-		if Layout.phone: return Vector2(minf(size.x * 0.34, 210.0), float(Kit.fs(17)) + float(Kit.fs(14)) * 2.0 + 44.0)
-		return Vector2(clampf(size.x * 0.26, 200.0, 360.0), float(Kit.fs(22)) + float(Kit.fs(14)) * 2.0 + 62.0)
 	func set_chapter(id: String, ns: Array) -> void:
 		chapter = id; nodes = ns
 		for c in cards:
 			remove_child(c); c.queue_free()
 		cards = []
-		for n in ns:
-			var c := NodeCard.new(); c.node = n; c.screen = screen; c.pressed.connect(func(): screen.select_node(str(n["id"])))
+		for i in ns.size():
+			var n: Dictionary = ns[i]
+			var c := NodeCard.new(); c.node = n; c.idx = i; c.screen = screen; c.pressed.connect(func(): screen.select_node(str(n["id"])))
 			c.tooltip_text = str(n["title"]); add_child(c); cards.append(c)
-		_layout(); queue_redraw()
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED: _layout()
-	func _layout() -> void:
-		var cs := card_size()
-		for c in cards:
-			var p: Vector2 = c.node["pos"]; c.size = cs
-			c.position = Vector2(clampf(p.x * size.x - cs.x * 0.5, 8.0, maxf(size.x - cs.x - 8.0, 8.0)), clampf(p.y * size.y - cs.y * 0.5, 8.0, maxf(size.y - cs.y - 8.0, 8.0)))
 		queue_redraw()
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED: queue_redraw()
 	func _process(dt: float) -> void:
-		if Kit.motion() and is_visible_in_tree(): _t += dt; queue_redraw()
+		if Kit.motion() and is_visible_in_tree():
+			_t += dt; queue_redraw()
+			for c in cards: c.queue_redraw()
+
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		draw_rect(r, Color("#0b1626"))
-		_organ(chapter, r)
-		# the path through the chapter: a curve from card to card, bright once the earlier task is passed
-		var prev: Control = null; var prev_pass := false
+		draw_rect(r, Color("#0a1423"))
+		var a := 1.0 if Campaign.chapter_open(chapter) else 0.5
+		var anch := _scene(chapter, r.grow(-10.0), a)
+		var fallback := 0
 		for c in cards:
-			if prev != null:
-				var a := prev.position + prev.size * 0.5; var b: Vector2 = c.position + c.size * 0.5
-				var mid := (a + b) * 0.5 + (b - a).orthogonal().normalized() * minf(40.0, (b - a).length() * 0.14)
-				var pts := PackedVector2Array()
-				for k in 21:
-					var u := float(k) / 20.0; pts.append(a.lerp(mid, u).lerp(mid.lerp(b, u), u))
-				Gfx.dashed(self, pts, Color(Kit.GREEN if prev_pass else Kit.LINE, 0.75 if prev_pass else 0.8), 2.4 if prev_pass else 1.8, 9.0, 8.0, _t * 18.0 if prev_pass else 0.0)
-				if prev_pass and Kit.motion():
-					var q := pts[int(fmod(_t * 0.4, 1.0) * 20.0)]; draw_circle(q, 4.0, Kit.GREEN); Gfx.glow(self, q, 14.0, Color(Kit.GREEN, 0.5))
-			prev = c; prev_pass = bool(c.node["installed"]) and bool(Progress.best(str(c.node["id"]))["passed"])
+			var id := str(c.node["id"]); var pa: Array
+			if anch.has(id): pa = anch[id]
+			else:
+				var p: Vector2 = c.node["pos"]; pa = [Vector2(p.x * size.x, p.y * size.y), "r"]; fallback += 1
+			c.place(pa[0], str(pa[1]), r, float(pa[2]) if pa.size() > 2 else 0.0)
+		# the path through the chapter: a thin line from pin to pin, bright once the earlier task is passed
+		for i in range(1, cards.size()):
+			var pc = cards[i - 1]; var cc = cards[i]
+			if not (bool(pc.node["installed"]) and bool(Progress.best(str(pc.node["id"]))["passed"])): continue
+			var p0: Vector2 = pc.position + pc.disc; var p1: Vector2 = cc.position + cc.disc
+			var mid := (p0 + p1) * 0.5 + (p1 - p0).orthogonal().normalized() * minf(40.0, (p1 - p0).length() * 0.12)
+			var pts := PackedVector2Array()
+			for k in 21:
+				var u := float(k) / 20.0; pts.append(p0.lerp(mid, u).lerp(mid.lerp(p1, u), u))
+			Gfx.dashed(self, pts, Color(Kit.GREEN, 0.8), 2.4, 9.0, 8.0, _t * 18.0)
 		var cd := Campaign.chapter_def(chapter); var st := Campaign.star_total(chapter); var fz := Kit.fs(14)
 		var cap := ("%s   %d of %d stars" % [str(cd["title"]).to_upper(), st.x, st.y]) if st.y > 0 else str(cd["title"]).to_upper()
-		draw_string(Fonts.bold, Vector2(14, size.y - 12), cap, HORIZONTAL_ALIGNMENT_LEFT, size.x - 28, fz, Kit.TEXT_SOFT)
+		Anatomy.tag(self, cap, Vector2(14, size.y - 12), Kit.TEXT_SOFT, 14, HORIZONTAL_ALIGNMENT_LEFT, true, 0.6)
 		if not Campaign.chapter_open(chapter):
 			var first_id := str(Campaign.PLANNED[chapter][0][0]) if Campaign.PLANNED.has(chapter) else ""
-			draw_string(Fonts.regular, Vector2(14, 10.0 + float(fz)), "Locked. " + Campaign.lock_reason(first_id) + ".", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28, fz, Kit.RED)
+			Anatomy.tag(self, "Locked. " + Campaign.lock_reason(first_id) + ".", Vector2(14, 10.0 + float(fz)), Kit.RED, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.7)
 
-	func _organ(id: String, r: Rect2) -> void:
-		var a := 1.0 if Campaign.chapter_open(id) else 0.5
+	func _scene(id: String, r: Rect2, a: float) -> Dictionary:
 		match str(Campaign.chapter_def(id)["organ"]):
-			"worm": _worm(r, a)
-			"spine": _spine(r, a)
-			"heart": _heart(r, a)
-			"lungs": _lungs(r, a)
-			"autonomic": _autonomic(r, a)
+			"worm": return _sc_invert(r, a)
+			"spine": return _sc_spine(r, a)
+			"heart": return _sc_heart(r, a)
+			"lungs": return _sc_lungs(r, a)
+			"autonomic": return _sc_auto(r, a)
+		return {}
 
-	func _worm(r: Rect2, a: float) -> void:
-		var pts := PackedVector2Array(); var n := 36
-		for i in n:
-			var u := float(i) / float(n - 1); pts.append(Vector2(r.size.x * (0.06 + 0.88 * u), r.size.y * (0.5 + 0.17 * sin(u * 9.0 + _t * 0.6))))
-		var sp := Gfx.cr_spline(pts, 4); var W := r.size.y * 0.07
-		Gfx.tube_rim(self, sp, func(u): return W * (0.5 + 0.5 * sqrt(clampf(sin(PI * clampf(u * 0.92 + 0.04, 0, 1)), 0, 1))), Color("#0c2328"), Color(Gfx.BODY, 0.28 * a), 1.6)
-		draw_polyline(sp, Color(Gfx.BODY, 0.22 * a), 2.0, true)   # the nerve cord
-		for i in range(0, sp.size(), 9): draw_circle(sp[i], 4.0, Color(Gfx.BODY, 0.30 * a))   # ganglia
-		Gfx.glow(self, Vector2(r.size.x * 0.92, r.size.y * 0.26), r.size.y * 0.5, Color("#5fd9c0", 0.10 * a))   # the salt
-		Gfx.glow(self, Vector2(r.size.x * 0.08, r.size.y * 0.86), r.size.y * 0.35, Color(Gfx.FISH, 0.06 * a))
+	func _lab(s: String, p: Vector2, col := Kit.TEXT_SOFT, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
+		if Layout.phone: return
+		Anatomy.tag(self, s, p, Color(col, 0.95), 14, align, false, 0.55)
 
-	func _spine(r: Rect2, a: float) -> void:
-		var n := 14; var y0 := r.size.y * 0.5
-		for i in n:
-			var u := float(i) / float(n - 1); var x := r.size.x * (0.05 + 0.9 * u); var y := y0 - sin(u * PI) * r.size.y * 0.06
-			var vw := r.size.x * 0.05; var vh := r.size.y * 0.2
-			Gfx.rounded_rect(self, Rect2(Vector2(x - vw * 0.5, y - vh * 0.5), Vector2(vw, vh)), Color("#122338", 0.9 * a), Color(Kit.LINE, 0.9 * a), vw * 0.35, 1.4)
-			draw_line(Vector2(x, y - vh * 0.5), Vector2(x - vw * 0.2, y - vh * 1.45), Color(Kit.CYAN, 0.22 * a), 1.6, true)   # dorsal root (sensory)
-			draw_line(Vector2(x, y + vh * 0.5), Vector2(x + vw * 0.2, y + vh * 1.45), Color(Gfx.VIOLET, 0.22 * a), 1.6, true)  # ventral root (motor)
-		var cord := PackedVector2Array()
+	# ------------------------------------------------------------ heart
+	func _sc_heart(r: Rect2, a: float) -> Dictionary:
+		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
+		var hr := Rect2(r.position.x + w * 0.31, r.position.y + h * 0.05, w * 0.50, h * 0.88)
+		var res := Anatomy.heart(self, hr, {"tms": fposmod(_t, 0.95) * 1000.0, "alpha": a, "labels": not Layout.phone, "vagus": 0.55, "symp": 0.45, "t": _t})
+		var M := r.position + Vector2(w * 0.135, h * 0.24); var wm := m * 0.105
+		var med := Anatomy.medulla(self, M, wm, {"hi": ["nts", "dmv", "amb"], "alpha": a, "t": _t, "act": 0.4})
+		_lab("MEDULLA", M + Vector2(0, -wm * 0.95), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_CENTER)
+		# vagus: medulla -> heart (cyan)
+		var vpath := Gfx.cr_spline(PackedVector2Array([med["amb_r"], M + Vector2(wm * 0.98, wm * 0.05), M + Vector2(wm * 1.9, wm * 0.5), (M + res["vagus_in"] as Vector2) * 0.5 + Vector2(0, wm * 0.2), res["vagus_in"]]), 8)
+		Anatomy.nerve(self, vpath, Anatomy.para(), maxf(m * 0.006, 2.0), 0.55, _t, a)
+		# spinal cord with the sympathetic chain, and the cardiac nerves (amber)
+		var cx0 := M.x - wm * 0.15; var cy0 := M.y + wm * 0.72; var cy1 := r.position.y + h * 0.90
+		var cord := PackedVector2Array([Vector2(cx0, cy0), Vector2(cx0, cy1)])
+		Anatomy.nerve(self, cord, Anatomy.NUC, maxf(m * 0.012, 3.0), 0.0, _t, a * 0.7)
+		var chain_x := cx0 + wm * 0.36
+		var chain := PackedVector2Array([Vector2(chain_x, cy0 + wm * 0.2), Vector2(chain_x, cy0 + h * 0.46)])
+		self.draw_polyline(chain, Color(Anatomy.symp(), 0.35 * a), 1.8, true)
+		for i in 9: self.draw_circle(Vector2(chain_x, lerpf(chain[0].y, chain[1].y, float(i) / 8.0)), 3.6, Color(Anatomy.symp(), 0.9 * a))
+		var sym_y := cy0 + h * 0.22
+		var spath := Gfx.cr_spline(PackedVector2Array([Vector2(chain_x, sym_y), Vector2(chain_x + (res["symp_in"].x - chain_x) * 0.5, sym_y - h * 0.01), res["symp_in"]]), 8)
+		Anatomy.nerve(self, spath, Anatomy.symp(), maxf(m * 0.006, 2.0), 0.45, _t, a)
+		# baroreceptor afferents (green): carotid sinus and aortic arch -> NTS
+		var ct: Vector2 = res["carotid_top"]; var nts: Vector2 = med["nts_r"]
+		var bpath := Gfx.cr_spline(PackedVector2Array([res["carotid"], ct + Vector2(0, -1.0), Vector2(lerpf(ct.x, M.x, 0.6), r.position.y + h * 0.04), M + Vector2(wm * 0.7, -wm * 0.85), nts]), 8)
+		Anatomy.nerve(self, bpath, Kit.GREEN, maxf(m * 0.005, 1.8), 0.5, _t, a)
+		self.draw_circle(res["carotid"], m * 0.014, Color(Kit.GREEN, 0.25 * a)); self.draw_arc(res["carotid"], m * 0.014, 0, TAU, 14, Color(Kit.GREEN, 0.9 * a), 1.6, true)
+		var cp: Vector2 = res["carotid"]
+		_lab("carotid sinus", cp + Vector2(m * 0.04, -m * 0.045), Kit.GREEN)
+		_lab("aortic arch", (res["arch"] as Vector2) + Vector2(m * 0.03, -m * 0.045))
+		_lab("vagus (cyan)", along_pt(vpath, 0.28) + Vector2(wm * 0.1, -wm * 0.28), Anatomy.para())
+		_lab("sympathetic", Vector2(chain_x + 10.0, sym_y + wm * 0.8), Anatomy.symp())
+		_lab("SVC", (res["svc_top"] as Vector2) + Vector2(-m * 0.045, m * 0.11), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
+		_lab("aorta", (res["aorta_exit"] as Vector2) + Vector2(-m * 0.02, m * 0.07), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
+		_lab("IVC", (res["ivc_bottom"] as Vector2) + Vector2(-m * 0.045, -m * 0.07), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
+		var sa: Vector2 = res["sa"]; var av: Vector2 = res["av"]
+		_lab("AV node", av + Vector2(m * 0.05, m * 0.075), Color("#ffd27a"))
+		return {"heart_pacemaker": [sa, "l"], "heart_autonomic": [along_pt(vpath, 0.72), "u", 12.0], "baroreflex": [res["carotid"], "r"]}
+
+	static func along_pt(p: PackedVector2Array, u: float) -> Vector2: return Anatomy.along(p, u)
+
+	# ------------------------------------------------------------ lungs
+	func _sc_lungs(r: Rect2, a: float) -> Dictionary:
+		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
+		var phase := _t * 0.30; var vol := 0.5 - 0.5 * cos(TAU * phase)
+		var burst := clampf(sin(TAU * phase) * 1.6 + 0.2, 0.0, 1.0) if cos(TAU * phase) < 0.99 else 0.0   # the phrenic burst while the volume rises
+		var lr := Rect2(r.position.x + w * 0.17, r.position.y + h * 0.045, w * 0.50, h * 0.93)
+		var res := Anatomy.lungs(self, lr, {"vol": vol, "alpha": a, "t": _t})
+		var M := r.position + Vector2(w * 0.805, h * 0.30); var wm := m * 0.165
+		var med := Anatomy.medulla(self, M, wm, {"hi": ["prebotc", "rtn"], "alpha": a, "t": _t, "act": burst, "labels": not Layout.phone})
+		_lab("MEDULLA, transverse section", M + Vector2(0, -wm * 0.98), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_CENTER)
+		var s: float = res["scale"]; var o: Vector2 = res["origin"]
+		var c4: Vector2 = o + Vector2(0.545, 0.035) * s
+		# bulbospinal axons (preBötC -> phrenic motor nucleus in C3-C5), then the phrenic nerves to the diaphragm
+		var bs := Gfx.cr_spline(PackedVector2Array([med["prebotc"], M + Vector2(-wm * 0.5, wm * 0.45), M + Vector2(-wm * 1.4, wm * 1.0), (M + c4) * 0.5 + Vector2(0, wm * 0.6), c4]), 8)
+		Anatomy.nerve(self, bs, Anatomy.symp(), maxf(m * 0.005, 2.0), burst, _t, a)
+		self.draw_circle(c4, m * 0.011, Color(Anatomy.NUC, 0.95 * a)); Gfx.glow(self, c4, m * 0.04, Color(Anatomy.NUC, 0.3 * a))
+		for sd in [-1.0, 1.0]:
+			var pn := Gfx.cr_spline(PackedVector2Array([c4, o + Vector2(0.5 + 0.045 * sd, 0.18) * s, o + Vector2(0.5 + 0.052 * sd, 0.45) * s, o + Vector2(0.5 + 0.075 * sd, 0.72) * s, res["dome_left" if sd > 0 else "dome_right"]]), 8)
+			Anatomy.nerve(self, pn, Anatomy.para().lerp(Gfx.VIOLET, 0.5), maxf(m * 0.004, 1.8), burst, _t, a)
+		_lab("C3 to C5", c4 + Vector2(m * 0.03, -m * 0.01), Anatomy.NUC)
+		_lab("phrenic nerve", o + Vector2(0.60, 0.52) * s, Gfx.VIOLET)
+		_lab("diaphragm", (res["dome_left"] as Vector2) + Vector2(m * 0.02, m * 0.09), Gfx.VIOLET)
+		_lab("bronchial tree", (res["hilum_r"] as Vector2) + Vector2(-m * 0.28, m * 0.12), Kit.CYAN)
+		_lab("trachea", (res["trachea_top"] as Vector2) + Vector2(-m * 0.03, m * 0.03), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
+		return {"breathing": [med["prebotc_r"], "d", 40.0]}
+
+	# ------------------------------------------------------------ spine
+	func _sc_spine(r: Rect2, a: float) -> Dictionary:
+		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
+		var top := Vector2(r.position.x + w * 0.075, r.position.y + h * 0.045)
+		var sp := Anatomy.spine(self, top, h * 0.90, {"alpha": a, "t": _t, "act": 0.4})
+		_lab("cervical", top + Vector2(m * 0.07, h * 0.03), Kit.TEXT_SOFT); _lab("thoracic", top + Vector2(m * 0.09, h * 0.30), Kit.TEXT_SOFT); _lab("lumbar", top + Vector2(m * 0.09, h * 0.66), Kit.TEXT_SOFT)
+		var C := r.position + Vector2(w * 0.40, h * 0.54); var wc := minf(w * 0.165, h * 0.30)
+		var cs := Anatomy.cord_section(self, C, wc, {"alpha": a, "t": _t, "act": 0.55, "hi": ["mn", "renshaw"], "labels": not Layout.phone})
+		# zoom lines from the C5 level to the section
+		var lv: Vector2 = sp["C5"] + Vector2(h * 0.07, 0)
+		for sd in [-1.0, 1.0]:
+			Gfx.dashed(self, PackedVector2Array([lv + Vector2(0, sd * 6.0), C + Vector2(-wc * 0.95, sd * wc * 0.55)]), Color(Anatomy.GRAY, 0.40 * a), 1.2, 5.0, 5.0)
+		_lab("C6 segment", C + Vector2(0, -wc * 1.0), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_CENTER)
+		# the arm
+		var sh := r.position + Vector2(w * 0.695, h * 0.17); var L := minf(w * 0.22, h * 0.29)
+		var swing := sin(_t * 1.1)
+		var el := sh + Vector2(w * 0.035, h * 0.30)
+		var ang := deg_to_rad(-38.0) + swing * 0.18
+		var hd := el + Vector2(cos(ang), sin(ang)) * L
+		var limb := Anatomy.limb(self, sh, el, hd, {"alpha": a, "t": _t, "ag": 0.40 + 0.3 * swing, "ant": 0.25 - 0.15 * swing, "ia_ag": 0.5 + 0.4 * swing, "ia_ant": 0.15})
+		# the reflex arc closes through the arm: Ia afferent from the spindle to the dorsal root, motor axon from the ventral root to the muscle
+		var aend: Vector2 = limb["ag_aff"]; var dre: Vector2 = cs["dorsal_root_end"]
+		var aff := Anatomy.bez2(aend, aend.lerp(dre, 0.5) + Vector2(0, -h * 0.07), dre, 24)
+		Anatomy.nerve(self, aff, Kit.GREEN, maxf(m * 0.004, 1.8), 0.6, _t, a)
+		var ag_path: PackedVector2Array = limb["ag_path"]
+		var tgt: Vector2 = Anatomy.along(ag_path, 0.30); var vre: Vector2 = cs["ventral_root_end"]
+		var eff := Anatomy.bez2(vre, vre.lerp(tgt, 0.5) + Vector2(w * 0.04, h * 0.05), tgt, 24)
+		Anatomy.nerve(self, eff, Gfx.VIOLET, maxf(m * 0.005, 2.0), 0.6, _t, a)
+		_lab("biceps (agonist)", (limb["ag"] as Vector2) + Vector2(-m * 0.02, -m * 0.10), Kit.exc(), HORIZONTAL_ALIGNMENT_CENTER)
+		_lab("triceps", (limb["ant"] as Vector2) + Vector2(m * 0.13, m * 0.05), Kit.inh(), HORIZONTAL_ALIGNMENT_CENTER)
+		_lab("muscle spindle", aend + Vector2(0, -m * 0.02), Kit.GREEN, HORIZONTAL_ALIGNMENT_CENTER)
+		return {"stretch_reflex": [cs["mn"], "r", 6.0], "renshaw": [cs["renshaw"], "d", 14.0], "posture": [el, "r", 8.0], "reach": [hd, "u", 8.0]}
+
+	# ------------------------------------------------------------ autonomic
+	func _sc_auto(r: Rect2, a: float) -> Dictionary:
+		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
+		var sy := 0.5 + 0.35 * sin(_t * 0.5); var pa := 0.5 - 0.35 * sin(_t * 0.5)
+		var bs := h * 0.955 / 0.765; var br := Rect2(r.position.x + w * 0.5 - bs * 0.45, r.position.y + h * 0.015, bs * 0.9, bs)
+		var res := Anatomy.body(self, br, {"alpha": a, "t": _t, "sy": sy, "pa": pa, "pupil": 0.5 + 0.4 * sin(_t * 0.5), "tms": fposmod(_t, 0.95) * 1000.0})
+		var s: float = res["scale"]; var o: Vector2 = res["origin"]
+		# the legend: two divisions, one body
+		var lx := r.position.x + 18.0; var ly := r.position.y + h * 0.04
+		if not Layout.phone:
+			self.draw_line(Vector2(lx, ly), Vector2(lx + 34, ly), Anatomy.symp(), 3.0, true)
+			Anatomy.text(self, "Sympathetic", Vector2(lx + 44, ly + 5), Anatomy.symp(), 15, HORIZONTAL_ALIGNMENT_LEFT, -1.0, true)
+			Anatomy.text(self, "thoracolumbar outflow T1 to L2", Vector2(lx + 44, ly + 25), Kit.TEXT_SOFT, 14)
+			self.draw_line(Vector2(lx, ly + 52), Vector2(lx + 34, ly + 52), Anatomy.para(), 3.0, true)
+			Anatomy.text(self, "Parasympathetic", Vector2(lx + 44, ly + 57), Anatomy.para(), 15, HORIZONTAL_ALIGNMENT_LEFT, -1.0, true)
+			Anatomy.text(self, "cranial (III, X) and sacral (S2 to S4)", Vector2(lx + 44, ly + 77), Kit.TEXT_SOFT, 14)
+		var P := func(x: float, y: float) -> Vector2: return o + Vector2(x, y) * s
+		var rx := o.x + s * 0.30
+		for q in [["brainstem", Vector2(0.03, 0.09), Kit.TEXT_SOFT], ["vagus (X)", res["vagus"], Anatomy.para()], ["lungs", Vector2(0.13, 0.32), Kit.TEXT_SOFT], ["heart", res["heart"], Kit.TEXT_SOFT], ["stomach and gut", Vector2(0.10, 0.50), Kit.TEXT_SOFT], ["sacral outflow", res["sacral"], Anatomy.para()]]:
+			var ap: Vector2 = P.call((q[1] as Vector2).x, (q[1] as Vector2).y) if (q[1] as Vector2).x < 0.5 and (q[1] as Vector2).y < 1.0 and not (q[0] in ["vagus (X)", "heart", "sacral outflow"]) else q[1]
+			if Layout.phone: continue
+			self.draw_line(ap, Vector2(rx - 6.0, ap.y), Color(q[2], 0.45), 1.2, true); self.draw_circle(ap, 2.6, q[2])
+			Anatomy.tag(self, str(q[0]), Vector2(rx, ap.y + 5.0), q[2], 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.55)
+		_lab("sympathetic chain", P.call(-0.075, 0.54), Anatomy.symp(), HORIZONTAL_ALIGNMENT_RIGHT)
+		return {"pupil": [(res["eye"] as Vector2) + Vector2(-s * 0.045, -s * 0.012), "l", 6.0], "peristalsis": [res["gut"], "r", 6.0], "fight_or_flight": [res["adrenal"], "l", 6.0]}
+
+	# ------------------------------------------------------------ invertebrates
+	func _sc_invert(r: Rect2, a: float) -> Dictionary:
+		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
+		# salt gradient behind the salt-seeking worm
+		var salt := r.position + Vector2(w * 0.80, h * 0.20)
+		for k in 5: Gfx.glow(self, salt, m * (0.55 - 0.09 * float(k)), Color("#5fd9c0", 0.05 * a))
+		_lab("NaCl gradient", salt + Vector2(0, m * 0.07), Color("#5fd9c0"), HORIZONTAL_ALIGNMENT_CENTER)
+		# the nematode that is touched (left, lower)
+		var p1 := PackedVector2Array()
 		for i in 40:
-			var u := float(i) / 39.0; cord.append(Vector2(r.size.x * (0.05 + 0.9 * u), y0 - sin(u * PI) * r.size.y * 0.06))
-		draw_polyline(cord, Color(Kit.exc(), 0.12 * a), 11.0, true); draw_polyline(cord, Color(Kit.exc(), 0.35 * a), 2.4, true)
-		for i in 5: Gfx.glow(self, cord[int(fposmod(_t * 0.12 + float(i) * 0.21, 1.0) * 39.0)], 11.0, Color(Kit.exc(), 0.5 * a))   # spikes travelling along the cord
-
-	func _heart_pts(c: Vector2, s: float) -> PackedVector2Array:
-		var out := PackedVector2Array()
-		for i in 72:
-			var t := TAU * float(i) / 72.0
-			out.append(c + Vector2(16.0 * pow(sin(t), 3.0), -(13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t))) * s)
-		return out
-	func _heart(r: Rect2, a: float) -> void:
-		var beat := 1.0 + 0.035 * pow(maxf(sin(_t * TAU * 1.1), 0.0), 6.0)
-		var c := Vector2(r.size.x * 0.5, r.size.y * 0.52); var s := minf(r.size.x / 50.0, r.size.y / 42.0) * beat
-		var pts := _heart_pts(c, s)
-		Gfx.glow(self, c, minf(r.size.x, r.size.y) * 0.7, Color(Kit.RED, 0.07 * a))
-		draw_colored_polygon(pts, Color("#2a1020", 0.9 * a))
-		var closed := pts.duplicate(); closed.append(pts[0])
-		draw_polyline(closed, Color(Kit.RED, 0.14 * a), 9.0, true); draw_polyline(closed, Color(Kit.RED, 0.55 * a), 2.0, true)
-		draw_arc(c + Vector2(0, -s * 10.0), s * 3.2, PI * 1.05, PI * 1.95, 16, Color(Kit.RED, 0.45 * a), 4.0, true)   # aorta
-		draw_line(c + Vector2(s * 3.0, -s * 11.0), c + Vector2(s * 4.5, -s * 17.0), Color(Kit.RED, 0.5 * a), 7.0, true)
-		draw_line(c + Vector2(-s * 5.0, -s * 11.0), c + Vector2(-s * 7.0, -s * 17.0), Color(Kit.CYAN, 0.45 * a), 7.0, true)
-		var ecg := PackedVector2Array(); var y := r.size.y * 0.9   # an ECG running across the bottom
-		for i in 120:
-			var u := float(i) / 119.0; var ph := fposmod(u * 4.0 - _t * 0.5, 1.0); var v := 0.0
-			if ph > 0.18 and ph < 0.22: v = -1.0
-			elif ph >= 0.22 and ph < 0.26: v = 0.5
-			elif ph > 0.4 and ph < 0.5: v = -0.25 * sin((ph - 0.4) / 0.1 * PI)
-			ecg.append(Vector2(r.size.x * u, y + v * r.size.y * 0.05))
-		draw_polyline(ecg, Color(Kit.GREEN, 0.28 * a), 1.8, true)
-	func _lung(c: Vector2, w: float, h: float, flip: float, k: float, a: float) -> void:
-		var pts := PackedVector2Array()
-		for i in 40:
-			var t := TAU * float(i) / 40.0
-			pts.append(c + Vector2(cos(t) * w * 0.5 * (0.82 + 0.18 * (1.0 if sin(t) < 0.0 else 0.7)), sin(t) * h * 0.5) * k)
-		draw_colored_polygon(pts, Color("#0d2230", 0.9 * a))
-		var closed := pts.duplicate(); closed.append(pts[0])
-		draw_polyline(closed, Color(Kit.CYAN, 0.14 * a), 8.0, true); draw_polyline(closed, Color(Kit.CYAN, 0.5 * a), 2.0, true)
-		for b in 4:   # bronchioles
-			draw_line(Vector2(c.x - flip * w * 0.5, c.y - h * 0.38), Vector2(c.x + flip * w * (0.12 + 0.09 * b), c.y - h * 0.3 + float(b) * h * 0.2 + h * 0.06), Color(Kit.CYAN, 0.2 * a), 1.6, true)
-	func _lungs(r: Rect2, a: float) -> void:
-		var k := 1.0 + 0.045 * sin(_t * TAU * 0.28); var cy := r.size.y * 0.5
-		var w := r.size.x * 0.27; var h := r.size.y * 0.78
-		_lung(Vector2(r.size.x * 0.33, cy), w, h, -1.0, k, a); _lung(Vector2(r.size.x * 0.67, cy), w, h, 1.0, k, a)
-		draw_line(Vector2(r.size.x * 0.5, r.size.y * 0.06), Vector2(r.size.x * 0.5, r.size.y * 0.36), Color(Kit.CYAN, 0.55 * a), 5.0, true)   # trachea
-		draw_line(Vector2(r.size.x * 0.5, r.size.y * 0.36), Vector2(r.size.x * 0.36, r.size.y * 0.5), Color(Kit.CYAN, 0.4 * a), 3.5, true)
-		draw_line(Vector2(r.size.x * 0.5, r.size.y * 0.36), Vector2(r.size.x * 0.64, r.size.y * 0.5), Color(Kit.CYAN, 0.4 * a), 3.5, true)
-		draw_arc(Vector2(r.size.x * 0.5, r.size.y * 1.02), r.size.x * 0.3, PI * 1.12, PI * 1.88, 24, Color(Gfx.VIOLET, 0.3 * a), 3.0, true)   # the diaphragm
-	func _autonomic(r: Rect2, a: float) -> void:
-		var ec := Vector2(r.size.x * 0.17, r.size.y * 0.34); var ew := r.size.x * 0.13; var eh := r.size.y * 0.15   # the eye, left
-		var lid := PackedVector2Array()
-		for i in 25:
-			var u := float(i) / 24.0; lid.append(ec + Vector2((u - 0.5) * 2.0 * ew, -sin(u * PI) * eh))
-		for i in 25:
-			var u := 1.0 - float(i) / 24.0; lid.append(ec + Vector2((u - 0.5) * 2.0 * ew, sin(u * PI) * eh))
-		draw_colored_polygon(lid, Color("#0e1b2c", 0.9 * a)); var lc := lid.duplicate(); lc.append(lid[0]); draw_polyline(lc, Color(Gfx.FISH, 0.5 * a), 2.0, true)
-		var pr := eh * (0.38 + 0.12 * sin(_t * 0.8)); draw_circle(ec, eh * 0.78, Color("#1d3a5a", a)); draw_circle(ec, pr, Color("#04070c", a)); draw_circle(ec + Vector2(-pr * 0.35, -pr * 0.35), pr * 0.18, Color(1, 1, 1, 0.5 * a))
-		var gut := PackedVector2Array()   # the gut, bottom
-		for i in 60:
-			var u := float(i) / 59.0; gut.append(Vector2(r.size.x * (0.1 + 0.8 * u), r.size.y * (0.74 + 0.07 * sin(u * 14.0))))
-		draw_polyline(gut, Color(Kit.exc(), 0.10 * a), 18.0, true); draw_polyline(gut, Color(Kit.exc(), 0.28 * a), 2.2, true)
-		Gfx.glow(self, gut[int(fposmod(_t * 0.08, 1.0) * 59.0)], 22.0, Color(Kit.exc(), 0.30 * a))   # the bolus
-		var hc := Vector2(r.size.x * 0.83, r.size.y * 0.34)   # the heart, right
-		var hp := _heart_pts(hc, minf(r.size.x, r.size.y) * 0.014 * (1.0 + 0.04 * pow(maxf(sin(_t * TAU * 1.1), 0.0), 6.0)))
-		draw_colored_polygon(hp, Color("#2a1020", 0.85 * a)); var hl := hp.duplicate(); hl.append(hp[0]); draw_polyline(hl, Color(Kit.RED, 0.5 * a), 2.0, true)
-		for k in 2:   # the two nerves between eye and heart: sympathetic (amber) and parasympathetic (cyan)
-			var col := Kit.exc() if k == 0 else Kit.inh()
-			var pts := Gfx.bez_points(ec + Vector2(ew, 0), Vector2(r.size.x * 0.35, r.size.y * (0.12 + 0.5 * k)), Vector2(r.size.x * 0.65, r.size.y * (0.12 + 0.5 * k)), hc - Vector2(30.0, 0), 28)
-			draw_polyline(pts, Color(col, 0.20 * a), 1.8, true)
+			var u := float(i) / 39.0; var th := 3.0 * PI * u
+			p1.append(r.position + Vector2(w * (0.07 + 0.26 * u), h * (0.70 + 0.055 * sin(th + _t * 0.5))))
+		var wr1 := Anatomy.worm(self, Gfx.cr_spline(p1, 3), h * 0.034, {"alpha": a, "t": _t})
+		var probe: Vector2 = wr1["head"]
+		self.draw_line(probe + Vector2(-m * 0.06, -m * 0.10), probe + Vector2(-m * 0.012, -m * 0.012), Color(Kit.TEXT, 0.8 * a), 3.0, true)
+		Gfx.glow(self, probe + Vector2(-m * 0.012, -m * 0.012), m * 0.04, Color(Kit.RED, 0.45 * a))
+		# the worm crawling up the salt gradient (centre, top)
+		var p2 := PackedVector2Array()
+		for i in 44:
+			var u := float(i) / 43.0
+			p2.append(r.position + Vector2(w * (0.36 + 0.34 * u), h * (0.46 - 0.18 * u + 0.05 * sin(u * 9.0 + _t * 0.7))))
+		var wr2 := Anatomy.worm(self, Gfx.cr_spline(p2, 3), h * 0.034, {"alpha": a, "t": _t + 1.0})
+		_lab("ASE salt neurons", (wr2["tail"] as Vector2) + Vector2(m * 0.02, m * 0.07), Kit.exc())
+		# the lamprey (right, lower)
+		var p3 := PackedVector2Array()
+		for i in 48:
+			var u := float(i) / 47.0; var wv := 0.045 * sin(u * 7.0 - _t * 3.0) * u
+			p3.append(r.position + Vector2(w * (0.52 + 0.43 * u), h * (0.82 + wv * 2.2)))
+		var lm := Anatomy.lamprey(self, p3, h * 0.040, {"alpha": a, "t": _t})
+		_lab("spinal cord CPG", (lm["mid"] as Vector2) + Vector2(0, -m * 0.09), Kit.exc(), HORIZONTAL_ALIGNMENT_CENTER)
+		return {"reflex": [wr1["ring"], "u", 20.0], "worm": [wr2["head"], "u", 8.0], "lamprey": [lm["mid"], "d", 6.0]}

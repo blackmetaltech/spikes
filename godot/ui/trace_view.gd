@@ -3,8 +3,13 @@ extends Control
 ## Oscilloscope: 1 to 4 membrane-potential traces (1 ms samples of V_m from NEST), each in its own lane with a graticule, a glowing phosphor line,
 ## and a bright spike marker at every recorded spike (NEST models reset V_m at the threshold, so the marker shows the action potential).
 var tele: Telemetry = null
-var window_ms := 500.0
+var window_ms := 500.0           # the window drawn now (eases toward window_target)
+var auto_window := true          # follow the timescale of the watched cells; a click on the "window" caption steps through fixed windows
+var window_target := 500.0
+var _retarget_at := 0.0
+var _pending := 0.0
 var _layer: Control
+const WINDOWS := [250.0, 500.0, 1000.0, 2000.0, 3000.0, 4000.0, 6000.0, 8000.0, 10000.0, 15000.0, 20000.0, 30000.0]
 var _range := {}    # neuron -> Vector2(lo, hi), eased
 
 class Layer extends Control:
@@ -17,9 +22,79 @@ func _ready() -> void:
 	var m := CanvasItemMaterial.new(); m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD; _layer.material = m; add_child(_layer)
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
-func attach(t: Telemetry) -> void: tele = t; _range = {}; queue_redraw()
-func _process(_dt: float) -> void:
-	if is_visible_in_tree(): queue_redraw(); _layer.queue_redraw()
+func attach(t: Telemetry) -> void: tele = t; _range = {}; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
+func _process(dt: float) -> void:
+	if not is_visible_in_tree(): return
+	if tele != null and auto_window: _auto(dt)
+	window_ms = lerpf(window_ms, window_target, clampf(dt * 8.0, 0.0, 1.0)) if absf(window_ms - window_target) > 1.0 else window_target
+	queue_redraw(); _layer.queue_redraw()
+
+## The smallest standard window that is at least `ms` and no longer than `cap` (the largest allowed when none fits).
+static func nice_window(ms: float, cap: float) -> float:
+	var best := float(WINDOWS[0])
+	for w in WINDOWS:
+		if float(w) <= cap: best = float(w)
+		if float(w) >= ms and float(w) <= cap: return float(w)
+	return best
+
+## The longest quiet stretch of neuron `id` in the spikes the telemetry still holds (ms): the longest gap between two spikes, or the time since its last spike
+## when that is longer (a cell that has gone slow or silent). 0 when it has not fired.
+static func quiet_gap(tele: Telemetry, id: int) -> float:
+	var last := -1.0; var gap := 0.0
+	for j in tele.sp_t.size():
+		if tele.sp_n[j] != id: continue
+		var t := tele.sp_t[j]
+		if last >= 0.0: gap = maxf(gap, t - last)
+		last = t
+	if last < 0.0: return 0.0
+	return maxf(gap, tele.t_ms - last)
+
+## A window from the task's length when the cells have not told us their timescale yet: a 30 s episode starts at a couple of seconds, a 5 s one at the default.
+static func task_window(tele: Telemetry) -> float:
+	var dur := tele.duration() if tele != null else 0.0
+	return clampf(dur / 12.0, 500.0, 4000.0) if dur > 0.0 else 500.0
+
+func _auto(dt: float) -> void:
+	_retarget_at -= dt
+	if _retarget_at > 0.0: return
+	_retarget_at = 0.5
+	var gap := 0.0
+	for w in tele.watched: gap = maxf(gap, quiet_gap(tele, int(w)))
+	var fb := task_window(tele)
+	var want := maxf(gap * 2.6, fb * 0.25) if gap > 0.0 else fb
+	var cap := float(Telemetry.VOLT_KEEP) * 0.5 - 100.0   # the scope only keeps that much voltage
+	var nw := nice_window(want, cap)
+	if nw == window_target: _pending = 0.0
+	else:
+		_pending += 1.0
+		if _pending >= 2.0 or tele.t_ms < 600.0: window_target = nw; _pending = 0.0
+
+func _gui_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and Rect2(size.x - 200.0, 0.0, 200.0, 26.0).has_point(e.position):
+		step_window(); accept_event()
+
+## Auto -> 500 ms -> 1 s -> 2 s -> 4 s -> 10 s -> auto.
+func step_window() -> void:
+	var seq := [500.0, 1000.0, 2000.0, 4000.0, 10000.0]
+	if auto_window: auto_window = false; window_target = seq[0]
+	else:
+		var i := seq.find(window_target)
+		if i < 0 or i >= seq.size() - 1: auto_window = true
+		else: window_target = seq[i + 1]
+
+## "window 2 s", with the unit that reads best.
+static func window_text(ms: float, auto: bool) -> String:
+	var s := ("%d ms" % int(roundf(ms))) if ms < 1000.0 else ("%s s" % (("%d" % int(roundf(ms / 1000.0))) if absf(ms / 1000.0 - roundf(ms / 1000.0)) < 0.05 else "%.1f" % (ms / 1000.0)))
+	return "window %s%s" % [s, " (auto)" if auto else ""]
+
+## Grid spacing (ms) for a window: about 5 to 10 lines.
+static func grid_step(ms: float) -> float:
+	for st in [10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0]:
+		if ms / float(st) <= 10.0: return float(st)
+	return 5000.0
+
+static func tick_text(t_ms: float, step: float) -> String:
+	return "%d s" % int(roundf(t_ms * 0.001)) if step >= 1000.0 else "%.1f s" % (t_ms * 0.001)
 
 func _lanes() -> Array:
 	var out := []
@@ -55,9 +130,9 @@ func _draw() -> void:
 			draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(Kit.LINE, 0.55 if int(roundf(mv / step)) % 2 == 0 else 0.3), 1.0)
 			if absf(y - last_lab_y) >= float(fz) * 1.25 and y > r.position.y + float(fz) * 0.5 and y < r.end.y - float(fz) * 0.4: last_lab_y = y; draw_string(f, Vector2(4, y + float(fz) * 0.35), "%d" % int(mv), HORIZONTAL_ALIGNMENT_LEFT, r.position.x - 8, fz, Kit.TEXT_SOFT)
 			mv += step
-		var g0 := ceilf(t_left / 100.0) * 100.0; var tt := g0
+		var gs := grid_step(window_ms); var g0 := ceilf(t_left / gs) * gs; var tt := g0
 		while tt <= vt:
-			var x := r.position.x + r.size.x * (tt - t_left) / window_ms; draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), Color(Kit.LINE, 0.40), 1.0); tt += 100.0
+			var x := r.position.x + r.size.x * (tt - t_left) / window_ms; draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), Color(Kit.LINE, 0.40), 1.0); tt += gs
 		draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
 		var pop_i: int = tele.pop_of[nid] if nid < tele.pop_of.size() else 0
 		var label := "%s  %s" % [str(tele.circuit["populations"][pop_i].get("id", "")), str(tele.circuit["populations"][pop_i].get("model", ""))]
@@ -69,13 +144,14 @@ func _draw() -> void:
 		if a.size() > 0:
 			draw_rect(Rect2(Vector2(r.end.x - 96, r.position.y + 2), Vector2(94, float(fz) + 6.0)), Color(Kit.BENCH, 0.78))
 			draw_string(f, Vector2(r.end.x - 120, r.position.y + float(fz) + 3.0), ("%.1f mV" % a[a.size() - 1]) if is_finite(a[a.size() - 1]) else "no membrane", HORIZONTAL_ALIGNMENT_RIGHT, 112, fz, Kit.TEXT)
-	var tt2 := ceilf(t_left / 100.0) * 100.0
+	var gs2 := grid_step(window_ms); var lab_every := maxi(1, int(ceilf(64.0 / maxf(lanes[0]["rect"].size.x * gs2 / window_ms, 1.0)))); var tt2 := ceilf(t_left / gs2) * gs2
 	var bot: Rect2 = lanes[lanes.size() - 1]["rect"]
 	while tt2 <= vt:
 		var xx := bot.position.x + bot.size.x * (tt2 - t_left) / window_ms
-		draw_string(f, Vector2(xx - 30, bot.end.y + float(fz) + 3.0), "%.1f s" % (tt2 * 0.001), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT); tt2 += 100.0
+		if int(roundf(tt2 / gs2)) % lab_every == 0: draw_string(f, Vector2(xx - 30, bot.end.y + float(fz) + 3.0), tick_text(tt2, gs2), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
+		tt2 += gs2
 	# axes caption
-	draw_string(f, Vector2(size.x - 190, 20), "window %d ms" % int(window_ms), HORIZONTAL_ALIGNMENT_RIGHT, 176, fz, Kit.TEXT_SOFT)
+	draw_string(f, Vector2(size.x - 190, 20), window_text(window_ms, auto_window), HORIZONTAL_ALIGNMENT_RIGHT, 176, fz, Kit.TEXT_SOFT)
 
 func _lane_range(nid: int) -> Vector2:
 	var a: PackedFloat32Array = tele.volt.get(nid, PackedFloat32Array())
