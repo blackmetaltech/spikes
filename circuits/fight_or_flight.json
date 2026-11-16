@@ -1,0 +1,508 @@
+{
+ "schema_version": 1,
+ "name": "Fight or flight: defence reaction",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "HYP",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 100.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     100,
+     40
+    ],
+    [
+     160,
+     40
+    ],
+    [
+     220,
+     40
+    ],
+    [
+     280,
+     40
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "RVLM",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 330.0
+   },
+   "pos": [
+    [
+     100,
+     110
+    ],
+    [
+     160,
+     110
+    ],
+    [
+     220,
+     110
+    ],
+    [
+     280,
+     110
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SG",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     100,
+     200
+    ],
+    [
+     160,
+     200
+    ],
+    [
+     220,
+     200
+    ],
+    [
+     280,
+     200
+    ],
+    [
+     340,
+     200
+    ],
+    [
+     400,
+     200
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SV",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0
+   },
+   "pos": [
+    [
+     100,
+     260
+    ],
+    [
+     160,
+     260
+    ],
+    [
+     220,
+     260
+    ],
+    [
+     280,
+     260
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SCG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0
+   },
+   "pos": [
+    [
+     100,
+     320
+    ],
+    [
+     160,
+     320
+    ],
+    [
+     220,
+     320
+    ],
+    [
+     280,
+     320
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "NA",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     100,
+     400
+    ],
+    [
+     160,
+     400
+    ],
+    [
+     220,
+     400
+    ],
+    [
+     280,
+     400
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "VG",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     100,
+     460
+    ],
+    [
+     160,
+     460
+    ],
+    [
+     220,
+     460
+    ],
+    [
+     280,
+     460
+    ],
+    [
+     340,
+     460
+    ],
+    [
+     400,
+     460
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "EW",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     100,
+     520
+    ],
+    [
+     160,
+     520
+    ],
+    [
+     220,
+     520
+    ],
+    [
+     280,
+     520
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "CG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     100,
+     580
+    ],
+    [
+     160,
+     580
+    ],
+    [
+     220,
+     580
+    ],
+    [
+     280,
+     580
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "VRG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0
+   },
+   "pos": [
+    [
+     100,
+     640
+    ],
+    [
+     160,
+     640
+    ],
+    [
+     220,
+     640
+    ],
+    [
+     280,
+     640
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SA",
+   "model": "sa_node_pacemaker",
+   "n": 1,
+   "params": {},
+   "pos": [
+    [
+     100,
+     700
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "HYP",
+   "post": "RVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 120.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "RVLM",
+   "post": "SG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "RVLM",
+   "post": "SV",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 30.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "RVLM",
+   "post": "SCG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "NA",
+   "post": "VG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -150.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "EW",
+   "post": "CG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "EW",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -150.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "VRG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 100.0,
+    "delay": 3.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "threat",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "HYP"
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "sa_beat",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SA"
+    }
+   ]
+  },
+  {
+   "name": "sympathetic",
+   "kind": "modulator",
+   "neurons": [
+    {
+     "pop": "SG"
+    }
+   ],
+   "modulator": "NE",
+   "gain": 0.0015,
+   "tau_ms": 1500.0
+  },
+  {
+   "name": "vagal",
+   "kind": "modulator",
+   "neurons": [
+    {
+     "pop": "VG"
+    }
+   ],
+   "modulator": "ACh",
+   "gain": 0.007,
+   "tau_ms": 500.0
+  },
+  {
+   "name": "sym_vascular",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SV"
+    }
+   ]
+  },
+  {
+   "name": "dilator",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SCG"
+    }
+   ]
+  },
+  {
+   "name": "sphincter",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "CG"
+    }
+   ]
+  },
+  {
+   "name": "vent",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "VRG"
+    }
+   ]
+  }
+ ],
+ "meta": {
+  "author": "spike reference",
+  "notes": "Defence reaction: hypothalamus -> RVLM -> sympathetic ganglia (NE on the SA-node cell, vessels, iris dilator), threat withdraws vagal and Edinger-Westphal tone, raises ventilation. See docs/circuits/fight_or_flight.md.",
+  "task": "fight_or_flight"
+ },
+ "modulation": [
+  {
+   "modulator": "ACh",
+   "pop": "SA",
+   "param": "ach",
+   "gain": 1.0
+  },
+  {
+   "modulator": "NE",
+   "pop": "SA",
+   "param": "ne",
+   "gain": 1.0
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ }
+}

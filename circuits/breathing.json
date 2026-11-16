@@ -1,0 +1,275 @@
+{
+ "schema_version": 1,
+ "name": "preBotzinger breathing rhythm",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "RTN",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 335.0
+   },
+   "pos": [
+    [
+     60,
+     60
+    ],
+    [
+     60,
+     94
+    ],
+    [
+     60,
+     128
+    ],
+    [
+     60,
+     162
+    ],
+    [
+     60,
+     196
+    ],
+    [
+     60,
+     230
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "PBC",
+   "model": "butera_burster",
+   "n": 10,
+   "params": {
+    "V_m": -60.0,
+    "g_NaP": 2.8,
+    "g_tonic": 0.29
+   },
+   "pos": [
+    [
+     240,
+     40
+    ],
+    [
+     240,
+     70
+    ],
+    [
+     240,
+     100
+    ],
+    [
+     240,
+     130
+    ],
+    [
+     240,
+     160
+    ],
+    [
+     240,
+     190
+    ],
+    [
+     240,
+     220
+    ],
+    [
+     240,
+     250
+    ],
+    [
+     240,
+     280
+    ],
+    [
+     240,
+     310
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "EXP",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 430.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     420,
+     60
+    ],
+    [
+     420,
+     94
+    ],
+    [
+     420,
+     128
+    ],
+    [
+     420,
+     162
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "PHR",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {
+    "I_e": 380.0,
+    "tau_syn_ex": 30.0,
+    "tau_syn_in": 30.0
+   },
+   "pos": [
+    [
+     600,
+     40
+    ],
+    [
+     600,
+     70
+    ],
+    [
+     600,
+     100
+    ],
+    [
+     600,
+     130
+    ],
+    [
+     600,
+     160
+    ],
+    [
+     600,
+     190
+    ],
+    [
+     600,
+     220
+    ],
+    [
+     600,
+     250
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "RTN",
+   "post": "PBC",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.09,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "RTN",
+   "post": "PHR",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 8.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PBC",
+   "post": "PBC",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.03,
+    "delay": 1.0
+   },
+   "allow_autapses": false
+  },
+  {
+   "pre": "PBC",
+   "post": "PHR",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 2.2,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PBC",
+   "post": "EXP",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -60.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "EXP",
+   "post": "PHR",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -30.0,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "drive",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "PBC"
+    }
+   ],
+   "weight": 0.005,
+   "value": 0.0
+  },
+  {
+   "name": "chemo",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "RTN"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "phrenic",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "PHR"
+    }
+   ]
+  }
+ ],
+ "meta": {
+  "author": "spike reference",
+  "notes": "preBotzinger network of coupled butera_burster cells (Butera, Rinzel & Smith 1999) -> phrenic motor pool -> lungs, with a CO2 chemoreflex (RTN relay) and expiratory inhibition. See docs/circuits/breathing.md.",
+  "task": "breathing"
+ },
+ "record": {
+  "spikes": "all"
+ }
+}

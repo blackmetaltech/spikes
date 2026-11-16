@@ -1,0 +1,874 @@
+{
+ "schema_version": 1,
+ "name": "Enteric peristaltic reflex",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "S",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {},
+   "pos": [
+    [
+     60,
+     40
+    ],
+    [
+     160,
+     40
+    ],
+    [
+     260,
+     40
+    ],
+    [
+     360,
+     40
+    ],
+    [
+     460,
+     40
+    ],
+    [
+     560,
+     40
+    ],
+    [
+     660,
+     40
+    ],
+    [
+     760,
+     40
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "AIN",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     60,
+     100
+    ],
+    [
+     160,
+     100
+    ],
+    [
+     260,
+     100
+    ],
+    [
+     360,
+     100
+    ],
+    [
+     460,
+     100
+    ],
+    [
+     560,
+     100
+    ],
+    [
+     660,
+     100
+    ],
+    [
+     760,
+     100
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "DIN",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     60,
+     160
+    ],
+    [
+     160,
+     160
+    ],
+    [
+     260,
+     160
+    ],
+    [
+     360,
+     160
+    ],
+    [
+     460,
+     160
+    ],
+    [
+     560,
+     160
+    ],
+    [
+     660,
+     160
+    ],
+    [
+     760,
+     160
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "EMN",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {
+    "I_e": 376.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     60,
+     240
+    ],
+    [
+     160,
+     240
+    ],
+    [
+     260,
+     240
+    ],
+    [
+     360,
+     240
+    ],
+    [
+     460,
+     240
+    ],
+    [
+     560,
+     240
+    ],
+    [
+     660,
+     240
+    ],
+    [
+     760,
+     240
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "IMN",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {
+    "I_e": 365.0
+   },
+   "pos": [
+    [
+     60,
+     300
+    ],
+    [
+     160,
+     300
+    ],
+    [
+     260,
+     300
+    ],
+    [
+     360,
+     300
+    ],
+    [
+     460,
+     300
+    ],
+    [
+     560,
+     300
+    ],
+    [
+     660,
+     300
+    ],
+    [
+     760,
+     300
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "ICC",
+   "model": "icc_slow_wave",
+   "n": 8,
+   "params": {
+    "tau_x": 300.0,
+    "tau_w": 1060.0,
+    "drive": 0.3
+   },
+   "pos": [
+    [
+     60,
+     370
+    ],
+    [
+     160,
+     370
+    ],
+    [
+     260,
+     370
+    ],
+    [
+     360,
+     370
+    ],
+    [
+     460,
+     370
+    ],
+    [
+     560,
+     370
+    ],
+    [
+     660,
+     370
+    ],
+    [
+     760,
+     370
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "ICCP",
+   "model": "icc_slow_wave",
+   "n": 1,
+   "params": {
+    "tau_x": 300.0,
+    "tau_w": 1060.0,
+    "drive": 0.5
+   },
+   "pos": [
+    [
+     60,
+     430
+    ]
+   ],
+   "role": "neuron"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "S",
+   "post": "AIN",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 100.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "S",
+   "post": "DIN",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 100.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "AIN",
+   "post": "EMN",
+   "edges": [
+    [
+     1,
+     0,
+     36.0,
+     1.0
+    ],
+    [
+     2,
+     1,
+     36.0,
+     1.0
+    ],
+    [
+     3,
+     2,
+     36.0,
+     1.0
+    ],
+    [
+     4,
+     3,
+     36.0,
+     1.0
+    ],
+    [
+     5,
+     4,
+     36.0,
+     1.0
+    ],
+    [
+     6,
+     5,
+     36.0,
+     1.0
+    ],
+    [
+     7,
+     6,
+     36.0,
+     1.0
+    ]
+   ]
+  },
+  {
+   "pre": "DIN",
+   "post": "IMN",
+   "edges": [
+    [
+     0,
+     1,
+     100.0,
+     1.0
+    ],
+    [
+     1,
+     2,
+     100.0,
+     1.0
+    ],
+    [
+     2,
+     3,
+     100.0,
+     1.0
+    ],
+    [
+     3,
+     4,
+     100.0,
+     1.0
+    ],
+    [
+     4,
+     5,
+     100.0,
+     1.0
+    ],
+    [
+     5,
+     6,
+     100.0,
+     1.0
+    ],
+    [
+     6,
+     7,
+     100.0,
+     1.0
+    ]
+   ]
+  },
+  {
+   "pre": "ICCP",
+   "post": "ICC",
+   "edges": [
+    [
+     0,
+     0,
+     400.0,
+     5.0
+    ]
+   ]
+  },
+  {
+   "pre": "ICC",
+   "post": "ICC",
+   "edges": [
+    [
+     0,
+     1,
+     400.0,
+     100.0
+    ],
+    [
+     1,
+     2,
+     400.0,
+     100.0
+    ],
+    [
+     2,
+     3,
+     400.0,
+     100.0
+    ],
+    [
+     3,
+     4,
+     400.0,
+     100.0
+    ],
+    [
+     4,
+     5,
+     400.0,
+     100.0
+    ],
+    [
+     5,
+     6,
+     400.0,
+     100.0
+    ],
+    [
+     6,
+     7,
+     400.0,
+     100.0
+    ]
+   ]
+  }
+ ],
+ "inputs": [
+  {
+   "name": "dist0",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      0
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist1",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      1
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist2",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      2
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist3",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      3
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist4",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      4
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist5",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      5
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist6",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      6
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist7",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S",
+     "idx": [
+      7
+     ]
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "ach0",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach1",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach2",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach3",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach4",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      4
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach5",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      5
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach6",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ach7",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "EMN",
+     "idx": [
+      7
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no0",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no1",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no2",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no3",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no4",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      4
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no5",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      5
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no6",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "no7",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "IMN",
+     "idx": [
+      7
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc0",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc1",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc2",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc3",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc4",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      4
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc5",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      5
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc6",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "icc7",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "ICC",
+     "idx": [
+      7
+     ]
+    }
+   ]
+  }
+ ],
+ "meta": {
+  "author": "spike reference",
+  "notes": "Enteric peristaltic reflex over 8 gut segments: IPAN -> ascending ACh / descending NO-VIP interneuron chains -> motoneurons, gated by a chain of icc_slow_wave pacemakers. See docs/circuits/peristalsis.md.",
+  "task": "peristalsis"
+ },
+ "record": {
+  "spikes": "all"
+ }
+}
