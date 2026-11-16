@@ -248,7 +248,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 6.0,
+    "weight": 10.0,
     "delay": 1.0
    }
   },
@@ -278,7 +278,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 14.0,
+    "weight": 12.0,
     "delay": 1.0
    }
   },
@@ -298,7 +298,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": -14.0,
+    "weight": -25.0,
     "delay": 1.0
    }
   },
@@ -361,7 +361,7 @@
      "pop": "VG"
     }
    ],
-   "gain": 0.01,
+   "gain": 0.012,
    "tau_ms": 500.0
   },
   {
@@ -373,7 +373,7 @@
      "pop": "SG"
     }
    ],
-   "gain": 0.0035,
+   "gain": 0.0031,
    "tau_ms": 1500.0
   }
  ],

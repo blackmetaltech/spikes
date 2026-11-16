@@ -146,7 +146,7 @@ static void lesion( const std::string& id, const char* what, const json& c, std:
 
 int main()
 {
-  const std::vector< uint64_t > seeds = { 1, 2, 3, 4 }, lseeds = { 1, 2 };
+  const std::vector< uint64_t > seeds = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, lseeds = { 1, 2 };
 
   // ---- heart_pacemaker
   reference( "heart_pacemaker", seeds );
@@ -170,28 +170,45 @@ int main()
     lesion( "heart_pacemaker", "gap-junction coupling removed: the cells beat at their own rates, the fastest-to-fire wins (tachycardia, irregular)",
       l1, lseeds, []( const Run& r ) { return part( r, "synchrony" ) < 0.8 && ( part( r, "hr_bpm" ) > 80 || part( r, "cv" ) > 0.05 ); } );
     json l2 = base;  // L-type Ca channel block (nifedipine-like): the upstroke fails
-    scale_param( l2, "SA_c", "g_CaL", 3.53, 0.55 );
-    scale_param( l2, "SA_p", "g_CaL", 3.53, 0.55 );
-    lesion( "heart_pacemaker", "I_CaL blocked by 45 percent: no upstroke, asystole or slow rhythm", l2, lseeds,
+    scale_param( l2, "SA_c", "g_CaL", 3.53, 0.4 );
+    scale_param( l2, "SA_p", "g_CaL", 3.53, 0.4 );
+    lesion( "heart_pacemaker", "I_CaL blocked by 60 percent: no upstroke, asystole or slow rhythm", l2, lseeds,
       []( const Run& r ) { return part( r, "hr_bpm" ) < 60 || part( r, "beats" ) < 12; } );
     json l3 = base;  // low-threshold (T-type, Cav3.1) Ca channel block: slower diastolic depolarisation
-    scale_param( l3, "SA_c", "g_CaT", 0.78, 0.0 );
-    scale_param( l3, "SA_p", "g_CaT", 0.78, 0.0 );
-    lesion( "heart_pacemaker", "I_CaT blocked (Cav3.1 knockout-like): bradycardia", l3, lseeds,
+    scale_param( l3, "SA_c", "g_CaT", 1.9, 0.7 );
+    scale_param( l3, "SA_p", "g_CaT", 1.9, 0.7 );
+    lesion( "heart_pacemaker", "I_CaT blocked by 30 percent (Cav3.1-like): bradycardia", l3, lseeds,
       []( const Run& r ) { return part( r, "hr_bpm" ) < 60; } );
-    json l4 = base;  // tonic ACh (carbachol-like): vagal arrest, pauses
-    for ( auto& p : l4[ "populations" ] ) p[ "params" ][ "ach" ] = 0.8;
-    lesion( "heart_pacemaker", "tonic ACh 0.8 (muscarinic agonist): the node pauses, far too few beats", l4, lseeds,
-      []( const Run& r ) { return part( r, "beats" ) < 12; } );
+    json l3b = base;  // I_f block (ivabradine-like): slower diastolic depolarisation
+    scale_param( l3b, "SA_c", "g_f", 0.34, 0.0 );
+    scale_param( l3b, "SA_p", "g_f", 0.34, 0.0 );
+    lesion( "heart_pacemaker", "I_f blocked (ivabradine-like): bradycardia", l3b, lseeds, []( const Run& r ) { return part( r, "hr_bpm" ) < 60; } );
+    json l4 = base;  // tonic ACh (carbachol-like): on top of the resting vagal tone the task applies
+    for ( auto& p : l4[ "populations" ] ) p[ "params" ][ "ach" ] = 1.5;
+    lesion( "heart_pacemaker", "extra tonic ACh 1.5 (muscarinic agonist): vagal overdrive, bradycardia", l4, lseeds,
+      []( const Run& r ) { return part( r, "hr_bpm" ) < 60 || part( r, "beats" ) < 12; } );
     json l5 = base;  // tonic NE (isoprenaline-like): tachycardia
     for ( auto& p : l5[ "populations" ] ) p[ "params" ][ "ne" ] = 1.0;
     lesion( "heart_pacemaker", "tonic NE 1.0 (beta agonist): sinus tachycardia above 100/min", l5, lseeds,
       []( const Run& r ) { return part( r, "hr_bpm" ) > 100; } );
+    // five uncoupled IDENTICAL clones (S1 of the 0.2 critique): the task gives every cell its own size, so they drift apart:
+    // a fast, irregular merged rhythm and low synchrony, never a pass and never the old 100
+    json clones = base;
+    clones[ "populations" ] = json::array( { base[ "populations" ][ 0 ] } );
+    clones[ "populations" ][ 0 ][ "n" ] = 5;
+    clones[ "populations" ][ 0 ][ "params" ][ "I_e" ] = 0.0;
+    clones[ "populations" ][ 0 ][ "pos" ] = json::array( { json::array( { 100, 100 } ), json::array( { 130, 100 } ), json::array( { 100, 130 } ),
+                                                            json::array( { 130, 130 } ), json::array( { 160, 100 } ) } );
+    clones[ "projections" ] = json::array();
+    clones[ "modulation" ] = json::array();
+    clones[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "SA_c" } } } );
+    lesion( "heart_pacemaker", "five uncoupled identical clones: the cells beat at their own rates, tachycardia and irregular", clones, seeds,
+      []( const Run& r ) { return part( r, "synchrony" ) < 0.6 && ( part( r, "hr_bpm" ) > 80 || part( r, "cv" ) > 0.05 ) && r.score.value < 30; } );
     // a single cell is a sinus rhythm, but it cannot earn the cluster bonus
     json one = base;
     one[ "populations" ] = json::array( { base[ "populations" ][ 0 ] } );
     one[ "populations" ][ 0 ][ "n" ] = 1;
-    one[ "populations" ][ 0 ][ "params" ][ "I_e" ] = 0.0;
+    one[ "populations" ][ 0 ][ "params" ][ "I_e" ] = 0.0;  // the task still gives it its own size
     one[ "populations" ][ 0 ][ "pos" ] = json::array( { json::array( { 120, 200 } ) } );
     one[ "projections" ] = json::array();
     one[ "modulation" ] = json::array();
@@ -199,7 +216,7 @@ int main()
     Run r1 = run( "heart_pacemaker", one, 1 );
     show( "single cell", 1, r1 );
     CHECK( r1.score.passed );
-    CHECK( r1.score.value <= 85.1 );
+    CHECK( r1.score.value <= 75.1 );
     CHECK( part( r1, "synchrony" ) == 0 );
     // an unwired output is reported, not scored as a mystery zero
     json bad = base;
@@ -223,12 +240,12 @@ int main()
     json l2 = base;
     scale( l2, "IML", "SG", 0 );
     lesion( "heart_autonomic", "sympathetic chain cut: the heart cannot speed up beyond vagal withdrawal", l2, lseeds,
-      []( const Run& r ) { return part( r, "exercise_hr" ) < 92 && part( r, "ne_peak" ) < 0.01; } );
+      []( const Run& r ) { return part( r, "exercise_hr" ) < 105 && part( r, "ne_peak" ) < 0.01; } );
     json l3 = base;
     scale( l3, "CC", "IML", 0 );
     scale( l3, "LOW", "IML", 0 );
     lesion( "heart_autonomic", "no cue or error input to the sympathetic preganglionic cells: exercise rate not reached", l3, lseeds,
-      []( const Run& r ) { return part( r, "exercise_hr" ) < 92; } );
+      []( const Run& r ) { return part( r, "exercise_hr" ) < 105; } );
     json l4 = base;
     scale( l4, "NA", "VG", 3 );
     lesion( "heart_autonomic", "vagal ganglion transmission x3: ACh near the arrest range, pauses and bradycardia", l4, lseeds,

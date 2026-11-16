@@ -4,7 +4,12 @@
 //   Sensors: none. The SA cells fire on their own (funny current I_f, T- and L-type Ca, delayed rectifier K).
 //   Motor "sa_beat": spikes of the cluster. Every spike is one beat request to the heart; the heart merges requests
 //   closer than its 250 ms refractory period into the first one (the first cell to fire starts the beat, as in the node).
-//   Autonomic drives are held at rest tone (sympathetic 0.2, vagal 0.6): this task is about the intrinsic rhythm.
+//   Resting vagal tone is applied: the task holds the ACh level at 0.5 (Engine::set_modulator) and NE at 0, so SA cells (which follow
+//   the circuit-wide ACh / NE) beat at their resting rate, not their ~100/min intrinsic rate. No sympathetic drive.
+//   Cell heterogeneity (seeded, per cell): at the first step the task sets every cell of the sa_beat pool to its own membrane
+//   capacitance C_m = 32 pF * (1 + e), e ~ U(-12 %, +12 %) (node cells differ in size and therefore in intrinsic rate; set through
+//   set_neuron_param, so a player's own C_m on these cells is overridden). Identical clones therefore drift apart, and only coupling
+//   (excitatory synapses as the stand-in for gap junctions) makes them agree: an uncoupled cluster fails on synchrony and CV.
 //   The beat times are the heart's beat events (Heart::beat_now), so a cluster that does not agree on one rhythm gives
 //   extra, irregular beats exactly as it would for the ventricle.
 //
@@ -16,10 +21,13 @@
 //   synchrony : Golomb (2007) chi of the cluster's spike counts in 40 ms bins over the window, 0 = asynchronous, 1 = all
 //           cells spike together; only defined for a motor pool of >= 2 cells (0 for a single cell)
 //   rate_term = 1 for 60 <= hr <= 80, falling linearly to 0 at 20 bpm outside; cv_term = 1 for cv <= 2 %, 0 at 15 %
-//   value = 100 * (0.5 rate_term + 0.5 cv_term) * (0.85 + 0.15 sync_term), sync_term = clamp((chi - 0.3) / 0.6, 0, 1)
-//           for a pool of >= 2 cells (0 for one cell: a lone cell tops out at 85, the coupled cluster is the bonus)
+//   value = 100 * (0.5 rate_term + 0.5 cv_term) * (0.75 + 0.25 sync_term), sync_term = clamp((chi - 0.3) / 0.6, 0, 1)
+//           for a pool of >= 2 cells (0 for one cell: a lone cell tops out at 75 and the clones of it fail, the coupled cluster
+//           that holds one rhythm despite its cell-to-cell differences earns the rest)
 //   pass  : 60 <= hr <= 80 and cv < 5 %, at the end of the episode
 //   verdict: names the failure: not wired, no beats, too slow, too fast, irregular (and whether the cells disagree).
+//   Several cells without coupling (identical clones included, the task makes them differ) beat at different rates, so the merged
+//   beat train is fast and irregular: they fail on rate and CV, and read synchrony well below 0.6.
 //
 // Biology: the sinoatrial node paces the heart at 60-100/min at rest in humans (intrinsic ~100-110, slowed by vagal tone;
 // Jose & Collison 1970 Cardiovasc Res 4:160); node cells differ in intrinsic rate and are coupled by gap junctions, which
@@ -27,6 +35,7 @@
 // J Physiol 356:221). Beat-to-beat variability is small (CV 2-5 %, Task Force 1996 Circulation 93:1043).
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/analysis.h"
 #include "spike/body/heart.h"
@@ -40,11 +49,24 @@ namespace
 
 constexpr double kDuration = 30000, kSkip = 6000, kBinMs = 40;
 constexpr int kMinBeats = 12;
+constexpr double kTonicAch = 0.5;       // resting vagal tone (concentration units of the ACh channel)
+constexpr double kCmNominal = 32.0;     // pF, the cell's default; scaled per cell
+constexpr double kCmSpread = 0.12;      // +/- fraction
+
+double unit_hash( uint64_t seed, uint64_t k )  // deterministic U(0,1) from (seed, k): splitmix64
+{
+  uint64_t z = seed * 0x9E3779B97F4A7C15ull + ( k + 1 ) * 0xBF58476D1CE4E5B9ull;
+  z = ( z ^ ( z >> 30 ) ) * 0xBF58476D1CE4E5B9ull;
+  z = ( z ^ ( z >> 27 ) ) * 0x94D049BB133111EBull;
+  z ^= z >> 31;
+  return static_cast< double >( z >> 11 ) / 9007199254740992.0;
+}
 
 class HeartPacemakerTask : public Task
 {
 public:
   HeartPacemakerTask() { reset( 1 ); }
+  std::map< std::string, ChannelKind > channel_kinds() const override { return { { "sa_beat", { "rate" } } }; }
   std::string id() const override { return "heart_pacemaker"; }
   std::string title() const override { return "Sinoatrial pacemaker"; }
   std::string brief() const override
@@ -53,9 +75,11 @@ public:
            "a slow inward 'funny' current (I_f) depolarises each cell until calcium channels open and it fires one beat. "
            "Place SA-node cells from the parts bin and read their spikes out as sa_beat; each spike is a beat of the heart. "
            "The beat must come at 60-80 per minute and be regular (beat-interval variation under 5 percent). "
-           "Real node cells are not identical, so a cluster of different cells has to agree on one rhythm: couple them with "
-           "excitatory synapses (the stand-in for gap junctions) and the fastest does not run away with the beat. "
-           "Bonus: the more tightly the cluster fires together (synchrony), the higher the score.";
+           "A cell on its own runs at about 100 per minute; the resting vagal tone (ACh) that the task supplies slows it to the "
+           "resting range. Real node cells are not identical (here every cell gets its own size, so its own rate), so a cluster "
+           "has to agree on one rhythm: couple the cells with excitatory synapses (the stand-in for gap junctions) so the fastest "
+           "does not run away with the beat. Uncoupled copies of a cell drift apart and fail; one cell alone passes but scores "
+           "no higher than 75. The more tightly the coupled cluster fires together (synchrony), the higher the score.";
   }
   std::vector< std::string > sensor_channels() const override { return {}; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat" }; }
@@ -67,8 +91,10 @@ public:
   std::vector< Band > bands() const override { return { { "hr_bpm", "bpm", 60, 80 } }; }
   std::vector< std::string > modulators() const override { return {}; }
 
-  void reset( uint64_t ) override
+  void reset( uint64_t seed ) override
   {
+    seed_ = seed;
+    prepared_ = false;
     heart_.reset();
     t_ = 0;
     beats_.clear();
@@ -86,6 +112,16 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( !prepared_ )
+    {
+      prepared_ = true;
+      e.set_modulator( "ACh", kTonicAch );
+      e.set_modulator( "NE", 0 );
+      for ( const auto& o : e.outputs() )
+        if ( o.name == "sa_beat" )
+          for ( size_t k = 0; k < o.neurons.size(); ++k )
+            e.set_neuron_param( o.neurons[ k ], "C_m", kCmNominal * ( 1.0 + kCmSpread * ( 2.0 * unit_hash( seed_, k ) - 1.0 ) ) );
+    }
     e.step( dt );
     double cnt = motor_.spike_count( e, "sa_beat", dt );
     pool_ = motor_.pool_size( e, "sa_beat" );
@@ -109,7 +145,7 @@ public:
       body::HeartInput in;
       in.sa_spikes = i == 0 ? n : 0;
       in.sa_rate_hz = 0;  // beats only from the SA cells
-      in.sym_cardiac = in.sym_vascular = 0.2;
+      in.sym_cardiac = in.sym_vascular = 0.2;  // heart-side tone for the pressure readouts only; the rate is the cells'
       in.vagal = 0.6;
       heart_.step( h, in );
       t_ += h;
@@ -164,7 +200,7 @@ public:
       if ( pool_ >= 2 )
         sync_term = clampd( ( a.chi - 0.3 ) / 0.6, 0, 1 );
     }
-    s.value = 100.0 * ( 0.5 * rate_term + 0.5 * cv_term ) * ( 0.85 + 0.15 * sync_term );
+    s.value = 100.0 * ( 0.5 * rate_term + 0.5 * cv_term ) * ( 0.75 + 0.25 * sync_term );
     bool done = t_ >= kDuration;
     bool rate_ok = enough && a.hr >= 60 && a.hr <= 80, cv_ok = enough && a.cv < 0.05;
     s.passed = done && rate_ok && cv_ok;
@@ -246,6 +282,8 @@ private:
   }
 
   body::Heart heart_;
+  uint64_t seed_ = 1;
+  bool prepared_ = false;
   double t_ = 0, last_beat_ = -1, hr_inst_ = 0, bin_acc_ = 0, bin_t_ = 0, spikes_ = 0, pool_ = 1;
   std::vector< double > beats_, bins_;
   MotorReader motor_;

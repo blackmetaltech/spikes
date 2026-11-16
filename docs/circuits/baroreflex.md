@@ -26,7 +26,7 @@ segment in band (`tail_*`). Parts also give `map_min_mmHg`, `map_max_mmHg`, `hr_
 
 ## Wiring (47 neurons)
 ```
-baroreceptor (Poisson) --1600 pA--> AFF (6) --280--> NTS (8) --30--> NA (4, I_e 372) --1:1 1500--> VG (4) --> vagal (ACh) --> SA ("ach" x0.5)
+baroreceptor (Poisson) --1600 pA--> AFF (6) --280--> NTS (8) --30--> NA (4, I_e 372) --1:1 1500--> VG (4) --> vagal (ACh) --> SA ("ach" x1)
                                                      |
                                                      +--200--> CVLM (6) --(-140)--> RVLM (6, I_e 380) --1:1 1500--> IML (6) --1:1 1500--> SG (6) --> sympathetic (NE) --> SA ("ne" x0.25)
 ```
@@ -34,7 +34,7 @@ baroreceptor (Poisson) --1600 pA--> AFF (6) --280--> NTS (8) --30--> NA (4, I_e 
 |---|---|---|
 | AFF (6) | `iaf_psc_alpha` | baroreceptor afferents (nodose ganglion), 1:1 relay of the Poisson input (rate out = rate in) |
 | NTS (8) | `iaf_psc_alpha` | second-order neurons: threshold-linear in the afferent rate (about 1.8 Hz per Hz above 17 Hz) |
-| NA (4), VG (4) | `iaf_psc_alpha` | nucleus ambiguus cardiac vagal preganglionic neurons and cardiac ganglion cells; ACh gain 0.006 per spike, tau 500 ms, SA `ach` gain 0.5 |
+| NA (4), VG (4) | `iaf_psc_alpha` | nucleus ambiguus cardiac vagal preganglionic neurons and cardiac ganglion cells; ACh gain 0.012 per spike, tau 500 ms, SA `ach` gain 1 |
 | CVLM (6) | `iaf_psc_alpha` | GABAergic depressor area, copies the NTS rate |
 | RVLM (6) | `iaf_psc_alpha`, `I_e` 380 pA | pacemaker-like presympathetic cells, 22 Hz when unopposed |
 | IML (6), SG (6) | `iaf_psc_alpha` | sympathetic preganglionic and ganglion cells, one-to-one relays; NE gain 0.0076 per spike, tau 1000 ms, SA `ne` gain 0.25 |
@@ -43,25 +43,23 @@ baroreceptor (Poisson) --1600 pA--> AFF (6) --280--> NTS (8) --30--> NA (4, I_e 
 ## Why it works
 * **A threshold-linear chain**: afferent rate -> NTS -> CVLM -> inhibition of RVLM. With the CVLM weight at -140 pA the RVLM rate falls from 22 Hz (no afferent input) to 4.4 Hz
   at the resting afferent rate (41 Hz) and to 0 above about 65 Hz. NE (released with tau 1 s from six cells) is 0.2 at rest and about 1 with no afferent drive; the slope
-  is about -0.04 NE per mmHg, which with the heart module's 90 mmHg per unit of sympathetic drive gives a loop gain of about 2 (the open-loop standing and haemorrhage drops of 20
+  is about -0.04 NE per mmHg, which with the heart module's sympathetic pressure gain (about 180 mmHg per unit of NE, 90 per unit of the halved drive map below) gives a loop gain of about 2 (the open-loop standing and haemorrhage drops of 20
   and 30 mmHg become 7 and 10).
 * **The relays must be secure**: the RVLM -> IML -> SG and NA -> VG stages are one-to-one with 1500 pA (a ganglionic synapse is a secure relay). With all-to-all 300 pA the
   relay worked only when the presynaptic cells happened to fire in bunches, and one seed lost all sympathetic output.
-* **Why 0.5 on the NE-to-drive map**: the heart module's pressure is very sensitive to sympathetic drive (180 mmHg per unit), and spike noise in the release pool is amplified by a closed
+* **Why 0.5 on the NE-to-drive map**: the heart module's pressure is very sensitive to sympathetic drive (180 mmHg per unit of NE; the 0.5 map makes it 90 per unit of NE change in `sym`), and spike noise in the release pool is amplified by a closed
   loop. With a gain of 1 the amplified spike noise of the NE pool (a swing of 0.2 in NE is 36 mmHg) made MAP swing between 74 and 106 mmHg on seed 1; with 0.5 the pressure stays within 82-98 mmHg.
-* **Results (seeds 1-4)**: value 98.6-100, MAP 82-98 mmHg (seed 1: 74 once, a 1.6 s sinus pause at 58 s), supine about 95, standing about 88, after the haemorrhage about 86. NE rises from 0.2
-  to 0.3-0.4 on standing and HR from 72 to 77 beats/min.
-* The vagal limb mostly sets heart rate (with ACh near 0.4 at rest; a cut raises HR by about 2.5 beats/min and still passes, because pressure regulation is mainly sympathetic: the
-  reduced SA cell's vagal range is small).
+* **Results (seeds 1-10)**: value 100 (in band 100 %), MAP 82-99 mmHg, mean HR 75.5 beats/min (rest about 70, up on standing and in the haemorrhage). The SA cell's intrinsic rate is about 100/min, so the vagal limb now matters.
+* The vagal limb holds the heart rate down: a vagal cut (NA -> VG x0) raises the mean HR from 75.5 to 109 beats/min (it was only +2.5 with the old 68/min cell) and pressure is still regulated (value 99.7), because pressure control is mainly sympathetic.
 
 ## What breaks it (tests in `engine/tests/tasks_heart_test.cpp`, seeds 1 and 2)
 | Lesion | Result | Expected biology |
 |---|---|---|
-| AFF -> NTS x0 (sino-aortic denervation) | CVLM silent, RVLM unopposed: MAP 126-180 mmHg (mean 151), HR 90, never in band | baroreceptor denervation removes the tonic depressor drive; pressure is high and unregulated (Cowley, Liard & Guyton 1973: labile pressure with chronic denervation; the acute response is hypertension) |
-| RVLM -> IML x0 (spinal cord / sympathetic cut) | NE 0, mean MAP 63 mmHg and down to 50 on standing, value 0 | sympathectomy: no vascular tone; orthostatic hypotension |
+| AFF -> NTS x0 (sino-aortic denervation) | CVLM silent, RVLM unopposed: MAP 129-185 mmHg (mean 155), HR 122, never in band | baroreceptor denervation removes the tonic depressor drive; pressure is high and unregulated (Cowley, Liard & Guyton 1973: labile pressure with chronic denervation; the acute response is hypertension) |
+| RVLM -> IML x0 (spinal cord / sympathetic cut) | NE 0, mean MAP 68 mmHg and down to 56 on standing, value 1.5 | sympathectomy: no vascular tone; orthostatic hypotension |
 | IML -> SG x0 (ganglionic block, hexamethonium-like) | same as the line above | |
-| NTS -> CVLM x0 | RVLM never inhibited: MAP 124-178 mmHg | loss of the depressor pathway (CVLM lesion raises pressure; Dampney 1994) |
-| NTS -> CVLM x0.5 (reflex gain halved) | pressure regulated too high: mean 104, max 116 mmHg, 22-25 % in band | blunted baroreflex gain, as in hypertension |
+| NTS -> CVLM x0 | RVLM never inhibited: MAP 121-171 mmHg | loss of the depressor pathway (CVLM lesion raises pressure; Dampney 1994) |
+| NTS -> CVLM x0.5 (reflex gain halved) | pressure regulated too high: mean 103, max 112 mmHg, 29 % in band | blunted baroreflex gain, as in hypertension |
 
 Credits: Kirchheim HR (1976) Physiol Rev 56:100; Dampney RAL (1994) Physiol Rev 74:323; Guyenet PG (2006) Nat Rev Neurosci 7:335; Cowley AW Jr, Liard JF, Guyton AC (1973) Circ Res 32:564;
 baroreceptor coding in the heart module: Chapleau & Abboud 1987 and Mahdi et al. 2013, as cited in `docs/body/heart.md`.

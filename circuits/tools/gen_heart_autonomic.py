@@ -3,15 +3,15 @@ from gl import *
 P=dict(
  w_in=800.0,       # sensor -> relay cells (pA)
  ie_na=376.0, ie_il=0.0,
- cc_na=-8.0, hi_na=6.0, lo_na=-6.0,
+ cc_na=-8.0, hi_na=10.0, lo_na=-6.0,
  na_vg=1500.0, 
- cc_il=14.0, lo_il=10.0, hi_il=-14.0, ie_il_=368.0,
+ cc_il=12.0, lo_il=10.0, hi_il=-25.0, ie_il_=368.0,
  il_sg=1500.0,
- g_ach=0.01, tau_ach=500.0, g_ne=0.0035, tau_ne=1500.0,
+ g_ach=0.012, tau_ach=500.0, g_ne=0.0031, tau_ne=1500.0,
  gain_ach=1.0, gain_ne=1.0)
 for a in sys.argv[2:]:
     k,v=a.split('='); P[k]=float(v)
-out=sys.argv[1]
+out=sys.argv[1] if len(sys.argv)>1 else __import__('os').path.join(__import__('os').path.dirname(__import__('os').path.abspath(__file__)),'..','heart_autonomic.json')
 N=lambda k:k
 pops=[
  pop("CC","iaf_psc_alpha",4,40,40),

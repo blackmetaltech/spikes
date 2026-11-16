@@ -9,7 +9,7 @@
    "model": "sa_node_pacemaker",
    "n": 3,
    "params": {
-    "I_e": -3.5,
+    "I_e": -4.0,
     "V_m": -65.0
    },
    "pos": [
@@ -33,7 +33,7 @@
    "model": "sa_node_pacemaker",
    "n": 4,
    "params": {
-    "I_e": 2.5,
+    "I_e": 0.0,
     "V_m": -45.0
    },
    "pos": [
@@ -64,7 +64,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 2.0,
+    "weight": 6.0,
     "delay": 1.0
    }
   },
@@ -74,7 +74,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 2.0,
+    "weight": 6.0,
     "delay": 1.0
    }
   }

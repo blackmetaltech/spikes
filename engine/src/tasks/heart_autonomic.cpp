@@ -1,15 +1,18 @@
-// Task "heart_autonomic": build the autonomic controller of the heart. An SA-node pacemaker (intrinsic ~68/min) is slowed by
+// Task "heart_autonomic": build the autonomic controller of the heart. An SA-node pacemaker (intrinsic ~100/min with no autonomic input) is slowed by
 // vagal acetylcholine and sped up by sympathetic noradrenaline; the circuit must make the heart rate follow a target schedule
 // (rest, exercise, recovery).
 //
 // WORLD (body: spike::body::Heart, docs/body/heart.md; deterministic, no randomness; times in ms)
-//   Target heart rate T(t), bpm:  62 until 20 s (rest, vagal tone), linear ramp to 100 over 20-30 s (exercise starts),
-//   100 until 55 s, linear ramp back to 62 over 55-70 s (recovery), 62 until 85 s.
-//   Workload w(t) = (T - 62) / 38, 0..1.
+//   Target heart rate T(t), bpm:  65 until 20 s (rest, vagal tone), linear ramp to 120 over 20-30 s (exercise starts),
+//   120 until 55 s, linear ramp back to 65 over 55-70 s (recovery), 65 until 85 s.
+//   Workload w(t) = (T - 65) / 55, 0..1.
+//   The two error channels and the cue are STAND-INS, not sensors: hr_too_low / hr_too_high hand the circuit the sign of its own
+//   error (a controller given its error, in place of baroreceptor and arterial-stretch afferents), exercise_cue stands for central
+//   command and muscle afferents. The brief says so.
 //   Sensors (Poisson rates in Hz, set every slice; the circuit's input weight turns them into current):
 //     "exercise_cue" : 100 Hz * w(t). Central command from the motor cortex and muscle afferents: feed-forward, no feedback.
-//     "hr_too_low"   : 100 Hz * clamp( (T - HR_s) / 30 bpm, 0, 1 )   (the target is above the heart rate)
-//     "hr_too_high"  : 100 Hz * clamp( (HR_s - T) / 30 bpm, 0, 1 )   (the heart rate is above the target)
+//     "hr_too_low"   : 100 Hz * clamp( (T - HR_s) / 40 bpm, 0, 1 )   (the target is above the heart rate)
+//     "hr_too_high"  : 100 Hz * clamp( (HR_s - T) / 40 bpm, 0, 1 )   (the heart rate is above the target)
 //     HR_s is the beat-based heart rate, low-passed with tau = 1 s (a baroreceptor / stretch-receptor stand-in). Two
 //     channels, because a firing rate cannot be negative: one signals each sign of the error.
 //   Motors:
@@ -25,17 +28,18 @@
 //   mae       : mean |HR - T| over [8 s, 85 s]
 //   rest_hr   : mean HR over [12 s, 20 s];  plateau_hr: mean over [40 s, 55 s];  rec_hr: mean over [75 s, 85 s]
 //   value = 100 * clamp( 1 - mae / 15 bpm, 0, 1 )
-//   pass  : mae <= 6, |rest_hr - 62| <= 4, |plateau_hr - 100| <= 8, |rec_hr - 62| <= 4 (checked at the end of the episode)
+//   pass  : mae <= 6, |rest_hr - 65| <= 4, |plateau_hr - 120| <= 8, |rec_hr - 65| <= 4 (checked at the end of the episode)
 //   verdict: names the phase that failed (resting tachycardia, exercise HR too low or too high, slow recovery).
 //   Extra parts: peak_hr, rest_rmssd_ms (beat-to-beat variability at rest, a vagal-tone index), ach_rest, ne_peak, map_peak.
 //
-// Biology: vagal tone dominates the resting heart rate; at the start of exercise the heart rate rises first by vagal
+// Biology: vagal tone dominates the resting heart rate (the cell's intrinsic ~100/min is slowed to 65 by ACh 0.5-0.6); at the start of exercise the heart rate rises first by vagal
 // withdrawal (within a beat or two) and then by sympathetic activation (seconds), and recovery is the reverse: fast vagal
 // reactivation, slower sympathetic washout (Robinson et al. 1966 Circ Res 19:400 (autonomic blockade in exercise); Rowell &
 // O'Leary 1990 J Appl Physiol 69:407; Imai et al. 1994 J Am Coll Cardiol 24:1529; Levy 1971 Circ Res 29:437 for the nonlinear
 // vagal-sympathetic interaction; Task Force 1996 Circulation 93:1043 for HRV).
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/analysis.h"
 #include "spike/body/heart.h"
@@ -48,7 +52,7 @@ namespace
 {
 
 constexpr double kDuration = 85000;
-constexpr double kRest = 62, kPeak = 100;
+constexpr double kRest = 65, kPeak = 120;
 constexpr double kT1 = 20000, kT2 = 30000, kT3 = 55000, kT4 = 70000;  // ramp up start/end, ramp down start/end
 
 double target_bpm( double t )
@@ -68,15 +72,23 @@ public:
   std::string title() const override { return "Autonomic heart rate"; }
   std::string brief() const override
   {
-    return "The SA node has its own rate (about 68 per minute here); the autonomic nervous system moves it. Vagal "
-           "(parasympathetic) neurons release acetylcholine and slow the node, sympathetic neurons release noradrenaline "
-           "and speed it up. Each branch is a two-neuron chain: a preganglionic cell in the brainstem or spinal cord drives "
-           "a postganglionic ganglion cell that releases the transmitter (the 'vagal' and 'sympathetic' modulator outputs). "
-           "Build both branches and the SA node, and make the heart follow the target: about 62 at rest (vagal tone), up to "
-           "100 in exercise, and back to 62 in recovery. You are given the exercise cue (central command, feed-forward) and "
-           "two error signals, hr_too_low and hr_too_high (feedback). Cutting the vagus or the sympathetic chain should show "
-           "up as resting tachycardia or a heart that cannot speed up. Too much ACh stops the node altogether, so keep the "
-           "vagal drive moderate. Score: mean tracking error, and the average rate in each phase.";
+    return "The SA node has its own rate, about 100 per minute with no autonomic input (as after drug blockade); the autonomic "
+           "nervous system moves it. Vagal (parasympathetic) neurons release acetylcholine and slow the node, sympathetic neurons "
+           "release noradrenaline and speed it up. At rest it is the vagal tone that holds the heart near 65. Each branch is a "
+           "two-neuron chain: a preganglionic cell in the brainstem or spinal cord drives a postganglionic ganglion cell that "
+           "releases the transmitter (the 'vagal' and 'sympathetic' modulator outputs). Build both branches and the SA node, and "
+           "make the heart follow the target: about 65 at rest (vagal tone), up to 120 in exercise, and back to 65 in recovery. "
+           "The three inputs are stand-ins, not real sensors: exercise_cue is central command from the motor cortex and muscle "
+           "afferents (feed-forward), and hr_too_low and hr_too_high hand you the sign of the heart-rate error directly, in place "
+           "of the baroreceptors and arterial stretch afferents that would report it in the body. Cutting the vagus should show up "
+           "as resting tachycardia (about 100), or cutting the sympathetic chain as a heart that cannot speed up. Too much ACh "
+           "slows the node a lot, so keep the vagal drive moderate. Score: mean tracking error, and the average rate in each phase.";
+  }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    // ChannelKind: kind, value (typical input level), modulator, gain per spike, tau_ms
+    return { { "exercise_cue", { "poisson", 0 } }, { "hr_too_low", { "poisson", 0 } }, { "hr_too_high", { "poisson", 0 } },
+      { "sa_beat", { "rate" } }, { "vagal", { "modulator", 0, "ACh", 0.012, 500 } }, { "sympathetic", { "modulator", 0, "NE", 0.0031, 1500 } } };
   }
   std::vector< std::string > sensor_channels() const override { return { "exercise_cue", "hr_too_low", "hr_too_high" }; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat", "vagal", "sympathetic" }; }
@@ -100,7 +112,7 @@ public:
     last_beat_ = -1;
     hr_inst_ = 0;
     hr_s_.tau_ms = 1000;
-    hr_s_.reset( 70 );
+    hr_s_.reset( 80 );
     ne_ = ach_ = 0;
     spikes_ = 0;
     n_ = mae_sum_ = 0;
@@ -122,8 +134,8 @@ public:
     double w = ( T - kRest ) / ( kPeak - kRest );
     e.set_input( "exercise_cue", 100.0 * w );
     double err = T - hr_s_.y;
-    e.set_input( "hr_too_low", 100.0 * clampd( err / 30.0, 0, 1 ) );
-    e.set_input( "hr_too_high", 100.0 * clampd( -err / 30.0, 0, 1 ) );
+    e.set_input( "hr_too_low", 100.0 * clampd( err / 40.0, 0, 1 ) );
+    e.set_input( "hr_too_high", 100.0 * clampd( -err / 40.0, 0, 1 ) );
     e.step( dt );
     ne_ = e.modulator( "NE" );
     ach_ = e.modulator( "ACh" );
