@@ -45,6 +45,14 @@ var score := {}
 var finished := false
 var hold := false                # freeze the instant without showing "paused" (screenshots)
 var episode := 0
+## v0.2: readout history for the perturbation timeline and the dashboard (sampled every HIST_STEP_MS of model time) and the modulator dials.
+const HIST_STEP_MS := 50.0
+var hist_on := false
+var hist_t := PackedFloat32Array()          # ms
+var hist := {}                               # readout name -> PackedFloat32Array aligned with hist_t
+var lesioned := false                        # the lab runs a lesioned copy of the circuit: do not complain about its wiring
+var mods := {}                               # "NE" / "ACh" / "DA" -> concentration set by the player (sandbox dials)
+var _next_hist := 0.0
 var _owed := 0.0
 var _wall := 0.0
 
@@ -57,8 +65,9 @@ func setup(c: Dictionary, task_id: String, ext_ok: bool) -> bool:
 	circuit = c; error = ""; finished = false; failed = false; sim = null; task = null; body = {}; score = {}
 	if not ext_ok: error = "The spike-gd GDExtension is not loaded. Run scripts/build-gd.sh."; return false
 	if task_id != "":
-		task = ClassDB.instantiate("SpikeTask")
-		if not task.make(task_id): task = null; error = "unknown task " + task_id; return false
+		task = Campaign.make(task_id)
+		if task == null: error = "unknown task " + task_id; return false
+		hist_on = _wants_hist(task_id)
 		task.reset(int(c.get("seed", 1))); body = task.body(); score = task.score()
 	n = Circuits.neuron_count(c); kinds = Circuits.kind_per_neuron(c)
 	rates = {}
@@ -123,7 +132,7 @@ static func _list(a) -> String:
 
 ## Put the wiring problem (if any) into the score's verdict, unless the engine itself failed (then that message is shown by the lab).
 func _apply_issue() -> void:
-	if task == null: return
+	if task == null or lesioned: return
 	var iss := wiring_issue()
 	if iss != "": score["verdict"] = iss; score["passed"] = false
 
@@ -149,6 +158,59 @@ func reset(seed := -1) -> void:
 		for i in ch["neurons"]: m[int(i)] = 1
 		out_mask[str(ch["name"])] = m; rates[str(ch["name"])] = 0.0
 	if task != null: task.reset(int(circuit.get("seed", 1)) if seed < 0 else seed); body = task.body(); score = task.score(); _apply_issue()
+	hist_t = PackedFloat32Array(); hist = {}; _next_hist = 0.0
+	for k in mods: _push_mod(k)
+
+## Only tasks with a judged trace or a body view beyond the generic polyline keep a history.
+static func _wants_hist(task_id: String) -> bool:
+	var d := Campaign.info(task_id)
+	return not (d["bands"] as Array).is_empty() or str(d["view"]) != "polyline"
+
+## Record the task's readouts at the current model time (called from the stepping loop every HIST_STEP_MS).
+func _sample_hist() -> void:
+	var ro: Dictionary = (task.body() as Dictionary).get("readouts", {})
+	var n0 := hist_t.size(); hist_t.append(t_ms)
+	for k in ro:
+		var key := str(k)
+		var a: PackedFloat32Array
+		if hist.has(key): a = hist[key]
+		else:
+			a = PackedFloat32Array(); a.resize(n0); a.fill(float(ro[k]))   # a late key is back-filled with its first value
+		a.append(float(ro[k])); hist[key] = a   # packed arrays are values: store the appended copy back
+	for k in hist.keys():
+		if not ro.has(k):
+			var a2: PackedFloat32Array = hist[k]; a2.append(a2[n0 - 1] if n0 > 0 and a2.size() >= n0 else 0.0); hist[k] = a2
+	_next_hist = t_ms + HIST_STEP_MS
+
+## Neuromodulator concentration dial (sandbox): remembered, and pushed to the engine when it has set_modulator (it does once the modulator engine work lands).
+static func modulators_available() -> bool:
+	return ClassDB.class_exists("SpikeSim") and (ClassDB.class_has_method("SpikeSim", "set_modulator") or (ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "set_modulator")))
+func set_modulator(name: String, conc: float) -> void:
+	mods[name] = conc; _push_mod(name)
+func _push_mod(name: String) -> void:
+	if sim == null: return
+	if sim.has_method("set_modulator"): sim.call("set_modulator", name, float(mods[name]))
+	elif ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "set_modulator"): ClassDB.instantiate("SpikeTask").call("set_modulator", sim, name, float(mods[name]))
+## What the circuit currently sees: the engine's value when it reports one, else the dial, else the task's readout of that name.
+func modulator_level(name: String) -> float:
+	var ro: Dictionary = body.get("readouts", {})
+	if ro.has(name): return float(ro[name])   # a task that reports its own NE / ACh / DA level
+	if sim != null and sim.has_method("modulator"): return float(sim.call("modulator", name))
+	if sim != null and ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "modulator"): return float(ClassDB.instantiate("SpikeTask").call("modulator", sim, name))
+	if mods.has(name): return float(mods[name])
+	return float((body.get("readouts", {}) as Dictionary).get(name, 0.0))
+
+## Network spike rate (all neurons, spikes per second of model time) and the ATP it costs: roughly 1e8 to 1e9 ATP per spike
+## (Attwell and Laughlin 2001; Lennie 2003 for human cortex), so this is an order-of-magnitude figure, shown as a range.
+func spike_rate_hz() -> float: return float(total_spikes) / maxf(t_ms * 0.001, 0.05)
+static func atp_range(spikes_per_s: float) -> Vector2: return Vector2(spikes_per_s * 1.0e8, spikes_per_s * 1.0e9)
+static func atp_text(spikes_per_s: float) -> String:
+	if spikes_per_s <= 0.0: return "0 ATP/s"
+	var r := atp_range(spikes_per_s)
+	return "%s to %s ATP/s" % [_sci(r.x), _sci(r.y)]
+static func _sci(v: float) -> String:
+	var e := int(floor(log(maxf(v, 1.0)) / log(10.0))); var m := v / pow(10.0, e)
+	return "%.1fe%d" % [m, e]
 
 func set_watched(list: Array) -> void:
 	watched = list.slice(0, 4)
@@ -176,6 +238,7 @@ func advance(dt: float) -> void:
 			else: sim.step(SLICE_MS)
 			if _step_failed(): break
 			t_ms += SLICE_MS; _owed -= SLICE_MS; stepped += SLICE_MS
+			if hist_on and task != null and t_ms >= _next_hist: _sample_hist()
 			for w in watched: _push_volt(w)
 			if task != null and t_ms >= duration(): finished = true; break
 			k += 1

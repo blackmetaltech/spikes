@@ -16,7 +16,25 @@ const PRESETS := {
 
 ## Synaptic weight of a typical single connection per target model, in the model's own synapse units (pA for current-based, nS for conductance-based).
 const WEIGHT := {"iaf_psc_alpha": 250.0, "aeif_cond_alpha": 20.0, "izhikevich": 25.0, "hh_psc_alpha": 400.0}
+static var sandbox := false   # set by the lab: every part is available (free run)
 const SYNAPSES := ["static_synapse"]   # plasticity (STDP, Tsodyks) is the 0.2 theme; circuits that already use it still load
+
+## Presets of any model: the editor's table, else the catalogue cards of that model (each card carries its preset parameters), else one default.
+static func presets_of(model: String) -> Array:
+	if PRESETS.has(model): return PRESETS[model]
+	var out := []
+	for c in Catalog.cards_of(model): out.append([str(c["title"]), (c["preset"] as Dictionary).duplicate(), str(c["summary"])])
+	return out if not out.is_empty() else [["Default", {}, ""]]
+
+## Weight of a typical synapse onto `model`: the editor's table, else the catalogue's default input weight, else nS for conductance models and pA for current ones.
+static func weight_of(model: String) -> float:
+	if WEIGHT.has(model): return float(WEIGHT[model])
+	var w := Catalog.input_weight_of(model)
+	return w if w > 0.0 else (20.0 if model.contains("cond") else 100.0)
+
+## Advanced parameter rows of `model`: the editor's table, else derived from the catalogue card's parameters and ranges.
+static func advanced_of(model: String) -> Array:
+	return ADVANCED[model] if ADVANCED.has(model) else Catalog.advanced_of(model)
 
 ## "Advanced" neuron parameters per model, in NEST's names and units: [key, label, min, max, step, NEST default, unit]. `V_m` is the initial membrane
 ## potential: different starting values are what lets two identical cells break symmetry (a half-centre oscillator needs that).
@@ -30,7 +48,7 @@ const ADVANCED := {
 ## 400 Hz sensor fires at once instead of sitting silent. Dc inputs keep their own scale (pA of drive).
 static func input_weight(model: String, kind: String) -> float:
 	if kind == "dc": return 300.0
-	return snappedf(float(WEIGHT.get(model, 100.0)) * 1.2, 0.5)
+	return snappedf(weight_of(model) * 1.2, 0.5)
 
 static func empty(name := "New circuit") -> Dictionary:
 	return {"schema_version": 1, "name": name, "resolution_ms": 0.1, "seed": 1, "populations": [], "projections": [], "inputs": [], "outputs": [], "record": {"spikes": "all"}, "meta": {"author": "", "notes": ""}}
@@ -169,8 +187,8 @@ static func kind_per_neuron(c: Dictionary) -> Array:
 # ---------- editing ----------
 static func model_options(current: String) -> Array:
 	var out := []
-	for m in MODELS: out.append([m, m])
-	if current != "" and not MODELS.has(current): out.append([current, current])
+	for m in Catalog.usable_models(sandbox): out.append([m, m])
+	if current != "" and out.filter(func(o): return o[0] == current).is_empty(): out.append([current, current])
 	return out
 
 static func unique_id(c: Dictionary, base: String) -> String:
@@ -189,9 +207,18 @@ static func _channel_exists(c: Dictionary, id: String) -> bool:
 
 static func add_neuron(c: Dictionary, model: String, preset: int, at: Vector2, kind := "E") -> String:
 	var id := unique_id(c, "N")
-	var presets: Array = PRESETS[model]
+	var presets: Array = presets_of(model)
 	var pr: Array = presets[clampi(preset, 0, presets.size() - 1)]
 	var pop := {"id": id, "model": model, "n": 1, "params": (pr[1] as Dictionary).duplicate(), "pos": [[at.x, at.y]], "role": "neuron"}
+	c["populations"].append(pop)
+	var meta: Dictionary = c.get("meta", {}); var ed: Dictionary = meta.get("editor", {}); var ei: Dictionary = ed.get("ei", {})
+	ei[id] = kind; ed["ei"] = ei; meta["editor"] = ed; c["meta"] = meta
+	return id
+
+## A neuron from a parts-bin card: its model and preset parameters.
+static func add_card(c: Dictionary, card: Dictionary, at: Vector2, kind := "E") -> String:
+	var id := unique_id(c, "N")
+	var pop := {"id": id, "model": str(card["model"]), "n": 1, "params": (card.get("preset", {}) as Dictionary).duplicate(), "pos": [[at.x, at.y]], "role": "neuron"}
 	c["populations"].append(pop)
 	var meta: Dictionary = c.get("meta", {}); var ed: Dictionary = meta.get("editor", {}); var ei: Dictionary = ed.get("ei", {})
 	ei[id] = kind; ed["ei"] = ei; meta["editor"] = ed; c["meta"] = meta
@@ -206,7 +233,7 @@ static func add_noise(c: Dictionary) -> String:
 static func default_weight(c: Dictionary, pre: String, post: String) -> float:
 	var pi := pop_index(c, post); var model := "iaf_psc_alpha"
 	if pi >= 0: model = str(c["populations"][pi].get("model", model))
-	var w: float = WEIGHT.get(model, 20.0 if model.contains("cond") else 100.0)
+	var w: float = weight_of(model)
 	return -w if str(kinds(c).get(pre, "E")) == "I" else w
 
 static func add_projection(c: Dictionary, pre: String, post: String) -> int:
@@ -242,11 +269,11 @@ static func remove_population(c: Dictionary, id: String) -> void:
 
 static func set_model(c: Dictionary, id: String, model: String, preset: int) -> void:
 	var pi := pop_index(c, id); if pi < 0: return
-	var p: Dictionary = c["populations"][pi]; var presets: Array = PRESETS[model]
+	var p: Dictionary = c["populations"][pi]; var presets: Array = presets_of(model)
 	p["model"] = model; p["params"] = (presets[clampi(preset, 0, presets.size() - 1)][1] as Dictionary).duplicate()
 
 static func preset_of(p: Dictionary) -> int:
-	var presets: Array = PRESETS.get(str(p.get("model", "")), [])
+	var presets: Array = presets_of(str(p.get("model", "")))
 	for i in presets.size():
 		if (presets[i][1] as Dictionary) == p.get("params", {}): return i
 	return -1

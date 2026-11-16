@@ -4,7 +4,7 @@ extends Control
 var tele: Telemetry = null
 var _was_passed := false
 var _pulse := -1.0                 # seconds since the score first passed (glow pulse on the ring)
-func _ready() -> void: custom_minimum_size = Vector2(300, 104); clip_contents = true
+func _ready() -> void: custom_minimum_size = Vector2(300, 104 if Layout.phone else 134); clip_contents = true
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 func attach(t: Telemetry) -> void: tele = t
 func _process(dt: float) -> void:
@@ -51,11 +51,20 @@ func _draw() -> void:
 	var parts: Dictionary = (sc.get("parts", {}) as Dictionary).duplicate() if has_task else {}
 	if has_task and tele.task != null and Progress.budget(str(tele.task.id())) > 0:
 		parts["neurons"] = "%d of %d" % [Circuits.neuron_count(tele.circuit), Progress.budget(str(tele.task.id()))]
-	var px := x; var py := size.y - 12.0
+	if has_task and tele.task != null and tele.sim != null and tele.t_ms > 200.0:   # the energy read-out: spikes per second and the ATP they cost (an order of magnitude)
+		var hz := tele.spike_rate_hz(); var ar := Telemetry.atp_range(hz)
+		parts["energy"] = "%s spikes/s" % (str(int(roundf(hz))) if hz >= 10.0 else "%.1f" % hz)
+		parts["ATP"] = "%s to %s /s" % [Telemetry._sci(ar.x), Telemetry._sci(ar.y)]
+	var rows_max := 2 if size.y >= 124.0 else 1
+	var px := x; var py := size.y - 12.0; var row := 0
 	for k in parts:
 		var s := "%s %s" % [str(k).replace("_", " "), str(parts[k]) if parts[k] is String else _fmt(float(parts[k]))]
 		var tw := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
-		if px + tw > size.x - 8.0: break
+		if px + tw > size.x - 8.0:
+			row += 1
+			if row >= rows_max: break
+			px = x; py -= float(fz) + 12.0
+			if px + tw > size.x - 8.0: break
 		draw_style_box(Kit.sb(Kit.PANEL_HI, Kit.LINE, 1, 6, 0, false), Rect2(px, py - float(fz) - 4.0, tw, float(fz) + 8.0))
 		draw_string(f, Vector2(px + 8, py), s, HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.TEXT); px += tw + 6.0
 

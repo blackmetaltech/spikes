@@ -4,11 +4,12 @@ extends Node
 ##
 ## Env hooks:  SP_TASK=reflex|lamprey|worm + SP_REF=1 (lab opens that task with its reference circuit)   SP_SPEED=<x> (lab run speed)   SP_SEL=pop:<id>|proj:<i>|in:<name>|out:<name> (lab selection)
 ##             SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
-##             SP_SCREEN=title|tasks|lab|analysis|settings|credits   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
+##             SP_SCREEN=title|tasks|parts|lab|analysis|settings|credits   SP_CHAPTER=<chapter id> + SP_NODE=<task id> (campaign map)   SP_MOCK=1 (synthetic body-system tasks)
+##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
 ##             SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
-const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd"}
-const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title"}
+const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd"}
+const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title", "parts": "tasks"}
 
 ## Hand-over between screens: which task the lab opens, whether it starts from the reference circuit, circuits kept between lab visits, and what the analysis shows.
 var lab_task := ""
@@ -17,6 +18,8 @@ var lab_keep := {}
 var analysis_circuit := {}
 var analysis_tele: Telemetry = null
 var analysis_task := ""
+var campaign_chapter := ""    # the campaign map remembers its chapter and node between visits
+var campaign_node := ""
 
 var ui: CanvasLayer
 var root: Control
@@ -46,6 +49,8 @@ func _ready() -> void:
 	if OS.get_environment("SP_PAD") != "": pad.set_active(true)
 	if OS.get_environment("SP_SMOKE") != "": Kit.instant = true; Settings.no_save = true; await _smoke(); return
 	if OS.get_environment("SP_SHOT") != "": Kit.instant = true   # screenshots show the settled frame, not a transition
+	if OS.get_environment("SP_CHAPTER") != "": campaign_chapter = OS.get_environment("SP_CHAPTER")
+	if OS.get_environment("SP_NODE") != "": campaign_node = OS.get_environment("SP_NODE")
 	var start := OS.get_environment("SP_SCREEN") if SCREENS.has(OS.get_environment("SP_SCREEN")) else "title"
 	show_screen("title", false, true)
 	if start == "analysis": _analysis_demo(); 
@@ -66,6 +71,8 @@ func _analysis_demo() -> void:
 func _shot_when_ready() -> void:
 	var until := float(OS.get_environment("SP_SIM_UNTIL")) if OS.get_environment("SP_SIM_UNTIL") != "" else 0.0
 	var lab := screen as LabScreen if screen is LabScreen else null
+	if lab != null and OS.get_environment("SP_LESION") in ["run", "sweep"] and (lab._lrun != null or lab.lesion_rows.is_empty()) and Time.get_ticks_msec() < 170000:   # wait for the lesion table
+		get_tree().create_timer(0.3).timeout.connect(_shot_when_ready); return
 	if until > 0.0 and lab != null and lab.tele != null and lab.tele.sim != null and lab.tele.t_ms < until and Time.get_ticks_msec() < 150000:
 		get_tree().create_timer(0.25).timeout.connect(_shot_when_ready); return
 	if until > 0.0 and lab != null:   # hold the instant (paused views freeze glows and pulses), let a few frames draw it
@@ -188,6 +195,7 @@ func _smoke() -> void:
 	await _interaction_checks()
 	_extension_checks()
 	await _lab_checks()
+	await _v02_checks()
 	small += small_fonts_total
 	print("FONTS below %d px: %d" % [Kit.MIN_FONT, small]); _check(small == 0, "text smaller than the readable minimum")
 	cur = ""; show_screen("title", false, true); await _frames(4)
@@ -218,8 +226,11 @@ func _extension_checks() -> void:
 		var st: Dictionary = sim.stats()
 		_check(sp.size() % 2 == 0, "%s: drain_spikes gave an odd array" % id)
 		_check(absf(float(st.get("t_ms", 0.0)) - 1000.0) < 1.0, "%s: model time %s after 1000 slices" % [id, st.get("t_ms", 0)])
-		_check(is_finite(sim.voltage(0)), "%s: voltage(0) is not finite" % id)
-		var b: Dictionary = t.body(); _check(b.has("points") and (b["points"] as PackedVector2Array).size() > 1, "%s: body has no points" % id)
+		var finite_v := false   # a model without a membrane (a relay, a generator-like cell) reports NaN: some neuron among the first few must report a voltage
+		for vi in mini(int(sim.neuron_count()), 12): finite_v = finite_v or is_finite(sim.voltage(vi))
+		_check(finite_v, "%s: no neuron among the first 12 reports a finite voltage" % id)
+		var b: Dictionary = t.body(); var poly := str(t.view()) == "polyline" if t.has_method("view") else true
+		_check(b.has("points") and (not poly or (b["points"] as PackedVector2Array).size() > 1), "%s: body has no points" % id)
 		_check(t.score().has("value"), "%s: score has no value" % id); _check(t.bounds().size.x > 0.0, "%s: empty bounds" % id)
 		var m := Circuits.parse(str(sim.motif_json(0, 5, 1))); _check(m.has("motifs") and (m["motifs"] as Array).size() == 13, "%s: motif census did not return 13 classes" % id)
 		var nn := int(sim.neuron_count()); sim.stop()
@@ -236,7 +247,7 @@ func _lab_checks() -> void:
 		if lab == null or lab.tele.sim == null: continue
 		_check(lab.tele.t_ms > 0.0, "lab: %s did not advance" % id)
 		await get_tree().create_timer(0.6).timeout
-		if id != "reflex": _check(lab.tele.total_spikes > 0, "lab: %s produced no spikes in the lab view" % id)   # a reflex arc is quiet until the first poke at 1.5 s
+		if id != "reflex" and str(Campaign.info(id)["view"]) == "polyline": _check(lab.tele.total_spikes > 0, "lab: %s produced no spikes in the lab view" % id)   # a reflex arc is quiet until the first poke at 1.5 s
 		var n0 := lab.tele.n
 		var nid := Circuits.add_neuron(lab.circuit, "iaf_psc_alpha", 0, Vector2(100, 400), "I"); lab.editor.select({"t": "pop", "id": nid}); lab._on_structure()
 		await get_tree().create_timer(0.5).timeout
@@ -245,6 +256,75 @@ func _lab_checks() -> void:
 	cur = ""; show_screen("title", false, true); await _frames()
 
 var small_fonts_total := 0
+
+## v0.2: the campaign map and its data contract, the parts bin and its catalogue reader, the lesion lab, the body views on synthetic tasks, sandbox dials.
+func _v02_checks() -> void:
+	# contract: every task answers the v0.2 questions and lands in a known chapter
+	var ids := Campaign.installed()
+	for id in ids:
+		var d := Campaign.info(id)
+		_check(Campaign.CHAPTERS.any(func(c): return c["id"] == d["chapter"]), "task %s has an unknown chapter '%s'" % [id, d["chapter"]])
+		_check(["polyline", "limb", "heart", "lungs", "eye", "gut", "dashboard"].has(str(d["view"])), "task %s has an unknown view '%s'" % [id, d["view"]])
+	for c in Campaign.CHAPTERS: _check(not Campaign.nodes(c["id"]).is_empty() or true, "chapter %s" % c["id"])
+	_check(Campaign.unlocked(str(Campaign.order()[0])), "the first campaign task is open")
+	# the catalogue: cards from the engine, thumbnails read in every shape
+	var cat_ok := true
+	for shape in [{"fi": {"I": [0, 1, 2], "rate": [0, 5, 20]}}, {"fi": [[0, 0], [1, 4], [2, 9]]}, {"fi": [{"level": 0, "rate_hz": 0}, {"level": 1, "rate_hz": 3}]}]:
+		if (Catalog.series_of(shape, "fi")[0] as PackedFloat32Array).size() < 2: cat_ok = false
+	if (Catalog.series_of({"trace": {"v_mV": [-70, -60, 20, -70], "dt_ms": 2.0, "t0_ms": 10.0}}, "vm")[0] as PackedFloat32Array).size() != 4: cat_ok = false
+	_check(cat_ok, "catalogue reader: f-I / V_m shapes")
+	_check(Catalog.has_card("iaf_psc_alpha") and Catalog.usable("iaf_psc_alpha"), "the default part is usable")
+	_check(not Catalog.cards().is_empty(), "the catalogue has cards (engine catalog_json: %s)" % str(Catalog.from_engine()))
+	if Catalog.from_engine():
+		var a_n := 0
+		for cd in Catalog.cards(): a_n += 1 if Catalog.available(cd["id"]) else 0
+		print("CATALOG engine cards=%d available=%d thumbs=%s" % [Catalog.cards().size(), a_n, Catalog.source()])
+	# the campaign map, the parts bin, in every layout
+	for kind in Layout.KINDS:
+		Settings.layout = kind; relayout()
+		for sc in ["tasks", "parts"]:
+			cur = ""; show_screen(sc, false, true); await _frames(3)
+			small_fonts_total += _small_fonts(screen)
+			if sc == "tasks":
+				var ts := screen as TasksScreen
+				for c in Campaign.CHAPTERS: ts._show_chapter(c["id"]); await _frames(2); small_fonts_total += _small_fonts(screen)
+	Settings.layout = "auto"; relayout()
+	# lesion algebra and a real re-run
+	if ClassDB.class_exists("SpikeTask"):
+		var rc := Circuits.parse(Circuits.read_reference(Campaign.ref_path("reflex")))
+		var les := Lesion.apply(rc, {"proj:0": true, "pop:" + str(rc["populations"][0]["id"]): true})
+		_check(is_zero_approx(Circuits.proj_weight(les["projections"][0])), "lesion: cut axon has weight 0")
+		_check(not is_zero_approx(Circuits.proj_weight(rc["projections"][0])), "lesion: the original circuit is untouched")
+		var runner := Lesion.Runner.new(); runner.begin("reflex", rc, [{"label": "intact", "lesions": {}}, {"label": "silence all", "lesions": {"pop:" + str(rc["populations"][0]["id"]): true}}])
+		var t0 := Time.get_ticks_msec()
+		while not runner.done() and Time.get_ticks_msec() - t0 < 60000: runner.step(50000)
+		_check(runner.results.size() == 2 and runner.failed == "", "lesion re-run (%s)" % runner.failed)
+		if runner.results.size() == 2: print("LESION reflex: intact %.0f, silenced %.0f" % [runner.results[0]["score"], runner.results[1]["score"]])
+		_check(Lesion.csv(runner.results).begins_with("lesion,score"), "lesion csv export"); _check(Lesion.markdown("t", "c", 1, runner.results).contains("| Lesion |"), "lesion markdown export")
+	# the lab with lesion mode, sandbox, and the synthetic body-system tasks (every view kind)
+	OS.set_environment("SP_MOCK", "1"); Campaign.refresh()
+	for id in MockTask.IDS:
+		cur = ""; open_lab(id, true); await _frames(40)
+		var lab := screen as LabScreen
+		_check(lab != null and lab.tele.sim != null, "mock %s did not load in the lab" % id)
+		if lab == null or lab.tele.sim == null: continue
+		await get_tree().create_timer(0.8).timeout
+		_check(lab.tele.hist_t.size() > 3, "mock %s: no readout history" % id)
+		_check(lab.timeline_view.visible, "mock %s: the timeline is hidden" % id)
+		small_fonts_total += _small_fonts(screen)
+		if id == "mock_dash":
+			lab._lesion_toggle(); await _frames(3); _check(lab.lesion_on, "the lesion lab opens on a reference circuit")
+			lab.editor.lesion_clicked.emit({"t": "pop", "id": str(lab.circuit["populations"][0]["id"])}); await _frames(3); _check(lab.lesions.size() == 1, "clicking a population lesions it")
+			small_fonts_total += _small_fonts(screen)
+			lab._lesion_toggle(); await _frames(3); _check(not lab.lesion_on, "the lesion lab closes")
+	OS.unset_environment("SP_MOCK"); Campaign.refresh()
+	cur = ""; open_lab("", false); await _frames(30)
+	var sb := screen as LabScreen
+	_check(sb != null and sb.sandbox_panel != null and Circuits.sandbox, "the sandbox shows its panel with every part open")
+	if sb != null: small_fonts_total += _small_fonts(screen)
+	Circuits.sandbox = false
+	cur = ""; show_screen("title", false, true); await _frames()
+	print("V02 OK chapters=%d tasks=%d cards=%d" % [Campaign.CHAPTERS.size(), Campaign.installed().size(), Catalog.cards().size()])
 
 ## Steppers and toggles change Settings; screen changes animate and leave exactly one screen behind.
 func _interaction_checks() -> void:

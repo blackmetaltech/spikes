@@ -29,7 +29,7 @@ shot() {   # shot <name> <WxH> <env assignments...>
   if [ "$SS" != 1 ] && [ -n "$im" ]; then "$im" "$png" -filter Lanczos -resize "${w}x${h}!" "$out/$name-$size.png"; else cp "$png" "$out/$name-$size.png"; fi
   echo "wrote docs/screenshots/$name-$size.png"
 }
-ONLY=${ONLY:-"title tasks lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings credits"}
+ONLY=${ONLY:-"title tasks tasks-spinal tasks-heart tasks-autonomic parts lab-lesion lab-sandbox real-heart real-breathing real-stretch view-heart view-dash view-lungs view-eye view-gut view-limb lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings credits"}
 PHONE_ONLY=" lab-world lab-scopes lab-menu "
 for size in 1920x1080 844x390; do
   for s in $ONLY; do
@@ -37,7 +37,22 @@ for size in 1920x1080 844x390; do
     case $s in
       title) shot title $size SP_SCREEN=title ;;
       settings) shot settings $size SP_SCREEN=settings SP_TAB=Display ;;
-      tasks) shot tasks $size SP_SCREEN=tasks ;;
+      tasks) shot tasks $size SP_SCREEN=tasks SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
+      tasks-spinal) shot tasks-spinal $size SP_SCREEN=tasks SP_CHAPTER=spinal SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
+      tasks-heart) shot tasks-heart $size SP_SCREEN=tasks SP_CHAPTER=heart SP_UNLOCK_ALL=1 SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
+      tasks-autonomic) shot tasks-autonomic $size SP_SCREEN=tasks SP_CHAPTER=autonomic SP_UNLOCK_ALL=1 ;;
+      parts) shot parts $size SP_SCREEN=parts SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;   # SP_CATALOG=<thumbs.json> shows another catalogue
+      lab-lesion) shot lab-lesion $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_LESION=sweep SP_LESIONS=pop:E_L SP_SHOT_AT=3 ;;
+      lab-sandbox) shot lab-sandbox $size SP_SCREEN=lab SP_TASK= SP_CIRCUIT=$root/circuits/lamprey_cpg.json SP_SPEED=1 SP_SIM_UNTIL=4000 SP_MODDIALS=1 SP_SHOT_AT=3 ;;
+      real-heart) shot real-heart $size SP_SCREEN=lab SP_TASK=heart_pacemaker SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=8000 SP_LABTAB=world SP_SHOT_AT=3 ;;   # tasks the engine has supplied (campaign chapters spinal / heart / breathing)
+      real-breathing) shot real-breathing $size SP_SCREEN=lab SP_TASK=breathing SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=12000 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      real-stretch) shot real-stretch $size SP_SCREEN=lab SP_TASK=stretch_reflex SP_REF=1 SP_SPEED=2 SP_SIM_UNTIL=5500 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      view-heart) shot view-heart $size SP_MOCK=1 SP_SCREEN=lab SP_TASK=mock_heart SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=18000 SP_LABTAB=world SP_SHOT_AT=3 ;;   # synthetic body-system tasks (game/mock_task.gd)
+      view-dash) shot view-dash $size SP_MOCK=1 SP_SCREEN=lab SP_TASK=mock_dash SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=24000 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      view-lungs) shot view-lungs $size SP_MOCK=1 SP_SCREEN=lab SP_TASK=mock_lungs SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=26000 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      view-eye) shot view-eye $size SP_MOCK=1 SP_SCREEN=lab SP_TASK=mock_eye SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=6500 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      view-gut) shot view-gut $size SP_MOCK=1 SP_SCREEN=lab SP_TASK=mock_gut SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=20000 SP_LABTAB=world SP_SHOT_AT=3 ;;
+      view-limb) shot view-limb $size SP_MOCK=1 SP_SCREEN=lab SP_TASK=mock_limb SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=6500 SP_LABTAB=world SP_SHOT_AT=3 ;;
       lab-lamprey) shot lab-lamprey $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=6000 SP_SHOT_AT=3 ;;
       lab-worm) shot lab-worm $size SP_SCREEN=lab SP_TASK=worm SP_REF=1 SP_SPEED=20 SP_SIM_UNTIL=40000 SP_SHOT_AT=3 ;;
       lab-reflex) shot lab-reflex $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=5200 SP_SHOT_AT=3 ;;
