@@ -12,11 +12,11 @@
 
 | Item | Owner | Status |
 |---|---|---|
-| A. Engine: libspike, ring-buffer backend, circuit loader, golden traces | engine agent | Not started |
-| B. Tasks: reflex, lamprey, worm, with reference circuits | tasks agent | Not started |
-| C. Analysis: C++ motif census and stats, plus the Python package and PyNEST parity | analysis agent | Not started |
-| D. Game: godot-cpp extension and Godot UI (editor, scopes, task view) | game agent | Not started |
-| E. Release | lead | Not started |
+| A. Engine: libspike, ring-buffer backend, circuit loader, golden traces | engine agent | Done |
+| B. Tasks: reflex, lamprey, worm, with reference circuits | tasks agent | Done |
+| C. Analysis: C++ motif census and stats, plus the Python package and PyNEST parity | analysis agent | Done |
+| D. Game: godot-cpp extension and Godot UI (editor, scopes, task view) | game agent | Done |
+| E. Release | lead | Done |
 
 ## A. Engine (`engine/src`, `engine/CMakeLists.txt`, top-level `CMakeLists.txt`, `engine/tests`)
 - Implement `engine.h` on the NEST C++ API.
