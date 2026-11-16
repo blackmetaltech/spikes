@@ -10,11 +10,13 @@ var mode := "browse"
 var sandbox := false
 var selected := ""
 var scroll: ScrollContainer
-var grid: HFlowContainer
+var grid: Container
+var featured: Array = []         # card ids "for this task", shown first under their own heading (pick mode)
 var _scroll_keep := 0
+var _expanded := ""            # phone: the one card shown in full (every other part is a one-line row)
 
-func setup(m: String, sb: bool, current_card := "") -> PartsBin:
-	mode = m; sandbox = sb; selected = current_card
+func setup(m: String, sb: bool, current_card := "", for_task: Array = []) -> PartsBin:
+	mode = m; sandbox = sb; selected = current_card; featured = for_task.filter(func(id): return Catalog.has_card(id))
 	size_flags_vertical = Control.SIZE_EXPAND_FILL; size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", int(10 * Kit.f()))
 	_build(); return self
@@ -31,12 +33,53 @@ func _build() -> void:
 	if mode == "pick": note = "Pick the type of the next neuron you add. " + note
 	add_child(Kit.label(note, int(17 * f) if not phone else 15, Kit.TEXT_SOFT, true))
 	scroll = ScrollContainer.new(); scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; add_child(scroll)
-	grid = HFlowContainer.new(); grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL; grid.add_theme_constant_override("h_separation", int(14 * f)); grid.add_theme_constant_override("v_separation", int(14 * f)); scroll.add_child(grid)
+	var col := VBoxContainer.new(); col.size_flags_horizontal = Control.SIZE_EXPAND_FILL; col.add_theme_constant_override("separation", int(10 * f)); scroll.add_child(col)
 	var order := all.map(func(c): return c["id"]); var rk := {}
 	for id in order: rk[id] = _rank(id, order)
 	var ids := order.duplicate(); ids.sort_custom(func(a, b): return rk[a] < rk[b])
-	for id in ids: grid.add_child(_card(id, f, phone))
+	var top := featured.filter(func(id): return _usable(id)) if mode == "pick" else []
+	if not top.is_empty():   # N3: the cells this task's reference circuit uses (and its chapter's) come first, under their own heading
+		col.add_child(Kit.shout("FOR THIS TASK", int(20 * f) if not phone else 17, Kit.exc()))
+		_new_grid(col, f, phone)
+		for id in top: grid.add_child(_card_or_row(id, f, phone))
+		col.add_child(Kit.shout("ALL PARTS", int(20 * f) if not phone else 17, Kit.TEXT_SOFT))
+	_new_grid(col, f, phone)
+	for id in ids:
+		if not top.has(id): grid.add_child(_card_or_row(id, f, phone))
 	if _scroll_keep > 0: _restore_scroll.call_deferred()
+
+## A new card container, kept in `grid`: a flow of cards on a desktop, a plain list on a phone (M1).
+func _new_grid(parent: Control, f: float, phone: bool) -> Container:
+	if phone and mode == "pick":
+		grid = VBoxContainer.new(); grid.add_theme_constant_override("separation", 6)
+	else:
+		var g := HFlowContainer.new(); g.add_theme_constant_override("h_separation", int(14 * f)); g.add_theme_constant_override("v_separation", int(14 * f)); grid = g
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(grid)
+	return grid
+
+func _card_or_row(m: String, f: float, phone: bool) -> Control:
+	if phone and mode == "pick" and m != _expanded: return _row(m)
+	var c := _card(m, f, phone)
+	if phone and mode == "pick": c.size_flags_horizontal = Control.SIZE_EXPAND_FILL; c.custom_minimum_size.x = 0
+	return c
+
+## Phone picker row: title, model and family, the f-I sparkline and a USE button; tapping the row opens the full card.
+func _row(m: String) -> Control:
+	var usable := _usable(m)
+	var p := PanelContainer.new(); p.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL if usable else Color("#0b121f"), Kit.exc() if m == selected else Kit.LINE, 2 if m == selected else 1, 10, 8, false))
+	p.mouse_filter = Control.MOUSE_FILTER_STOP; p.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT: _select(m))
+	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10); p.add_child(h)
+	var v := VBoxContainer.new(); v.size_flags_horizontal = Control.SIZE_EXPAND_FILL; v.add_theme_constant_override("separation", 0); h.add_child(v)
+	var tl := Kit.shout(Catalog.title(m), 17, Kit.TEXT if usable else Kit.TEXT_SOFT); tl.clip_text = true; v.add_child(tl)
+	var cd := Catalog.card(m); var fam := str(cd.get("family", ""))
+	var sub := str(cd.get("model", m)) + ("   " + fam if fam != "" else "")
+	if not Catalog.available(m): sub = "not in this build"
+	elif not Catalog.unlocked(m, sandbox): sub = "unlocks in " + str(Campaign.chapter_def(Catalog.chapter_of(m))["title"])
+	var sl := Kit.label(sub, 14, Gfx.VIOLET if usable else Kit.TEXT_SOFT); sl.clip_text = true; v.add_child(sl)
+	var ser := Catalog.series(m, "fi"); var t := Thumb.new(); t.kind = "fi"; t.xs = ser[0]; t.ys = ser[1]; t.dim = not usable; t.custom_minimum_size = Vector2(120, 50); t.size_flags_vertical = Control.SIZE_SHRINK_CENTER; t.mouse_filter = Control.MOUSE_FILTER_IGNORE; h.add_child(t)
+	if usable: var b := Kit.btn("USE", func(): picked.emit(m), "amber", 17); b.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(b)
+	return p
 
 func _restore_scroll() -> void:
 	await get_tree().process_frame
@@ -49,7 +92,7 @@ func _rank(m: String, order: Array) -> int:
 
 func _select(m: String) -> void:
 	if not _usable(m): return
-	selected = m
+	selected = m; _expanded = m
 	_scroll_keep = scroll.scroll_vertical if scroll != null else 0
 	_build()
 

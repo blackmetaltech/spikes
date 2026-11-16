@@ -7,7 +7,7 @@ extends Screen
 ##   controls   run / pause / reset, speed, score card, reference circuit, load and save JSON, analysis
 ## The circuit Dictionary is the single source of truth; any structural edit reloads the engine (debounced) and restarts the episode.
 const SPEEDS := [["0.25", "0.25x"], ["0.5", "0.5x"], ["1.0", "1x"], ["2.0", "2x"], ["5.0", "5x"], ["10.0", "10x"], ["20.0", "20x"], ["50.0", "50x"]]
-const SENSOR_KIND := {"lamprey": "dc"}
+const SENSOR_KIND := {"lamprey": "dc"}   # last resort when neither the task nor its reference circuit names a sensor kind
 
 var task_id := ""
 var circuit := {}
@@ -38,6 +38,7 @@ var lesion_on := false
 var lesions := {}
 var lesion_rows: Array = []
 var _lrun: Lesion.Runner = null
+var _lesion_open := false          # phone: the lesion sheet shows the table (else a one-line bar with RUN / SWEEP)
 var _lesion_btn: Button
 var _lesion_note := ""
 var _dirty := -1.0
@@ -164,10 +165,51 @@ func _start(tid: String) -> void:
 		if FileAccess.file_exists(saved) and OS.get_environment("SP_NOAUTOSAVE") == "": circuit = Circuits.parse(FileAccess.get_file_as_string(saved)); loaded = not circuit.is_empty()
 	if not loaded: circuit = _skeleton(task_id)
 	Circuits.ensure_pos(circuit)
+	part_card = _default_part()
 	_reload(true)
-	if task_id == "worm" and OS.get_environment("SP_SPEED") == "": tele.speed = 10.0   # a 120 s episode at 1x is a long wait
+	if OS.get_environment("SP_SPEED") == "" and tele.task != null: tele.speed = _default_speed(float(tele.task.duration_ms()))
 
-## Reference circuits do not count for progress: remember that this circuit is one, until the player edits it.
+## G3: a long episode at 1x is a long wait. Default speed by episode length: about 30 s of waiting at most, from the stepper's own choices (1x to 10x).
+static func _default_speed(duration_ms: float) -> float:
+	var want := clampf(duration_ms / 30000.0, 1.0, 10.0); var best := 1.0
+	for s in [1.0, 2.0, 5.0, 10.0]:
+		if absf(s - want) < absf(best - want): best = s
+	return best
+
+## N3: the part the next neuron is made from at the start: the first model of the task's reference circuit that is not the plain integrate-and-fire cell
+## (the heart lab opens on the SA-node card, not on iaf_psc_alpha), else iaf_psc_alpha.
+func _default_part() -> String:
+	for id in _task_cards():
+		var c := Catalog.card(id)
+		if str(c.get("model", "")) != "iaf_psc_alpha" and Catalog.usable(id, task_id == ""): return id
+	return "iaf_psc_alpha"
+
+## Catalogue card ids "for this task": the cards of the models its reference circuit uses (in order of first use), then the other cards of the task's chapter.
+func _task_cards() -> Array:
+	var out := []
+	if task_id == "": return out
+	var ref := Circuits.parse(Circuits.read_reference(_ref_path(task_id)))
+	var models := []
+	for p in ref.get("populations", []):
+		var m := str(p.get("model", ""))
+		if not models.has(m): models.append(m)
+	for m in models:
+		var cs := Catalog.cards_of(m)
+		if cs.is_empty(): continue
+		var pick: Dictionary = cs[0]
+		for c in cs:   # the card whose preset matches the reference's parameters, else the first of the model
+			var match_all := true
+			for p in ref.get("populations", []):
+				if str(p.get("model", "")) == m and not (c["preset"] as Dictionary).is_empty() and (c["preset"] as Dictionary) != p.get("params", {}): match_all = false
+			if match_all and not (c["preset"] as Dictionary).is_empty(): pick = c; break
+		if not out.has(pick["id"]): out.append(pick["id"])
+	var chap := str(Campaign.info(task_id).get("chapter", ""))
+	for c in Catalog.cards():
+		if Catalog.chapter_of(c["id"]) == chap and not out.has(c["id"]): out.append(c["id"])
+	return out
+
+## Reference circuits do not count for progress, and neither does anything derived from one: the flag stays through every edit (a nudged weight is still the
+## reference) and is cleared only when the bench is emptied, so a pass has to come from a circuit the player built.
 func _mark_reference(on: bool) -> void:
 	var meta: Dictionary = circuit.get("meta", {}); var ed: Dictionary = meta.get("editor", {})
 	if on: ed["from_reference"] = true
@@ -179,14 +221,22 @@ func _ref_path(tid: String) -> String: return Campaign.ref_path(tid)
 
 func _last_path() -> String: return Circuits.user_dir().path_join("last_%s.json" % (task_id if task_id != "" else "free"))
 
+## The empty bench of a task: its sensors and motors with the kinds the task reads (dc or Poisson sensors, rate or modulator motors) from the task's
+## channel_kinds() or, until the extension has it, from its reference circuit.
 func _skeleton(tid: String) -> Dictionary:
 	var c := Circuits.empty("My " + tid + " circuit" if tid != "" else "My circuit")
 	if ext_ok and tid != "":
 		var t = Campaign.make(tid)
 		if t != null:
-			var kind: String = SENSOR_KIND.get(tid, "poisson")
-			for s in t.sensor_channels(): c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0})
-			for m in t.motor_channels(): c["outputs"].append({"name": str(m), "kind": "rate", "neurons": []})
+			var kinds := Circuits.task_channel_kinds(tid, t)
+			for s in t.sensor_channels():
+				var kind: String = str((kinds["inputs"] as Dictionary).get(str(s), SENSOR_KIND.get(tid, "poisson")))
+				c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0})
+			for m in t.motor_channels():
+				var ch := {"name": str(m), "kind": "rate", "neurons": []}
+				var ok: Dictionary = (kinds["outputs"] as Dictionary).get(str(m), {"kind": "rate"})
+				Circuits.set_output_kind(ch, str(ok.get("kind", "rate")), str(ok.get("modulator", "NE")), float(ok.get("gain", Circuits.MOD_GAIN)), float(ok.get("tau_ms", Circuits.MOD_TAU)))
+				c["outputs"].append(ch)
 		c["meta"]["task"] = tid
 	return c
 
@@ -222,7 +272,7 @@ func _banner_raw(msg: String) -> void:
 
 func _on_structure() -> void:
 	_dirty = 0.0; _lesion_reset()
-	if _is_reference(): _mark_reference(false)   # an edited reference is the player's circuit now
+	if _is_reference() and Circuits.neuron_count(circuit) == 0: _mark_reference(false)   # an emptied bench is the player's own again; an edited reference is still derived from it
 
 func _process(dt: float) -> void:
 	if _dirty >= 0.0:
@@ -258,6 +308,7 @@ func _topbar(phone: bool, compact := false) -> Control:
 	h.add_child(status)
 	if task_id != "": h.add_child(Kit.btn("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost", bs, Vector2(84, 0)))
 	if task_id != "": h.add_child(Kit.btn("REFERENCE", _load_reference, "cyan", bs, Vector2(150, 0)))
+	if task_id != "": h.add_child(Kit.btn("EMPTY BENCH", _empty_bench, "panel", bs, Vector2(0, 0)))
 	if task_id != "": h.add_child(Kit.btn("TEST x5", _test_start, "green", bs, Vector2(110, 0)))
 	if task_id != "": _lesion_btn = Kit.btn("LESIONS", _lesion_toggle, "panel", bs, Vector2(120, 0)); h.add_child(_lesion_btn)
 	h.add_child(Kit.btn("LOAD", _load_dialog, "panel", bs, Vector2(84, 0)))
@@ -314,7 +365,7 @@ func _open_parts() -> void:
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 12); v.add_child(hd)
 	var t := Kit.shout("Parts bin", 34 if not phone else 24, Kit.TEXT); t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hd.add_child(t)
 	hd.add_child(Kit.btn("CLOSE", _close_parts, "panel", 20 if not phone else 18))
-	var bin := PartsBin.new().setup("pick", Circuits.sandbox, part_card); v.add_child(bin)
+	var bin := PartsBin.new().setup("pick", Circuits.sandbox, part_card, _task_cards()); v.add_child(bin)
 	bin.picked.connect(func(id): part_card = id; _close_parts(); _sync_parts_btn())
 
 func _close_parts() -> void:
@@ -352,6 +403,12 @@ func _load_reference() -> void:
 	var c := Circuits.parse(txt)
 	if c.is_empty(): _banner("the reference circuit for this task is not installed (circuits/%s)" % _ref_path(task_id)); return
 	circuit = c; Circuits.ensure_pos(circuit); _mark_reference(true); editor.select({}); _lesion_reset(); _reload(true); _build_inspector()
+
+## Start over from the task's skeleton: its sensors and motors, no neurons (and no reference-derived flag).
+func _empty_bench() -> void:
+	if task_id == "": return
+	_close_menu(); _test = {}; _lrun = null
+	circuit = _skeleton(task_id); Circuits.ensure_pos(circuit); editor.select({}); _lesion_reset(); _reload(true); _build_inspector()
 
 func _save_dialog() -> void:
 	for cn in _file_dlg.file_selected.get_connections(): _file_dlg.file_selected.disconnect(cn["callable"])
@@ -401,6 +458,7 @@ func _open_menu() -> void:
 	if task_id != "":
 		item.call("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost")
 		item.call("REFERENCE", _load_reference, "cyan")
+		item.call("EMPTY BENCH", _empty_bench)
 		item.call("TEST x5", _test_start, "green")
 		item.call("LESIONS" if not lesion_on else "LEAVE LESIONS", _lesion_toggle, "amber" if lesion_on else "panel")
 	item.call("LOAD", _load_dialog); item.call("SAVE", _save_dialog)
@@ -412,9 +470,11 @@ func _size_menu(sc: ScrollContainer, v: Control) -> void:
 	if is_instance_valid(sc) and is_instance_valid(v): sc.custom_minimum_size.y = minf(v.get_combined_minimum_size().y, size.y - 90.0)
 
 # ---------- progress, end-of-episode card, 5-seed test ----------
+func _rate_per_neuron() -> float: return tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0) if tele != null and tele.sim != null else -1.0
+
 func _stars_now() -> int:
 	if tele == null or tele.task == null: return 0
-	return Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit))
+	return Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0))
 
 ## Called every frame: record a pass the moment it happens and the final result at the end of the episode; raise the end card; report a stopped run.
 func _watch_episode() -> void:
@@ -424,10 +484,10 @@ func _watch_episode() -> void:
 	var passed := bool(tele.score.get("passed", false))
 	if passed and not _rec_pass:
 		_rec_pass = true
-		if not _is_reference(): Progress.record(task_id, float(tele.score.get("value", 0.0)), true, 1)
+		Progress.record_result(task_id, float(tele.score.get("value", 0.0)), {"passed": true, "five_seeds": false, "neurons": Circuits.neuron_count(circuit), "rate_hz": _rate_per_neuron(), "reference_derived": _is_reference()})
 	if tele.finished and not _rec_done:
 		_rec_done = true
-		if not _is_reference(): Progress.record(task_id, float(tele.score.get("value", 0.0)), passed, 1 if passed else 0)
+		Progress.record_result(task_id, float(tele.score.get("value", 0.0)), {"passed": passed, "five_seeds": false, "neurons": Circuits.neuron_count(circuit), "rate_hz": _rate_per_neuron(), "reference_derived": _is_reference()})
 		if not _overlay_dismissed: _overlay_show()
 
 func _overlay_hide() -> void:
@@ -443,7 +503,7 @@ func _end_text() -> String:
 	if not _test_result.is_empty():
 		parts.append("Test: %d of %d seeds passed." % [int(_test_result["passes"]), int(_test_result["n"])])
 	if _is_reference():
-		parts.append("This is the reference circuit. Build your own from an empty bench to earn stars.")
+		parts.append("This is the reference circuit, or an edited copy of it: it earns no stars. Press EMPTY BENCH and build your own.")
 	elif not passed:
 		if _test_result.is_empty(): parts.append(str(sc.get("verdict", "")))
 		parts.append("Try: open the motor neuron's inspector and raise the weights into it, or add a neuron between sensor and motor.")
@@ -482,7 +542,7 @@ func _overlay_show(testing := false) -> void:
 	hd.add_child(Kit.shout(str(val), 54 if not phone else 36, Kit.TEXT))
 	var sr := HBoxContainer.new(); sr.add_theme_constant_override("separation", 14); v.add_child(sr)
 	var best := Progress.best(task_id); var ev := _OvStars.new(); ev.n = int(best["stars"]) if not _is_reference() else 0; ev.custom_minimum_size = Vector2(110, 30); sr.add_child(ev)
-	var bl := Kit.label("best %d" % int(roundf(float(best["value"]))) if not _is_reference() else "reference run: not recorded", 18 if not phone else 16, Kit.TEXT_SOFT); bl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(bl)
+	var bl := Kit.label("best %d" % int(roundf(float(best["value"]))) if not _is_reference() else "reference-derived: not recorded", 18 if not phone else 16, Kit.TEXT_SOFT); bl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(bl)
 	v.add_child(Kit.label(_end_text(), 19 if not phone else 16, Kit.TEXT, true))
 	if tele.sim != null:   # the energy bill of this run
 		var hz := tele.spike_rate_hz()
@@ -518,7 +578,9 @@ func _test_cancel() -> void:
 func _test_step() -> void:
 	var sim = _test["sim"]; var task = _test["task"]
 	if float(_test["t"]) < 0.0:   # begin episode i
-		if not sim.load_circuit(Circuits.to_json(Telemetry.sanitized(circuit))): _test = {}; _overlay_hide(); _reload(); _banner(str(sim.error())); return
+		var tc := Telemetry.sanitized(circuit)
+		tc["seed"] = 1000 * int(TEST_SEEDS[int(_test["i"])]) + int(circuit.get("seed", 1))   # the circuit is reseeded with the world (as the engine's tests do), so a deterministic world is not five identical runs
+		if not sim.load_circuit(Circuits.to_json(tc)): _test = {}; _overlay_hide(); _reload(); _banner(str(sim.error())); return
 		task.reset(int(TEST_SEEDS[int(_test["i"])])); _test["t"] = 0.0
 	var t0 := Time.get_ticks_usec(); var dur := float(task.duration_ms())
 	while float(_test["t"]) < dur and Time.get_ticks_usec() - t0 < 12000:
@@ -541,8 +603,11 @@ func _test_step() -> void:
 	sim.stop(); _test = {}
 	_reload()   # the live view again (the engine is a process-wide singleton and the test used it)
 	_test_result = {"passes": passes, "n": res.size(), "scores": res.map(func(r): return r["value"])}
-	if not _is_reference() and passes > 0:
-		Progress.record(task_id, float(res.map(func(r): return r["value"]).max()), true, Progress.stars_for(task_id, true, passes == res.size(), Circuits.neuron_count(circuit)) if passes == res.size() else 1)
+	if passes > 0:   # the mean of the five scores is the record, not the best of them
+		var mean := 0.0
+		for r in res: mean += float(r["value"])
+		mean /= float(res.size())
+		Progress.record_result(task_id, mean, {"passed": true, "five_seeds": passes == res.size(), "neurons": Circuits.neuron_count(circuit), "rate_hz": -1.0, "reference_derived": _is_reference()})
 	_rec_done = true; _overlay_show(); _build_inspector()
 	if OS.get_environment("SP_TESTNOW") != "" and OS.get_environment("SP_SHOT") == "": print("TEST RESULT ", _test_result, " best ", Progress.best(task_id)); get_tree().quit()
 
@@ -616,15 +681,16 @@ func _inspect_brief(small: int) -> void:
 	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.GREEN, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
 	insp_body.add_child(leg)
 
-func _val_row(name: String, lo: float, hi: float, step: float, val: float, unit: String, cb: Callable) -> Control:
+func _val_row(name: String, lo: float, hi: float, step: float, val: float, unit: String, cb: Callable, dec := -1) -> Control:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10); h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var nm := Kit.label(name, 17, Kit.TEXT_SOFT); nm.custom_minimum_size.x = 100; h.add_child(nm)
 	var s := HSlider.new(); s.min_value = lo; s.max_value = hi; s.step = step; s.value = val; s.size_flags_horizontal = Control.SIZE_EXPAND_FILL; s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.custom_minimum_size = Vector2(120, maxf(30.0, Layout.tap())); s.focus_mode = Kit.focus_mode(); h.add_child(s)
-	var vl := Kit.label(_num(val) + " " + unit, 17, Kit.TEXT); vl.custom_minimum_size.x = 96; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; h.add_child(vl)
-	s.value_changed.connect(func(x): vl.text = _num(x) + " " + unit; cb.call(x))
+	var vl := Kit.label(_numd(val, dec) + " " + unit, 17, Kit.TEXT); vl.custom_minimum_size.x = 96; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; h.add_child(vl)
+	s.value_changed.connect(func(x): vl.text = _numd(x, dec) + " " + unit; cb.call(x))
 	return h
 
+static func _numd(x: float, dec: int) -> String: return _num(x) if dec < 0 else String.num(x, dec)
 static func _num(x: float) -> String: return "%d" % int(roundf(x)) if absf(x) >= 100.0 or is_equal_approx(x, roundf(x)) else "%.1f" % x
 
 func _inspect_pop(id: String, small: int) -> void:
@@ -656,6 +722,31 @@ func _inspect_pop(id: String, small: int) -> void:
 			var key: String = a[0]
 			insp_body.add_child(_val_row(str(a[1]), float(a[2]), float(a[3]), float(a[4]), float(prm.get(key, a[5])), str(a[6]), func(x): var pp: Dictionary = p.get("params", {}); pp[key] = x; p["params"] = pp; _on_structure()))
 		insp_body.add_child(Kit.btn("RESET PARAMETERS", func(): Circuits.set_model(circuit, id, model, 0); _on_structure(); _build_inspector(), "panel", 18))
+	if _adv_open: _inspect_modulation(id, model, small)
+
+## ADVANCED: how this group responds to the circuit-wide NE / ACh / DA levels. Cells with ach / ne inputs (the NESTML cells) follow those levels by themselves
+## (the engine's per-model default); a row here overrides it for one parameter: value = value + gain * level, or value * (1 + scale * level).
+func _inspect_modulation(id: String, model: String, small: int) -> void:
+	insp_body.add_child(Kit.hsep())
+	insp_body.add_child(Kit.label("RESPONDS TO NEUROMODULATORS", small, Kit.TEXT, true))
+	var params := Circuits.mod_params(model)
+	if params.is_empty(): insp_body.add_child(Kit.label("This model has no parameter a modulator can act on.", small, Kit.TEXT_SOFT, true)); return
+	var rows := Circuits.mod_rows(circuit, id)
+	insp_body.add_child(Kit.label(("Rows below replace the default response of this group." if not rows.is_empty() else "No rows: cells with ach / ne inputs follow the ACh and NE levels by themselves; others ignore them. Add a row to make any parameter respond."), small, Kit.TEXT_SOFT, true))
+	for ri in rows:
+		var row: Dictionary = (circuit["modulation"] as Array)[ri]
+		var scale := row.has("scale_per_unit"); var val := float(row.get("scale_per_unit" if scale else "gain", 1.0))
+		var h := HFlowContainer.new(); h.add_theme_constant_override("h_separation", 8); h.add_theme_constant_override("v_separation", 4); insp_body.add_child(h)
+		h.add_child(Kit.stepper(Circuits.MODULATORS.map(func(m): return [m, m]), str(row.get("modulator", "NE")), func(m): row["modulator"] = str(m); _on_structure(), 90.0, 18, 40.0))
+		var po := params.map(func(q): return [q, q])
+		h.add_child(Kit.stepper(po, str(row.get("param", params[0])), func(q): row["param"] = str(q); _on_structure(), 150.0, 18, 40.0))
+		h.add_child(Kit.stepper([["gain", "add"], ["scale", "scale"]], "scale" if scale else "gain", func(m):
+			var v: float = float(row.get("scale_per_unit", row.get("gain", 1.0))); row.erase("gain"); row.erase("scale_per_unit")
+			row["scale_per_unit" if str(m) == "scale" else "gain"] = v; _on_structure(); _build_inspector(), 100.0, 18, 40.0))
+		h.add_child(Kit.btn("X", func(): Circuits.remove_mod_row(circuit, ri); _on_structure(); _build_inspector(), "danger", 18))
+		var small_p := str(row.get("param", "")) in ["ach", "ne"]
+		insp_body.add_child(_val_row("per unit", -2.0 if small_p else -500.0, 2.0 if small_p else 500.0, 0.05 if small_p else 5.0, val, "", func(x): row["scale_per_unit" if row.has("scale_per_unit") else "gain"] = x; _on_structure(), 2 if small_p else -1))
+	insp_body.add_child(Kit.btn("ADD ROW", func(): Circuits.add_mod_row(circuit, id, "NE", str(params[0]), 1.0 if str(params[0]) in ["ach", "ne"] else 50.0); _on_structure(); _build_inspector(), "panel", 18))
 
 func _toggle_trace(id: String) -> void:
 	var pi := Circuits.pop_index(circuit, id); var g := Circuits.pop_first(circuit, pi); var w: Array = tele.watched.duplicate()
@@ -680,13 +771,24 @@ func _inspect_proj(i: int, small: int) -> void:
 	var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight(pr)
 	var pre := Circuits.proj_pop(pr.get("pre", "")); var post := Circuits.proj_pop(pr.get("post", ""))
 	insp_body.add_child(_head("%s > %s" % [pre, post], Kit.inh() if w < 0.0 else Kit.exc(), "%s synapse   %s" % ["inhibitory" if w < 0.0 else "excitatory", str(pr.get("rule", "explicit edges"))]))
-	var pi := Circuits.pop_index(circuit, post); var wmax: float = 4.0 * Circuits.weight_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else 400.0
+	var pi := Circuits.pop_index(circuit, post); var wmax: float = 12.0 * Circuits.weight_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else 400.0
 	var unit := "nS" if pi >= 0 and str(circuit["populations"][pi].get("model", "")).contains("cond") else "pA"
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); insp_body.add_child(r1)
 	var cur_syn := Circuits.proj_model(pr)
 	if cur_syn != "static_synapse": r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; _on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
 	r1.add_child(Kit.btn("E / I", func(): Circuits.set_proj_weight(pr, -Circuits.proj_weight(pr)); _on_structure(); _build_inspector(), "panel", 18))
 	r1.add_child(Kit.btn("DELETE", func(): editor.delete_selected(), "danger", 18))
+	var pa_i := Circuits.pop_index(circuit, pre)
+	var na := Circuits.pop_n(circuit["populations"][pa_i]) if pa_i >= 0 else 1; var nb := Circuits.pop_n(circuit["populations"][pi]) if pi >= 0 else 1
+	if na > 1 and nb > 1:   # N4: segment wiring, neuron k to neuron k + offset, instead of every pair
+		var wr := HFlowContainer.new(); wr.add_theme_constant_override("h_separation", 10); wr.add_theme_constant_override("v_separation", 4); insp_body.add_child(wr)
+		var wiring := Circuits.proj_wiring(pr); var off := Circuits.segment_offset(pr)
+		wr.add_child(Kit.label("wiring", small, Kit.TEXT_SOFT))
+		wr.add_child(Kit.stepper([["all", "every pair"], ["segment", "neuron k to k"]], wiring, func(m): Circuits.set_wiring(circuit, pr, str(m), 0); _on_structure(); _build_inspector(), 190.0 if not Layout.phone else 160.0, 18, 40.0))
+		if wiring == "segment":
+			wr.add_child(Kit.label("shift", small, Kit.TEXT_SOFT))
+			wr.add_child(Kit.stepper([[-2, "-2"], [-1, "-1"], [0, "0"], [1, "+1"], [2, "+2"]], str(off), func(o): Circuits.set_wiring(circuit, pr, "segment", int(o)); _on_structure(); _build_inspector(), 64.0, 18, 40.0))
+		insp_body.add_child(Kit.label("Segment wiring connects neuron k of %s to neuron k%s of %s, one synapse per segment, instead of all %d x %d pairs." % [pre, ("" if off == 0 else " %+d" % off), post, na, nb], small, Kit.TEXT_SOFT, true))
 	insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); _on_structure()))
 	insp_body.add_child(_val_row("delay", 0.1, 20.0, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, x); _on_structure()))
 
@@ -703,18 +805,56 @@ func _inspect_channel(key: String, name: String, small: int) -> void:
 	var names := []
 	for x in tg: names.append(Circuits.proj_pop(x))
 	var l := Kit.label(("Connected to: " + ", ".join(names)) if not names.is_empty() else ("Not connected yet: drag from the card's right edge onto a neuron." if is_in else "Not connected yet: drag from a neuron's rim onto this card."), small, Kit.TEXT_SOFT, true); insp_body.add_child(l)
+	var fam := Circuits.channel_family(circuit, key, name)
+	if not fam.is_empty():   # N4: one drag or one button wires a whole group to the family
+		var fnames: Array = fam["names"]
+		insp_body.add_child(Kit.label("%s0 to %s%d are a numbered family of %d. A group of %d neurons wired to any one of them connects neuron k to %s k." % [fam["stem"], fam["stem"], fnames.size() - 1, fnames.size(), fnames.size(), "sensor" if is_in else "channel"], small, Kit.TEXT_SOFT, true))
+		var fr := HFlowContainer.new(); fr.add_theme_constant_override("h_separation", 8); fr.add_theme_constant_override("v_separation", 6); insp_body.add_child(fr)
+		for pp in circuit.get("populations", []):
+			if Circuits.pop_n(pp) == fnames.size():
+				var pid := str(pp.get("id", ""))
+				fr.add_child(Kit.btn("WIRE %s (%d) TO ALL" % [pid, fnames.size()] if not is_in else "WIRE ALL TO %s" % pid, func(): Circuits.wire_family(circuit, key, name, pid); _on_structure(); _build_inspector(), "cyan", 18))
 	if is_in:
 		var kind := str(ch.get("kind", "dc")); var unit := "pA" if kind == "dc" else "Hz"
+		insp_body.add_child(Kit.stepper([["poisson", "Poisson spikes"], ["dc", "DC current"]], kind, func(k):
+			ch["kind"] = str(k); var tm0 := "iaf_psc_alpha"
+			if not tg.is_empty():
+				var tp0 := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
+				if tp0 >= 0: tm0 = str(circuit["populations"][tp0].get("model", tm0))
+			ch["weight"] = Circuits.input_weight(tm0, str(k)); _on_structure(); _build_inspector(), 250.0 if not Layout.phone else 200.0, 18, 40.0))
 		var wunit := "pA"; var wmax := 1500.0
 		if not tg.is_empty():
 			var tpi := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
 			if tpi >= 0:
 				var tm := str(circuit["populations"][tpi].get("model", ""))
-				wunit = "nS" if tm.contains("cond") else "pA"; wmax = 8.0 * Circuits.weight_of(tm)
+				wunit = "nS" if tm.contains("cond") else "pA"; wmax = 20.0 * Circuits.weight_of(tm)
 		insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 300.0, float(ch.get("weight", 1.0)), wunit, func(x): ch["weight"] = x; _on_structure()))
 		if not driven: insp_body.add_child(_val_row("rate" if kind != "dc" else "value", 0.0, 1000.0 if kind == "dc" else 400.0, 1.0, float(ch.get("value", 0.0)), unit, func(x): ch["value"] = x; _on_structure()))
 		if not driven: insp_body.add_child(Kit.btn("REMOVE INPUT", func(): editor.delete_selected(), "danger", 18))
+	if not is_in: _inspect_output_kind(ch, small)
 	insp_body.add_child(Kit.btn("DISCONNECT ALL", func(): ch["targets" if is_in else "neurons"] = []; _on_structure(); _build_inspector(), "panel", 18))
+
+## An output is a rate readout (the task reads the mean firing rate of its neurons) or a modulator release: each spike adds `gain` to the NE / ACh / DA pool,
+## which decays with `tau` (docs/CIRCUIT-FORMAT.md). The heart tasks read ACh (vagal) and NE (sympathetic) that way.
+func _inspect_output_kind(ch: Dictionary, small: int) -> void:
+	var kind := str(ch.get("kind", "rate"))
+	var wanted := ""
+	if tele != null and tele.task != null:
+		var kk := Circuits.task_channel_kinds(task_id, tele.task); var wk: Dictionary = (kk["outputs"] as Dictionary).get(str(ch.get("name", "")), {})
+		if str(wk.get("kind", "rate")) == "modulator": wanted = str(wk.get("modulator", ""))
+	var r := HFlowContainer.new(); r.add_theme_constant_override("h_separation", 10); r.add_theme_constant_override("v_separation", 6); insp_body.add_child(r)
+	r.add_child(Kit.stepper([["rate", "rate readout"], ["modulator", "releases modulator"]], kind, func(k):
+		if str(k) == "modulator": Circuits.set_output_kind(ch, "modulator", wanted if wanted != "" else "NE")
+		else: Circuits.set_output_kind(ch, "rate")
+		_on_structure(); _build_inspector(), 270.0 if not Layout.phone else 220.0, 18, 40.0))
+	if kind != "modulator":
+		if wanted != "": insp_body.add_child(Kit.label("This task reads %s from this channel: switch it to \"releases modulator\" so the spikes of its neurons make %s." % [wanted, wanted], small, Kit.AMBER, true))
+		return
+	var mod := str(ch.get("modulator", "NE")); var gain := float(ch.get("gain", Circuits.MOD_GAIN)); var tau := float(ch.get("tau_ms", Circuits.MOD_TAU))
+	r.add_child(Kit.stepper(Circuits.MODULATORS.map(func(m): return [m, m]), mod, func(m): ch["modulator"] = str(m); _on_structure(); _build_inspector(), 90.0, 18, 40.0))
+	insp_body.add_child(_val_row("gain", 0.005, 0.5, 0.005, gain, "/spike", func(x): ch["gain"] = x; _on_structure(), 3))
+	insp_body.add_child(_val_row("tau", 50.0, 5000.0, 50.0, tau, "ms", func(x): ch["tau_ms"] = x; _on_structure()))
+	insp_body.add_child(Kit.label("Each spike adds %s to the %s level, which fades with tau %s ms. At 20 spikes/s the level settles near %s." % [String.num(gain, 3), mod, str(int(roundf(tau))), String.num(gain * 20.0 * tau * 0.001, 2)], small, Kit.TEXT_SOFT, true))
 
 
 # ---------- lesion lab ----------
@@ -726,7 +866,7 @@ func _lesion_ok() -> bool:
 
 func _lesion_toggle() -> void:
 	if lesion_on:
-		lesion_on = false; _lrun = null; _lesion_apply_ui(); _dirty = 0.0; _build_inspector(); return
+		lesion_on = false; _lrun = null; _lesion_open = false; _lesion_apply_ui(); _dirty = 0.0; _build_inspector(); return
 	if not _lesion_ok():
 		_banner_raw("The lesion lab opens after a pass: pass the task (or press REFERENCE), then cut and silence parts to see what each one does.")
 		return
@@ -806,7 +946,7 @@ func _lesion_cancel() -> void:
 func _lesion_step() -> void:
 	_lrun.step(12000)
 	var pl := insp_body.find_child("LesionProg", true, false) as Label if insp_body != null else null
-	if pl != null and not _lrun.done(): pl.text = "Running %d of %d: %s (%d%%)" % [_lrun.i + 1, _lrun.jobs.size(), _lrun.current_label(), int(100.0 * _lrun.fraction())]
+	if pl != null and not _lrun.done(): pl.text = "Running %d of %d: %s, seed %d of %d (%d%%)" % [_lrun.i + 1, _lrun.jobs.size(), _lrun.current_label(), _lrun.si + 1, _lrun.seeds.size(), int(100.0 * _lrun.fraction())]
 	if not _lrun.done(): return
 	if _lrun.failed != "": _banner_raw("The lesion run stopped: " + _lrun.failed)
 	for res in _lrun.results:
@@ -819,7 +959,7 @@ func _lesion_step() -> void:
 		var ea := (a["lesions"] as Array).is_empty(); var eb := (b["lesions"] as Array).is_empty()
 		if ea != eb: return ea
 		return float(a["score"]) < float(b["score"]))
-	_lrun = null; _dirty = -1.0; _reload(); _build_inspector()
+	_lrun = null; _dirty = -1.0; _lesion_open = true; _reload(); _build_inspector()
 
 func _lesion_md() -> String: return Lesion.markdown(_title(), str(circuit.get("name", "circuit")), int(circuit.get("seed", 1)), lesion_rows)
 
@@ -835,21 +975,29 @@ func _lesion_export(kind: String) -> void:
 
 func _inspect_lesion(small: int) -> void:
 	insp_body.add_child(_head("LESION LAB", Kit.RED, "cut an axon, silence a population or cut a sensor"))
-	var running := _lrun != null
-	insp_body.add_child(Kit.label("Click an axon, a population or a sensor card. RUN LESION re-runs the whole episode on the same seed; SWEEP tries every single lesion." if Layout.phone else "Click an axon, a population or a sensor card on the circuit. The live view restarts with it removed; RUN LESION re-runs the whole episode on the same seed and puts the result in the table. SWEEP tries every single lesion.", small, Kit.TEXT_SOFT, true))
+	var running := _lrun != null; var nseeds := Lesion.SEEDS.size()
 	var names := []
 	for k in lesions: names.append(Lesion.key_label(circuit, str(k)))
-	insp_body.add_child(Kit.label(("Lesioned now: " + ", ".join(names)) if not names.is_empty() else "Nothing lesioned yet.", small, Kit.RED if not names.is_empty() else Kit.TEXT_SOFT, true))
+	var compact := Layout.phone and not _lesion_open and not running   # M1: while picking, the phone sheet is one line of text and the buttons
+	if compact:
+		insp_body.add_child(Kit.label(("Lesioned: " + ", ".join(names)) if not names.is_empty() else "Tap an axon, group or sensor to lesion it.", small, Kit.RED if not names.is_empty() else Kit.TEXT_SOFT, true))
+	else:
+		insp_body.add_child(Kit.label(("Tap an axon, a population or a sensor card. RUN LESION re-runs the episode on %d seeds; SWEEP tries every single lesion." % nseeds) if Layout.phone else "Click an axon, a population or a sensor card on the circuit. The live view restarts with it removed; RUN LESION re-runs the whole episode on %d seeds (the world and the circuit both reseeded) and puts the mean and range in the table. SWEEP tries every single lesion." % nseeds, small, Kit.TEXT_SOFT, true))
+		insp_body.add_child(Kit.label(("Lesioned now: " + ", ".join(names)) if not names.is_empty() else "Nothing lesioned yet.", small, Kit.RED if not names.is_empty() else Kit.TEXT_SOFT, true))
 	var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 8); br.add_theme_constant_override("v_separation", 6); insp_body.add_child(br)
-	var run := Kit.btn("RUN LESION", func(): _lesion_run([lesions.duplicate()]), "amber", 18); run.disabled = lesions.is_empty() or running; br.add_child(run)
-	var sw := Kit.btn("SWEEP ALL SINGLES", _lesion_sweep, "cyan", 18); sw.disabled = running; br.add_child(sw)
-	var cl := Kit.btn("CLEAR SET", func(): lesions.clear(); editor.queue_redraw(); _dirty = 0.0; _build_inspector(), "panel", 18); cl.disabled = lesions.is_empty() or running; br.add_child(cl)
+	var run := Kit.btn("RUN", func(): _lesion_run([lesions.duplicate()]), "amber", 18) if Layout.phone else Kit.btn("RUN LESION", func(): _lesion_run([lesions.duplicate()]), "amber", 18); run.disabled = lesions.is_empty() or running; br.add_child(run)
+	var sw := Kit.btn("SWEEP" if Layout.phone else "SWEEP ALL SINGLES", _lesion_sweep, "cyan", 18); sw.disabled = running; br.add_child(sw)
+	var cl := Kit.btn("CLEAR" if Layout.phone else "CLEAR SET", func(): lesions.clear(); editor.queue_redraw(); _dirty = 0.0; _build_inspector(), "panel", 18); cl.disabled = lesions.is_empty() or running; br.add_child(cl)
+	if Layout.phone and not running and not lesion_rows.is_empty():
+		br.add_child(Kit.btn(("HIDE TABLE" if _lesion_open else "TABLE (%d)" % lesion_rows.size()), func(): _lesion_open = not _lesion_open; _build_inspector(), "green" if not _lesion_open else "panel", 18))
 	br.add_child(Kit.btn("EXIT", _lesion_toggle, "ghost", 18))
 	if running:
 		var pl := Kit.label("Starting...", small, Kit.exc(), true); pl.name = "LesionProg"; insp_body.add_child(pl)
 		insp_body.add_child(Kit.btn("CANCEL", _lesion_cancel, "panel", 18))
+	if compact: return
 	insp_body.add_child(Kit.hsep())
-	insp_body.add_child(Kit.label("LESION TABLE  (%d rows)" % lesion_rows.size() if not lesion_rows.is_empty() else "LESION TABLE: empty. Set a lesion and press RUN LESION.", small, Kit.TEXT if not lesion_rows.is_empty() else Kit.TEXT_SOFT, true))
+	insp_body.add_child(Kit.label("LESION TABLE  (%d rows, %d seeds each)" % [lesion_rows.size(), int(lesion_rows[0].get("n", nseeds))] if not lesion_rows.is_empty() else "LESION TABLE: empty. Set a lesion and press RUN LESION.", small, Kit.TEXT if not lesion_rows.is_empty() else Kit.TEXT_SOFT, true))
+	if Lesion.baseline_flaky(lesion_rows): insp_body.add_child(Kit.label("The intact circuit fails on some seeds: a few points between rows are noise, not the lesion.", small, Kit.AMBER, true))
 	var base_score := -1.0
 	for r in lesion_rows:
 		if (r["lesions"] as Array).is_empty(): base_score = float(r["score"])
@@ -860,9 +1008,17 @@ func _inspect_lesion(small: int) -> void:
 		var chip := Kit.chip("PASS" if r["passed"] else "FAIL", Kit.GREEN if r["passed"] else Kit.RED, 14); chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(chip)
 		var vb := VBoxContainer.new(); vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; vb.add_theme_constant_override("separation", 0); h.add_child(vb)
 		vb.add_child(Kit.shout(str(r["label"]), 16 if not Layout.phone else 15, Kit.TEXT))
-		vb.add_child(Kit.label(str(r["verdict"]), 15, Kit.TEXT_SOFT, true))
+		var pt := Lesion.pass_text(r)
+		vb.add_child(Kit.label(str(r["verdict"]) + ("  (" + pt + " passed)" if pt != "" else ""), 15, Kit.TEXT_SOFT, true))
+		var bio := str(r.get("bio", ""))   # what this lesion means in the body: the expected biology of the task's lesion table
+		if bio != "":
+			var nm := str(r.get("name", ""))
+			vb.add_child(Kit.label(("%s: %s" % [nm, bio]) if nm != "" else bio, 15, Kit.AMBER if bool(r.get("exact", false)) else Kit.TEXT_SOFT, true))
 		var sc := float(r["score"]); var d := "" if base_score < 0.0 or (r["lesions"] as Array).is_empty() else ("  %+d" % int(roundf(sc - base_score)))
-		var sl := Kit.shout("%d%s" % [int(roundf(sc)), d], 22 if not Layout.phone else 18, Kit.TEXT); sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(sl)
+		var sv := VBoxContainer.new(); sv.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sv.add_theme_constant_override("separation", 0); h.add_child(sv)
+		var sl := Kit.shout("%d%s" % [int(roundf(sc)), d], 22 if not Layout.phone else 18, Kit.TEXT); sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; sv.add_child(sl)
+		if int(r.get("n", 1)) > 1:
+			var rl := Kit.label("%d-%d" % [int(roundf(float(r["lo"]))), int(roundf(float(r["hi"])))], 14, Kit.TEXT_SOFT); rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; sv.add_child(rl)
 	if not lesion_rows.is_empty():
 		var ex := HFlowContainer.new(); ex.add_theme_constant_override("h_separation", 8); ex.add_theme_constant_override("v_separation", 6); insp_body.add_child(ex)
 		ex.add_child(Kit.btn("COPY MARKDOWN", func(): _lesion_export("md"), "panel", 18)); ex.add_child(Kit.btn("COPY CSV", func(): _lesion_export("csv"), "panel", 18)); ex.add_child(Kit.btn("SAVE FILES", func(): _lesion_export("save"), "green", 18))
