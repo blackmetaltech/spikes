@@ -71,6 +71,11 @@ struct ModulationSpec
   double vmin = 0.0, vmax = 0.0;
 };
 
+/// Seeded random initial V_m range of a model (docs/CIRCUIT-FORMAT.md "Initial membrane potential"): the table entry for the model if it has one
+/// (sa_node_pacemaker: [-74, -45] mV, the cell's diastolic-to-take-off range, so clones start at different phases), else [e_l, v_th].
+/// Returns false when there is no range (no table entry and v_th <= e_l).
+bool vm_init_range( const std::string& model, double e_l, double v_th, double& lo, double& hi );
+
 /// Modulator names the engine knows (Engine::set_modulator).
 bool is_modulator_name( const std::string& s );
 

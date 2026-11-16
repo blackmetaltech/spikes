@@ -67,6 +67,19 @@ public:
   virtual std::vector< Band > bands() const { return {}; }
   /// Neuromodulator channels the task reads from the circuit ("NE", "ACh", "DA") or writes (task-driven modulators).
   virtual std::vector< std::string > modulators() const { return {}; }
+  /// How the circuit should declare each channel (keyed by sensor_channels() / motor_channels() names), so the lab can build a correct
+  /// skeleton. Channels missing from the map get the 0.1 defaults (inputs "poisson", outputs "rate").
+  ///   inputs : kind "dc" (value = pA, scaled by the weight) | "poisson" (value = Hz); `value` is a typical level, informational.
+  ///   outputs: kind "rate" | "modulator" (`modulator` = "NE" | "ACh" | "DA", `gain` per spike, `tau_ms` decay).
+  struct ChannelKind
+  {
+    std::string kind = "poisson";
+    double value = 0;            // inputs: default level (pA or Hz)
+    std::string modulator;       // outputs of kind "modulator": "NE" | "ACh" | "DA"
+    double gain = 0.05;          // outputs of kind "modulator": concentration added per spike
+    double tau_ms = 1000.0;      // outputs of kind "modulator": decay time constant
+  };
+  virtual std::map< std::string, ChannelKind > channel_kinds() const { return {}; }
 };
 
 std::vector< std::string > task_ids();

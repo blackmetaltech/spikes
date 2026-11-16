@@ -7,11 +7,11 @@
     result = spike.motifs.zscores(edges, net.n_neurons, n_null=100, seed=1)
     spike.stats.firing_rates(spikes, net.n_neurons, 0, 1000)
 
-`spike.motifs` and `spike.stats` need only numpy (no NEST). `spike.build` / `spike.run` import PyNEST lazily:
+`spike.motifs`, `spike.stats`, `spike.bursts`, `spike.hrv` and `spike.prc` need only numpy (no NEST). `spike.build` / `spike.run` import PyNEST lazily:
 set PYTHONPATH to the NEST build's site-packages (third_party/nest-install/lib/python3.*/site-packages).
 """
-from . import motifs, stats
+from . import bursts, hrv, motifs, prc, stats
 from .circuit import Network, Spikes, build, load_circuit, run
 
-__all__ = ["motifs", "stats", "build", "run", "load_circuit", "Network", "Spikes"]
-__version__ = "0.1.0"
+__all__ = ["bursts", "hrv", "motifs", "prc", "stats", "build", "run", "load_circuit", "Network", "Spikes"]
+__version__ = "0.2.0"
