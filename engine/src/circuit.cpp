@@ -295,8 +295,6 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           fail( sub( path, "kind" ), "unsupported input kind '" + in.kind + "' (supported: dc, poisson)" );
         parse_selector_list( c, need( p, "targets", path ), sub( path, "targets" ), in.targets );
         sort_unique( in.targets );
-        if ( in.targets.empty() )
-          fail( sub( path, "targets" ), "must select at least one neuron" );
         in.weight = get_number( p, "weight", path, 1.0 );
         in.value = get_number( p, "value", path, 0.0 );
         in.delay = get_number( p, "delay", path, -1.0 );
@@ -327,8 +325,6 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate)" );
         parse_selector_list( c, need( p, "neurons", path ), sub( path, "neurons" ), o.neurons );
         sort_unique( o.neurons );
-        if ( o.neurons.empty() )
-          fail( sub( path, "neurons" ), "must select at least one neuron" );
         c.outputs.push_back( std::move( o ) );
       }
     }

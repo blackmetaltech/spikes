@@ -83,6 +83,21 @@ def _selector(spec, pops, sel, what) -> list[int]:
     return [first + i for i in (range(n) if idx is None else idx)]
 
 
+_M64 = (1 << 64) - 1
+
+
+def initial_vm_fraction(seed: int, neuron: int) -> float:
+    """U[0,1) draw for a neuron's initial V_m: splitmix64 keyed by (circuit seed, circuit-level neuron index).
+
+    Must match the C++ engine (engine/src/engine.cpp, build step 1) bit for bit.
+    """
+    z = (int(seed) + (neuron + 1) * 0x9E3779B97F4A7C15) & _M64
+    z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & _M64
+    z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & _M64
+    z ^= z >> 31
+    return (z >> 11) * (1.0 / 9007199254740992.0)
+
+
 def _import_nest():
     try:
         import nest  # noqa: F401
@@ -118,6 +133,13 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
     all_nodes = None
     for p in spec["populations"]:
         nc = nest.Create(p["model"], int(p["n"]), params=dict(p.get("params") or {}) or None)
+        # seeded random initial V_m (docs/CIRCUIT-FORMAT.md): only if params give no V_m and the model has V_m, E_L, V_th
+        if "V_m" not in (p.get("params") or {}):
+            st = nc[0].get()
+            if "V_m" in st and "E_L" in st and "V_th" in st and st["V_th"] > st["E_L"]:
+                e_l, v_th = float(st["E_L"]), float(st["V_th"])
+                for j in range(int(p["n"])):
+                    nc[j].set({"V_m": e_l + initial_vm_fraction(sd, first + j) * (v_th - e_l)})
         pops[p["id"]] = (first, int(p["n"]), nc)
         first += int(p["n"])
         all_nodes = nc if all_nodes is None else all_nodes + nc
@@ -161,6 +183,8 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
         tgt = set()
         for sel in inp["targets"]:
             tgt.update(_selector(spec, pops, sel, f"inputs.{inp['name']}.targets"))
+        if not tgt:
+            continue  # unwired channel: the device exists, nothing is connected
         delay = float(inp.get("delay", -1.0))
         nest.Connect(
             devices[inp["name"]],

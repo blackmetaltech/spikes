@@ -31,7 +31,10 @@
    {
     "id": "N",
     "model": "iaf_psc_alpha",
-    "n": 1
+    "n": 1,
+    "params": {
+     "V_m": -70.0
+    }
    }
   ],
   "record": {
@@ -49,7 +52,7 @@
   "schema_version": 1,
   "seed": 1
  },
- "description": "One iaf_psc_alpha under 400 pA DC (rheobase 375 pA): regular firing, first spike near 27.7 ms.",
+ "description": "One iaf_psc_alpha under 400 pA DC (rheobase 375 pA): regular firing, first spike near 27.7 ms. V_m is pinned to rest (-70 mV) so the first-spike time is analytic.",
  "ms": 500.0,
  "spikes": 16
 }
