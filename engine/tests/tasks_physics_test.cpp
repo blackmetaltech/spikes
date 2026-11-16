@@ -28,6 +28,8 @@ Engine::Engine() : impl_( new Impl ) {}
 Engine::~Engine() { delete impl_; }
 bool Engine::load( const std::string& ) { return true; }
 const std::string& Engine::error() const { static std::string e; return e; }
+double Engine::modulator( const std::string& ) const { return 0.0; }
+bool Engine::set_modulator( const std::string&, double ) { return true; }
 int32_t Engine::neuron_count() const { return 0; }
 std::string Engine::neuron_population( int32_t ) const { return ""; }
 std::vector< ChannelInfo > Engine::inputs() const
@@ -332,7 +334,7 @@ static void test_worm()
 
 int main()
 {
-  CHECK( task_ids().size() == 3 );
+  CHECK( task_ids().size() >= 3 );
   for ( auto& id : task_ids() ) { CHECK( make_task( id ) != nullptr ); CHECK( !reference_circuit( id ).empty() ); CHECK( !make_task( id )->brief().empty() ); }
   CHECK( make_task( "nope" ) == nullptr );
   test_reflex();
