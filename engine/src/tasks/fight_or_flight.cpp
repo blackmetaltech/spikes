@@ -20,7 +20,7 @@
 // SCORING  (each trace is sampled every 100 ms: HR = last beat interval, MAP = 2 s-smoothed pressure, pupil, VE = last tidal volume x last breath rate)
 //   rest = mean over 12-20 s, threat = mean over 40-50 s, recovery = mean over 90-100 s.
 //   per system: (1) rest inside its band (HR 55-80 bpm, MAP 80-105 mmHg, pupil 3-6 mm, VE 4-9 L/min),
-//               (2) threat response: HR +25 bpm, MAP +12 mmHg, pupil +1.2 mm, VE x1.4 over rest,
+//               (2) threat response: HR +40 bpm, MAP +12 mmHg, pupil +1.2 mm, VE x1.4 over rest,
 //               (3) recovery: back within HR 8 bpm, MAP 8 mmHg, pupil 0.6 mm, VE x1.25 of rest.
 //   value = 100 * mean over the four systems of (0.2 rest + 0.6 response + 0.2 recovery), each a soft 0..1 score.  pass: all 12 conditions hold at the end.
 //
@@ -30,6 +30,7 @@
 // 21:1655), recovery is vagal reactivation and sympathetic washout. All gains are game values.
 #include <cmath>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include "spike/body/eye.h"
 #include "spike/body/heart.h"
@@ -50,7 +51,7 @@ enum Sys { HR = 0, MAP = 1, PUPIL = 2, VENT = 3 };
 const char* kName[ 4 ] = { "hr", "map", "pupil", "ve" };
 const char* kLabel[ 4 ] = { "heart rate", "blood pressure", "pupil", "ventilation" };
 constexpr double kBandLo[ 4 ] = { 55, 80, 3.0, 4.0 }, kBandHi[ 4 ] = { 80, 105, 6.0, 9.0 };
-constexpr double kRise[ 4 ] = { 25, 12, 1.2, 1.4 };  // HR, MAP, pupil: additive; VE: ratio
+constexpr double kRise[ 4 ] = { 40, 12, 1.2, 1.4 };  // HR, MAP, pupil: additive; VE: ratio
 constexpr double kTol[ 4 ] = { 8, 8, 0.6, 1.25 };    // additive; VE: ratio
 
 class FightOrFlightTask : public Task
@@ -66,7 +67,7 @@ public:
            "stronger beats), tighten the vessels (pressure up), open the pupil and, with the respiratory group, raise ventilation. At the "
            "same time the threat switches off the cardiac vagus and the Edinger-Westphal nucleus, the parasympathetic side. When the threat "
            "ends the parasympathetic side must take over again and everything must settle back to rest. Wire 'threat' into the circuit and "
-           "read out the pacemaker ('sa_beat'), the two heart modulators ('sympathetic' = NE, 'vagal' = ACh), 'sym_vascular', 'dilator', "
+           "read out the pacemaker ('sa_beat'), the two heart modulators ('sympathetic' = NE, 'vagal' = ACh: set these two outputs to kind modulator, and let the SA cell respond to NE and ACh), 'sym_vascular', 'dilator', "
            "'sphincter' and 'vent'. Score: for each of heart rate, pressure, pupil and ventilation: resting value in its band, a clear rise "
            "during the 30 s threat, and a return to rest within 50 s after it.";
   }
@@ -91,6 +92,31 @@ public:
              { "ventilation", "L/min", kBandLo[ VENT ], kBandHi[ VENT ] } };
   }
   std::vector< std::string > modulators() const override { return { "NE", "ACh" }; }
+  // 'sympathetic' and 'vagal' must be MODULATOR outputs (NE / ACh release pools); everything else is a rate pool. Gains/taus are those of the
+  // reference (per spike of a pool of about 10 cells); the lab starts from them and the player tunes the release.
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    std::map< std::string, ChannelKind > k;
+    ChannelKind thr;
+    thr.kind = "poisson";
+    thr.value = kThreatHz;
+    k[ "threat" ] = thr;
+    ChannelKind ne;
+    ne.kind = "modulator";
+    ne.modulator = "NE";
+    ne.gain = 0.0015;
+    ne.tau_ms = 1500;
+    k[ "sympathetic" ] = ne;
+    ChannelKind ach;
+    ach.kind = "modulator";
+    ach.modulator = "ACh";
+    ach.gain = 0.007;
+    ach.tau_ms = 500;
+    k[ "vagal" ] = ach;
+    for ( const char* r : { "sa_beat", "sym_vascular", "dilator", "sphincter", "vent" } )
+      k[ r ].kind = "rate";
+    return k;
+  }
 
   void reset( uint64_t ) override
   {
@@ -114,7 +140,7 @@ public:
     last_breaths_ = 0;
     breath_log_.clear();
     for ( auto& v : tr_ ) v.clear();
-    ne_ = ach_ = 0;
+    ne_ = ach_ = ne_max_ = ach_max_ = 0;
     ve_hud_ = rr_hud_ = 0;
     spikes_.fill( 0 );
     motor_.invalidate();
@@ -139,6 +165,8 @@ public:
     vent_hz_ = l_vent_.step( motor_.hz_per_neuron( e, "vent" ), dt );
     ne_ = e.modulator( "NE" );
     ach_ = e.modulator( "ACh" );
+    ne_max_ = std::max( ne_max_, ne_ );
+    ach_max_ = std::max( ach_max_, ach_ );
 
     body::HeartInput hi;
     hi.sa_spikes = beats > 0.5 ? 1 : 0;
@@ -244,6 +272,10 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_[ 0 ] < 1 )
       o << "The pacemaker never fired: no heartbeat. Check 'sa_beat'.";
+    else if ( spikes_[ 1 ] >= 1 && ne_max_ < 1e-6 )
+      o << "'sympathetic' fires but releases no noradrenaline: make it a modulator output (NE), not a rate output. The heart reads NE and ACh, not rates.";
+    else if ( spikes_[ 2 ] >= 1 && ach_max_ < 1e-6 )
+      o << "'vagal' fires but releases no acetylcholine: make it a modulator output (ACh), not a rate output.";
     else if ( t_ < kThrB * 1000.0 )
       o << "At rest so far: HR " << heart_.hr_bpm << " bpm, MAP " << heart_.map_smooth << " mmHg, pupil " << eye_.diameter_mm << " mm.";
     else
@@ -300,7 +332,7 @@ private:
     return k == HR ? heart_.hr_bpm : ( k == MAP ? heart_.map_smooth : ( k == PUPIL ? eye_.diameter_mm : ve_hud_ ) );
   }
 
-  double t_ = 0, sg_hz_ = 0, vg_hz_ = 0, sv_hz_ = 0, dil_hz_ = 0, sph_hz_ = 0, vent_hz_ = 0, phase_ = 0, ne_ = 0, ach_ = 0, ve_hud_ = 0, rr_hud_ = 0;
+  double t_ = 0, sg_hz_ = 0, vg_hz_ = 0, sv_hz_ = 0, dil_hz_ = 0, sph_hz_ = 0, vent_hz_ = 0, phase_ = 0, ne_ = 0, ach_ = 0, ne_max_ = 0, ach_max_ = 0, ve_hud_ = 0, rr_hud_ = 0;
   int last_breaths_ = 0;
   mutable int ok_[ 4 ] = { 0, 0, 0, 0 };
   body::Heart heart_;

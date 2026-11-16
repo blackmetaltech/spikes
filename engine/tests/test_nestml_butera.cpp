@@ -97,6 +97,36 @@ static void test_synaptic_input_drives()
   CHECK( t.size() > 20 );
 }
 
+// Regime map along g_tonic-e at g_NaP 2.8 nS (the axis of the paper's Fig. 2-3 style maps): silent -> bursting -> tonic, with the burst period and the
+// burst duration both falling as drive grows, and bursting confined to a window. Qualitative figure check (no digitised numbers).
+static void test_regime_sweep()
+{
+  const double gs[] = { 0.15, 0.25, 0.28, 0.30, 0.33, 0.35, 0.38, 0.40, 0.45, 0.60 };
+  std::vector< Burst > r;
+  for ( double g : gs )
+    r.push_back( run_burst( 2.8, g ) );
+  auto bursting = []( const Burst& b ) { return b.b.size() >= 3 and b.dur_s < 0.5 * b.period_s; };
+  int first = -1, last = -1;
+  for ( size_t i = 0; i < r.size(); ++i )
+    if ( bursting( r[ i ] ) )
+    {
+      if ( first < 0 ) first = int( i );
+      last = int( i );
+    }
+  CHECK( first >= 0 );
+  if ( first < 0 ) return;
+  for ( int i = 0; i < first; ++i ) CHECK( r[ i ].spikes == 0 );                         // silent below the window
+  for ( int i = first; i <= last; ++i ) CHECK( bursting( r[ i ] ) );                    // one contiguous bursting window
+  for ( size_t i = last + 1; i < r.size(); ++i ) CHECK( r[ i ].b.size() <= 1 );          // tonic above it
+  CHECK( last - first >= 4 );                                                           // a window several steps wide
+  for ( int i = first + 1; i <= last; ++i )
+  {
+    CHECK( r[ i ].period_s < r[ i - 1 ].period_s );                                     // faster with drive
+    CHECK( r[ i ].dur_s <= r[ i - 1 ].dur_s + 0.02 );                                   // shorter bursts with drive
+  }
+  std::printf( "  bursting window: g_tonic %.2f .. %.2f nS\n", gs[ first ], gs[ last ] );
+}
+
 int main()
 {
   if ( not available( "butera_burster" ) )
@@ -108,5 +138,6 @@ int main()
   test_gnap_dependence();
   test_modulators_add_drive();
   test_synaptic_input_drives();
+  test_regime_sweep();
   return chk::finish( "test_nestml_butera" );
 }

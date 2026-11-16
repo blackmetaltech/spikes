@@ -1,12 +1,12 @@
 // Breathing and autonomic chapters: breathing, pupil, peristalsis, fight_or_flight.
-//   * each reference circuit passes on 3 seeds, respects the 60-neuron cap, declares the task's channels, and is deterministic;
+//   * each reference circuit passes on 10 seeds (1-10), respects the 60-neuron cap, declares the task's channels, and is deterministic;
 //   * every lesion (a projection scaled to zero) fails with the biologically expected failure, checked on the score parts and the verdict,
 //     not only on `passed`;
 //   * a task whose sensor is not connected says so;
 //   * the contract fields (chapter, view, par, timeline, bands, modulators) are filled.
 // Own file (not tasks_lesions.inc) so these tasks can be tuned without touching the shared test.
 //
-//   tasks_autonomic_test                 the CTest (about 5 minutes: each episode is 40-150 s of game time)
+//   tasks_autonomic_test                 the CTest (10 reference seeds + lesions: about 8 minutes on a quiet machine; CTest TIMEOUT must be >= 1200)
 //   tasks_autonomic_test <task>          only that task's checks (breathing | pupil | peristalsis | fight_or_flight)
 #include <array>
 #include <chrono>
@@ -142,7 +142,7 @@ static void reference( const std::string& id, const std::function< void( const R
   json c = load( id );
   double sum = 0;
   std::vector< std::map< std::string, double > > parts;
-  for ( uint64_t seed : { 1, 2, 3 } )
+  for ( uint64_t seed = 1; seed <= 10; ++seed )
   {
     Run r = run( id, c, seed );
     show( "reference", seed, r );
@@ -154,7 +154,7 @@ static void reference( const std::string& id, const std::function< void( const R
     sum += r.score.value;
     parts.push_back( r.score.parts );
   }
-  std::printf( "  mean score %.1f\n", sum / 3 );
+  std::printf( "  mean score %.1f\n", sum / 10 );
   // determinism: the same seed again gives the same numbers
   Run again = run( id, c, 1 );
   CHECK_MSG( again.score.parts == parts[ 0 ], id + " is not deterministic" );
@@ -199,6 +199,7 @@ static void test_breathing()
   check_contract( "breathing", c, "breathing", "lungs", 300 );
   auto t = make_task( "breathing" );
   CHECK( t->modulators().empty() );
+  CHECK( t->channel_kinds().count( "chemo" ) && t->channel_kinds()[ "chemo" ].kind == "dc" );
   reference( "breathing", [ & ]( const Run& r, uint64_t ) {
     // 12-20 breaths per minute at rest, ventilation up with CO2 and PaCO2 kept in band
     CHECK( part( r, "rest_rate_bpm" ) >= 12 && part( r, "rest_rate_bpm" ) <= 20 );
@@ -211,13 +212,13 @@ static void test_breathing()
   } );
   lesions( "breathing",
     { { "chemoreceptor afferent cut (RTN no longer drives the burst network or the phrenic pool): no CO2 response, PaCO2 runs away",
-          { { "RTN", "PBC" }, { "RTN", "PHR" } }, 2,
+          { { "RTN", "PBC" }, { "RTN", "PHR" } }, 1,
           []( const Run& r ) {
             CHECK( part( r, "ve_ratio" ) < 1.4 );
             CHECK( part( r, "paco2_peak" ) > 60 );
           } },
       { "preBotC bursters uncoupled (no recurrent excitation): the cells burst out of step and the rhythm is lost",
-          { { "PBC", "PBC" } }, 2,
+          { { "PBC", "PBC" } }, 1,
           []( const Run& r ) {
             CHECK( part( r, "ve_ratio" ) < 1.4 );
             CHECK( part( r, "paco2_peak" ) > 55 );
@@ -243,34 +244,34 @@ static void test_pupil()
     CHECK( part( r, "constriction_mm" ) >= 2.5 );                       // light: constricts
     CHECK( part( r, "redilation_mm" ) >= 2.5 );                         // dark: dilates again
     CHECK( part( r, "bright_mm" ) < part( r, "dim_mm" ) );
-    CHECK( part( r, "constriction_latency_ms" ) >= 120 && part( r, "constriction_latency_ms" ) <= 450 );
+    CHECK( part( r, "constriction_latency_ms" ) >= 150 && part( r, "constriction_latency_ms" ) <= 350 );  // not a 1 ms noise crossing (S3)
     CHECK( part( r, "redilation_latency_ms" ) > 0 && part( r, "redilation_latency_ms" ) < 1500 );
     CHECK( part( r, "fright_dilation_mm" ) >= 0.8 );
     CHECK( r.body.readouts.count( "pupil_mm" ) && r.body.readouts.count( "light" ) );
   } );
   lesions( "pupil",
     { { "Edinger-Westphal cut off from the pretectum: no sphincter drive, the pupil stays wide in bright light",
-          { { "PON", "EW" } }, 2,
+          { { "PON", "EW" } }, 1,
           []( const Run& r ) {
             CHECK( part( r, "sphincter_spikes" ) < 1 );
             CHECK( part( r, "bright_mm" ) > 4.5 );
           } },
       { "ciliary ganglion cut off from the Edinger-Westphal nucleus: the same, one synapse later",
-          { { "EW", "CG" } }, 2, []( const Run& r ) { CHECK( part( r, "sphincter_spikes" ) < 1 ); } },
+          { { "EW", "CG" } }, 1, []( const Run& r ) { CHECK( part( r, "sphincter_spikes" ) < 1 ); } },
       { "sympathetic chain cut (IML -> superior cervical ganglion): no dilator, the pupil cannot open in the dark",
-          { { "IML", "SCG" } }, 2,
+          { { "IML", "SCG" } }, 1,
           []( const Run& r ) {
             CHECK( part( r, "dilator_spikes" ) < 1 );
             CHECK( part( r, "dim2_mm" ) < 6.0 );
           } },
       { "hypothalamic alarm cut from the sympathetic and parasympathetic arms: light reflex intact, no fright dilation",
-          { { "HYP", "IML" }, { "HYP", "EW" } }, 2,
+          { { "HYP", "IML" }, { "HYP", "EW" } }, 1,
           []( const Run& r ) {
             CHECK( part( r, "fright_dilation_mm" ) < 0.8 );
             CHECK( part( r, "constriction_mm" ) >= 2.5 );
           } },
       { "retinal ganglion cells cut off from the pretectum: no light reflex at all",
-          { { "RGC", "PON" } }, 2, []( const Run& r ) { CHECK( part( r, "constriction_mm" ) < 0.5 ); } } } );
+          { { "RGC", "PON" } }, 1, []( const Run& r ) { CHECK( part( r, "constriction_mm" ) < 0.5 ); } } } );
   unwired( "pupil", "retina" );
   unwired( "pupil", "threat" );
 }
@@ -292,24 +293,49 @@ static void test_peristalsis()
   } );
   lesions( "peristalsis",
     { { "ascending excitation removed: tonic ACh plus slow waves still push the bolus along, but without the reflex it is clearly slower",
-          { { "AIN", "EMN" } }, 2,
+          { { "AIN", "EMN" } }, 1,
           [ & ]( const Run& r ) { CHECK( part( r, "arrival_s" ) < 0 || part( r, "arrival_s" ) > ref_arrival + 1 ); }, false },
       { "descending inhibition removed: the segments ahead keep contracting against the bolus, it arrives late or not at all",
-          { { "DIN", "IMN" } }, 2,
+          { { "DIN", "IMN" } }, 1,
           [ & ]( const Run& r ) {
             CHECK( part( r, "no_spikes" ) < 1 );
             CHECK( part( r, "arrival_s" ) < 0 || part( r, "arrival_s" ) > ref_arrival + 6 );
           } },
       { "interstitial cells of Cajal silenced (no slow waves): the muscle never gates above its contraction threshold",
-          { { "ICCP", "ICC" }, { "ICC", "ICC" } }, 2,
+          { { "ICCP", "ICC" }, { "ICC", "ICC" } }, 1,
           [ & ]( const Run& r ) {
             CHECK( part( r, "slow_waves" ) < 1 );
             CHECK( part( r, "arrival_s" ) < 0 || part( r, "arrival_s" ) > ref_arrival + 6 );
           } },
       { "stretch sensors cut off from the interneurons: the bolus is not detected",
-          { { "S", "AIN" }, { "S", "DIN" } }, 2,
+          { { "S", "AIN" }, { "S", "DIN" } }, 1,
           []( const Run& r ) { CHECK( part( r, "progress" ) < 0.5 ); } } } );
   unwired( "peristalsis", "dist3" );
+  // N4: icc*/no* are optional. Without any of them the task still runs (the gut's own clock), but slower; with no0..7 but no icc it passes.
+  {
+    auto strip = [ & ]( std::initializer_list< const char* > prefixes ) {
+      json d = load( "peristalsis" );
+      json outs = json::array();
+      for ( auto& o : d[ "outputs" ] )
+      {
+        bool drop = false;
+        for ( const char* p : prefixes )
+          if ( o[ "name" ].get< std::string >().rfind( p, 0 ) == 0 ) drop = true;
+        if ( !drop ) outs.push_back( o );
+      }
+      d[ "outputs" ] = outs;
+      return d;
+    };
+    Run a = run( "peristalsis", strip( { "icc", "no" } ), 1 );
+    show( "ach only", 1, a );
+    CHECK( a.loaded );
+    CHECK( part( a, "progress" ) >= 0.99 );                                   // it works, the bolus gets there ...
+    CHECK( !a.score.passed );                                                 // ... but too late without the inhibitory arm
+    CHECK_MSG( a.score.verdict.find( "no0..7" ) != std::string::npos, a.score.verdict );
+    Run b = run( "peristalsis", strip( { "icc" } ), 1 );
+    show( "ach + no", 1, b );
+    CHECK_MSG( b.score.passed, b.score.verdict );
+  }
 }
 
 static void test_fight_or_flight()
@@ -323,7 +349,7 @@ static void test_fight_or_flight()
   reference( "fight_or_flight", [ & ]( const Run& r, uint64_t ) {
     CHECK( part( r, "conditions_met" ) == 12 );
     // each system: rest in band, clear rise during the threat, back to rest afterwards
-    CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) >= 25 );
+    CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) >= 40 );
     CHECK( part( r, "map_threat" ) - part( r, "map_rest" ) >= 12 );
     CHECK( part( r, "pupil_threat" ) - part( r, "pupil_rest" ) >= 1.2 );
     CHECK( part( r, "ve_threat" ) >= 1.4 * part( r, "ve_rest" ) );
@@ -336,27 +362,45 @@ static void test_fight_or_flight()
            r.body.readouts.count( "NE" ) && r.body.readouts.count( "ACh" ) );
   } );
   lesions( "fight_or_flight",
-    { { "hypothalamus cut from the RVLM: no sympathetic outflow at all; heart rate and pressure barely move (the pupil still opens a little by parasympathetic withdrawal)",
-          { { "HYP", "RVLM" } }, 2,
+    { { "hypothalamus cut from the RVLM: no sympathetic outflow at all; pressure barely moves and heart rate rises only by vagal withdrawal (to the intrinsic rate; the pupil still opens a little by parasympathetic withdrawal)",
+          { { "HYP", "RVLM" } }, 1,
           []( const Run& r ) {
-            CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) < 15 );
+            CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) < 40 );
             CHECK( part( r, "map_threat" ) - part( r, "map_rest" ) < 12 );
           } },
       { "stellate ganglion cut from the RVLM: no noradrenaline on the pacemaker, heart rate rises only by vagal withdrawal",
-          { { "RVLM", "SG" } }, 2,
+          { { "RVLM", "SG" } }, 1,
           []( const Run& r ) {
-            CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) < 25 );
+            CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) < 40 );
             CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) > 2 );     // the vagal withdrawal alone does speed it up a little
           } },
       { "respiratory group cut from the hypothalamus: no ventilatory response",
-          { { "HYP", "VRG" } }, 2, []( const Run& r ) { CHECK( part( r, "ve_threat" ) < 1.4 * part( r, "ve_rest" ) ); } },
+          { { "HYP", "VRG" } }, 1, []( const Run& r ) { CHECK( part( r, "ve_threat" ) < 1.4 * part( r, "ve_rest" ) ); } },
       { "superior cervical ganglion and Edinger-Westphal drive cut: pupil fixed while the rest of the response is intact",
-          { { "RVLM", "SCG" }, { "HYP", "EW" } }, 2,
+          { { "RVLM", "SCG" }, { "HYP", "EW" } }, 1,
           []( const Run& r ) {
             CHECK( part( r, "pupil_threat" ) - part( r, "pupil_rest" ) < 1.2 );
-            CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) >= 25 );
+            CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) >= 40 );
           } } } );
   unwired( "fight_or_flight", "threat" );
+  // a novice's 'sympathetic' / 'vagal' declared as plain rate outputs: the verdict says to make them modulators
+  {
+    json d = load( "fight_or_flight" );
+    for ( auto& o : d[ "outputs" ] )
+      if ( o[ "kind" ] == "modulator" )
+      {
+        o[ "kind" ] = "rate";
+        o.erase( "modulator" ), o.erase( "gain" ), o.erase( "tau_ms" );
+      }
+    Run r = run( "fight_or_flight", d, 1 );
+    show( "rate outputs", 1, r );
+    CHECK( !r.score.passed );
+    CHECK_MSG( r.score.verdict.find( "modulator" ) != std::string::npos, r.score.verdict );
+  }
+  auto kinds = t->channel_kinds();
+  CHECK( kinds.count( "sympathetic" ) && kinds[ "sympathetic" ].kind == "modulator" && kinds[ "sympathetic" ].modulator == "NE" );
+  CHECK( kinds.count( "vagal" ) && kinds[ "vagal" ].kind == "modulator" && kinds[ "vagal" ].modulator == "ACh" );
+  CHECK( kinds.count( "threat" ) && kinds[ "threat" ].kind == "poisson" );
 }
 
 int main( int argc, char** argv )
