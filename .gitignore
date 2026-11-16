@@ -14,3 +14,4 @@ build/
 .pytest_cache/
 *.egg-info/
 third_party/godot-cpp/
+docs/screenshots/critique/
