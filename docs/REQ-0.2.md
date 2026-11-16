@@ -81,3 +81,35 @@ The 0.1 tasks become the "Invertebrates" chapter.
 - Heart-rate variability (time domain, and an LF/HF power spectrum).
 - A 4-node motif census (199 classes), which is optional and slower.
 - The motif comparison between the player's circuit and the reference is used for the elegance star.
+
+---
+
+## Status (0.2.0, after the critique fix round)
+Done = delivered as written. Changed = delivered differently, with the reason. 0.3 = not in 0.2.
+
+| Item | Status | Note |
+|---|---|---|
+| A. Catalogue cards (parameters, units, live thumbnails, examples) | Done | Thumbnails come from the engine (`spike-catalog`, `catalog/thumbs.json`). |
+| A. NESTML cells (SA node, Butera burster, ICC) | Done | Statically linked; spike parity against PyNEST in `test_nestml_parity`. |
+| A. NESTML cells validated against their paper figure | Changed | Each model's `docs/models/*.md` states what was checked and what was not; the catalogue's f-I thumbnails for slow cells use a card-declared window. |
+| A. Muscle spindle card | Changed | The spindle is part of the limb's sensors (`engine/src/tasks/spinal_limb.h`), not a parts-bin card. `Catalog.UNLOCK` lists no spindle card. |
+| A. Neuromodulation (NE, ACh, DA channels, `modulator` output kind) | Done | NESTML cells follow the circuit-wide ACh and NE by default; the `modulation` table overrides it. |
+| A. `volume_transmitter` + `stdp_dopamine_synapse` | Done | Engine and circuit format; no reference circuit uses it. |
+| A. Synapses in the editor (stdp, stdp_dopamine, tsodyks2, gap_junction, quantal_stp) | 0.3 | The editor offers `static_synapse`. Circuit files with these synapses load and run. |
+| B. Muscle, joint, heart, lungs, eye, gut | Done | `docs/body/`, one unit test per module. |
+| B. Muscle from motor-unit spike trains | Changed | Tasks drive the muscle from pool rates scaled by pool size (`docs/body/muscle.md`); the spike-mode input exists in the module and is not used by a task. Moved to 0.3 for the tasks. |
+| C. The eleven tasks | Done | Reference circuits and lesions per `docs/circuits/`; the 12-seed plateaus are documented there. |
+| D. Campaign map | Done | Five chapters, anatomical maps, gating by half of the previous chapter. |
+| D. Stars: pass, under par, low energy | Done | 1 pass, 2 all 5 TEST seeds (circuit reseeded, mean score), 3 within the neuron par and the energy budget (`Progress.ENERGY_HZ`, 1.6 x the reference's spikes/s per neuron). |
+| D. Stars: "biologically faithful" (motif similarity) | 0.3 | The census is in the game; the comparison against the reference is not. |
+| D. Reference-derived circuits | Changed | Added by the critique: an edited reference earns no stars and does not unlock. |
+| D. Perturbation timeline and bands | Done | |
+| D. Lesion lab | Done | Re-run with intact and lesioned rows; CSV and Markdown export. |
+| D. Sandbox, parts bin unlocks, modulator dials | Done | |
+| D. Phone layout | Changed | The lab and map work at 844x390; building a v0.2 circuit on a phone is still cramped (see `CRITIQUE-0.2.md` M1). |
+| E. Phase-response curves | Done | Analysis tab PRC: from the task's scripted perturbations on a recording. A free PRC experiment is bound (`SpikeSim.prc_experiment_json`) but has no UI. |
+| E. Burst detection | Done | Analysis tab bursts. |
+| E. Heart-rate variability | Done | Analysis tab HRV: SDNN, RMSSD, pNN50, LF/HF. |
+| E. 4-node census | Done | Analysis tab 4-node, with a work-limit guard (the engine refuses a graph whose estimated work exceeds 5e7). |
+| E. Motif comparison for the elegance star | 0.3 | With the faithful star above. |
+| Researcher: score a circuit outside Godot | Done | `spike-run --task <id>` (not in the original REQ; critique R2). |

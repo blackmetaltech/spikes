@@ -324,7 +324,92 @@ func _v02_checks() -> void:
 	if sb != null: small_fonts_total += _small_fonts(screen)
 	Circuits.sandbox = false
 	cur = ""; show_screen("title", false, true); await _frames()
+	await _task_checks()
 	print("V02 OK chapters=%d tasks=%d cards=%d" % [Campaign.CHAPTERS.size(), Campaign.installed().size(), Catalog.cards().size()])
+
+## What each body view needs in Task::body().readouts before it can draw (anything else shows a "Waiting for ..." placeholder; keep in step with body_views.gd).
+const VIEW_NEEDS := {"limb": [["theta_deg", "theta_rad", "angle_deg"]], "heart": [["hr_bpm"]], "lungs": [["volume"]], "eye": [["pupil_mm"]], "gut": [["bolus"]], "dashboard": [], "polyline": []}
+
+## C1, per real task (no mock tasks): the empty bench the lab builds declares the channel kinds the reference circuit declares; a minimal circuit made with the
+## editor API (one driven neuron wired to every channel) runs 2 s and moves each modulator the task names; the real body view has its readouts after 1 s.
+func _task_checks() -> void:
+	if not ClassDB.class_exists("SpikeTask"): return
+	OS.unset_environment("SP_MOCK"); Campaign.refresh()
+	var n_checked := 0; var n_mod := 0
+	for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+		var t = Campaign.make(id); var info := Campaign.info(id)
+		var ref := Circuits.parse(Circuits.read_reference(Campaign.ref_path(id)))
+		# 1. the skeleton the lab builds: every channel kind equals the reference's
+		lab_keep.erase(id); cur = ""; open_lab(id, false); await _frames(20)
+		var lab := screen as LabScreen
+		_check(lab != null and not lab._is_reference(), "tasks: %s did not open on an empty bench" % id)
+		if lab == null: continue
+		var sk: Dictionary = lab.circuit.duplicate(true)
+		for key in ["inputs", "outputs"]:
+			var want := {}
+			for ch in ref.get(key, []): want[str(ch.get("name", ""))] = ch
+			for ch in sk.get(key, []):
+				var nm := str(ch.get("name", ""))
+				if not want.has(nm): continue   # a channel the reference leaves out (optional)
+				var rk := str(want[nm].get("kind", "poisson" if key == "inputs" else "rate"))
+				_check(str(ch.get("kind", "")) == rk, "tasks: %s skeleton %s '%s' is %s, the reference declares %s" % [id, key, nm, ch.get("kind", ""), rk])
+				if key == "outputs" and rk == "modulator": _check(str(ch.get("modulator", "")) == str(want[nm].get("modulator", "")), "tasks: %s skeleton output '%s' releases %s, the reference %s" % [id, nm, ch.get("modulator", ""), want[nm].get("modulator", "")])
+		# 2. a minimal circuit: one driven neuron on every channel; modulators must move
+		var c := sk.duplicate(true)
+		var nid := Circuits.add_neuron(c, "iaf_psc_alpha", 0, Vector2(200, 200), "E"); (c["populations"][c["populations"].size() - 1]["params"] as Dictionary)["I_e"] = 600.0
+		for ch in c["inputs"]: (ch["targets"] as Array).append(nid)
+		for ch in c["outputs"]: (ch["neurons"] as Array).append({"pop": nid})
+		var sim = ClassDB.instantiate("SpikeSim")
+		var loaded: bool = sim.load_circuit(Circuits.to_json(Telemetry.sanitized(c)))
+		_check(loaded, "tasks: %s minimal circuit rejected: %s" % [id, sim.error()])
+		if loaded:
+			t.reset(1)
+			var names: Array = Array(t.modulators())
+			for ch in c["outputs"]:
+				if str(ch.get("kind", "")) == "modulator" and not names.has(str(ch.get("modulator", ""))): names.append(str(ch["modulator"]))
+			for nm in names:
+				sim.set_modulator(str(nm), 0.4); sim.step(1.0); _check(absf(float(sim.modulator(str(nm))) - 0.4) < 0.05, "tasks: %s set_modulator(%s) reads back %.3f" % [id, nm, float(sim.modulator(str(nm)))])
+				sim.set_modulator(str(nm), 0.0)
+			for i in 2000: t.step(sim, 1.0)
+			sim.drain_spikes()
+			for ch in c["outputs"]:
+				if str(ch.get("kind", "")) != "modulator": continue
+				n_mod += 1
+				_check(float(sim.modulator(str(ch["modulator"]))) > 0.0, "tasks: %s modulator output '%s' did not move %s in 2 s" % [id, ch["name"], ch["modulator"]])
+		sim.stop()
+		# 3. the real body view: its readouts exist after 1 s on the reference circuit
+		cur = ""; open_lab(id, true); await _frames(20); await get_tree().create_timer(1.0).timeout
+		var rlab := screen as LabScreen
+		_check(rlab != null and rlab.tele.sim != null, "tasks: %s reference did not load" % id)
+		if rlab != null and rlab.tele.sim != null:
+			var ro: Dictionary = (rlab.tele.body.get("readouts", {}) as Dictionary); var vw := str(info["view"])
+			_check(VIEW_NEEDS.has(vw), "tasks: %s has view '%s' with no readout contract in main.gd" % [id, vw])
+			for any in VIEW_NEEDS.get(vw, []): _check((any as Array).any(func(k): return ro.has(k)), "tasks: %s view '%s' would show 'Waiting for %s'" % [id, vw, any[0]])
+			small_fonts_total += _small_fonts(screen)
+		n_checked += 1
+	# the analysis tabs: 4-node on a big enough graph, HRV / bursts / energy from a short recording of the pacemaker
+	var fof := Circuits.parse(Circuits.read_reference(Campaign.ref_path("fight_or_flight")))
+	cur = ""; open_analysis(fof, null, "fight_or_flight"); await _frames(6)
+	var an := screen as AnalysisScreen
+	_check(an != null, "analysis screen did not open")
+	if an != null:
+		an.tab = 1; an._tab_changed(); await _frames(2)
+		_check(an.panel.message == "" and (an.panel.data.get("classes", []) as Array).size() > 0, "analysis 4-node: no classes (%s)" % an.panel.message)
+	var hp := Circuits.parse(Circuits.read_reference(Campaign.ref_path("heart_pacemaker")))
+	cur = ""; open_analysis(hp, null, "heart_pacemaker"); await _frames(6)
+	an = screen as AnalysisScreen
+	if an != null:
+		an.rec_s = 10; an.tab = 2; an._tab_changed(); an._start_record()
+		var t1 := Time.get_ticks_msec()
+		while an.rec.is_empty() and Time.get_ticks_msec() - t1 < 120000: await _frames(2)
+		_check(not an.rec.is_empty(), "analysis: the recording did not finish")
+		an._compute_series(); _check(int(an.panel.data.get("n_beats", 0)) >= 5, "analysis HRV: %s beats (%s)" % [an.panel.data.get("n_beats", 0), an.panel.message])
+		an.tab = 4; an._tab_changed(); _check(an.panel.message == "" and an.panel.data.has("n_bursts"), "analysis bursts: %s" % an.panel.message)
+		an.tab = 3; an._tab_changed(); _check(an.panel.message != "" or an.panel.data.has("bins"), "analysis PRC drew nothing")
+		an.tab = 5; an._tab_changed(); _check(an.panel.message != "" or float(an.panel.data.get("hz", -1.0)) >= 0.0, "analysis energy drew nothing")
+		await _frames(2); small_fonts_total += _small_fonts(screen)
+	cur = ""; show_screen("title", false, true); await _frames()
+	print("TASKS OK tasks=%d modulator_outputs=%d" % [n_checked, n_mod])
 
 ## Steppers and toggles change Settings; screen changes animate and leave exactly one screen behind.
 func _interaction_checks() -> void:

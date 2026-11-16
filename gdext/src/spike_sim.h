@@ -3,6 +3,8 @@
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_float64_array.hpp>
+#include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <memory>
 #include <string>
@@ -44,6 +46,23 @@ public:
   static String motif_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed );
   /// Spike-train statistics of a drained (neuron, t) pair array: rates, ISI CV, Golomb chi.
   static Dictionary spike_stats( const PackedFloat64Array& pairs, int64_t n, double t0_ms, double t1_ms );
+
+  // ---- v0.2 (add-only): modulators and the analyses of bridge.h. All analysis results are JSON text ({"error": ...} on failure).
+  bool set_modulator( const String& name, double conc );
+  double modulator( const String& name ) const;
+  static PackedStringArray modulator_names();
+  /// Bursts of `neurons` (empty = pooled) in [t0_ms, t1_ms) from drained (neuron, t) pairs.
+  static String bursts_json( const PackedFloat64Array& pairs, int64_t n, const PackedInt32Array& neurons, double t0_ms, double t1_ms );
+  /// PRC from drained spike pairs and perturbation times (ms). merge_gap_ms > 0 collapses population spikes into one marker.
+  static String prc_json( const PackedFloat64Array& pairs, int64_t n, const PackedInt32Array& neurons, const PackedFloat64Array& perturb_ms,
+    double period_ms, double merge_gap_ms, int64_t nbins );
+  /// PRC experiment on the loaded circuit (optional; it perturbs and advances the simulation).
+  String prc_experiment_json( const String& channel, double baseline, double pulse_value, double pulse_ms, int64_t n_phases,
+    const PackedInt32Array& neurons, double merge_gap_ms, int64_t repeats, int64_t nbins );
+  static String hrv_json( const PackedFloat64Array& beat_times_ms );
+  /// 4-node census; refuses (error JSON) when the work estimate exceeds max_work (0 = no limit).
+  String motif4_json( int64_t sign, int64_t n_null, int64_t seed, double max_work ) const;
+  static String motif4_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed, double max_work );
 
   spike::Engine& engine() { return *engine_; }
   bool owns() const { return loaded_ && owner_ == this; }

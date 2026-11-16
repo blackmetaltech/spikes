@@ -38,6 +38,8 @@ public:
   Array timeline() const;       // [{t_ms, dur_ms, label}]
   Array bands() const;          // [{name, unit, lo, hi}]
   PackedStringArray modulators() const;
+  /// {"inputs": {name: {kind, value}}, "outputs": {name: {kind, modulator, gain, tau_ms}}} from Task::channel_kinds() (names the task does not list are absent).
+  Dictionary channel_kinds() const;
   // v0.2 engine bridges (static, add-only): the parts-bin card list, and the neuromodulator channels of a SpikeSim (engine.h set_modulator / modulator)
   static String catalog_json();
   static PackedStringArray modulator_names();

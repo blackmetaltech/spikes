@@ -164,6 +164,68 @@ Dictionary SpikeSim::spike_stats( const PackedFloat64Array& pairs, int64_t n, do
   return d;
 }
 
+// ---- v0.2 additions
+static std::vector< spike::Spike > pairs_to_spikes( const PackedFloat64Array& pairs )
+{
+  std::vector< spike::Spike > sp;
+  const double* r = pairs.ptr();
+  for ( int64_t i = 0; i + 1 < pairs.size(); i += 2 )
+    sp.push_back( { int32_t( r[ i ] ), r[ i + 1 ] } );
+  return sp;
+}
+static std::vector< int > ints( const PackedInt32Array& a )
+{
+  std::vector< int > v;
+  for ( int64_t i = 0; i < a.size(); ++i )
+    v.push_back( a[ i ] );
+  return v;
+}
+static std::vector< double > dbls( const PackedFloat64Array& a )
+{
+  std::vector< double > v;
+  for ( int64_t i = 0; i < a.size(); ++i )
+    v.push_back( a[ i ] );
+  return v;
+}
+static String js( const std::string& s ) { return String::utf8( s.c_str() ); }
+bool SpikeSim::set_modulator( const String& name, double conc ) { return owns() && engine_->set_modulator( std::string( name.utf8().get_data() ), conc ); }
+double SpikeSim::modulator( const String& name ) const { return owns() ? engine_->modulator( std::string( name.utf8().get_data() ) ) : 0.0; }
+PackedStringArray SpikeSim::modulator_names()
+{
+  PackedStringArray a;
+  for ( const auto& s : spike::modulator_names() )
+    a.push_back( js( s ) );
+  return a;
+}
+String SpikeSim::bursts_json( const PackedFloat64Array& pairs, int64_t n, const PackedInt32Array& neurons, double t0_ms, double t1_ms )
+{
+  return js( spike_gd::burst_json( pairs_to_spikes( pairs ), int( n ), ints( neurons ), t0_ms, t1_ms ) );
+}
+String SpikeSim::prc_json( const PackedFloat64Array& pairs, int64_t n, const PackedInt32Array& neurons, const PackedFloat64Array& perturb_ms,
+  double period_ms, double merge_gap_ms, int64_t nbins )
+{
+  return js( spike_gd::prc_json( pairs_to_spikes( pairs ), int( n ), ints( neurons ), dbls( perturb_ms ), period_ms, merge_gap_ms, int( nbins ) ) );
+}
+String SpikeSim::prc_experiment_json( const String& channel, double baseline, double pulse_value, double pulse_ms, int64_t n_phases,
+  const PackedInt32Array& neurons, double merge_gap_ms, int64_t repeats, int64_t nbins )
+{
+  if ( !owns() )
+    return "";
+  return js( spike_gd::prc_experiment_json( *engine_, std::string( channel.utf8().get_data() ), baseline, pulse_value, pulse_ms, int( n_phases ),
+    ints( neurons ), merge_gap_ms, int( repeats ), int( nbins ) ) );
+}
+String SpikeSim::hrv_json( const PackedFloat64Array& beats ) { return js( spike_gd::hrv_json( dbls( beats ) ) ); }
+String SpikeSim::motif4_json( int64_t sign, int64_t n_null, int64_t seed, double max_work ) const
+{
+  if ( !owns() )
+    return "";
+  return js( spike_gd::motif4_json( *engine_, int( sign ), int( n_null ), uint64_t( seed ), max_work ) );
+}
+String SpikeSim::motif4_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed, double max_work )
+{
+  return js( spike_gd::motif4_json_edges( dbls( triples ), int( n ), int( sign ), int( n_null ), uint64_t( seed ), max_work ) );
+}
+
 void SpikeSim::_bind_methods()
 {
   ClassDB::bind_method( D_METHOD( "load_circuit", "json" ), &SpikeSim::load_circuit );
@@ -186,4 +248,13 @@ void SpikeSim::_bind_methods()
   ClassDB::bind_method( D_METHOD( "motif_json", "sign", "n_null", "seed" ), &SpikeSim::motif_json );
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "motif_json_edges", "triples", "n", "sign", "n_null", "seed" ), &SpikeSim::motif_json_edges );
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "spike_stats", "pairs", "n", "t0_ms", "t1_ms" ), &SpikeSim::spike_stats );
+  ClassDB::bind_method( D_METHOD( "set_modulator", "name", "conc" ), &SpikeSim::set_modulator );
+  ClassDB::bind_method( D_METHOD( "modulator", "name" ), &SpikeSim::modulator );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "modulator_names" ), &SpikeSim::modulator_names );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "bursts_json", "pairs", "n", "neurons", "t0_ms", "t1_ms" ), &SpikeSim::bursts_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "prc_json", "pairs", "n", "neurons", "perturb_ms", "period_ms", "merge_gap_ms", "nbins" ), &SpikeSim::prc_json );
+  ClassDB::bind_method( D_METHOD( "prc_experiment_json", "channel", "baseline", "pulse_value", "pulse_ms", "n_phases", "neurons", "merge_gap_ms", "repeats", "nbins" ), &SpikeSim::prc_experiment_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "hrv_json", "beat_times_ms" ), &SpikeSim::hrv_json );
+  ClassDB::bind_method( D_METHOD( "motif4_json", "sign", "n_null", "seed", "max_work" ), &SpikeSim::motif4_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "motif4_json_edges", "triples", "n", "sign", "n_null", "seed", "max_work" ), &SpikeSim::motif4_json_edges );
 }
