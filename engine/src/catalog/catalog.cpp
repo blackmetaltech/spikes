@@ -30,8 +30,8 @@ CatalogModel izh( const char* tag, const char* title, const char* summary, std::
     P{ "c", "mV", "Voltage the cell is reset to after a spike.", c, -70, -45 },
     P{ "d", "", "Extra recovery kick added after each spike (large = strong adaptation or bursting).", d, 0.0, 10 },
     P{ "I_e", "pA", "Constant input current (the model's own units, about 1 per mV/ms).", 0, -10, 40 } };
-  m.input_weight = 1.0;
-  m.weight_unit = "";
+  m.input_weight = 2.0;  // measured: one spike steps V_m by exactly the weight (NEST izhikevich), so 2 = a 2 mV EPSP
+  m.weight_unit = "mV";
   m.ei = ei;
   m.ei_note = ei_note;
   m.drive = { "dc", "pA", { 0, 2, 4, 6, 10, 15 } };
@@ -189,7 +189,7 @@ std::vector< CatalogModel > build()
       P{ "g_L", "nS", "Leak conductance.", 10, 2, 50 }, P{ "C_m", "pF", "Membrane capacitance.", 200, 50, 500 },
       P{ "tau_syn_ex", "ms", "Excitatory conductance decay.", 5, 0.2, 20 }, P{ "tau_syn_in", "ms", "Inhibitory conductance decay.", 10, 0.2, 50 },
       P{ "I_e", "pA", "Constant input current.", 0, -500, 2000 } };
-    m.input_weight = 1;
+    m.input_weight = 2;  // measured: one spike gives a 1.9 mV EPSP at rest
     m.weight_unit = "nS";
     m.ei = "either";
     m.ei_note = "Excitatory by default (pyramidal cell); negative weights give an inhibitory conductance neuron.";
@@ -210,8 +210,8 @@ std::vector< CatalogModel > build()
       P{ "g_peak_h", "nS", "h-current strength (rhythmicity and rebound).", 1, 0, 5 }, P{ "g_peak_NaP", "nS", "Persistent sodium strength.", 1, 0, 5 },
       P{ "g_peak_KNa", "nS", "Sodium-dependent potassium (slow adaptation).", 1, 0, 5 }, P{ "g_KL", "nS", "Potassium leak (sets resting level).", 1, 0.5, 2 },
       P{ "tau_m", "ms", "Membrane time constant.", 16, 5, 50 }, P{ "theta_eq", "mV", "Resting spike threshold.", -51, -60, -40 } };
-    m.input_weight = 1;
-    m.weight_unit = "";
+    m.input_weight = 1;  // measured: weight 1 on the AMPA port (receptor_type 1) gives a 1 mV EPSP; the weight multiplies the peak conductance
+    m.weight_unit = "x g_peak";
     m.ei = "either";
     m.ei_note = "Synapses are on receptor ports (AMPA = 1); weight scales the peak conductance. Use receptor_type for inhibition.";
     m.drive = { "dc", "pA", { 0, 10, 20, 30, 50, 100 } };
@@ -267,8 +267,8 @@ std::vector< CatalogModel > build()
     m.params = { P{ "c_1", "1/(s mV)", "Linear coefficient of the rate-voltage relation.", 0, 0, 100 }, P{ "c_2", "1/s", "Base rate coefficient.", 1.238, 0.1, 50 },
       P{ "c_3", "1/mV", "Exponential steepness (large = sharper).", 0.25, 0.05, 1 }, P{ "dead_time", "ms", "Silent period after each spike.", 1, 0, 20 },
       P{ "tau_m", "ms", "Membrane time constant.", 10, 2, 100 }, P{ "C_m", "pF", "Membrane capacitance.", 250, 50, 1000 }, P{ "I_e", "pA", "Constant input current.", 0, -500, 3000 } };
-    m.input_weight = 1;
-    m.weight_unit = "";
+    m.input_weight = 1;  // instantaneous voltage jump: the weight is the EPSP in mV
+    m.weight_unit = "mV";
     m.ei = "either";
     m.ei_note = "Input weight is a voltage jump in mV; sign sets E or I.";
     m.drive = { "dc", "pA", { 0, 200, 400, 600, 800, 1000 } };
@@ -284,7 +284,7 @@ std::vector< CatalogModel > build()
     m.examples = { "A sensory axon or relay station that does not transform the signal", "Primary afferents that copy receptor spikes" };
     m.source = "NEST parrot_neuron";
     m.params = {};
-    m.input_weight = 1;
+    m.input_weight = 1;  // a relay: it repeats every spike whatever the weight (> 0), so the weight only matters downstream
     m.weight_unit = "";
     m.ei = "either";
     m.ei_note = "Pure relay: it passes spikes on whatever the weight; the sign of the downstream synapse sets E or I.";
@@ -324,7 +324,7 @@ std::vector< CatalogModel > build()
     m.params = { P{ "V_T", "mV", "Voltage offset of the channel kinetics.", -50, -65, -45 }, P{ "g_Na", "nS", "Sodium conductance.", 20000, 5000, 30000 },
       P{ "g_K", "nS", "Potassium conductance.", 6000, 1000, 10000 }, P{ "g_L", "nS", "Leak conductance.", 10, 2, 50 }, P{ "C_m", "pF", "Membrane capacitance.", 200, 50, 500 },
       P{ "I_e", "pA", "Constant input current.", 0, -500, 2000 } };
-    m.input_weight = 1;
+    m.input_weight = 1;  // measured: one spike gives a 1.2 mV EPSP at rest
     m.weight_unit = "nS";
     m.ei = "either";
     m.ei_note = "Either sign; gap junctions are symmetric.";
@@ -348,14 +348,17 @@ std::vector< CatalogModel > build()
       P{ "ach", "a.u.", "Acetylcholine level: opens I_KACh and shifts I_f (slows down).", 0, 0, 1 }, P{ "g_f", "nS", "Funny-current (HCN) conductance.", 0.34, 0.1, 1 },
       P{ "g_CaL", "nS", "L-type calcium conductance.", 3.53, 1, 6 }, P{ "g_KACh", "nS", "Muscarinic potassium conductance at full ACh.", 0.03, 0, 0.2 },
       P{ "C_m", "pF", "Membrane capacitance.", 32, 10, 100 }, P{ "I_e", "pA", "Constant input current.", 0, -10, 10 } };
-    m.input_weight = 1;
-    m.weight_unit = "";
+    m.input_weight = 0.2;  // measured: 0.2 nS gives a ~2 mV EPSP in the 32 pF cell (1 nS = 10 mV); the reference coupling is 2 nS
+    m.weight_unit = "nS";
     m.ei = "either";
     m.ei_note = "A pacemaker: usually the source of a rhythm; modulate it with NE and ACh through the modulation table.";
     m.drive = { "dc", "pA", { -5, -2, 0, 1, 2, 4 } };
     m.nestml = true;
-    m.run_ms = 6000;
-    m.skip_ms = 1000;
+    m.vm_lo = -74;  // = vm_init_range("sa_node_pacemaker") in engine/src/circuit.cpp (checked in test_catalog)
+    m.vm_hi = -45;
+    m.run_ms = 12000;  // >= 10 beats even at the slowest drive level (0.4 Hz): extended up to max_ms
+    m.skip_ms = 2000;
+    m.max_ms = 60000;
     m.trace_ms = 1500;
     m.trace_dt_ms = 1.0;
     add( m );
@@ -373,14 +376,14 @@ std::vector< CatalogModel > build()
       P{ "g_tonic", "nS", "Tonic excitatory conductance (paper g_tonic-e): speeds the bursts up.", 0.3, 0, 1 },
       P{ "C_m", "pF", "Membrane capacitance.", 21, 5, 50 }, P{ "I_e", "pA", "Constant input current.", 0, -10, 50 },
       P{ "ne", "a.u.", "Noradrenaline level (adds excitatory conductance).", 0, 0, 1 }, P{ "ach", "a.u.", "Acetylcholine level (adds excitatory conductance).", 0, 0, 1 } };
-    m.input_weight = 1;
-    m.weight_unit = "";
+    m.input_weight = 0.05;  // measured: 0.1 nS gives a 1 mV EPSP; 0.3 nS pushes a quiet cell into spiking; the reference uses 0.03-0.09 nS
+    m.weight_unit = "nS";
     m.ei = "excitatory";
     m.ei_note = "Respiratory pacemaker neurons are excitatory.";
     m.drive = { "dc", "pA", { 0, 2, 5, 10, 20, 50 } };
     m.nestml = true;
-    m.run_ms = 10000;
-    m.skip_ms = 1000;
+    m.run_ms = 60000;  // >= 10 bursts (period 2.5-10 s at the low drive levels)
+    m.skip_ms = 2000;
     m.trace_ms = 5000;
     m.trace_dt_ms = 5.0;
     add( m );
@@ -398,14 +401,15 @@ std::vector< CatalogModel > build()
       P{ "tau_x", "ms", "Excitation time constant (sets the wave onset speed).", 600, 100, 2000 }, P{ "V_base", "mV", "Trough of the slow wave.", -70, -80, -60 },
       P{ "V_amp", "mV", "Amplitude of the slow wave.", 25, 10, 40 }, P{ "I_e", "pA", "Constant input current (100 pA shifts the excitation by 1).", 0, -100, 100 },
       P{ "ach", "a.u.", "Acetylcholine level (depolarises, speeds up).", 0, 0, 1 }, P{ "ne", "a.u.", "Noradrenaline level (hyperpolarises, slows down).", 0, 0, 1 } };
-    m.input_weight = 1;
-    m.weight_unit = "";
+    m.input_weight = 200;  // measured: 200 pA gives a 1 unit step of the excitation (about 1 mV of V_m); the reference coupling is 400 pA
+    m.weight_unit = "pA";
     m.ei = "excitatory";
     m.ei_note = "Drives smooth muscle through electrical coupling.";
     m.drive = { "dc", "pA", { -40, -20, -10, 0, 20, 40 } };
     m.nestml = true;
-    m.run_ms = 60000;
-    m.skip_ms = 0;
+    m.run_ms = 60000;  // a wave every 20 s: extended (one spike per wave onset) until 10 waves, up to 6 min
+    m.skip_ms = 10000;
+    m.max_ms = 360000;
     m.trace_ms = 30000;
     m.trace_dt_ms = 50.0;
     add( m );
@@ -440,8 +444,8 @@ std::string catalog_json()
       { "examples", m.examples }, { "source", m.source }, { "params", params }, { "preset", json::parse( m.preset_json ) },
       { "input_weight", m.input_weight }, { "weight_unit", m.weight_unit }, { "ei", m.ei }, { "ei_note", m.ei_note },
       { "drive", { { "kind", m.drive.kind }, { "unit", m.drive.unit }, { "levels", m.drive.levels } } }, { "gap_capable", m.gap_capable },
-      { "nestml", m.nestml }, { "params_provisional", m.params_provisional },
-      { "probe", { { "run_ms", m.run_ms }, { "skip_ms", m.skip_ms }, { "trace_ms", m.trace_ms }, { "trace_dt_ms", m.trace_dt_ms } } } } );
+      { "nestml", m.nestml }, { "vm_init", m.vm_hi > m.vm_lo ? json::array( { m.vm_lo, m.vm_hi } ) : json( nullptr ) }, { "params_provisional", m.params_provisional },
+      { "probe", { { "run_ms", m.run_ms }, { "skip_ms", m.skip_ms }, { "max_ms", m.max_ms }, { "min_cycles", m.min_cycles }, { "trace_ms", m.trace_ms }, { "trace_dt_ms", m.trace_dt_ms } } } } );
   }
   return json{ { "schema", 1 }, { "models", models } }.dump();
 }

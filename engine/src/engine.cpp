@@ -276,7 +276,8 @@ void Engine::Impl::build()
         if ( d0.known( "V_m" ) and d0.known( "E_L" ) and d0.known( "V_th" ) )
         {
           const double e_l = d0.get< double >( "E_L" ), v_th = d0.get< double >( "V_th" );
-          if ( v_th > e_l )
+          double lo = 0, hi = 0;
+          if ( vm_init_range( p.model, e_l, v_th, lo, hi ) )
             for ( int32_t j = 0; j < p.n; ++j )
             {
               uint64_t z = spec.seed + static_cast< uint64_t >( p.first + j + 1 ) * 0x9E3779B97F4A7C15ULL;
@@ -285,7 +286,7 @@ void Engine::Impl::build()
               z ^= z >> 31;
               const double u = static_cast< double >( z >> 11 ) * ( 1.0 / 9007199254740992.0 );
               Dictionary v;
-              v[ "V_m" ] = e_l + u * ( v_th - e_l );
+              v[ "V_m" ] = lo + u * ( hi - lo );
               nest::set_node_status( ( *nc )[ j ], v );
             }
         }
@@ -298,6 +299,33 @@ void Engine::Impl::build()
     pop_nc.push_back( nc );
     for ( int32_t j = 0; j < p.n; ++j )
       neuron_pop.push_back( p.id );
+  }
+
+  // default modulation (docs/CIRCUIT-FORMAT.md "Default modulation"): a population whose model has an `ne` / `ach` parameter follows the
+  // NE / ACh level (gain 1, floor 0) unless the circuit's modulation table already has a row for that (population, parameter).
+  for ( size_t i = 0; i < spec.pops.size(); ++i )
+  {
+    Dictionary d0 = nest::get_node_status( ( *pop_nc[ i ] )[ 0 ] );
+    for ( const char* pr : { "NE:ne", "ACh:ach" } )
+    {
+      const std::string s( pr ), mod = s.substr( 0, s.find( ':' ) ), par = s.substr( s.find( ':' ) + 1 );
+      if ( not d0.known( par ) )
+        continue;
+      bool has = false;
+      for ( const ModulationSpec& m : spec.modulation )
+        has = has or ( m.pop_index == static_cast< int >( i ) and m.param == par );
+      if ( has )
+        continue;
+      ModulationSpec m;
+      m.modulator = mod;
+      m.pop = spec.pops[ i ].id;
+      m.param = par;
+      m.pop_index = static_cast< int >( i );
+      m.amount = 1.0;
+      m.has_min = true;
+      m.vmin = 0.0;
+      spec.modulation.push_back( m );
+    }
   }
 
   // modulation table: remember each target parameter's base value (after the population's params were applied)

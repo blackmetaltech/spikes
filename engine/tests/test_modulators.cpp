@@ -1,7 +1,9 @@
 // Neuromodulators: Engine::set_modulator / modulator, the circuit "modulation" table, and the "modulator" output kind.
 #include <cmath>
 #include <string>
+#include <algorithm>
 #include "check.h"
+#include "nestml_util.h"
 #include "nlohmann/json.hpp"
 #include "spike/engine.h"
 
@@ -170,11 +172,63 @@ static void test_loop_drives_target()
   CHECK( quiet == 0 and active > 10 );
 }
 
+// Default modulation: a model with `ach` / `ne` parameters follows the global levels with an EMPTY modulation table; a table row
+// for a (population, parameter) overrides the default for that parameter only. Also the seeded V_m range of the SA cell.
+static void test_default_modulation_nestml()
+{
+  if ( not nm::available( "sa_node_pacemaker" ) )
+    return;
+  auto beats = [ & ]( double ach, double ne, json mod ) {
+    json c = nm::circuit( "sa_node_pacemaker", { { "V_m", -60.0 } }, 1, 0.1, mod );
+    Engine e;
+    CHECK_MSG( e.load( c.dump() ), e.error() );
+    e.set_modulator( "ACh", ach );
+    e.set_modulator( "NE", ne );
+    return nm::after( nm::run_spikes( e, 16000 ), 4000.0 ).size();  // beats in 12 s
+  };
+  const json none = json::array();
+  const size_t base = beats( 0, 0, none ), vagal = beats( 1.0, 0, none ), symp = beats( 0, 1.0, none );
+  std::printf( "  SA beats in 12 s, empty modulation table: rest %zu, ACh 1 %zu, NE 1 %zu\n", base, vagal, symp );
+  CHECK( base >= 12 and vagal + 2 <= base and symp >= base + 3 );
+  // override one parameter: ACh -> ach with gain 0 (no effect), NE keeps its default
+  json over = json::array( { { { "modulator", "ACh" }, { "pop", "N" }, { "param", "ach" }, { "gain", 0.0 } } } );
+  CHECK( beats( 1.0, 0, over ) == base );
+  CHECK( beats( 0, 1.0, over ) == symp );
+  // an explicit row on another parameter does not switch the default off for ach / ne
+  json other = json::array( { { { "modulator", "NE" }, { "pop", "N" }, { "param", "I_e" }, { "gain", 0.0 } } } );
+  CHECK( beats( 1.0, 0, other ) == vagal );
+
+  // the seeded initial V_m of an SA population is drawn from [-74, -45] mV (not [E_L, V_th]), so clones differ in phase
+  json c = nm::circuit( "sa_node_pacemaker", json::object(), 8 );
+  Engine e;
+  CHECK_MSG( e.load( c.dump() ), e.error() );
+  double lo = 1e9, hi = -1e9;
+  for ( int i = 0; i < 8; ++i )
+  {
+    const double v = e.voltage( i );
+    lo = std::min( lo, v );
+    hi = std::max( hi, v );
+  }
+  CHECK( lo >= -74.0 - 1e-9 and hi <= -45.0 and hi - lo > 8.0 );
+  std::vector< double > first( 8, -1.0 );
+  for ( int k = 0; k < 20; ++k )
+  {
+    e.step( 100.0 );
+    for ( const auto& sp : e.drain_spikes() )
+      if ( first[ sp.neuron ] < 0 )
+        first[ sp.neuron ] = sp.t_ms;
+  }
+  const double f_lo = *std::min_element( first.begin(), first.end() ), f_hi = *std::max_element( first.begin(), first.end() );
+  std::printf( "  8 SA clones: V_m in [%.1f, %.1f] mV, first beats between %.0f and %.0f ms\n", lo, hi, f_lo, f_hi );
+  CHECK( f_lo > 0 and f_hi - f_lo > 50.0 );  // clones start at different phases (the first beats are spread over tens of ms; with E_L..V_th they all fired together)
+}
+
 int main()
 {
   test_api_and_table();
   test_errors();
   test_release_kinetics_and_loop();
   test_loop_drives_target();
+  test_default_modulation_nestml();
   return chk::finish( "test_modulators" );
 }

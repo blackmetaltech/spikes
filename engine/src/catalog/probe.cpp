@@ -1,6 +1,7 @@
 // Measures a catalog card with the engine: f-I curve points and a short V_m trace (used by the spike-catalog tool).
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "nlohmann/json.hpp"
 #include "spike/catalog.h"
@@ -38,17 +39,29 @@ std::string catalog_probe_json( const std::string& id )
         out[ "error" ] = e.error();
         return out.dump();
       }
-      e.step( kRunMs );
-      if ( not e.last_step_ok() )
+      // run in chunks (extended for slow cells until min_cycles spikes were seen or max_ms is reached)
+      const double kMaxMs = std::max( m->max_ms, kRunMs );
+      double elapsed = 0;
+      std::vector< double > times;
+      for ( ;; )
       {
-        out[ "error" ] = e.error();
-        return out.dump();
+        const double chunk = elapsed == 0 ? kRunMs : kRunMs - kSkipMs;
+        e.step( chunk );
+        elapsed += chunk;
+        if ( not e.last_step_ok() )
+        {
+          out[ "error" ] = e.error();
+          return out.dump();
+        }
+        for ( const Spike& s : e.drain_spikes() )
+          if ( s.t_ms >= kSkipMs )
+            times.push_back( s.t_ms );
+        if ( static_cast< int >( times.size() ) > m->min_cycles or elapsed + 1e-9 >= kMaxMs )
+          break;
       }
-      int n = 0;
-      for ( const Spike& s : e.drain_spikes() )
-        if ( s.t_ms >= kSkipMs )
-          ++n;
-      const double hz = n * 1000.0 / ( kRunMs - kSkipMs );
+      std::sort( times.begin(), times.end() );
+      const int n = static_cast< int >( times.size() );
+      const double hz = n >= 2 and m->max_ms > m->run_ms ? ( n - 1 ) * 1000.0 / ( times.back() - times.front() ) : n * 1000.0 / ( elapsed - kSkipMs );
       fi.push_back( { { "level", level }, { "rate_hz", round_to( hz, 0.001 ) } } );
       if ( hz > 0 and std::fabs( hz - 20.0 ) < best )
       {

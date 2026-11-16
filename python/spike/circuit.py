@@ -309,19 +309,51 @@ def _apply_modulation(net: "Network"):
         net.da_generator.set({"rate": max(0.0, net.mod_levels["DA"]) * DA_VT_HZ_PER_UNIT})
 
 
-def _register_nestml():
-    """Register the NESTML cells (models/nestml/spike_nestml.py) if the PyNEST loader library is built; skip silently otherwise."""
+NESTML_MODELS = ("sa_node_pacemaker", "butera_burster", "icc_slow_wave")
+
+# Seeded random initial V_m: per-model range override (engine/src/circuit.cpp vm_init_range); default range is [E_L, V_th].
+VM_INIT_RANGE = {"sa_node_pacemaker": (-74.0, -45.0)}
+
+# Default modulation (docs/CIRCUIT-FORMAT.md): a model with an `ne` / `ach` parameter follows the NE / ACh level (gain 1, floor 0)
+# unless the circuit's "modulation" table has a row for that (population, parameter).
+DEFAULT_MODULATION = (("NE", "ne"), ("ACh", "ach"))
+
+
+def vm_init_range(model: str, e_l: float, v_th: float):
+    """(lo, hi) of the random initial V_m for a model, or None when it has no range."""
+    if model in VM_INIT_RANGE:
+        return VM_INIT_RANGE[model]
+    return (e_l, v_th) if v_th > e_l else None
+
+
+def _register_nestml(spec: dict | None = None):
+    """Register the NESTML cells (models/nestml/spike_nestml.py) if the PyNEST loader library is built.
+
+    When the circuit (`spec`) uses a NESTML model that cannot be registered this raises CircuitError with the reason and the build
+    step; circuits without NESTML models are unaffected (registration is skipped quietly)."""
     import sys
 
     d = str(Path(__file__).resolve().parents[2] / "models" / "nestml")
     if d not in sys.path:
         sys.path.append(d)
+    failure = None
     try:
         import spike_nestml
 
         spike_nestml.register()
-    except (ImportError, FileNotFoundError, OSError, IndexError):
-        pass
+    except (ImportError, FileNotFoundError, OSError, IndexError, AttributeError) as e:
+        failure = f"{type(e).__name__}: {e}"
+    used = sorted({p["model"] for p in (spec or {}).get("populations", []) if p["model"] in NESTML_MODELS})
+    if used:
+        import nest
+
+        missing = [m for m in used if m not in nest.node_models]
+        if missing:
+            raise CircuitError(
+                f"populations: the circuit uses NESTML model(s) {', '.join(missing)}, but the NESTML models are not registered with PyNEST"
+                + (f" ({failure})" if failure else "")
+                + ". Build the PyNEST loader library with scripts/build-nestml.sh --pynest (or set SPIKE_NESTML_LIB to libspike_nestml_py.so)."
+            )
 
 
 def _import_nest():
@@ -352,7 +384,7 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
     nest.rng_seed = sd
     nest.local_num_threads = int(threads)
     nest.print_time = False
-    _register_nestml()  # after ResetKernel and the thread change (both drop registered models)
+    _register_nestml(spec)  # after ResetKernel and the thread change (both drop registered models)
 
     # 1. populations
     pops: dict[str, tuple[int, int, Any]] = {}
@@ -363,10 +395,11 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
         # seeded random initial V_m (docs/CIRCUIT-FORMAT.md): only if params give no V_m and the model has V_m, E_L, V_th
         if "V_m" not in (p.get("params") or {}):
             st = nc[0].get()
-            if "V_m" in st and "E_L" in st and "V_th" in st and st["V_th"] > st["E_L"]:
-                e_l, v_th = float(st["E_L"]), float(st["V_th"])
+            rng = vm_init_range(p["model"], float(st["E_L"]), float(st["V_th"])) if "V_m" in st and "E_L" in st and "V_th" in st else None
+            if rng is not None:
+                lo, hi = rng
                 for j in range(int(p["n"])):
-                    nc[j].set({"V_m": e_l + initial_vm_fraction(sd, first + j) * (v_th - e_l)})
+                    nc[j].set({"V_m": lo + initial_vm_fraction(sd, first + j) * (hi - lo)})
         pops[p["id"]] = (first, int(p["n"]), nc)
         first += int(p["n"])
         all_nodes = nc if all_nodes is None else all_nodes + nc
@@ -387,6 +420,11 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
 
     prepared = [_prepare_projection(spec, pr, k) for k, pr in enumerate(spec.get("projections", []))]
     modulation = _parse_modulation(spec)
+    for pid, (_, _, pnc) in pops.items():  # default modulation (after the circuit's own rows, like the engine)
+        st0 = pnc[0].get()
+        for mod, par in DEFAULT_MODULATION:
+            if par in st0 and not any(r["pop"] == pid and r["param"] == par for r in modulation):
+                modulation.append({"modulator": mod, "pop": pid, "param": par, "scale": False, "amount": 1.0, "min": 0.0, "max": None})
 
     # (4) dopamine plumbing: one volume_transmitter per distinct "dopamine_source" (order of first use), one generator -> parrot chain
     vts: dict[str, Any] = {}

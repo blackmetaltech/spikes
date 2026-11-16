@@ -40,6 +40,10 @@ static void test_static_data()
     CHECK_MSG( not m.title.empty() and m.summary.size() > 60 and not m.examples.empty() and not m.source.empty(), m.id );
     CHECK_MSG( m.ei == "excitatory" or m.ei == "inhibitory" or m.ei == "either", m.id );
     CHECK_MSG( m.input_weight != 0 and m.drive.levels.size() >= 5 and ( m.drive.kind == "dc" or m.drive.kind == "poisson" ), m.id );
+    // default weight: a measured value with a unit (the parrot relay repeats every spike whatever the weight, so it is unit-free)
+    CHECK_MSG( m.id == "parrot_neuron" or m.weight_unit == "pA" or m.weight_unit == "nS" or m.weight_unit == "mV" or m.weight_unit == "x g_peak", m.id + ": weight unit" );
+    if ( m.model == "izhikevich" or m.nestml )
+      CHECK_MSG( m.input_weight != 1.0 or m.id == "pp_psc_delta", m.id + ": placeholder default weight" );
     for ( const CatalogParam& p : m.params )
       CHECK_MSG( p.lo <= p.def and p.def <= p.hi and not p.desc.empty(), m.id + "." + p.name );
   }
@@ -174,7 +178,16 @@ static void test_probe()
     double best = 0;
     for ( const auto& pt : s[ "fi" ] )
       best = std::max( best, pt[ "rate_hz" ].get< double >() );
-    CHECK( best > 0.8 and best < 2.0 );  // about 70 beats per minute
+    CHECK( best > 0.8 and best < 2.5 );  // 70-100 beats per minute
+    // measured over >= 10 beats: a clean monotone f-I curve (the old 6 s windows gave 0.8, 1.2, 1.0, 1.0, 1.2, 1.2 Hz)
+    double prev = 0;
+    for ( const auto& pt : s[ "fi" ] )
+    {
+      const double r = pt[ "rate_hz" ].get< double >();
+      CHECK_MSG( r >= prev - 0.01, s.dump() );
+      prev = r;
+    }
+    CHECK( s[ "fi" ][ 5 ][ "rate_hz" ].get< double >() > 1.1 * s[ "fi" ][ 0 ][ "rate_hz" ].get< double >() );
   }
 }
 

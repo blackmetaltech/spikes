@@ -284,6 +284,19 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
 }
 } // namespace
 
+bool vm_init_range( const std::string& model, double e_l, double v_th, double& lo, double& hi )
+{
+  if ( model == "sa_node_pacemaker" )
+  {
+    lo = -74.0;
+    hi = -45.0;
+    return true;
+  }
+  lo = e_l;
+  hi = v_th;
+  return v_th > e_l;
+}
+
 bool is_modulator_name( const std::string& s ) { return s == "NE" or s == "ACh" or s == "DA"; }
 
 bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error )
