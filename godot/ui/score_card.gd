@@ -58,7 +58,7 @@ func _draw() -> void:
 	var rows_max := 2 if size.y >= 124.0 else 1
 	var px := x; var py := size.y - 12.0; var row := 0
 	for k in parts:
-		var s := "%s %s" % [str(k).replace("_", " "), str(parts[k]) if parts[k] is String else _fmt(float(parts[k]))]
+		var s := "%s %s" % [str(BodyViews.pretty(str(k))[0]), str(parts[k]) if parts[k] is String else BodyViews.valu(str(k), float(parts[k]))]
 		var tw := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
 		if px + tw > size.x - 8.0:
 			row += 1

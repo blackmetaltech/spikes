@@ -3,7 +3,11 @@ extends Control
 ## Scrolling spike raster: one row per neuron grouped by population, ticks coloured amber (excitatory) / cyan (inhibitory), drawn additively so
 ## dense firing glows. Scrolls smoothly on `Telemetry.view_t` (continuous), with a 100 ms grid and a bright "now" edge.
 var tele: Telemetry = null
-var window_ms := 500.0
+var window_ms := 500.0           # the window drawn now (eases toward window_target)
+var auto_window := true          # follow the timescale of the cells; a click on the "window" caption steps through fixed windows
+var window_target := 500.0
+var _retarget_at := 0.0
+var _pending := 0.0
 var _layer: Control
 
 class Layer extends Control:
@@ -16,9 +20,45 @@ func _ready() -> void:
 	var m := CanvasItemMaterial.new(); m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD; _layer.material = m; add_child(_layer)
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
-func attach(t: Telemetry) -> void: tele = t; queue_redraw()
-func _process(_dt: float) -> void:
-	if is_visible_in_tree(): queue_redraw(); _layer.queue_redraw()
+func attach(t: Telemetry) -> void: tele = t; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
+func _process(dt: float) -> void:
+	if not is_visible_in_tree(): return
+	if tele != null and auto_window: _auto(dt)
+	window_ms = lerpf(window_ms, window_target, clampf(dt * 8.0, 0.0, 1.0)) if absf(window_ms - window_target) > 1.0 else window_target
+	queue_redraw(); _layer.queue_redraw()
+
+## The window from the cells' own timescale: the median over the neurons that have fired of their longest quiet stretch, about 3 cycles wide (with a floor from the
+## task's length until the cells have fired). Never wider than the spikes the telemetry keeps.
+func _auto(dt: float) -> void:
+	_retarget_at -= dt
+	if _retarget_at > 0.0: return
+	_retarget_at = 0.5
+	var gaps := []
+	var seen := {}
+	for j in tele.sp_n.size(): seen[int(tele.sp_n[j])] = true
+	for id in seen.keys(): gaps.append(TraceView.quiet_gap(tele, int(id)))
+	var fb := TraceView.task_window(tele); var want := fb
+	if not gaps.is_empty():
+		gaps.sort(); var med: float = gaps[gaps.size() / 2]
+		want = maxf(med * 3.0, fb * 0.25)
+	var nw := TraceView.nice_window(want, Telemetry.HISTORY_MS - 100.0)
+	if nw == window_target: _pending = 0.0
+	else:
+		_pending += 1.0
+		if _pending >= 2.0 or tele.t_ms < 600.0: window_target = nw; _pending = 0.0
+
+func _gui_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and Rect2(size.x - 280.0, 0.0, 280.0, 26.0).has_point(e.position):
+		step_window(); accept_event()
+
+## Auto -> 500 ms -> 1 s -> 2 s -> 4 s -> auto.
+func step_window() -> void:
+	var seq := [500.0, 1000.0, 2000.0, 4000.0]
+	if auto_window: auto_window = false; window_target = seq[0]
+	else:
+		var i := seq.find(window_target)
+		if i < 0 or i >= seq.size() - 1: auto_window = true
+		else: window_target = seq[i + 1]
 
 func _plot() -> Rect2:
 	var fz := float(Kit.fs(14)); return Rect2(Vector2(fz * 3.4, 26.0), Vector2(size.x - fz * 3.4 - 12.0, size.y - 26.0 - fz - 12.0))
@@ -29,14 +69,15 @@ func _draw() -> void:
 	draw_string(f, Vector2(14, 20), "SPIKE RASTER", HORIZONTAL_ALIGNMENT_LEFT, 200, fz, Kit.TEXT_SOFT)
 	var vt := tele.view_t if tele != null else 0.0
 	# 100 ms grid, scrolling with time
-	var t_left := vt - window_ms; var g0 := ceilf(t_left / 100.0) * 100.0; var t := g0
+	var gs := TraceView.grid_step(window_ms); var lab_every := maxi(1, int(ceilf(64.0 / maxf(pl.size.x * gs / window_ms, 1.0))))
+	var t_left := vt - window_ms; var g0 := ceilf(t_left / gs) * gs; var t := g0
 	while t <= vt:
 		var x := pl.position.x + pl.size.x * (t - t_left) / window_ms
-		draw_line(Vector2(x, pl.position.y), Vector2(x, pl.end.y), Color(Kit.LINE, 0.55 if int(roundf(t / 100.0)) % 5 != 0 else 0.9), 1.0)
-		var lab := "%.1f s" % (t * 0.001)
-		draw_string(f, Vector2(x - 30, pl.end.y + float(fz) + 3.0), lab, HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
-		t += 100.0
-	draw_string(f, Vector2(size.x - 260, 20), "%d ms window, model time" % int(window_ms) if size.x > 520 else "%d ms" % int(window_ms), HORIZONTAL_ALIGNMENT_RIGHT, 246, fz, Kit.TEXT_SOFT)
+		draw_line(Vector2(x, pl.position.y), Vector2(x, pl.end.y), Color(Kit.LINE, 0.55 if int(roundf(t / gs)) % 5 != 0 else 0.9), 1.0)
+		if int(roundf(t / gs)) % lab_every == 0: draw_string(f, Vector2(x - 30, pl.end.y + float(fz) + 3.0), TraceView.tick_text(t, gs), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
+		t += gs
+	var wt := TraceView.window_text(window_ms, auto_window)
+	draw_string(f, Vector2(size.x - 260, 20), wt + (", model time" if size.x > 520 else ""), HORIZONTAL_ALIGNMENT_RIGHT, 246, fz, Kit.TEXT_SOFT)
 	if tele == null or tele.n == 0: return
 	# population groups
 	var n := tele.n; var row := pl.size.y / float(n); var c := tele.circuit; var first := 0
