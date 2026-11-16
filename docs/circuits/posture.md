@@ -1,0 +1,57 @@
+# Reference circuit: posture (`circuits/posture.json`)
+
+Task `posture` (`engine/src/tasks/posture.cpp`, chapter "spinal", order 120). Hold the forearm 29 degrees (0.5 rad) above horizontal against
+gravity while six random pushes (1.0-1.8 N m, 250 ms, either direction) knock it. Generator: `python3 circuits/tools/gen_spinal.py posture`.
+The limb, delays and muscles are those of `stretch_reflex.md`, but the arm is not supported: 1.5 kg, centre of mass 17 cm, gravity torque
+2.5 N m at horizontal.
+
+## Spindle tuning
+Resting Ia and II bias is only 10 Hz here, and fusimotor (gamma) drive adds 80 Hz and 50 % length gain per unit (gamma = gamma pool rate /
+40 Hz, smoothed with tau 100 ms because intrafusal contraction is slow, applied to both spindles' static and dynamic gains). A gamma-quiet
+spindle is nearly silent (Hulliger 1984; Prochazka & Gorassini 1998), so without gamma drive the reflex has no sensor.
+
+## Wiring (56 neurons)
+```
+ag_Ia / ant_Ia --> Ia_F / Ia_E (4 each) --2.4 nS--> MN_F / MN_E (14 each) --> ag_motor / ant_motor
+ag_II / ant_II --> II_F / II_E (3 each) --1.6 nS--> MN_F / MN_E        (secondaries: length, 2 ms delay)
+Ia_F --3 nS--> IN_F (2) --(-8 nS)--> MN_E ; Ia_E --> IN_E --> MN_F
+drive (dc 1.0) --200 pA--> TONIC (6 regular cells, about 45 Hz) --12 nS--> MN_F ;  --5 nS--> MN_E ;  --6 nS--> GAM (4) --> gamma_motor
+```
+Motoneurons and GAM carry a standing bias current I_e = 650 pA just under rheobase (about 800 pA): persistent inward currents set by
+monoamines (Heckman, Gorassini & Bennett 2005), so that the tone and the Ia / II feedback decide who fires. TONIC is the reticulo- or
+vestibulospinal tone. All excitatory weights are explicit edges with U(0.4, 1.6) spread, as in the other circuits.
+
+## Score
+`rms_err_rad`, `max_err_rad`, steady-state `offset_rad` (the 600 ms before each push) and ringing (0.08 rad with >= 6 reversals). Pass: rms
+<= 0.12 rad, max <= 0.30 rad, offset <= 0.12 rad. Seeds 1-3:
+
+| Seed | Value | rms | max | offset | gamma |
+|---|---|---|---|---|---|
+| 1 | 91.1 | 0.021 | 0.058 | 0.009 | 0.51 |
+| 2 | 93.1 | 0.015 | 0.050 | 0.008 | 0.50 |
+| 3 | 89.6 | 0.025 | 0.061 | 0.016 | 0.56 |
+
+Seeds 4-8 (not in the test): 62.7 (rms 0.094, sag 0.087), 85.3, 75.1, **18.6 (sag 0.29: fails)**, 84.4. The static angle depends on the
+balance between a tone-driven flexor and the reflex of the stretched extensor, which has high gain in the raised posture; that balance has a
+steep slope (about 0.15 rad per nS of extensor tone, found by sweeping w_T_F in 6-20 and w_T_E in 0-7). The reference is tuned to the
+middle of the plateau, not made robust; a player with a better balance (more reflex stiffness with less loop delay, or Ib feedback) beats it.
+
+## Why it works (and the dead ends)
+* Muscle fatigue (on by default in `Muscle`) made the limb sag slowly over 13 s and was the main source of seed-to-seed spread; it is
+  switched off for the spinal tasks (seconds-long trials).
+* With symmetrical, strong spindle feedback the limb sags 0.3-0.5 rad: the extensor is lengthened in the raised posture, its spindles fire
+  hard, and its reflex outweighs the flexor's (shortened muscle, low Ia). More flexor tone alone does not fix it (the flexor pool saturates
+  at 50 Hz); co-contraction (extensor tone 5, flexor tone 12) and moderate reflex gain (2.4 nS Ia, 1.6 nS II) does.
+* Gamma drive of 0.5 keeps the shortened flexor's spindle at about 30 Hz instead of 9 Hz; with larger gamma (0.75) the sag was 0.13-0.16 rad in
+  the sweeps, with none 0.15 rad (see the lesion below).
+
+## What breaks it (tests in `engine/tests/tasks_spinal_test.cpp`)
+| Lesion | Result |
+|---|---|
+| Ia and II cut (no stretch reflex) | the limb rides up 0.34-0.46 rad above the target (rms 0.36-0.46; the extensor, stretched, loses its restraint) |
+| TONIC -> GAM cut (no gamma drive) | spindles go slack (Ia 1 Hz in the shortened flexor): the limb sags 0.14-0.15 rad (rms 0.16) |
+| TONIC -> MN_F cut (no antigravity tone) | the limb falls 0.92-0.94 rad (rms 0.94-0.96), with 0.14-0.16 rad ringing |
+
+Credits: Matthews PBC (1972) *Mammalian Muscle Receptors*; Merton PA (1953) in *The Spinal Cord* (follow-up length servo); Nichols TR, Houk JC (1976)
+J Neurophysiol 39:119 (reflex compensation for variations in muscle force); Houk JC (1979) Annu Rev Physiol 41:99; Hulliger M (1984) Rev Physiol
+Biochem Pharmacol 101:1; Prochazka A, Gorassini M (1998) J Physiol 507:277; Heckman CJ, Gorassini MA, Bennett DJ (2005) Muscle Nerve 31:135.
