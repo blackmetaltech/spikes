@@ -3,6 +3,8 @@ extends Control
 ## The score read-out: a ring gauge with the 0..100 number, a status chip, the verdict sentence and the score parts.
 var tele: Telemetry = null
 var _was_passed := false
+var guilty := ""                   # v0.3 verdict highlight: the score part the failed verdict is about gets a red outline
+var check_text := ""               # v0.3 instant check: the last check's result, shown beside the status chip
 var _pulse := -1.0                 # seconds since the score first passed (glow pulse on the ring)
 func _ready() -> void: custom_minimum_size = Vector2(300, 104 if Layout.phone else 134); clip_contents = true
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
@@ -45,6 +47,7 @@ func _draw() -> void:
 	var sw := fb.get_string_size(status, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
 	draw_style_box(Kit.sb(col, col, 0, 6, 0, false), Rect2(x, 10, sw, float(fz) + 8.0))
 	draw_string(fb, Vector2(x + 8, 10 + float(fz) + 1.0), status, HORIZONTAL_ALIGNMENT_LEFT, sw, fz, Kit.BENCH)
+	if check_text != "" and has_task: draw_string(f, Vector2(x + sw + 10.0, 10 + float(fz) + 1.0), check_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - x - sw - 18.0, fz, Kit.TEXT_SOFT)
 	var verdict := str(sc.get("verdict", "")) if has_task else ""
 	if has_task and verdict == "": verdict = "Add neurons and connect sensors to motors."
 	draw_multiline_string(f, Vector2(x, 10 + float(fz) * 2.6), verdict, HORIZONTAL_ALIGNMENT_LEFT, w, fz, 2, Kit.TEXT_SOFT)
@@ -65,7 +68,8 @@ func _draw() -> void:
 			if row >= rows_max: break
 			px = x; py -= float(fz) + 12.0
 			if px + tw > size.x - 8.0: break
-		draw_style_box(Kit.sb(Kit.PANEL_HI, Kit.LINE, 1, 6, 0, false), Rect2(px, py - float(fz) - 4.0, tw, float(fz) + 8.0))
+		var bad := str(k) == guilty and not passed
+		draw_style_box(Kit.sb(Color(Kit.RED, 0.22) if bad else Kit.PANEL_HI, Kit.RED if bad else Kit.LINE, 2 if bad else 1, 6, 0, false), Rect2(px, py - float(fz) - 4.0, tw, float(fz) + 8.0))
 		draw_string(f, Vector2(px + 8, py), s, HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.TEXT); px += tw + 6.0
 
 static func draw_star_on(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:

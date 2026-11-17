@@ -61,6 +61,29 @@ var _test := {}                  # the 5-seed TEST in progress: {seeds, i, res, 
 var _test_result := {}           # {passes, n, scores}: the last finished TEST on this circuit
 const TEST_SEEDS := [101, 102, 103, 104, 105]
 
+## v0.3 lab play: difficulty mode and variant, hint ladder, verdict highlight, post-solve histograms, diagnosis, instant check, skip, celebration, surprise.
+var mode := "standard"
+var variant := ""
+var celebration: Celebration
+static var _fails := {}            # task -> failed runs this session (the Standard hint ladder opens after HintPanel.UNLOCK_FAILS)
+static var _hint_tier := {}        # task -> highest hint tier revealed
+var _hints_cache: Array = []       # Task::hints() as of the last failed run
+var _hint_panel: HintPanel = null
+var _hint_btn: Button = null
+var _hint_open := false
+var _check_task = null             # instant check: the task handle that owns the async job
+var _check_job := 0
+var _check_t0 := 0
+var _check_btn: Button = null
+var _mode_row: Control = null
+var _skip_btn: Button = null
+var _results_btn: Button = null
+var _histo_ov: Control = null
+var _surprise_done := {}
+var _surprise_clock := 0.0
+var _dx := {}                      # diagnosis case state {picked, tries, solved, gave_up}
+var _dx_info := {}                 # Task::diagnosis()
+
 func default_focus() -> Control: return back_btn
 func on_back() -> bool: return false
 
@@ -77,6 +100,7 @@ func build() -> void:
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(10 * f) if not phone else 6); margin.add_child(v)
 	var compact := phone or get_viewport_rect().size.x < 1180.0
 	v.add_child(_topbar(phone, compact))
+	if not phone and task_id != "": v.add_child(_play_bar())
 	if compact and not phone: v.add_child(_tabs_row())
 	var body := HBoxContainer.new(); body.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(14 * f)); v.add_child(body)
 	# left: editor
@@ -87,8 +111,9 @@ func build() -> void:
 	editor.custom_minimum_size = Vector2(300, 200)
 	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Color("#080f1a"), Kit.LINE, 1, 12, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
 	editor.structure_changed.connect(_on_structure); editor.moved.connect(func(): pass)
-	editor.selection_changed.connect(func(_s): _build_inspector())
+	editor.selection_changed.connect(func(_s): _sel_audio(); _build_inspector())
 	editor.lesion_clicked.connect(_lesion_click)
+	editor.editable = not _is_dx()   # a diagnosis case is probed, never rebuilt
 	inspector = PanelContainer.new(); inspector.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 12 if phone else 14, false))
 	insp_scroll = ScrollContainer.new(); insp_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; inspector.add_child(insp_scroll)
 	insp_body = VBoxContainer.new(); insp_body.add_theme_constant_override("separation", 8); insp_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; insp_scroll.add_child(insp_body)
@@ -112,6 +137,7 @@ func build() -> void:
 	if task_id == "":   # the sandbox: no body to draw, so the world panel is the sandbox panel (dials, energy)
 		task_view.visible = false; score_card.visible = false
 		sandbox_panel = SandboxPanel.new().setup(func(): return tele); world.add_child(sandbox_panel)
+	if _is_dx(): score_card.visible = false   # the case has no score to watch: the answer is the score
 	world.size_flags_stretch_ratio = 5.6 if has_tl else 3.0
 	var body_view := has_tl or str(info.get("view", "polyline")) != "polyline"
 	if body_view: task_view.custom_minimum_size.y = 110.0 if phone else 230.0   # a body view needs room for its readouts
@@ -124,6 +150,7 @@ func build() -> void:
 	if task_id != "" and not (info.get("modulators", []) as Array).is_empty() and ModDials.available():   # task-driven neuromodulators: read-only gauges
 		mod_dials = ModDials.new().setup(func(): return tele, info["modulators"], false); scopes.add_child(mod_dials)
 	banner = Kit.label("", 17, Kit.RED, true); banner.visible = false; v.add_child(banner)
+	celebration = Celebration.new(); ov.add_child(celebration)
 	add_child(ov)
 	if _pending_banner != "": _banner_raw(_pending_banner); _pending_banner = ""
 	_attach()
@@ -131,19 +158,24 @@ func build() -> void:
 	if compact: _apply_tab()
 	_file_dlg = FileDialog.new(); _file_dlg.access = FileDialog.ACCESS_FILESYSTEM; _file_dlg.filters = PackedStringArray(["*.json ; Circuit JSON"]); _file_dlg.current_dir = ProjectSettings.globalize_path(Circuits.user_dir())
 	add_child(_file_dlg)
+	if _is_dx(): _brief_forced = true
 	_build_inspector()
+	_hint_btn_sync()
 	if OS.get_environment("SP_ADV") != "": _adv_open = true
 	if OS.get_environment("SP_SEL") != "": _select_env(OS.get_environment("SP_SEL"))
 	if OS.get_environment("SP_MENU") != "": _open_menu()
 	if OS.get_environment("SP_PARTS") != "": _open_parts()
 	if OS.get_environment("SP_LESION") != "": _lesion_env.call_deferred()
+	_demo_hooks.call_deferred()
 	if OS.get_environment("SP_TESTNOW") != "": _test_start.call_deferred()   # dev hook: run TEST x5 at once, print the result, quit
 
 ## The circuit the live view runs: the player's, with the lesion set applied in the lesion lab.
 func _live_circuit() -> Dictionary: return Lesion.apply(circuit, lesions) if lesion_on and not lesions.is_empty() else circuit
 
 func _exit_tree() -> void:
-	if app != null and not circuit.is_empty(): app.lab_keep[task_id] = circuit
+	if task_id != "": Playlog.level_end(task_id, _rec_pass or bool(_dx.get("solved", false)))
+	GameAudio.silence_body()
+	if app != null and not circuit.is_empty() and not _is_dx(): app.lab_keep[task_id] = circuit
 	if tele != null and tele.sim != null: tele.sim.stop()
 
 # ---------- setup ----------
@@ -151,7 +183,16 @@ func _exit_tree() -> void:
 func _start(tid: String) -> void:
 	task_id = tid
 	if OS.get_environment("SP_TASK") != "": task_id = OS.get_environment("SP_TASK")
+	mode = Progress.mode(); variant = Campaign.pending_variant; Campaign.pending_variant = ""
+	if OS.get_environment("SP_VARIANT") != "": variant = OS.get_environment("SP_VARIANT")
+	if task_id != "": Playlog.level_start(task_id, variant)
 	var loaded := false
+	if _is_dx() and ext_ok:   # a diagnosis case: the patient's circuit, read-only, straight from the task
+		var dt = Campaign.make(task_id)
+		if dt != null and dt.has_method("diagnosis"):
+			_dx_info = dt.diagnosis()
+			var dc := Circuits.parse(Circuits.read_reference(str(_dx_info.get("circuit", "")) if str(_dx_info.get("circuit", "")) != "" else _ref_path(task_id)))
+			if not dc.is_empty(): circuit = dc; loaded = true
 	if app != null and app.lab_keep.has(task_id) and OS.get_environment("SP_REF") == "" and not app.lab_reference:
 		circuit = (app.lab_keep[task_id] as Dictionary).duplicate(true); loaded = true
 	if not loaded and OS.get_environment("SP_CIRCUIT") != "":   # dev hook: open this circuit file
@@ -167,14 +208,17 @@ func _start(tid: String) -> void:
 	Circuits.ensure_pos(circuit)
 	part_card = _default_part()
 	_reload(true)
-	if OS.get_environment("SP_SPEED") == "" and tele.task != null: tele.speed = _default_speed(float(tele.task.duration_ms()))
+	if OS.get_environment("SP_SPEED") == "" and tele.task != null: tele.speed = _default_speed(float(tele.task.duration_ms()), str(Campaign.info(task_id).get("kind", "task")))
 
-## G3: a long episode at 1x is a long wait. Default speed by episode length: about 30 s of waiting at most, from the stepper's own choices (1x to 10x).
-static func _default_speed(duration_ms: float) -> float:
-	var want := clampf(duration_ms / 30000.0, 1.0, 10.0); var best := 1.0
+## G3 / v0.3 pacing: the default speed by episode length. Micro-puzzles (2-5 s episodes) run at 1x; a longer episode runs at the smallest of the stepper's own
+## speeds (1x, 2x, 5x, 10x) that finishes in about WANT_WALL_S seconds of waiting, so no task takes longer than ~25 s per run; the player can still change it,
+## and SKIP jumps over the quiet stretches between scripted events.
+const WANT_WALL_S := 25.0
+static func _default_speed(duration_ms: float, kind := "task") -> float:
+	if kind == "micro" or duration_ms <= 12000.0: return 1.0
 	for s in [1.0, 2.0, 5.0, 10.0]:
-		if absf(s - want) < absf(best - want): best = s
-	return best
+		if duration_ms / s <= WANT_WALL_S * 1000.0: return s
+	return 10.0
 
 ## N3: the part the next neuron is made from at the start: the first model of the task's reference circuit that is not the plain integrate-and-fire cell
 ## (the heart lab opens on the SA-node card, not on iaf_psc_alpha), else iaf_psc_alpha.
@@ -245,13 +289,16 @@ func _reload(first := false) -> void:
 	var was_running := tele.running if tele != null else true; var sp := tele.speed if tele != null else 1.0
 	if tele.sim != null: tele.sim.stop()
 	var old_mods: Dictionary = tele.mods.duplicate() if tele != null else {}
-	tele = Telemetry.new(); tele.running = was_running; tele.speed = sp; tele.mods = old_mods
+	if celebration != null: celebration.abort()
+	tele = Telemetry.new(); tele.running = was_running; tele.speed = sp; tele.mods = old_mods; tele.mode = mode; tele.variant = variant
 	tele.lesioned = lesion_on and not lesions.is_empty()   # the live view runs the lesioned circuit: watch the failure
 	var ok := tele.setup(_live_circuit(), task_id, ext_ok)   # always makes the task, so the world and the brief show even for a half-built circuit
 	if ok and not keep.is_empty() and not first:
 		var valid := keep.filter(func(i): return i < tele.n)
 		if not valid.is_empty(): tele.set_watched(valid)
 	_fail_shown = false; _rec_done = false; _rec_pass = false; _overlay_dismissed = false; _test_result = {}
+	if editor != null: editor.verdict_target = ""
+	if score_card != null: score_card.guilty = ""
 	_overlay_hide()
 	if tele.error != "": _banner(tele.error)
 	elif banner != null: banner.visible = false
@@ -271,7 +318,10 @@ func _banner_raw(msg: String) -> void:
 	banner.text = msg; banner.visible = true
 
 func _on_structure() -> void:
-	_dirty = 0.0; _lesion_reset()
+	if task_id != "": Playlog.event("edit", {"task": task_id})
+	_dirty = 0.0; _lesion_reset(); _surprise_done.erase("osc")
+	if editor != null: editor.verdict_target = ""
+	if score_card != null: score_card.guilty = ""
 	if _is_reference() and Circuits.neuron_count(circuit) == 0: _mark_reference(false)   # an emptied bench is the player's own again; an edited reference is still derived from it
 
 func _process(dt: float) -> void:
@@ -282,6 +332,7 @@ func _process(dt: float) -> void:
 	elif _lrun != null: _lesion_step()
 	elif tele != null: tele.advance(dt)
 	_watch_episode()
+	_check_poll(); _surprise_tick(dt)
 	if status != null and tele != null:
 		var spd := String.num(tele.speed) + "x"
 		if tele.sim != null and tele.running and tele.speed > 1.0 and tele.achieved < tele.speed * 0.85: spd = "%.1fx of %sx" % [tele.achieved, String.num(tele.speed)]
@@ -306,16 +357,19 @@ func _topbar(phone: bool, compact := false) -> Control:
 		status.visible = false; h.add_child(status)   # shown in the menu on a phone
 		h.add_child(Kit.btn("MENU", _toggle_menu, "cyan", bs, Vector2(84, 0))); _sync_run_btn.call_deferred(); return h
 	h.add_child(status)
-	if task_id != "": h.add_child(Kit.btn("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost", bs, Vector2(84, 0)))
-	if task_id != "": h.add_child(Kit.btn("REFERENCE", _load_reference, "cyan", bs, Vector2(150, 0)))
-	if task_id != "": h.add_child(Kit.btn("EMPTY BENCH", _empty_bench, "panel", bs, Vector2(0, 0)))
-	if task_id != "": h.add_child(Kit.btn("TEST x5", _test_start, "green", bs, Vector2(110, 0)))
+	var dxm := _is_dx()
+	if task_id != "": h.add_child(Kit.btn("CASE" if dxm else "BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost", bs, Vector2(84, 0)))
+	if task_id != "" and not dxm: h.add_child(Kit.btn("REFERENCE", _load_reference, "cyan", bs, Vector2(150, 0)))
+	if task_id != "" and not dxm: h.add_child(Kit.btn("EMPTY BENCH", _empty_bench, "panel", bs, Vector2(0, 0)))
+	if task_id != "" and not dxm: h.add_child(Kit.btn("TEST x5", _test_start, "green", bs, Vector2(110, 0)))
 	if task_id != "": _lesion_btn = Kit.btn("LESIONS", _lesion_toggle, "panel", bs, Vector2(120, 0)); h.add_child(_lesion_btn)
-	h.add_child(Kit.btn("LOAD", _load_dialog, "panel", bs, Vector2(84, 0)))
-	h.add_child(Kit.btn("SAVE", _save_dialog, "panel", bs, Vector2(84, 0)))
+	if not dxm: h.add_child(Kit.btn("LOAD", _load_dialog, "panel", bs, Vector2(84, 0)))
+	if not dxm: h.add_child(Kit.btn("SAVE", _save_dialog, "panel", bs, Vector2(84, 0)))
 	h.add_child(Kit.btn("ANALYSIS", func(): app.open_analysis(circuit, tele, task_id), "green", bs, Vector2(130, 0)))
 	_sync_run_btn.call_deferred()
 	return h
+
+func _is_dx() -> bool: return task_id != "" and str(Campaign.info(task_id).get("kind", "")) == "diagnosis"
 
 func _title() -> String:
 	if task_id == "": return "Sandbox"
@@ -389,11 +443,26 @@ func _add_noise() -> void:
 	editor.select({"t": "in", "name": name}); editor.fit(); _on_structure(); _build_inspector()
 
 # ---------- run controls ----------
-func _toggle_run() -> void: tele.running = not tele.running; _sync_run_btn()
+## Selecting a population makes only that population click (GameAudio.set_spike_focus); selecting anything else (or nothing) lets them all click.
+func _sel_audio() -> void:
+	var sel := editor.sel if editor != null else {}
+	var f := -1
+	if str(sel.get("t", "")) == "pop": f = Circuits.pop_index(circuit, str(sel["id"]))
+	GameAudio.set_spike_focus(f)
+
+func _toggle_run() -> void:
+	tele.running = not tele.running; GameAudio.event("run" if tele.running else "pause")
+	if not tele.running: GameAudio.silence_body()
+	_sync_run_btn()
 func _sync_run_btn() -> void:
 	if run_btn != null: run_btn.text = "PAUSE" if tele.running else "RUN"
 func _restart() -> void:
 	_overlay_hide(); _overlay_dismissed = false; _rec_done = false; _rec_pass = false; _fail_shown = false
+	if editor != null: editor.verdict_target = ""
+	if score_card != null: score_card.guilty = ""
+	if celebration != null: celebration.abort()
+	GameAudio.event("run")
+	if task_id != "": Playlog.event("run", {"task": task_id, "seed": int(circuit.get("seed", 1))})
 	if tele.sim != null: tele.reset(); tele.running = true; _sync_run_btn()
 	elif tele.task != null: tele.task.reset(int(circuit.get("seed", 1)))
 	task_view.attach(tele)
@@ -455,13 +524,19 @@ func _open_menu() -> void:
 	v.add_child(Kit.label("NEW NEURON TYPE", 15, Kit.TEXT_SOFT)); _type_pickers(v)
 	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 8); row.add_theme_constant_override("v_separation", 8); v.add_child(row)
 	var item := func(t: String, cb: Callable, kind := "panel"): row.add_child(Kit.btn(t, func(): _close_menu(); cb.call(), kind, 18))
+	var dxm := _is_dx()
 	if task_id != "":
-		item.call("BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost")
-		item.call("REFERENCE", _load_reference, "cyan")
-		item.call("EMPTY BENCH", _empty_bench)
-		item.call("TEST x5", _test_start, "green")
+		item.call("CASE" if dxm else "BRIEF", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost")
+		if not dxm: item.call("REFERENCE", _load_reference, "cyan")
+		if not dxm: item.call("EMPTY BENCH", _empty_bench)
+		if not dxm: item.call("TEST x5", _test_start, "green")
 		item.call("LESIONS" if not lesion_on else "LEAVE LESIONS", _lesion_toggle, "amber" if lesion_on else "panel")
-	item.call("LOAD", _load_dialog); item.call("SAVE", _save_dialog)
+		v.add_child(Kit.hsep()); v.add_child(Kit.label("PLAY", 15, Kit.TEXT_SOFT))
+		var prow := HFlowContainer.new(); prow.add_theme_constant_override("h_separation", 8); prow.add_theme_constant_override("v_separation", 8); v.add_child(prow)
+		_play_controls(prow, true)
+		for b in prow.get_children():   # a menu choice closes the menu (steppers stay open to compare)
+			if b is Button and b != _hint_btn: (b as Button).pressed.connect(_close_menu)
+	if not dxm: item.call("LOAD", _load_dialog); item.call("SAVE", _save_dialog)
 	item.call("ANALYSIS", func(): app.open_analysis(circuit, tele, task_id), "green")
 	_size_menu.call_deferred(sc, v)
 
@@ -480,15 +555,30 @@ func _stars_now() -> int:
 func _watch_episode() -> void:
 	if tele == null: return
 	if tele.failed and not _fail_shown: _fail_shown = true; _banner_raw("The simulation stopped: " + tele.error + ". Fix the circuit and press RESET.")
-	if tele.task == null or tele.sim == null or tele.failed or not _test.is_empty() or lesion_on: return
+	if tele.task == null or tele.sim == null or tele.failed or not _test.is_empty() or lesion_on or _is_dx(): return
 	var passed := bool(tele.score.get("passed", false))
 	if passed and not _rec_pass:
 		_rec_pass = true
-		Progress.record_result(task_id, float(tele.score.get("value", 0.0)), {"passed": true, "five_seeds": false, "neurons": Circuits.neuron_count(circuit), "rate_hz": _rate_per_neuron(), "reference_derived": _is_reference()})
+		var first := not bool(Progress.best(task_id)["passed"]) and not _is_reference() and variant == ""
+		_record(true, false)
+		if editor != null: editor.hint_target = ""; editor.verdict_target = ""
+		if score_card != null: score_card.guilty = ""
+		GameAudio.event("pass")
+		if first: _celebrate()
 	if tele.finished and not _rec_done:
 		_rec_done = true
-		Progress.record_result(task_id, float(tele.score.get("value", 0.0)), {"passed": passed, "five_seeds": false, "neurons": Circuits.neuron_count(circuit), "rate_hz": _rate_per_neuron(), "reference_derived": _is_reference()})
+		_record(passed, false)
+		if not passed: _note_fail()
 		if not _overlay_dismissed: _overlay_show()
+
+## Record a result: a pass in a challenge variant goes on the variant list (no stars), everything else is the task's own best.
+func _record(passed: bool, five_seeds: bool, mean := -1.0, rate := -2.0) -> void:
+	var r := _rate_per_neuron() if rate < -1.5 else rate
+	var v := float(tele.score.get("value", 0.0)) if mean < 0.0 else mean
+	if variant != "":
+		if passed and not _is_reference(): Progress.record_variant(task_id, variant)
+		return
+	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference()})
 
 func _overlay_hide() -> void:
 	if _overlay != null and is_instance_valid(_overlay): _overlay.queue_free()
@@ -506,7 +596,9 @@ func _end_text() -> String:
 		parts.append("This is the reference circuit, or an edited copy of it: it earns no stars. Press EMPTY BENCH and build your own.")
 	elif not passed:
 		if _test_result.is_empty(): parts.append(str(sc.get("verdict", "")))
-		parts.append("Try: open the motor neuron's inspector and raise the weights into it, or add a neuron between sensor and motor.")
+		if mode == "researcher": parts.append("Researcher mode: no hints. Read the scopes and the lesion table.")
+		elif HintPanel.available(mode, int(_fails.get(task_id, 0))): parts.append("The glowing part of the circuit is what the verdict is about. Press HINT for a nudge.")
+		else: parts.append("The glowing part of the circuit is what the verdict is about. Hints open after %d missed runs (%d so far)." % [HintPanel.UNLOCK_FAILS, int(_fails.get(task_id, 0))])
 	else:
 		var st := Progress.best(task_id)["stars"] as int
 		var nn := Circuits.neuron_count(circuit); var bud := Progress.budget(task_id)
@@ -550,6 +642,8 @@ func _overlay_show(testing := false) -> void:
 	var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 10); br.add_theme_constant_override("v_separation", 8); v.add_child(br)
 	br.add_child(Kit.btn("RUN AGAIN", _restart, "amber", 20))
 	br.add_child(Kit.btn("TEST x5", _test_start, "green", 20))
+	if passed and not _is_reference(): br.add_child(Kit.btn("RESULTS", _histo_show, "cyan", 20))
+	if not passed and mode != "researcher" and _test_result.is_empty(): br.add_child(Kit.btn(HintPanel.button_text(mode, int(_fails.get(task_id, 0)), int(_hint_tier.get(task_id, 0))), func(): _overlay_dismissed = true; _overlay_hide(); _hint_toggle(), "amber" if HintPanel.available(mode, int(_fails.get(task_id, 0))) else "ghost", 20))
 	var nx := Progress.next_task(task_id)
 	if passed and nx != "": br.add_child(Kit.btn("NEXT TASK", func(): app.open_lab(nx), "cyan", 20))
 	if _lesion_ok(): br.add_child(Kit.btn("LESION LAB", _open_lesions, "panel", 20))
@@ -567,7 +661,7 @@ func _test_start() -> void:
 	if tele.wiring_issue() != "": _banner_raw(tele.wiring_issue()); return
 	_close_menu(); _overlay_dismissed = false
 	if tele.sim != null: tele.sim.stop()
-	var sim = ClassDB.instantiate("SpikeSim"); var task = Campaign.make(task_id)
+	var sim = ClassDB.instantiate("SpikeSim"); var task = Campaign.make(task_id); Telemetry.configure(task, mode, variant)
 	_test = {"i": 0, "res": [], "sim": sim, "task": task, "t": -1.0}
 	tele.running = false
 	_overlay_show(true)
@@ -607,7 +701,8 @@ func _test_step() -> void:
 		var mean := 0.0
 		for r in res: mean += float(r["value"])
 		mean /= float(res.size())
-		Progress.record_result(task_id, mean, {"passed": true, "five_seeds": passes == res.size(), "neurons": Circuits.neuron_count(circuit), "rate_hz": -1.0, "reference_derived": _is_reference()})
+		_record(true, passes == res.size(), mean, -1.0)
+	if passes < res.size(): _note_fail()
 	_rec_done = true; _overlay_show(); _build_inspector()
 	if OS.get_environment("SP_TESTNOW") != "" and OS.get_environment("SP_SHOT") == "": print("TEST RESULT ", _test_result, " best ", Progress.best(task_id)); get_tree().quit()
 
@@ -627,7 +722,8 @@ func _build_inspector() -> void:
 	var sel := editor.sel if editor != null else {}
 	var small := 17 if not Layout.phone else 16
 	if lesion_on: _inspect_lesion(small)
-	elif sel.is_empty(): _inspect_brief(small)
+	elif sel.is_empty(): _inspect_dx(small) if _is_dx() else _inspect_brief(small)
+	elif _is_dx(): _inspect_dx_pick(sel, small)
 	else:
 		match sel["t"]:
 			"pop": _inspect_pop(str(sel["id"]), small)
@@ -642,11 +738,11 @@ func _sheet_sync() -> void:
 	if inspector == null or editor == null: return
 	if not Layout.phone:
 		inspector.visible = true
-		if _palette_row != null: _palette_row.visible = not lesion_on
+		if _palette_row != null: _palette_row.visible = not lesion_on and not _is_dx()
 		return
 	var show := (not editor.sel.is_empty() or _brief_forced or lesion_on) and tab == "circuit"
 	inspector.visible = show
-	if _palette_row != null: _palette_row.visible = not show   # the sheet needs the room
+	if _palette_row != null: _palette_row.visible = not show and not _is_dx()   # the sheet needs the room
 	if not show and editor.inset_bottom != 0.0: editor.inset_bottom = 0.0; editor.fit()
 
 ## Size the inspector's scroll area to its content (capped), and keep the phone editor's neurons above the sheet.
@@ -654,7 +750,8 @@ func _fit_inspector() -> void:
 	await get_tree().process_frame
 	if not is_inside_tree() or insp_scroll == null or insp_body == null: return
 	var want := insp_body.get_combined_minimum_size().y
-	var cap := size.y * ((0.62 if lesion_on else 0.46) if Layout.phone else (0.6 if lesion_on else 0.36))
+	var big := lesion_on or (_is_dx() and editor.sel.is_empty())   # the lesion table and the case card need more room than a neuron's inspector
+	var cap := size.y * ((0.62 if big else 0.46) if Layout.phone else (0.6 if lesion_on else (0.5 if big else 0.36)))
 	insp_scroll.custom_minimum_size.y = minf(want, cap)
 	if Layout.phone:
 		await get_tree().process_frame
@@ -871,7 +968,7 @@ func _inspect_output_kind(ch: Dictionary, small: int) -> void:
 ## The lab opens after a pass: this circuit passed (now or earlier this session), it is the reference circuit, or the task has been passed before.
 func _lesion_ok() -> bool:
 	if task_id == "" or tele == null or tele.task == null: return false
-	if lesion_on or _is_reference() or _rec_pass: return true
+	if lesion_on or _is_reference() or _rec_pass or _is_dx(): return true
 	return bool(tele.score.get("passed", false)) or bool(Progress.best(task_id)["passed"])
 
 func _lesion_toggle() -> void:
@@ -903,10 +1000,10 @@ func _open_lesions() -> void:
 	if not lesion_on: _lesion_toggle()
 
 func _lesion_apply_ui() -> void:
-	editor.lesion_mode = lesion_on; editor.editable = not lesion_on; editor.lesions = lesions; editor.queue_redraw()
+	editor.lesion_mode = lesion_on; editor.editable = not lesion_on and not _is_dx(); editor.lesions = lesions; editor.queue_redraw()
 	if _lesion_btn != null:
 		Kit.skin(_lesion_btn, "amber" if lesion_on else "panel", 13)
-	if _palette_row != null and not Layout.phone: _palette_row.visible = not lesion_on
+	if _palette_row != null and not Layout.phone: _palette_row.visible = not lesion_on and not _is_dx()
 
 ## The circuit changed or was replaced: the table no longer describes it.
 func _lesion_reset() -> void:
@@ -926,6 +1023,7 @@ func _lesion_click(h: Dictionary) -> void:
 	if lesions.has(key): lesions.erase(key)
 	else: lesions[key] = true
 	editor.lesions = lesions; editor.queue_redraw(); _lesion_note = ""
+	GameAudio.event("lesion_cut")
 	_dirty = 0.0; _build_inspector()   # the live view restarts on the lesioned circuit
 
 func _lesion_run(sets: Array) -> void:
@@ -937,7 +1035,7 @@ func _lesion_run(sets: Array) -> void:
 	if not have_base: jobs.append({"label": Lesion.label(circuit, {}), "lesions": {}})
 	for ls in sets: jobs.append({"label": Lesion.label(circuit, ls), "lesions": ls})
 	if tele.sim != null: tele.sim.stop()
-	_lrun = Lesion.Runner.new(); _lrun.begin(task_id, circuit, jobs); _lesion_note = ""
+	_lrun = Lesion.Runner.new(); _lrun.mode = mode; _lrun.variant = variant; _lrun.begin(task_id, circuit, jobs); _lesion_note = ""
 	_build_inspector()
 
 func _lesion_sweep() -> void:
@@ -970,6 +1068,10 @@ func _lesion_step() -> void:
 		if ea != eb: return ea
 		return float(a["score"]) < float(b["score"]))
 	_lrun = null; _dirty = -1.0; _lesion_open = true; _reload(); _build_inspector()
+	var sur := Surprise.lesion_improves(lesion_rows)
+	if not sur.is_empty() and not _surprise_done.has("les:" + str(sur["label"])):
+		_surprise_done["les:" + str(sur["label"])] = true; GameAudio.event("celebrate")
+		celebration.toast("Surprise: a lesion that helps!", "With \"%s\" the score went UP by %d points. Something that part does is working against the task: why?" % [str(sur["label"]), int(roundf(float(sur["gain"])))], Kit.GREEN, 8.0)
 
 func _lesion_md() -> String: return Lesion.markdown(_title(), str(circuit.get("name", "circuit")), int(circuit.get("seed", 1)), lesion_rows)
 
@@ -1033,3 +1135,362 @@ func _inspect_lesion(small: int) -> void:
 		var ex := HFlowContainer.new(); ex.add_theme_constant_override("h_separation", 8); ex.add_theme_constant_override("v_separation", 6); insp_body.add_child(ex)
 		ex.add_child(Kit.btn("COPY MARKDOWN", func(): _lesion_export("md"), "panel", 18)); ex.add_child(Kit.btn("COPY CSV", func(): _lesion_export("csv"), "panel", 18)); ex.add_child(Kit.btn("SAVE FILES", func(): _lesion_export("save"), "green", 18))
 	if _lesion_note != "": insp_body.add_child(Kit.label(_lesion_note, small, Kit.GREEN, true))
+
+# ---------- v0.3 lab play: mode and variant, hints, verdict, check, skip, surprise, celebration ----------
+## The row under the top bar (the phone's MENU holds the same controls): difficulty mode, challenge variant, instant check, skip, hints, results.
+func _play_bar() -> Control:
+	var h := HFlowContainer.new(); h.add_theme_constant_override("h_separation", 8); h.add_theme_constant_override("v_separation", 6)
+	_play_controls(h, false)
+	if status != null:   # the run read-out sits at the end of this row: the top bar has no room for it once the mode controls are there
+		if status.get_parent() != null: status.get_parent().remove_child(status)
+		status.custom_minimum_size.x = 260.0; status.clip_text = true; h.add_child(status)
+	return h
+
+func _play_controls(h: Control, phone: bool) -> void:
+	if task_id == "": return
+	var sz := 18; var dxm := _is_dx()
+	h.add_child(Kit.stepper([["guided", "GUIDED"], ["standard", "STANDARD"], ["researcher", "RESEARCHER"]], mode, func(m): _set_mode(str(m)), 250.0 if not phone else 220.0, 18, 40.0))
+	var vs: Dictionary = Campaign.info(task_id).get("variants", {})
+	if not vs.is_empty() and not dxm:
+		var opts := [["base", "BASE TASK"]]
+		for k in vs: opts.append([str(k), str(vs[k])])
+		h.add_child(Kit.stepper(opts, variant if variant != "" else "base", func(v): _set_variant("" if str(v) == "base" else str(v)), 320.0 if not phone else 260.0, 18, 40.0))
+	if not dxm:
+		_check_btn = Kit.btn("CHECK", _check_start, "green", sz); h.add_child(_check_btn)
+	_skip_btn = Kit.btn("SKIP", _skip_event, "panel", sz); h.add_child(_skip_btn)
+	_hint_btn = Kit.btn("HINT", _hint_toggle, "amber", sz); h.add_child(_hint_btn)
+	if not dxm:
+		_results_btn = Kit.btn("RESULTS", _histo_show, "cyan", sz); h.add_child(_results_btn)
+	_hint_btn_sync()
+
+func _set_mode(m: String) -> void:
+	if m == mode: return
+	mode = m; Progress.set_mode(m)
+	_hint_btn_sync(); if _hint_open: _hint_render()
+	_reload(); _build_inspector()
+
+func _set_variant(v: String) -> void:
+	if v == variant: return
+	variant = v; _surprise_done.clear(); _reload(); _build_inspector()
+	Playlog.level_start(task_id, variant)
+
+## The hint button's label and visibility: it counts the failed runs until the ladder opens, and is gone in Researcher mode.
+func _hint_btn_sync() -> void:
+	if _hint_btn == null or not is_instance_valid(_hint_btn): return
+	var fails := int(_fails.get(task_id, 0)); var shown := int(_hint_tier.get(task_id, 0))
+	_hint_btn.visible = mode != "researcher"
+	_hint_btn.text = HintPanel.button_text(mode, fails, shown)
+	Kit.skin(_hint_btn, "amber" if HintPanel.available(mode, fails) else "ghost", 12)
+	if mode == "researcher" and _hint_open: _hint_close()
+
+func _task_hints() -> Array:
+	var out := []
+	if tele != null and tele.task != null and tele.task.has_method("hints"):
+		for h in tele.task.hints(): out.append({"tier": int(h.get("tier", 0)), "text": str(h.get("text", "")), "target": str(h.get("target", ""))})
+	if out.is_empty() and OS.get_environment("SP_FAKEHINTS") != "" and not (circuit.get("populations", []) as Array).is_empty():   # dev hook: hints for tasks the engine has none for yet
+		var pid := str(circuit["populations"][0].get("id", ""))
+		out = [{"tier": 1, "text": "This needs inhibition between the two sides: when one side fires, the other must be held quiet.", "target": ""},
+			{"tier": 2, "text": "Look at the group %s: what drives it, and what should hold it back?" % pid, "target": pid},
+			{"tier": 3, "text": "Add an inhibitory neuron after %s and connect it back onto the opposite side with a negative weight." % pid, "target": pid}]
+	return out
+
+func _hint_toggle() -> void:
+	if _hint_open: _hint_close(); return
+	if mode == "researcher": return
+	_hint_open = true
+	var live := _task_hints()
+	if not live.is_empty(): _hints_cache = live
+	_hint_render()
+
+func _hint_close() -> void:
+	_hint_open = false
+	if _hint_panel != null and is_instance_valid(_hint_panel): _hint_panel.queue_free()
+	_hint_panel = null
+
+func _hint_render() -> void:
+	if _hint_panel == null or not is_instance_valid(_hint_panel):
+		_hint_panel = HintPanel.new()
+		_hint_panel.next_pressed.connect(_hint_next); _hint_panel.close_pressed.connect(_hint_close)
+		if Layout.phone:
+			ov.add_child(_hint_panel); _hint_panel.set_anchors_preset(Control.PRESET_TOP_LEFT); _hint_panel.offset_left = 14.0; _hint_panel.offset_top = 52.0; _hint_panel.custom_minimum_size.x = 400.0
+		else:
+			panels["circuit"].add_child(_hint_panel); panels["circuit"].move_child(_hint_panel, 1)
+	_hint_panel.show_state(mode, _hints_cache, int(_hint_tier.get(task_id, 0)), int(_fails.get(task_id, 0)))
+	_hint_btn_sync()
+
+func _hint_next() -> void:
+	var live := _task_hints()
+	if not live.is_empty(): _hints_cache = live
+	var by := {}
+	for h in _hints_cache:
+		if not by.has(int(h["tier"])): by[int(h["tier"])] = h
+	var nxt := int(_hint_tier.get(task_id, 0)) + 1
+	while nxt <= 3 and not by.has(nxt): nxt += 1
+	if by.is_empty() or nxt > 3: _hint_render(); return
+	_hint_tier[task_id] = nxt; Progress.record_hint(task_id, nxt); GameAudio.event("hint")
+	var tgt := str(by[nxt].get("target", ""))
+	if tgt != "" and nxt >= 2: editor.hint_target = tgt; editor.queue_redraw()
+	_hint_render()
+
+## An episode (or a check, or a TEST) ended without a pass: count it toward the Standard hint ladder, cache the task's hints for this score state, light up the guilty part.
+func _note_fail() -> void:
+	if task_id == "" or _is_reference() or Circuits.neuron_count(circuit) == 0 or _is_dx(): return
+	var before := int(_fails.get(task_id, 0)); var was := HintPanel.available(mode, before)
+	_fails[task_id] = before + 1
+	var h := _task_hints()
+	if not h.is_empty(): _hints_cache = h
+	_verdict_show()
+	GameAudio.event("fail")
+	if mode == "standard" and not was and HintPanel.available(mode, before + 1) and celebration != null:
+		celebration.toast("Hints unlocked", "Two runs have missed. The HINT button now gives a nudge: first the idea, then the place, then a partial recipe.", Kit.AMBER, 6.0)
+	_hint_btn_sync(); if _hint_open: _hint_render()
+
+# ----- verdict highlight -----
+## The element of the circuit a failed score is about: {target, part}. The task's own tier-2 hint target is the authority; failing that, a score part that names a channel
+## or population; failing that, the motor channel that fires least (a silent output) or, for a part that counts false triggers, the one that fires most.
+func _guilty() -> Dictionary:
+	var out := {"target": "", "part": ""}
+	var sc: Dictionary = tele.score if tele != null else {}
+	var parts: Dictionary = sc.get("parts", {})
+	for h in _hints_cache:
+		var t := str(h.get("target", ""))
+		if int(h.get("tier", 0)) == 2 and t != "" and editor._element_exists(t): out["target"] = t; break
+	var pops: Array = circuit.get("populations", [])
+	for k in parts:
+		var low := str(k).to_lower()
+		for ch in circuit.get("outputs", []) + circuit.get("inputs", []):
+			var nm := str(ch.get("name", "")).to_lower()
+			if nm != "" and nm in low:
+				if out["part"] == "": out["part"] = str(k)
+				if out["target"] == "": out["target"] = ("out:" if circuit.get("outputs", []).has(ch) else "in:") + str(ch["name"])
+		for p in pops:
+			var id := str(p.get("id", "")).to_lower()
+			if id.length() >= 2 and id in low:
+				if out["part"] == "": out["part"] = str(k)
+				if out["target"] == "": out["target"] = str(p["id"])
+	if out["target"] == "" and tele != null and tele.sim != null:
+		var act := Circuits.pop_activity(circuit, tele.count)
+		var over := false
+		for k in parts:
+			var low := str(k).to_lower()
+			if ("false" in low or "spurious" in low or "extra" in low) and not (parts[k] is String) and float(parts[k]) > 0.0: over = true; if out["part"] == "": out["part"] = str(k)
+		var best_ch := ""; var best_v := 1.0e12 if not over else -1.0
+		for ch in circuit.get("outputs", []):
+			var v := 0.0
+			for x in ch.get("neurons", []): v += float(act.get(Circuits.proj_pop(x), 0))
+			if (over and v > best_v) or (not over and v < best_v): best_v = v; best_ch = str(ch.get("name", ""))
+		if best_ch != "": out["target"] = "out:" + best_ch
+		if out["part"] == "":   # name the worst-looking part chip: the first numeric one
+			for k in parts:
+				if not (parts[k] is String): out["part"] = str(k); break
+	return out
+
+func _verdict_show() -> void:
+	var g := _guilty()
+	editor.verdict_target = str(g["target"]); score_card.guilty = str(g["part"]); editor.queue_redraw()
+
+# ----- instant check -----
+func _check_start() -> void:
+	if task_id == "" or tele == null or tele.task == null or _check_job != 0: return
+	if Circuits.neuron_count(circuit) == 0 or tele.wiring_issue() != "": _banner_raw(tele.wiring_issue() if tele != null and tele.wiring_issue() != "" else "Add a neuron first."); return
+	if not ClassDB.class_has_method("SpikeTask", "score_headless_async"):
+		celebration.toast("Instant check is not in this build", "Rebuild the extension (scripts/build-gd.sh) to get headless scoring.", Kit.RED, 4.0); return
+	_check_task = Campaign.make(task_id)
+	if _check_task == null: return
+	_check_job = int(_check_task.score_headless_async(Circuits.to_json(Telemetry.sanitized(_live_circuit())), PackedInt64Array([int(circuit.get("seed", 1))]), mode, variant))
+	_check_t0 = Time.get_ticks_msec()
+	if _check_job == 0: _check_task = null; celebration.toast("Check could not start", "The headless scorer refused the circuit.", Kit.RED, 4.0); return
+	if _check_btn != null and is_instance_valid(_check_btn): _check_btn.text = "CHECKING..."; _check_btn.disabled = true
+	Playlog.event("check", {"task": task_id})
+
+func _check_poll() -> void:
+	if _check_job == 0 or _check_task == null: return
+	var r: Dictionary = _check_task.score_headless_poll(_check_job)
+	if not bool(r.get("done", false)): return
+	var ms := float(r.get("ms", float(Time.get_ticks_msec() - _check_t0)))
+	_check_job = 0; _check_task = null
+	if _check_btn != null and is_instance_valid(_check_btn): _check_btn.text = "CHECK"; _check_btn.disabled = false
+	if not bool(r.get("ok", false)): celebration.toast("Check failed", str(r.get("error", "the headless run did not finish")), Kit.RED, 5.0); return
+	var passed := bool(r.get("passed", false)); var val := int(roundf(float(r.get("value", 0.0))))
+	var runs: Array = r.get("runs", []); var verdict := str((runs[0] as Dictionary).get("verdict", "")) if not runs.is_empty() else ""
+	celebration.toast(("CHECK: PASSED  %d" if passed else "CHECK: NOT PASSED  %d") % val, "%s  (%.1f s)" % [verdict, ms * 0.001], Kit.GREEN if passed else Kit.RED, 6.0)
+	GameAudio.event("pass" if passed else "fail")
+	if score_card != null: score_card.check_text = "check %d%s" % [val, "" if passed else " (miss)"]
+	if not passed and not _is_reference(): _note_fail()
+	elif passed and not lesion_on: _record_check(val)
+
+## A passing check counts as a pass (it ran the task's own seed), but not as the end-of-episode five-seed record.
+func _record_check(val: int) -> void:
+	if _is_reference() or variant != "" or _rec_pass: return
+	_record(true, false, float(val), -1.0)
+
+# ----- skip to the next scripted event -----
+func _skip_event() -> void:
+	if tele == null or tele.task == null or tele.sim == null or tele.finished: return
+	var nx := -1.0
+	if tele.task.has_method("next_event_ms"): nx = float(tele.task.next_event_ms(tele.t_ms))
+	if nx < 0.0: celebration.toast("No more events", "Nothing else is scripted in this episode: it just runs to the end. Raise the speed to get there sooner.", Kit.TEXT_SOFT, 3.0); return
+	var label := ""
+	for e in tele.task.timeline():
+		if absf(float(e.get("t_ms", -1.0)) - nx) < 1.5: label = str(e.get("label", ""))
+	tele.skip_until(maxf(nx - 150.0, tele.t_ms + 1.0)); _sync_run_btn()
+	celebration.toast("Skipping to %s" % (label if label != "" else "the next event"), "t = %.1f s" % (nx * 0.001), Kit.CYAN, 2.0)
+
+# ----- surprise: an unintended rhythm -----
+func _surprise_tick(dt: float) -> void:
+	_surprise_clock += dt
+	if _surprise_clock < 0.8: return
+	_surprise_clock = 0.0
+	if task_id == "" or tele == null or tele.sim == null or tele.finished or not tele.running or not _test.is_empty() or _lrun != null or _surprise_done.has("osc") or _is_dx(): return
+	var info := Campaign.info(task_id)
+	if Surprise.is_rhythm_task(task_id, (info.get("concepts_new", []) as Array) + (info.get("concepts_used", []) as Array)): return
+	var r := Surprise.rhythm(tele)
+	if not bool(r["found"]): return
+	_surprise_done["osc"] = true
+	var tx := Surprise.oscillation_text(r)
+	GameAudio.event("celebrate")
+	celebration.toast(str(tx["title"]), str(tx["text"]), Kit.GREEN, 9.0)
+	Playlog.event("surprise", {"task": task_id, "period_ms": r["period_ms"], "pop": r["pop"]})
+
+# ----- first-pass celebration -----
+func _celebrate() -> void:
+	var sens := Array(tele.task.sensor_channels()) if tele.task != null else []
+	var mot := Array(tele.task.motor_channels()) if tele.task != null else []
+	var path := Circuits.critical_path(circuit, Circuits.pop_activity(circuit, tele.count), sens, mot)
+	celebration.first_pass(editor, tele, path, Campaign.notebook(task_id))
+	Playlog.event("celebrate", {"task": task_id})
+
+# ----- post-solve histograms -----
+## The three axes of the post-solve card: neurons, energy (mean spikes/s per neuron, the ATP bill) and the task's own quality metric.
+func _metric_rows() -> Array:
+	var nn := Circuits.neuron_count(circuit)
+	var hz := tele.spike_rate_hz() / maxf(float(nn), 1.0) if tele != null and tele.sim != null else 0.0
+	var rows := [{"id": "neurons", "label": "Neurons", "value": float(nn), "unit": "neurons", "lower": true},
+		{"id": "energy_hz", "label": "Energy", "value": hz, "unit": "spikes/s/neuron", "lower": true}]
+	var found := false
+	if tele != null and tele.task != null and tele.task.has_method("metrics"):
+		var m: Dictionary = tele.task.metrics()
+		for k in m:
+			if str(k) in ["neurons", "energy_hz"] or found: continue
+			var d: Dictionary = m[k]
+			rows.append({"id": str(k), "label": BodyViews.pretty(str(k))[0] if BodyViews.pretty(str(k)).size() > 0 else str(k).capitalize(), "value": float(d.get("value", 0.0)), "unit": str(d.get("unit", "")), "lower": bool(d.get("lower_is_better", true))}); found = true
+	if not found: rows.append({"id": "score", "label": "Task score", "value": float(tele.score.get("value", 0.0)) if tele != null else 0.0, "unit": "points", "lower": false})
+	return rows
+
+func _histo_hide() -> void:
+	if _histo_ov != null and is_instance_valid(_histo_ov): _histo_ov.queue_free()
+	_histo_ov = null
+
+func _histo_show() -> void:
+	if task_id == "" or tele == null or _is_dx(): return
+	_histo_hide(); _close_menu(); _overlay_hide(); _overlay_dismissed = true
+	var phone := Layout.phone
+	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; ov.add_child(root); _histo_ov = root
+	var dim := ColorRect.new(); dim.color = Color(Kit.BENCH, 0.78); dim.set_anchors_preset(Control.PRESET_FULL_RECT); root.add_child(dim)
+	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 16, 12 if phone else 20, true)); root.add_child(pn)
+	pn.set_anchors_preset(Control.PRESET_FULL_RECT); var mg := 14 if phone else int(70 * f()); pn.offset_left = mg; pn.offset_right = -mg; pn.offset_top = mg * 0.5; pn.offset_bottom = -mg * 0.5
+	if not phone: pn.set_anchors_preset(Control.PRESET_CENTER); pn.grow_horizontal = Control.GROW_DIRECTION_BOTH; pn.grow_vertical = Control.GROW_DIRECTION_BOTH; pn.offset_left = -float(size.x) * 0.45; pn.offset_right = float(size.x) * 0.45; pn.offset_top = 0.0; pn.offset_bottom = 0.0
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6 if phone else 10); pn.add_child(v)
+	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 12); v.add_child(hd)
+	var t := Kit.shout("How does it compare?", 32 if not phone else 22, Kit.TEXT); t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hd.add_child(t)
+	hd.add_child(Kit.btn("CLOSE", _histo_hide, "panel", 20 if not phone else 18))
+	var raw := HistogramView.load_file(task_id)
+	var passed := bool(tele.score.get("passed", false)) or bool(Progress.best(task_id)["passed"])
+	v.add_child(Kit.label(("Your run against other solutions of this task, on three axes. Beat the median on any one of them." if not raw.is_empty() else "No solution distribution exists for this task yet (it is generated offline from developer and AI solutions). Your numbers are below; pin a target to chase."), 17 if not phone else 15, Kit.TEXT_SOFT, true))
+	if not passed: v.add_child(Kit.label("This run has not passed yet: the numbers are for the run so far.", 16, Kit.AMBER, true))
+	var sc := ScrollContainer.new(); sc.size_flags_vertical = Control.SIZE_EXPAND_FILL; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.custom_minimum_size.y = 0.0 if phone else 190.0; v.add_child(sc)
+	var fl := HFlowContainer.new(); fl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fl.add_theme_constant_override("h_separation", 14); fl.add_theme_constant_override("v_separation", 10); sc.add_child(fl)
+	var wins := 0
+	for r in _metric_rows():
+		var hv := HistogramView.new().setup(task_id, str(r["id"]), str(r["label"]), float(r["value"]), str(r["unit"]), bool(r["lower"]), (raw.get(str(r["id"]), {}) as Dictionary) if raw.get(str(r["id"]), {}) is Dictionary else {})
+		hv.custom_minimum_size.x = 300.0 if phone else 440.0; hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fl.add_child(hv)
+		if HistogramView.beats_median(hv.dist, float(r["value"]), bool(r["lower"])): wins += 1
+	if wins > 0: v.add_child(Kit.label("You beat the median on %d of 3 axes." % wins, 19, Kit.GREEN, true))
+	Playlog.event("histogram", {"task": task_id})
+
+# ---------- diagnosis cases ----------
+func _inspect_dx(small: int) -> void:
+	if Layout.phone:
+		var hb := Kit.btn("HIDE CASE", func(): _brief_forced = false; _build_inspector(), "panel", 16); hb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; insp_body.add_child(hb)
+	var note := Campaign.notebook(task_id)
+	var panel := DiagnosisPanel.new()
+	panel.picked.connect(func(c): _dx["picked"] = c; _build_inspector())
+	panel.submit_pressed.connect(_dx_submit); panel.reveal_pressed.connect(_dx_reveal); panel.lesion_lab_pressed.connect(_lesion_toggle)
+	insp_body.add_child(panel.setup(_dx_info, _dx, note if (bool(_dx.get("solved", false)) or bool(_dx.get("gave_up", false))) else {}, lesion_on))
+
+## A population or axon picked in a diagnosis case: read-only facts, a TRACE button, a way back to the case card.
+func _inspect_dx_pick(sel: Dictionary, small: int) -> void:
+	var id := str(sel.get("id", sel.get("name", "")))
+	insp_body.add_child(_head(id if str(sel["t"]) != "proj" else "axon", Kit.exc(), "read-only: this is the patient's circuit"))
+	if str(sel["t"]) == "pop":
+		var pi := Circuits.pop_index(circuit, id)
+		if pi >= 0:
+			var p: Dictionary = circuit["populations"][pi]
+			insp_body.add_child(Kit.label("%s, %d cell%s. Trace it to watch its membrane voltage, or select it and listen: only its spikes click." % [str(p.get("model", "")), Circuits.pop_n(p), "" if Circuits.pop_n(p) == 1 else "s"], small, Kit.TEXT_SOFT, true))
+			insp_body.add_child(Kit.btn("TRACE", func(): _toggle_trace(id), "cyan" if tele.watched.has(Circuits.pop_first(circuit, pi)) else "panel", 18))
+	elif str(sel["t"]) == "proj":
+		var i := int(sel["i"])
+		if i < circuit["projections"].size():
+			var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight(pr)
+			insp_body.add_child(Kit.label("%s > %s, %s, weight %s, delay %s ms." % [Circuits.proj_pop(pr.get("pre", "")), Circuits.proj_pop(pr.get("post", "")), "inhibitory" if w < 0.0 else "excitatory", _num(absf(w)), _num(Circuits.proj_delay(pr))], small, Kit.TEXT_SOFT, true))
+	insp_body.add_child(Kit.btn("BACK TO THE CASE", func(): editor.select({}); _brief_forced = true; _build_inspector(), "ghost", 18))
+
+func _dx_submit() -> void:
+	var cand := str(_dx.get("picked", ""))
+	if cand == "" or tele == null or tele.task == null or not tele.task.has_method("set_variant"): return
+	tele.task.set_variant(cand)   # the diagnosis tasks take the answer through the variant slot (engine/src/tasks/dx_common.h)
+	var sc: Dictionary = tele.task.score(); var ok := bool(sc.get("passed", false))
+	Playlog.event("diagnosis", {"task": task_id, "answer": cand, "correct": ok})
+	if ok:
+		_dx["solved"] = true; editor.verdict_target = Circuits.candidate_focus(cand); editor.verdict_ok = true
+		var first := not bool(Progress.best(task_id)["passed"])
+		Progress.record_result(task_id, 100.0, {"passed": true, "five_seeds": int(_dx.get("tries", 0)) == 0, "neurons": Circuits.neuron_count(circuit), "rate_hz": -1.0, "reference_derived": false})
+		GameAudio.event("pass")
+		if first: celebration.first_pass(editor, tele, Circuits.critical_path(circuit, Circuits.pop_activity(circuit, tele.count), Array(tele.task.sensor_channels()), Array(tele.task.motor_channels())), Campaign.notebook(task_id))
+	else:
+		_dx["tries"] = int(_dx.get("tries", 0)) + 1; GameAudio.event("fail")
+		var wrong := Circuits.candidate_focus(cand)
+		if wrong != "" and _hint_open: _hint_render()
+	_build_inspector(); _scroll_end.call_deferred()
+
+## Bring the bottom of the inspector (a diagnosis reveal) into view once the new content is laid out.
+func _scroll_end() -> void:
+	await get_tree().process_frame; await get_tree().process_frame
+	if insp_scroll != null and is_instance_valid(insp_scroll): insp_scroll.scroll_vertical = int(insp_scroll.get_v_scroll_bar().max_value)
+
+func _dx_reveal() -> void:
+	_dx["gave_up"] = true
+	if tele != null and tele.task != null and tele.task.has_method("set_variant"): tele.task.set_variant(str(_dx_info.get("answer", "")))
+	editor.verdict_target = Circuits.candidate_focus(str(_dx_info.get("answer", ""))); editor.verdict_ok = false
+	_build_inspector(); _scroll_end.call_deferred()
+
+# ---------- dev hooks for screenshots ----------
+## SP_HINT=1|2|3 opens the hint card with that many tiers shown (with SP_FAKEHINTS=1 for tasks the engine has no hints for), SP_VERDICT=1 lights the guilty element,
+## SP_HISTO=1 opens the histograms, SP_CELEB=1 runs the first-pass celebration, SP_DXPICK=<candidate> picks and SP_DXSUBMIT=1 submits in a diagnosis case,
+## SP_FAILS=n sets the failed-run count, SP_CHECK=1 presses CHECK, SP_SKIP=1 presses SKIP.
+func _demo_hooks() -> void:
+	if OS.get_environment("SP_FAILS") != "": _fails[task_id] = int(OS.get_environment("SP_FAILS"))
+	if OS.get_environment("SP_HINT") != "":
+		await get_tree().create_timer(0.8).timeout
+		_hints_cache = _task_hints(); _hint_open = true; _hint_tier[task_id] = 0
+		for i in int(OS.get_environment("SP_HINT")): _hint_next()
+		_hint_render()
+	if OS.get_environment("SP_VERDICT") != "":
+		await get_tree().create_timer(1.0).timeout
+		_hints_cache = _task_hints(); _verdict_show()
+	if OS.get_environment("SP_HISTO") != "":
+		await get_tree().create_timer(1.2).timeout
+		_histo_show()
+	if OS.get_environment("SP_CELEB") != "":
+		await get_tree().create_timer(1.0).timeout
+		_celebrate()
+	if OS.get_environment("SP_CHECK") != "":
+		await get_tree().create_timer(1.0).timeout
+		_check_start()
+	if OS.get_environment("SP_SKIP") != "":
+		await get_tree().create_timer(1.0).timeout
+		_skip_event()
+	if OS.get_environment("SP_DXPICK") != "":
+		await get_tree().create_timer(0.8).timeout
+		_dx["picked"] = OS.get_environment("SP_DXPICK"); _build_inspector()
+		if OS.get_environment("SP_DXSUBMIT") != "": _dx_submit()
