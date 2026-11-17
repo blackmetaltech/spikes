@@ -80,6 +80,59 @@ public:
     double tau_ms = 1000.0;      // outputs of kind "modulator": decay time constant
   };
   virtual std::map< std::string, ChannelKind > channel_kinds() const { return {}; }
+
+  // ---- v0.3 additions (add-only, defaults keep 0.2 tasks compiling). See docs/DESIGN-0.3.md ----
+
+  /// Level kind on the campaign map: "micro" (fish-tank puzzle), "task" (0.1/0.2 build), "boss" (chapter finale),
+  /// "diagnosis" (find the hidden lesion in a given circuit).
+  virtual std::string level_kind() const { return "task"; }
+  /// Concept ids this level introduces (usually one) and reuses (docs/DESIGN-0.3.md section 3, e.g. "threshold", "inhibition").
+  virtual std::vector< std::string > concepts_new() const { return {}; }
+  virtual std::vector< std::string > concepts_used() const { return {}; }
+  /// Spine levels gate chapter progress; branches (variants, diagnosis, optional) never do.
+  virtual bool on_spine() const { return true; }
+
+  /// Difficulty mode, set before reset(): "guided" | "standard" | "researcher". Tasks scale tolerance (bands, seeds, noise)
+  /// and perturbation strength from it; structure never changes. Default: standard.
+  virtual void set_mode( const std::string& mode ) { mode_ = mode; }
+  std::string mode() const { return mode_; }
+  /// Challenge variants: id -> one-line description ("half_neurons", "vagus_cut", "noise_x2", "izhikevich_only").
+  /// set_variant("") restores the base task. Variants are optional branches, never on the spine.
+  virtual std::map< std::string, std::string > variants() const { return {}; }
+  virtual void set_variant( const std::string& v ) { variant_ = v; }
+  std::string variant() const { return variant_; }
+
+  /// Hint ladder for the current score state: tier 1 names the concept, tier 2 names the place (population/channel id
+  /// to highlight, in `target`), tier 3 a partial recipe. Called after a failed run; may depend on score().parts.
+  struct Hint { int tier; std::string text; std::string target; };
+  virtual std::vector< Hint > hints() const { return {}; }
+
+  /// Mastery metrics for post-solve histograms (Zachtronics style): name -> {value, unit, lower_is_better}.
+  /// "neurons" and "energy_hz" are filled by the game; tasks add one quality metric (latency, error, synchrony…).
+  struct Metric { double value; std::string unit; bool lower_is_better; };
+  virtual std::map< std::string, Metric > metrics() const { return {}; }
+
+  /// Pacing: model time (ms) of the next scripted event after `t_ms`, or < 0 if none (for "skip to next event").
+  virtual double next_event_ms( double t_ms ) const
+  {
+    double best = -1;
+    for ( auto& e : timeline() )
+      if ( e.t_ms > t_ms + 1 && ( best < 0 || e.t_ms < best ) ) best = e.t_ms;
+    return best;
+  }
+
+  /// Diagnosis levels: the circuit the player is given (path relative to circuits/), the patient's symptoms, the multiple-choice
+  /// candidate lesions (ids like "pre>post" or "pop:ID") and which one is correct.
+  struct Diagnosis { std::string circuit; std::string symptoms; std::vector< std::string > candidates; std::string answer; };
+  virtual Diagnosis diagnosis() const { return {}; }
+
+  /// Lab-notebook entry unlocked on first pass: a short true fact with its citation.
+  struct Note { std::string title; std::string text; std::string citation; };
+  virtual Note notebook() const { return {}; }
+
+protected:
+  std::string mode_ = "standard";
+  std::string variant_;
 };
 
 std::vector< std::string > task_ids();
