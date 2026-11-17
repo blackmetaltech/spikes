@@ -1,0 +1,322 @@
+{
+ "schema_version": 1,
+ "name": "Patient circuit: horner",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "RGC",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 100.0
+   },
+   "pos": [
+    [
+     60,
+     40
+    ],
+    [
+     60,
+     74
+    ],
+    [
+     60,
+     108
+    ],
+    [
+     60,
+     142
+    ],
+    [
+     60,
+     176
+    ],
+    [
+     60,
+     210
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "PON",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 225.0
+   },
+   "pos": [
+    [
+     200,
+     40
+    ],
+    [
+     200,
+     74
+    ],
+    [
+     200,
+     108
+    ],
+    [
+     200,
+     142
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "EW",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 340.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     340,
+     40
+    ],
+    [
+     340,
+     74
+    ],
+    [
+     340,
+     108
+    ],
+    [
+     340,
+     142
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "CG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     480,
+     40
+    ],
+    [
+     480,
+     74
+    ],
+    [
+     480,
+     108
+    ],
+    [
+     480,
+     142
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "HYP",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 100.0
+   },
+   "pos": [
+    [
+     200,
+     300
+    ],
+    [
+     200,
+     334
+    ],
+    [
+     200,
+     368
+    ],
+    [
+     200,
+     402
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "IML",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 410.0,
+    "tau_syn_in": 10.0,
+    "tau_syn_ex": 10.0
+   },
+   "pos": [
+    [
+     340,
+     300
+    ],
+    [
+     340,
+     334
+    ],
+    [
+     340,
+     368
+    ],
+    [
+     340,
+     402
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SCG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     480,
+     300
+    ],
+    [
+     480,
+     334
+    ],
+    [
+     480,
+     368
+    ],
+    [
+     480,
+     402
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "RGC",
+   "post": "PON",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 100.0,
+    "delay": 25.0
+   }
+  },
+  {
+   "pre": "PON",
+   "post": "EW",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 15.0
+   }
+  },
+  {
+   "pre": "EW",
+   "post": "CG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 80.0,
+    "delay": 25.0
+   }
+  },
+  {
+   "pre": "PON",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -100.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "EW",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -40.0,
+    "delay": 3.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "retina",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "RGC"
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "threat",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "HYP"
+    }
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "sphincter",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "CG"
+    }
+   ]
+  },
+  {
+   "name": "dilator",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SCG"
+    }
+   ]
+  }
+ ],
+ "meta": {
+  "author": "spike",
+  "task": "dx_horner",
+  "notes": "docs/circuits/dx_horner.md"
+ },
+ "record": {
+  "spikes": "all"
+ }
+}
