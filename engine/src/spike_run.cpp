@@ -6,6 +6,8 @@
 // spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k ...] [--require any|all] [--circuits-dir dir]
 //   scores a circuit on a task headless, exactly as the game does (same 1 ms slices, a seed also reseeds the circuit: 1000 * seed + circuit seed),
 //   and prints one JSON object on stdout: per-seed value / passed / verdict / parts / neurons / spikes / rate_hz_per_neuron, plus mean and pass count.
+//   --mode guided|standard|researcher and --variant <id> set the v0.3 difficulty mode and challenge variant (Task::set_mode / set_variant) before reset;
+//   each run also reports the task's hints and metrics. The game's instant check (SpikeTask.score_headless_async) runs this CLI in a worker thread.
 //   The circuit defaults to the task's reference circuit (looked up in $SPIKE_CIRCUITS_DIR, --circuits-dir, or a circuits/ folder above the cwd or
 //   the executable). Seeds default to 1. A lesion scales the weight of every projection pre->post (0 deletes it). Exit status: 0 ok, 1 load or run
 //   error, 2 usage, 3 the --require condition failed (any: at least one seed passed, all: every seed passed). Used by CI and scripts/smoke.sh.
@@ -62,13 +64,13 @@ struct Lesion
 
 static int run_task_mode( int argc, char** argv )
 {
-  std::string task_id, circuit_file, dir, require;
+  std::string task_id, circuit_file, dir, require, mode, variant;
   std::vector< unsigned long long > seeds;
   std::vector< Lesion > lesions;
   int threads = 1;
   auto usage = [] {
     std::fprintf( stderr, "usage: spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k]... "
-                          "[--require any|all] [--circuits-dir dir] [--threads n]\n" );
+                          "[--mode guided|standard|researcher] [--variant id] [--require any|all] [--circuits-dir dir] [--threads n]\n" );
     return 2;
   };
   for ( int i = 1; i < argc; ++i )
@@ -83,6 +85,10 @@ static int run_task_mode( int argc, char** argv )
       dir = argv[ ++i ];
     else if ( a == "--require" and more )
       require = argv[ ++i ];
+    else if ( a == "--mode" and more )
+      mode = argv[ ++i ];
+    else if ( a == "--variant" and more )
+      variant = argv[ ++i ];
     else if ( a == "--threads" and more )
       threads = std::atoi( argv[ ++i ] );
     else if ( ( a == "--seed" or a == "--seeds" ) and more )
@@ -164,6 +170,8 @@ static int run_task_mode( int argc, char** argv )
   spike::set_threads( threads );
   json out;
   out[ "task" ] = task_id;
+  out[ "mode" ] = mode.empty() ? "standard" : mode;
+  out[ "variant" ] = variant;
   out[ "circuit" ] = circuit_file;
   out[ "runs" ] = json::array();
   double sum = 0;
@@ -179,6 +187,8 @@ static int run_task_mode( int argc, char** argv )
       return 1;
     }
     auto task = spike::make_task( task_id );
+    task->set_mode( mode.empty() ? "standard" : mode );
+    task->set_variant( variant );
     task->reset( seed );
     unsigned long long spikes = 0;
     const long steps = static_cast< long >( task->duration_ms() );
@@ -203,6 +213,12 @@ static int run_task_mode( int argc, char** argv )
     r[ "parts" ] = json::object();
     for ( const auto& [ k, v ] : sc.parts )
       r[ "parts" ][ k ] = v;
+    r[ "hints" ] = json::array();
+    for ( const auto& h : task->hints() )
+      r[ "hints" ].push_back( { { "tier", h.tier }, { "text", h.text }, { "target", h.target } } );
+    r[ "metrics" ] = json::object();
+    for ( const auto& [ k, m ] : task->metrics() )
+      r[ "metrics" ][ k ] = { { "value", m.value }, { "unit", m.unit }, { "lower_is_better", m.lower_is_better } };
     r[ "neurons" ] = e.neuron_count();
     r[ "spikes" ] = spikes;
     r[ "duration_ms" ] = task->duration_ms();

@@ -2,7 +2,17 @@
 #include "spike/analysis.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <thread>
+#include <unistd.h>
 
 namespace spike_gd
 {
@@ -189,5 +199,160 @@ std::string motif4_json_edges( const std::vector< double >& triples, int n, int 
   {
     return error_json( e.what() );
   }
+}
+
+// ---- v0.3 instant check ----
+namespace
+{
+struct Job
+{
+  std::thread th;
+  std::atomic< bool > done{ false };
+  bool ok = false;
+  std::string error, out;
+  double ms = 0;
+};
+std::mutex g_mu;
+std::map< long, std::unique_ptr< Job > > g_jobs;
+long g_next = 1;
+std::string g_runner;
+
+bool exists( const std::string& p ) { return access( p.c_str(), X_OK ) == 0; }
+std::string find_runner()
+{
+  std::string r = g_runner;
+  if ( r.empty() )
+    if ( const char* e = std::getenv( "SPIKE_RUN" ) )
+      r = e;
+  if ( !r.empty() )
+    return r;
+  for ( const char* c : { "./spike-run", "./bin/spike-run", "../spike-run", "build/bin/spike-run", "build/engine/spike-run", "../build/bin/spike-run", "../build/engine/spike-run", "../../build/bin/spike-run" } )
+    if ( exists( c ) )
+      return c;
+  return "spike-run";  // PATH
+}
+std::string shq( const std::string& s )
+{
+  std::string o = "'";
+  for ( char c : s )
+    if ( c == '\'' )
+      o += "'\\''";
+    else
+      o += c;
+  return o + "'";
+}
+bool word( const std::string& s )
+{
+  for ( unsigned char c : s )
+    if ( !( std::isalnum( c ) || c == '_' || c == '-' ) )
+      return false;
+  return true;
+}
+struct Cleanup
+{
+  ~Cleanup()
+  {
+    for ( auto& kv : g_jobs )
+      if ( kv.second->th.joinable() )
+        kv.second->th.join();
+  }
+} g_cleanup;
+}  // namespace
+
+void headless_set_runner( const std::string& path )
+{
+  std::lock_guard< std::mutex > l( g_mu );
+  g_runner = path;
+}
+
+long headless_start( const std::string& task_id, const std::string& circuit_json, const std::vector< long long >& seeds_in, const std::string& mode,
+  const std::string& variant, std::string& err )
+{
+  if ( task_id.empty() || !word( task_id ) || !word( mode ) || !word( variant ) )
+  {
+    err = "bad task id, mode or variant";
+    return 0;
+  }
+  std::vector< long long > seeds = seeds_in;
+  if ( seeds.empty() )
+    seeds.push_back( 1 );
+  static std::atomic< long > counter{ 0 };
+  const std::string base = "/tmp/spike_hl_" + std::to_string( long( getpid() ) ) + "_" + std::to_string( ++counter );
+  const std::string cfile = base + ".json";
+  {
+    std::ofstream f( cfile );
+    if ( !f )
+    {
+      err = "cannot write " + cfile;
+      return 0;
+    }
+    f << circuit_json;
+  }
+  std::string runner;
+  {
+    std::lock_guard< std::mutex > l( g_mu );
+    runner = find_runner();
+  }
+  std::string cmd = shq( runner ) + " --task " + shq( task_id ) + " --circuit " + shq( cfile ) + " --seeds ";
+  for ( size_t i = 0; i < seeds.size(); ++i )
+    cmd += ( i ? "," : "" ) + std::to_string( seeds[ i ] );
+  if ( !mode.empty() )
+    cmd += " --mode " + shq( mode );
+  if ( !variant.empty() )
+    cmd += " --variant " + shq( variant );
+  cmd += " 2>" + shq( base + ".err" );
+  auto job = std::make_unique< Job >();
+  Job* jp = job.get();
+  jp->th = std::thread( [ jp, cmd, cfile, base ] {
+    const auto t0 = std::chrono::steady_clock::now();
+    std::string out;
+    int status = -1;
+    if ( FILE* p = popen( cmd.c_str(), "r" ) )
+    {
+      char buf[ 4096 ];
+      size_t n;
+      while ( ( n = fread( buf, 1, sizeof buf, p ) ) > 0 )
+        out.append( buf, n );
+      status = pclose( p );
+    }
+    std::string e;
+    {
+      std::ifstream f( base + ".err" );
+      std::stringstream ss;
+      ss << f.rdbuf();
+      e = ss.str();
+    }
+    std::remove( cfile.c_str() );
+    std::remove( ( base + ".err" ).c_str() );
+    jp->ms = std::chrono::duration< double, std::milli >( std::chrono::steady_clock::now() - t0 ).count();
+    jp->ok = status == 0 && !out.empty();
+    jp->out = out;
+    jp->error = jp->ok ? "" : ( e.empty() ? "spike-run failed (status " + std::to_string( status ) + ")" : e );
+    jp->done = true;
+  } );
+  std::lock_guard< std::mutex > l( g_mu );
+  const long id = g_next++;
+  g_jobs[ id ] = std::move( job );
+  return id;
+}
+
+std::string headless_poll( long id )
+{
+  std::unique_ptr< Job > j;
+  {
+    std::lock_guard< std::mutex > l( g_mu );
+    auto it = g_jobs.find( id );
+    if ( it == g_jobs.end() )
+      return "{\"done\":true,\"ok\":false,\"error\":\"unknown job\",\"ms\":0}";
+    if ( !it->second->done )
+      return "{\"done\":false,\"ok\":false,\"error\":\"\",\"ms\":0}";
+    j = std::move( it->second );
+    g_jobs.erase( it );
+  }
+  if ( j->th.joinable() )
+    j->th.join();
+  if ( !j->ok )
+    return std::string( "{\"done\":true,\"ok\":false,\"ms\":" ) + std::to_string( j->ms ) + ",\"error\":" + error_json( j->error ).substr( 10 );
+  return std::string( "{\"done\":true,\"ok\":true,\"error\":\"\",\"ms\":" ) + std::to_string( j->ms ) + ",\"result\":" + j->out + "}";
 }
 } // namespace spike_gd

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "Weight spread (parity fixture)",
+  "resolution_ms": 0.1,
+  "seed": 11,
+  "populations": [
+    { "id": "S", "model": "iaf_psc_alpha", "n": 6, "params": { "I_e": 420.0 } },
+    { "id": "T", "model": "iaf_psc_alpha", "n": 6 }
+  ],
+  "projections": [
+    { "pre": "S", "post": "T", "weight_cv": 0.4,
+      "edges": [[0,0,60.0,1.0],[1,1,60.0,1.0],[2,2,60.0,1.0],[3,3,60.0,1.0],[4,4,60.0,1.0],[5,5,60.0,1.0],
+                [0,1,40.0,1.5],[1,2,40.0,1.5],[2,3,40.0,1.5],[3,4,40.0,1.5],[4,5,40.0,1.5],[5,0,40.0,1.5]] },
+    { "pre": "T", "post": "T", "weight_sd": 15.0,
+      "edges": [[0,3,-30.0,1.0],[3,0,-30.0,1.0],[1,4,-30.0,1.0],[4,1,-30.0,1.0]] }
+  ],
+  "inputs": [
+    { "name": "drive", "kind": "dc", "targets": ["T"], "weight": 1.0, "value": 200.0 }
+  ],
+  "record": { "spikes": "all" }
+}
