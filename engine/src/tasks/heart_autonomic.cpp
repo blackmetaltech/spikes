@@ -112,8 +112,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "neuromodulation", "feedforward_feedback" }; }
-  std::vector< std::string > concepts_used() const override { return { "pacemaking", "excitation", "inhibition" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "neuromodulation", "feedforward_feedback", "pacemaking", "excitation", "inhibition" }; }
   bool on_spine() const override { return true; }
   /// Pass bars (mean error, rest, exercise, recovery): guided 7.5 / 5 / 10 / 5 bpm, standard 6 / 4 / 8 / 4, researcher 5.1 / 3.4 / 6.8 / 3.4.
   /// The tight_tracking variant asks for 4 / 3 / 6 / 3.

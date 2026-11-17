@@ -93,8 +93,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "rhythm_gating" }; }
-  std::vector< std::string > concepts_used() const override { return { "pacemaking", "coupling", "excitation", "negative_feedback" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "rhythm_gating", "pacemaking", "coupling", "excitation", "negative_feedback" }; }
   bool on_spine() const override { return true; }
   /// Pass bars (rest rate, resting PaCO2, ventilation ratio, PaCO2 peak, recovery): guided 10-22 /min, 33-47, 1.4x, 55, 48; standard 12-20,
   /// 35-45, 1.6x, 52, 46; researcher 13-19, 36-44, 1.8x, 52, 45. Inspired CO2 x0.8 guided, x1.1 researcher.
