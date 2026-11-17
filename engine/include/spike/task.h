@@ -78,6 +78,7 @@ public:
     std::string modulator;       // outputs of kind "modulator": "NE" | "ACh" | "DA"
     double gain = 0.05;          // outputs of kind "modulator": concentration added per spike
     double tau_ms = 1000.0;      // outputs of kind "modulator": decay time constant
+    double weight = 0;           // v0.3, inputs: sensible default synaptic weight for the first connect in the lab (0 = unset, the lab picks its own)
   };
   virtual std::map< std::string, ChannelKind > channel_kinds() const { return {}; }
 

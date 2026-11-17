@@ -42,6 +42,31 @@ A circuit is one JSON file. The game, the C++ engine, the Python package and eve
 - **Determinism.** `seed` sets NEST's `rng_seed`. The same file and the same seed give the same spikes for the same NEST version and thread count.
 - **Unknown keys** under `meta` are preserved. Unknown top-level keys are an error.
 
+## Weight spread (v0.3)
+
+An `edges` projection may carry one of two projection-level keys (next to `pre`, `post`), both numbers >= 0:
+
+| key | per-edge weight |
+|---|---|
+| `weight_sd` | `w' = w + sd * z` (same unit as the weight) |
+| `weight_cv` | `w' = w * (1 + cv * z)` (relative spread) |
+
+`z` is a standard normal draw that depends only on the circuit `seed`, the projection number `k` (file order, 0-based) and the edge index `i`, never on NEST's RNG: `key = (((k+1) << 32) | i) * 2 + j + 1` for the two uniforms `j = 0, 1`; `z64 = seed + key * 0x9E3779B97F4A7C15 (mod 2^64)`, then the same splitmix64 finalizer as the initial `V_m`; `u_j = (z64 >> 11) / 2^53`; `z = sqrt(-2 ln(1 - u_0)) * cos(2 pi u_1)`. The result keeps the sign of `w`: `|w'| >= 1e-3 |w|`. It is applied when the circuit is loaded, before the synapse rules (so a `stdp_synapse` default `Wmax` sees the spread weights, and a gap-junction mirror edge gets the same value). Giving both keys, a negative number, or a key on a `rule` projection is an error. Because `spike-run --task --seeds` reseeds the circuit (`1000 * seed + circuit seed`), every task seed sees a different spread: this is what the deferred 0.2 "weight spread" control uses to make a circuit that only works with identical weights fail honestly. The C++ loader (`spread_normal` in `engine/src/circuit.cpp`) and `python/spike/circuit.py` (`edge_spread_normal`) agree bit for bit (`python/tests/test_parity.py` runs `weight_spread.json` through both; `engine/tests/test_circuit_spread.cpp`, `python/tests/test_weight_spread.py`).
+
+## Instant check (headless scoring from the game)
+
+The engine is one per process, so the game scores a circuit headless by running the `spike-run` CLI in a child process, from a worker thread:
+
+```
+spike-run --task <id> --circuit file.json --seeds 1,2,3 [--mode guided|standard|researcher] [--variant <id>]
+```
+
+It prints one JSON object (per seed: `value`, `passed`, `verdict`, `parts`, `hints`, `metrics`, `neurons`, `spikes`; plus `n`, `passes`, `mean_value`). In Godot: `SpikeTask.score_headless_async(circuit_json, seeds, mode, variant)` returns a job id at once (the circuit is written to a temp file and a thread runs the process); poll `SpikeTask.score_headless_poll(job)` each frame (`{done, ok, error, ms, passed, value, passes, seeds, runs}`; a finished job is returned once, then forgotten). The runner is found via `SpikeTask.set_headless_runner(path)`, `$SPIKE_RUN`, or common build locations (`./spike-run`, `build/bin/spike-run`, `build/engine/spike-run`, PATH): the shipped game must put `spike-run` next to the executable and set the path. A task runs 1 ms slices, so the wall time is about the model duration / 50 per seed on a debug build and less on release; micro-puzzles (2-5 s episodes) finish in well under 2 s.
+
+## Per-task sensor weights (v0.3)
+
+`Task::ChannelKind::weight` (inputs; 0 = unset) is the default synaptic weight the lab uses the first time the player connects that sensor to a population. `SpikeTask.channel_kinds()["inputs"][name]["weight"]` exposes it.
+
 ## Synapse models
 
 `synapse_model` may be any NEST connection model; these have extra rules, checked when the circuit loads (errors name the path, for example `projections[2].synapse.weight: ...`). The same rules are implemented in `python/spike/circuit.py`.

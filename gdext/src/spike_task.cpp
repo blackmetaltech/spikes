@@ -1,6 +1,8 @@
 #include "spike_task.h"
 #include "spike_sim.h"
 #include "spike/catalog.h"
+#include "bridge.h"
+#include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 
@@ -131,6 +133,7 @@ Dictionary SpikeTask::channel_kinds() const
       Dictionary d;
       d[ "kind" ] = S( it->second.kind );
       d[ "value" ] = it->second.value;
+      d[ "weight" ] = it->second.weight;  // v0.3: default first-connect weight, 0 = unset
       in[ S( name ) ] = d;
     }
     for ( const auto& name : task_->motor_channels() )
@@ -153,6 +156,117 @@ Dictionary SpikeTask::channel_kinds() const
   all[ "outputs" ] = out;
   return all;
 }
+// ---- v0.3 ----
+String SpikeTask::level_kind() const { return task_ ? S( task_->level_kind() ) : String( "task" ); }
+PackedStringArray SpikeTask::concepts_new() const { return task_ ? strs( task_->concepts_new() ) : PackedStringArray(); }
+PackedStringArray SpikeTask::concepts_used() const { return task_ ? strs( task_->concepts_used() ) : PackedStringArray(); }
+bool SpikeTask::on_spine() const { return task_ ? task_->on_spine() : true; }
+void SpikeTask::set_mode( const String& m )
+{
+  if ( task_ )
+    task_->set_mode( to_std( m ) );
+}
+String SpikeTask::mode() const { return task_ ? S( task_->mode() ) : String( "standard" ); }
+Dictionary SpikeTask::variants() const
+{
+  Dictionary d;
+  if ( task_ )
+    for ( const auto& kv : task_->variants() )
+      d[ S( kv.first ) ] = S( kv.second );
+  return d;
+}
+void SpikeTask::set_variant( const String& v )
+{
+  if ( task_ )
+    task_->set_variant( to_std( v ) );
+}
+String SpikeTask::variant() const { return task_ ? S( task_->variant() ) : String(); }
+Array SpikeTask::hints() const
+{
+  Array a;
+  if ( !task_ )
+    return a;
+  for ( const auto& h : task_->hints() )
+  {
+    Dictionary d;
+    d[ "tier" ] = int64_t( h.tier );
+    d[ "text" ] = S( h.text );
+    d[ "target" ] = S( h.target );
+    a.push_back( d );
+  }
+  return a;
+}
+Dictionary SpikeTask::metrics() const
+{
+  Dictionary d;
+  if ( !task_ )
+    return d;
+  for ( const auto& kv : task_->metrics() )
+  {
+    Dictionary m;
+    m[ "value" ] = kv.second.value;
+    m[ "unit" ] = S( kv.second.unit );
+    m[ "lower_is_better" ] = kv.second.lower_is_better;
+    d[ S( kv.first ) ] = m;
+  }
+  return d;
+}
+double SpikeTask::next_event_ms( double t_ms ) const { return task_ ? task_->next_event_ms( t_ms ) : -1.0; }
+Dictionary SpikeTask::diagnosis() const
+{
+  Dictionary d;
+  if ( !task_ )
+    return d;
+  const auto g = task_->diagnosis();
+  d[ "circuit" ] = S( g.circuit );
+  d[ "symptoms" ] = S( g.symptoms );
+  d[ "candidates" ] = strs( g.candidates );
+  d[ "answer" ] = S( g.answer );
+  return d;
+}
+Dictionary SpikeTask::notebook() const
+{
+  Dictionary d;
+  if ( !task_ )
+    return d;
+  const auto n = task_->notebook();
+  d[ "title" ] = S( n.title );
+  d[ "text" ] = S( n.text );
+  d[ "citation" ] = S( n.citation );
+  return d;
+}
+int64_t SpikeTask::score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant )
+{
+  if ( !task_ )
+    return 0;
+  std::vector< long long > sv;
+  for ( int64_t i = 0; i < seeds.size(); ++i )
+    sv.push_back( seeds[ i ] );
+  std::string err;
+  return spike_gd::headless_start( task_->id(), to_std( circuit_json ), sv, to_std( mode ), to_std( variant ), err );
+}
+Dictionary SpikeTask::score_headless_poll( int64_t job )
+{
+  Dictionary out;
+  Variant v = JSON::parse_string( S( spike_gd::headless_poll( long( job ) ) ) );
+  Dictionary r = v.get_type() == Variant::DICTIONARY ? Dictionary( v ) : Dictionary();
+  out[ "done" ] = bool( r.get( "done", true ) );
+  out[ "ok" ] = bool( r.get( "ok", false ) );
+  out[ "error" ] = r.get( "error", "" );
+  out[ "ms" ] = r.get( "ms", 0.0 );
+  if ( bool( out[ "ok" ] ) && r.has( "result" ) )
+  {
+    Dictionary res = r[ "result" ];
+    const int64_t n = int64_t( res.get( "n", 0 ) );
+    const int64_t passes = int64_t( res.get( "passes", 0 ) );
+    out[ "runs" ] = res.get( "runs", Array() );
+    out[ "seeds" ] = n;
+    out[ "passes" ] = passes;
+    out[ "value" ] = res.get( "mean_value", 0.0 );
+    out[ "passed" ] = n > 0 && passes == n;
+  }
+  return out;
+}
 String SpikeTask::catalog_json() { return S( spike::catalog_json() ); }
 PackedStringArray SpikeTask::modulator_names() { return strs( spike::modulator_names() ); }
 bool SpikeTask::set_modulator( const Ref< SpikeSim >& sim, const String& name, double conc )
@@ -163,6 +277,7 @@ double SpikeTask::modulator( const Ref< SpikeSim >& sim, const String& name )
 {
   return ( sim.is_valid() && sim->owns() ) ? sim->engine().modulator( to_std( name ) ) : 0.0;
 }
+void SpikeTask::set_headless_runner( const String& path ) { spike_gd::headless_set_runner( to_std( path ) ); }
 PackedStringArray SpikeTask::task_ids() { return strs( spike::task_ids() ); }
 String SpikeTask::reference_circuit_of( const String& id ) { return S( spike::reference_circuit( to_std( id ) ) ); }
 
@@ -190,6 +305,23 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "bands" ), &SpikeTask::bands );
   ClassDB::bind_method( D_METHOD( "modulators" ), &SpikeTask::modulators );
   ClassDB::bind_method( D_METHOD( "channel_kinds" ), &SpikeTask::channel_kinds );
+  ClassDB::bind_method( D_METHOD( "level_kind" ), &SpikeTask::level_kind );
+  ClassDB::bind_method( D_METHOD( "concepts_new" ), &SpikeTask::concepts_new );
+  ClassDB::bind_method( D_METHOD( "concepts_used" ), &SpikeTask::concepts_used );
+  ClassDB::bind_method( D_METHOD( "on_spine" ), &SpikeTask::on_spine );
+  ClassDB::bind_method( D_METHOD( "set_mode", "mode" ), &SpikeTask::set_mode );
+  ClassDB::bind_method( D_METHOD( "mode" ), &SpikeTask::mode );
+  ClassDB::bind_method( D_METHOD( "variants" ), &SpikeTask::variants );
+  ClassDB::bind_method( D_METHOD( "set_variant", "variant" ), &SpikeTask::set_variant );
+  ClassDB::bind_method( D_METHOD( "variant" ), &SpikeTask::variant );
+  ClassDB::bind_method( D_METHOD( "hints" ), &SpikeTask::hints );
+  ClassDB::bind_method( D_METHOD( "metrics" ), &SpikeTask::metrics );
+  ClassDB::bind_method( D_METHOD( "next_event_ms", "t_ms" ), &SpikeTask::next_event_ms );
+  ClassDB::bind_method( D_METHOD( "diagnosis" ), &SpikeTask::diagnosis );
+  ClassDB::bind_method( D_METHOD( "notebook" ), &SpikeTask::notebook );
+  ClassDB::bind_method( D_METHOD( "score_headless_async", "circuit_json", "seeds", "mode", "variant" ), &SpikeTask::score_headless_async );
+  ClassDB::bind_method( D_METHOD( "score_headless_poll", "job" ), &SpikeTask::score_headless_poll );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_headless_runner", "path" ), &SpikeTask::set_headless_runner );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "catalog_json" ), &SpikeTask::catalog_json );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "modulator_names" ), &SpikeTask::modulator_names );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_modulator", "sim", "name", "conc" ), &SpikeTask::set_modulator );

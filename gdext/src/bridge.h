@@ -33,4 +33,15 @@ std::string hrv_json( const std::vector< double >& beat_times_ms );
 /// (motif4_work_estimate * (1 + n_null)) exceeds `max_work` (0 = no limit).
 std::string motif4_json( const spike::Engine& engine, int sign, int n_null, unsigned long long seed, double max_work = 5e7 );
 std::string motif4_json_edges( const std::vector< double >& triples, int n, int sign, int n_null, unsigned long long seed, double max_work = 5e7 );
+
+// ---- v0.3 instant check (add-only): headless task scoring in a worker thread, one spike-run process per job
+// (the engine is one per process, so a job never shares NEST state with the game's own SpikeSim).
+/// Path of the spike-run executable; empty = $SPIKE_RUN, then ./spike-run, ./bin/spike-run, ../spike-run, build/bin/spike-run, build/engine/spike-run, then PATH.
+void headless_set_runner( const std::string& path );
+/// Start a job; returns its id (> 0), or 0 with `err` set. mode/variant may be empty; seeds empty = {1}.
+long headless_start( const std::string& task_id, const std::string& circuit_json, const std::vector< long long >& seeds, const std::string& mode,
+  const std::string& variant, std::string& err );
+/// JSON: {"done":bool,"ok":bool,"error":"","ms":n,"result":{spike-run --task output}} (result only when ok). Unknown id -> done, not ok.
+/// A finished job is forgotten after its result has been polled once.
+std::string headless_poll( long job );
 } // namespace spike_gd
