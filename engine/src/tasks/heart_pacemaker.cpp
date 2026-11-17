@@ -97,8 +97,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "coupling", "pacemaking" }; }
-  std::vector< std::string > concepts_used() const override { return { "excitation", "threshold" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "pacemaking", "coupling", "excitation", "threshold" }; }
   bool on_spine() const override { return true; }
   /// Pass bars: guided 55-85 beats/min and CV < 7 %, standard 60-80 and < 5 %, researcher 62-78 and < 4 %. The seeded spread of the cells'
   /// sizes (12 %) is the noise: x0.6 guided, x1.25 researcher, x2 in the noise_x2 variant.

@@ -101,8 +101,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "travelling_wave" }; }
-  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "timed_bursts" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "travelling_wave", "excitation", "inhibition", "timed_bursts" }; }
   bool on_spine() const override { return true; }
   /// Pass bar: the bolus must arrive within 32 s (guided), 25 s (standard) or 18 s (researcher); the fast_transit variant asks for 15 s.
   /// The distension afferents are Poisson trains (500 Hz at full distension): their sampling noise is not scaled.

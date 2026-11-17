@@ -95,8 +95,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "divergent_command" }; }
-  std::vector< std::string > concepts_used() const override { return { "neuromodulation", "reciprocal_inhibition", "excitation" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "divergent_command", "neuromodulation", "reciprocal_inhibition", "excitation" }; }
   bool on_spine() const override { return true; }
   /// Resting bands widen x1.15 (guided) or narrow x0.92 (researcher); the required rise and recovery tolerance move by x1.25 / x0.85 in the
   /// same direction as the bar (guided easier). Threat strength x1.2 guided, x0.9 researcher.
