@@ -22,6 +22,7 @@ var _banner: Label = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); mouse_filter = Control.MOUSE_FILTER_IGNORE
+	z_index = 60   # above the end card, the hint card and the sheets the lab adds to the overlay later: the notebook entry must not sit behind them
 	_col = VBoxContainer.new(); _col.mouse_filter = Control.MOUSE_FILTER_IGNORE; _col.add_theme_constant_override("separation", 8)
 	add_child(_col)
 

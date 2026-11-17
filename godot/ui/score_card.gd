@@ -24,6 +24,8 @@ func _draw() -> void:
 	var c := Vector2(58, size.y * 0.5); var r := minf(36.0, size.y * 0.5 - 12.0)
 	var sc: Dictionary = tele.score if tele != null else {}
 	var v := float(sc.get("value", 0.0)); var passed := bool(sc.get("passed", false)); var has_task := tele != null and tele.task != null
+	if not passed: v = minf(v, 99.0)   # 100 is a pass: a run that is still short of it (or failed on a band) never reads 100, not even rounded up
+	v = floorf(v) if not passed else roundf(v)
 	var col := Kit.GREEN if passed else (Kit.exc() if v >= 40.0 else Kit.RED)
 	if not has_task: col = Kit.TEXT_SOFT
 	draw_arc(c, r, 0, TAU, 64, Color(Kit.LINE, 0.9), 7.0, true)
@@ -35,7 +37,7 @@ func _draw() -> void:
 		Gfx.glow(self, c, r * 1.9, Color(col, 0.10))
 		draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * clampf(v / 100.0, 0.0, 1.0), 64, col, 7.0, true)
 	var big := Kit.fs(26)
-	draw_string(fb, c + Vector2(-r, big * 0.36), "%d" % int(roundf(v)) if has_task else "-", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, big, Kit.TEXT)
+	draw_string(fb, c + Vector2(-r, big * 0.36), "%d" % int(v) if has_task else "-", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, big, Kit.TEXT)
 	if has_task and tele.task != null:   # earned stars under the number
 		var st := int(Progress.best(str(tele.task.id()))["stars"])
 		for k in 3: draw_star(Vector2(c.x + (float(k) - 1.0) * 17.0, size.y - 11.0), 7.0, Kit.AMBER if k < st else Color(Kit.LINE, 0.9))

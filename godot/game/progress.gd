@@ -14,13 +14,15 @@ extends RefCounted
 ##   Progress.record(task, value, passed, stars, mode)   mode defaults to the current one; record_result() passes it through
 ##   Progress.record_hint(task, tier)                    the lab calls it when a hint tier is shown (recorded, never punished)
 ##   Progress.record_variant(task, variant)              the lab calls it when a challenge variant is passed
+##   Progress.record_recipe(task) / recipe_used(task)    Standard: the lab calls record_recipe when SHOW RECIPE is pressed; it is saved, and recipe_used makes the
+##                                                       task cap at two stars (record_result applies it). Guided shows the recipe for free; Researcher has none.
 ##   Progress.hints_used(task) -> {max_tier, count}      Progress.variants_done(task) -> Array
 const MODES := ["guided", "standard", "researcher"]
 const MODE_NAMES := {"guided": "Guided", "standard": "Standard", "researcher": "Researcher"}
 const MODE_BLURB := {
-	"guided": "The recipe is visible, hints are free, one seed passes, noise is low and the pass bands are wide.",
-	"standard": "The recipe is behind a button, hints open after two failed runs, one seed passes (five for the second star).",
-	"researcher": "No recipe, no hints. Five seeds must pass, physiological noise, tight bands."}
+	"guided": "The recipe is written out in the brief, hints are free, one seed passes, noise is low and the pass bands are wide.",
+	"standard": "The recipe is behind a SHOW RECIPE button; using it costs the third star. Hints open after two failed runs. One seed passes (five for the second star).",
+	"researcher": "No recipe and no hints. A pass needs TEST x5: all five seeds must pass, with physiological noise and tight bands."}
 const PATH := "user://progress.cfg"
 ## Neuron budget for the third star, per task (the reference circuits use 15 / 12 / 18; a hand-built reflex arc passes with 9).
 const BUDGET := {"reflex": 10, "worm": 12, "lamprey": 18}
@@ -81,6 +83,16 @@ static func record_hint(task: String, tier: int) -> void:
 	if task == "" or tier < 1: return
 	_load(); var b := best(task); var h: Dictionary = b["hints"]; h[str(tier)] = int(h.get(str(tier), 0)) + 1
 	_best[task] = b; _save(); Playlog.event("hint", {"task": task, "tier": tier})
+
+## SHOW RECIPE was used on `task` (saved: the third star is gone for that task in Standard).
+static func record_recipe(task: String) -> void:
+	if task == "": return
+	_load(); var b := best(task)
+	if bool(b.get("recipe", false)): return
+	b["recipe"] = true; _best[task] = b; _save(); Playlog.event("recipe", {"task": task})
+
+static func recipe_used(task: String) -> bool:
+	return bool(best(task).get("recipe", false))
 
 static func record_variant(task: String, variant: String) -> void:
 	if task == "" or variant == "": return
@@ -155,5 +167,6 @@ static func record_result(task: String, score_mean: float, flags: Dictionary) ->
 	if task == "" or bool(flags.get("reference_derived", false)): return 0
 	var passed := bool(flags.get("passed", false))
 	var st := stars_for(task, passed, bool(flags.get("five_seeds", false)), int(flags.get("neurons", 0)), float(flags.get("rate_hz", -1.0)))
+	if bool(flags.get("recipe_used", false)): st = mini(st, 2)   # the recipe was shown (Standard): no third star
 	record(task, score_mean, passed, st, str(flags.get("mode", "")))
 	return st

@@ -35,26 +35,26 @@ const SPARE := [Vector2(0.5, 0.2), Vector2(0.5, 0.86), Vector2(0.28, 0.5), Vecto
 
 ## Concept glossary (DESIGN-0.3 section 3): id -> [title, one-paragraph definition]. Ids the engine uses that are not here fall back to the id, capitalised.
 const CONCEPTS := {
-	"threshold": ["Threshold and rheobase", "A neuron fires when its membrane voltage reaches threshold. Rheobase is the smallest steady current that gets it there; weaker input, however long, does nothing."],
-	"excitation": ["Excitation: weight and delay", "An excitatory synapse pushes the next cell toward threshold. Its weight sets how far, its delay how late; a few milliseconds per synapse add up along a pathway."],
-	"convergence": ["Convergence and coincidence", "Many inputs onto one cell. If each is weak, the cell fires only when several arrive within a short window: it detects coincidence."],
-	"inhibition": ["Inhibition", "An inhibitory synapse pushes the next cell away from threshold. It silences, gates and shapes; without it a circuit can only ever add."],
-	"subtraction": ["Subtraction", "Excitation from one source and inhibition from another give a cell that reports the difference. ON minus OFF is how a nervous system computes a gradient."],
-	"adaptation": ["Adaptation", "Under a steady drive many neurons fire a burst and then slow down as a slow current builds up. The cell reports change more than level."],
-	"half_centre": ["Mutual inhibition and the half-centre", "Two groups that inhibit each other cannot both win for long. With adaptation or fatigue they alternate: a half-centre oscillator, the core of many walking and swimming rhythms."],
-	"coupling": ["Coupling and synchrony", "Oscillators that influence each other tend to lock their phases. Coupling strength and delay decide whether they fire together or in antiphase."],
-	"pacemaking": ["Intrinsic pacemaking", "Some cells fire without any input: a slow inward current drifts the voltage up to threshold again and again. The sinoatrial node sets the heartbeat this way."],
-	"neuromodulation": ["Neuromodulation", "A modulator such as acetylcholine or noradrenaline does not fire the next cell; it changes how that cell responds, for instance slowing a pacemaker or raising its gain."],
-	"recruitment": ["Recruitment (the size principle)", "A motor pool is recruited from small, easily excited neurons to large ones. Force grows smoothly because units are added in a fixed order."],
-	"reciprocal_inhibition": ["Reciprocal inhibition", "When an agonist muscle is driven, its antagonist is inhibited through an interneuron, so the two do not fight each other."],
-	"recurrent_inhibition": ["Recurrent inhibition", "A motor neuron excites a Renshaw cell, which inhibits that motor neuron back. This is a gain control: strong drive is trimmed, weak drive passes."],
-	"negative_feedback": ["Negative feedback control", "A sensor reports the error between the value and its set-point and the circuit pushes against it. Posture and blood pressure are held this way."],
-	"feedforward": ["Feed-forward plus feedback", "Feed-forward acts on a cue before the error appears; feedback corrects what is left. Together they are fast and accurate."],
-	"timed_bursts": ["Timed bursts (pattern generator)", "A chain of cells that fire in a fixed order and for fixed durations produces a movement without any sensory input: a central pattern generator."],
-	"rhythm_gating": ["Rhythm and sensory gating", "A rhythm generator keeps the beat, and sensory input such as CO2 tunes its rate and amplitude without having to create it."],
-	"travelling_waves": ["Travelling waves and polarity", "Excitation behind and inhibition ahead make activity move in one direction along a chain of segments, as in gut peristalsis."],
-	"diagnosis": ["Diagnosis: from symptom to lesion", "Working backwards. The symptoms tell you what the circuit stopped doing; probing it with the scopes and lesions tells you where it was damaged."],
-	"divergent_command": ["Divergent command", "One command cell fans out to many targets, so a single cue changes the whole body at once: the fight-or-flight response."]}
+	"threshold": ["Threshold and rheobase", "A neuron fires when its membrane voltage reaches threshold. Rheobase is the smallest steady current that gets it there; weaker input, however long, does nothing.", "Lapicque L (1907) J Physiol Pathol Gen 9:620; Hodgkin AL, Huxley AF (1952) J Physiol 117:500"],
+	"excitation": ["Excitation: weight and delay", "An excitatory synapse pushes the next cell toward threshold. Its weight sets how far, its delay how late; a few milliseconds per synapse add up along a pathway.", "Katz B, Miledi R (1965) Proc R Soc Lond B 161:483"],
+	"convergence": ["Convergence and coincidence", "Many inputs onto one cell. If each is weak, the cell fires only when several arrive within a short window: it detects coincidence.", "Mendell LM, Henneman E (1971) J Neurophysiol 34:171"],
+	"inhibition": ["Inhibition", "An inhibitory synapse pushes the next cell away from threshold. It silences, gates and shapes; without it a circuit can only ever add.", "Hartline HK, Wagner HG, Ratliff F (1956) J Gen Physiol 39:651"],
+	"subtraction": ["Subtraction", "Excitation from one source and inhibition from another give a cell that reports the difference. ON minus OFF is how a nervous system computes a gradient.", "Suzuki H et al. (2008) Nature 454:114"],
+	"adaptation": ["Adaptation", "Under a steady drive many neurons fire a burst and then slow down as a slow current builds up. The cell reports change more than level.", "Madison DV, Nicoll RA (1984) J Physiol 354:319; Benda J, Herz AVM (2003) Neural Comput 15:2523"],
+	"half_centre": ["Mutual inhibition and the half-centre", "Two groups that inhibit each other cannot both win for long. With adaptation or fatigue they alternate: a half-centre oscillator, the core of many walking and swimming rhythms.", "Brown TG (1911) Proc R Soc Lond B 84:308; Grillner S (2003) Nat Rev Neurosci 4:573"],
+	"coupling": ["Coupling and synchrony", "Oscillators that influence each other tend to lock their phases. Coupling strength and delay decide whether they fire together or in antiphase.", "Jalife J (1984) J Physiol 356:221"],
+	"pacemaking": ["Intrinsic pacemaking", "Some cells fire without any input: a slow inward current drifts the voltage up to threshold again and again. The sinoatrial node sets the heartbeat this way.", "DiFrancesco D (1993) Annu Rev Physiol 55:455"],
+	"neuromodulation": ["Neuromodulation", "A modulator such as acetylcholine or noradrenaline does not fire the next cell; it changes how that cell responds, for instance slowing a pacemaker or raising its gain.", "Loewi O (1921) Pflugers Arch 189:239; Marder E (2012) Neuron 76:1"],
+	"recruitment": ["Recruitment (the size principle)", "A motor pool is recruited from small, easily excited neurons to large ones. Force grows smoothly because units are added in a fixed order.", "Henneman E (1957) Science 126:1345"],
+	"reciprocal_inhibition": ["Reciprocal inhibition", "When an agonist muscle is driven, its antagonist is inhibited through an interneuron, so the two do not fight each other.", "Sherrington CS (1906) The Integrative Action of the Nervous System; Pierrot-Deseilligny E, Burke D (2005) The Circuitry of the Human Spinal Cord"],
+	"recurrent_inhibition": ["Recurrent inhibition", "A motor neuron excites a Renshaw cell, which inhibits that motor neuron back. This is a gain control: strong drive is trimmed, weak drive passes.", "Renshaw B (1941) J Neurophysiol 4:167; Hultborn H (2006) Prog Neurobiol 78:215"],
+	"negative_feedback": ["Negative feedback control", "A sensor reports the error between the value and its set-point and the circuit pushes against it. Posture and blood pressure are held this way.", "Cannon WB (1929) Physiol Rev 9:399"],
+	"feedforward": ["Feed-forward plus feedback", "Feed-forward acts on a cue before the error appears; feedback corrects what is left. Together they are fast and accurate.", "Rowell LB, O'Leary DS (1990) J Appl Physiol 69:407"],
+	"timed_bursts": ["Timed bursts (pattern generator)", "A chain of cells that fire in a fixed order and for fixed durations produces a movement without any sensory input: a central pattern generator.", "Marder E, Bucher D (2001) Curr Biol 11:R986"],
+	"rhythm_gating": ["Rhythm and sensory gating", "A rhythm generator keeps the beat, and sensory input such as CO2 tunes its rate and amplitude without having to create it.", "Smith JC et al. (1991) Science 254:726; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232"],
+	"travelling_waves": ["Travelling waves and polarity", "Excitation behind and inhibition ahead make activity move in one direction along a chain of segments, as in gut peristalsis.", "Bayliss WM, Starling EH (1899) J Physiol 24:99"],
+	"diagnosis": ["Diagnosis: from symptom to lesion", "Working backwards. The symptoms tell you what the circuit stopped doing; probing it with the scopes and lesions tells you where it was damaged.", "Rorden C, Karnath HO (2004) Nat Rev Neurosci 5:813"],
+	"divergent_command": ["Divergent command", "One command cell fans out to many targets, so a single cue changes the whole body at once: the fight-or-flight response.", "Cannon WB (1915) Bodily Changes in Pain, Hunger, Fear and Rage; Janig W (2006) The Integrative Action of the Autonomic Nervous System"]}
 
 static var pending_variant := ""   # set by the map before app.open_lab(task) for a variant branch; the lab reads it and clears it ("" = the base task)
 static var _info := {}
@@ -213,6 +213,8 @@ static func concept_title(c: String) -> String:
 	return str(CONCEPTS[c][0]) if CONCEPTS.has(c) else c.replace("_", " ").capitalize()
 static func concept_blurb(c: String) -> String:
 	c = concept_id(c); return str(CONCEPTS[c][1]) if CONCEPTS.has(c) else ""
+static func concept_citation(c: String) -> String:
+	c = concept_id(c); return str(CONCEPTS[c][2]) if CONCEPTS.has(c) and (CONCEPTS[c] as Array).size() > 2 else ""
 ## Short name for a chip: the title up to the first colon or parenthesis.
 static func concept_short(c: String) -> String:
 	var t := concept_title(c)
@@ -280,7 +282,9 @@ static func _build_nodes(ch: String) -> Array:
 
 ## The spine task a non-spine level hangs off: its declared parent, else the spine task of its chapter that shares most of its concepts, else the last spine
 ## task that comes before it in the play order, else the first spine task.
+const DX_PARENT := {"dx_clonus": "renshaw", "dx_vagal": "heart_autonomic", "dx_orthostatic": "baroreflex", "dx_apnoea": "breathing", "dx_horner": "pupil", "dx_achalasia": "peristalsis"}   # a diagnosis case hangs off the task whose circuit it is (DxSpec.inner)
 static func _parent_of(id: String, in_ch: Array) -> String:
+	if DX_PARENT.has(id) and in_ch.has(DX_PARENT[id]): return str(DX_PARENT[id])
 	var d := info(id)
 	if str(d["parent"]) != "" and in_ch.has(d["parent"]): return str(d["parent"])
 	var mine: Array = (d["concepts_used"] as Array) + (d["concepts_new"] as Array)
@@ -340,27 +344,25 @@ static func star_total(ch: String) -> Vector2i:
 		if n["installed"] and str(n["kind"]) != "variant": got += int(Progress.best(str(n["id"]))["stars"]); all += 3
 	return Vector2i(got, all)
 
-## A chapter opens when the spine of the previous chapter that has levels is passed. The first two chapters are open from the start, so two chapters
-## are always in play. Branches (variants, diagnosis) never gate.
+## Chapters that have installed levels, in order (the ones the unlock rule counts).
+static func _playable_chapters() -> Array:
+	var out := []
+	for c in CHAPTERS:
+		if installed_count(str(c["id"])) > 0: out.append(str(c["id"]))
+	return out
+
+## A chapter opens when the spine of the previous chapter (that has levels) is passed, OR the spine of the chapter two before it is passed, so one stuck task
+## never blocks the game. The first two chapters are open from the start. A task that sets on_spine false is a branch and never gates.
 static func chapter_open(ch: String) -> bool:
 	if unlock_all(): return true
-	var i := chapter_index(ch)
-	if i < 2: return true
-	while i > 0:
-		i -= 1
-		var pc: String = CHAPTERS[i]["id"]
-		if installed_count(pc) == 0: continue
-		return chapter_open(pc) and spine_passed(pc)
-	return true
+	var pl := _playable_chapters(); var i := pl.find(ch)
+	if i < 2: return true   # (also true for a chapter with no levels yet)
+	return spine_passed(str(pl[i - 1])) or spine_passed(str(pl[i - 2]))
 
-## The chapter whose spine opens `ch` ("" for the first two).
+## The chapter whose spine opens `ch` (the previous one with levels; "" for the first two).
 static func gate_chapter(ch: String) -> String:
-	var i := chapter_index(ch)
-	if i < 2: return ""
-	while i > 0:
-		i -= 1
-		if installed_count(CHAPTERS[i]["id"]) > 0: return str(CHAPTERS[i]["id"])
-	return ""
+	var pl := _playable_chapters(); var i := pl.find(ch)
+	return str(pl[i - 1]) if i >= 2 else ""
 
 ## A spine node opens when the spine node before it is passed (the chapter's first opens with the chapter); a branch when the task it hangs off is passed.
 static func unlocked(id: String) -> bool:
@@ -383,7 +385,9 @@ static func lock_reason(id: String) -> String:
 	var t := task_of(id); var ch := chapter_of(t)
 	if not chapter_open(ch):
 		var g := gate_chapter(ch)
-		return "Pass the %s spine first" % str(chapter_def(g)["title"]) if g != "" else ""
+		if g == "": return ""
+		var pl := _playable_chapters(); var gi := pl.find(ch)
+		return "Pass the %s spine (or the %s spine) first" % [str(chapter_def(g)["title"]), str(chapter_def(str(pl[gi - 2]))["title"])]
 	var nd := {}
 	for n in nodes(ch):
 		if n["id"] == id: nd = n

@@ -252,7 +252,7 @@ func _one_shot(cue: String, extra_db: float, pitch := 1.0) -> void:
 # ---------- body ----------
 
 ## Body sounds. kind: heart | breath | twitch | gut; value 0..1 (see the header). Returns whether it did something audible.
-func play_body(kind: String, value: float) -> bool:
+func play_body(kind: String, value: float, rate_scale := 1.0) -> bool:
 	value = clampf(value, 0.0, 1.0)
 	match kind:
 		"heart":
@@ -264,7 +264,7 @@ func play_body(kind: String, value: float) -> bool:
 		"breath":
 			var dt := _clock_s - _lung_s
 			if _lung >= 0.0 and dt > 0.0:
-				_rate = lerpf(_rate, (value - _lung) / dt, clampf(dt * 6.0, 0.0, 1.0))   # smooth, frame-rate independent
+				_rate = lerpf(_rate, (value - _lung) / dt / maxf(rate_scale, 1.0), clampf(dt * 6.0, 0.0, 1.0))   # rate_scale: the run's speed, so a 10x breath still sounds like a breath   # smooth, frame-rate independent
 			_lung = value
 			_lung_s = _clock_s
 			_breath_s = _clock_s
@@ -342,9 +342,9 @@ static func event(cue_name: String) -> void:
 		current.play_event(cue_name)
 
 
-static func body(kind: String, value := 1.0) -> void:
+static func body(kind: String, value := 1.0, rate_scale := 1.0) -> void:
 	if current != null:
-		current.play_body(kind, value)
+		current.play_body(kind, value, rate_scale)
 
 
 static func set_spike_focus(pop_index: int) -> void:

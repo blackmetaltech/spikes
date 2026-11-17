@@ -35,7 +35,7 @@ func build() -> void:
 	back_btn = Kit.btn("BACK", func(): app.back(), "panel", bs, Vector2(120 if not phone else 70, 0)); head.add_child(back_btn)
 	var tt := Kit.shout("Campaign", int(50 * f) if not phone else 26, Kit.TEXT); tt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tt.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(tt)
 	mode_step = Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], Progress.mode(), func(id): _on_mode(str(id)), 170.0 if not phone else 112.0, int(24 * f) if not phone else 15, 44.0 if not phone else 32.0)
-	mode_step.tooltip_text = "Difficulty. Switch any time; it only changes the star labels and how tight the tasks are."
+	mode_step.tooltip_text = "Difficulty. Switch any time. Guided: recipe in the brief. Standard: SHOW RECIPE costs the third star. Researcher: no recipe, a pass needs TEST x5."
 	head.add_child(mode_step)
 	head.add_child(Kit.btn("NOTEBOOK" if not phone else "NOTES", func(): app.show_screen("notebook"), "panel", bs))
 	head.add_child(Kit.btn("PARTS BIN" if not phone else "PARTS", func(): app.show_screen("parts"), "cyan", bs))
@@ -121,12 +121,16 @@ func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, 
 		row.add_child(c)
 
 ## The three star conditions, worded for the difficulty mode (Progress.stars_for decides what earns them; the mode only changes how the pass is judged).
-func _star_tiers(par: int) -> Array:
+func _star_tiers(par: int, diagnosis := false, tid := "") -> Array:
 	var m := Progress.mode()
+	if diagnosis:   # a diagnosis case is a pass by naming the cause: the second star is a right first answer
+		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try, with %d neurons or fewer" % par if par > 0 else "First try, with a small circuit", 3]]
 	var t1 := "Pass the task"; var t2 := "Pass on 5 random seeds (TEST x5)"
+	var t3 := "Pass with %d neurons or fewer" % par if par > 0 else "Pass on 5 seeds, small circuit"
 	if m == "guided": t1 = "Pass the task (wide bands, hints free)"
-	elif m == "researcher": t1 = "Pass on all 5 seeds (required)"; t2 = "Pass on 5 seeds (physiological noise)"
-	return [[t1, 1], [t2, 2], ["Pass with %d neurons or fewer" % par if par > 0 else "Pass on 5 seeds, small circuit", 3]]
+	elif m == "standard": t3 += " and never open SHOW RECIPE" + (" (used)" if tid != "" and Progress.recipe_used(tid) else "")
+	elif m == "researcher": t1 = "Pass on all 5 seeds (TEST x5, required)"; t2 = "Pass on 5 seeds (physiological noise)"
+	return [[t1, 1], [t2, 2], [t3, 3]]
 
 func _fill_detail() -> void:
 	for c in detail_box.get_children():
@@ -160,7 +164,7 @@ func _fill_detail() -> void:
 	var bt := HBoxContainer.new(); bt.add_theme_constant_override("separation", 10); detail_box.add_child(bt)
 	var sid := tid; var vid := str(node["variant"]); var synth := bool(info.get("synthetic", false))
 	var go := func(ref: bool):
-		Campaign.pending_variant = vid; Playlog.level_start(sid, vid); app.open_lab(sid, ref)
+		Campaign.pending_variant = vid; app.open_lab(sid, ref)   # the lab logs the visit (Playlog.level_start), once
 	var b := Kit.btn("BUILD" if open else "LOCKED", func(): if open and not synth: go.call(false), "amber" if open else "panel", int(24 * f) if not phone else 19); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
 	if not open or synth: b.disabled = true
 	if not is_var:
@@ -174,7 +178,7 @@ func _fill_detail() -> void:
 		var sh := HBoxContainer.new(); sh.add_theme_constant_override("separation", 8); detail_box.add_child(sh)
 		sh.add_child(Kit.label("STARS", int(15 * f) if not phone else 15, Kit.TEXT_SOFT))
 		sh.add_child(Kit.chip(Progress.mode_name(m).to_upper() + " MODE", Kit.exc(), 15))
-		for t in _star_tiers(par):
+		for t in _star_tiers(par, kind == "diagnosis", tid):
 			var r := HBoxContainer.new(); r.add_theme_constant_override("separation", 10); detail_box.add_child(r)
 			var st := _Star.new(); st.lit = int(bm["stars"]) >= int(t[1]); st.custom_minimum_size = Vector2(26, 26); r.add_child(st)
 			var l := Kit.label(str(t[0]), int(17 * f) if not phone else 15, Kit.TEXT if st.lit else Kit.TEXT_SOFT, true); l.size_flags_vertical = Control.SIZE_SHRINK_CENTER; l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; r.add_child(l)

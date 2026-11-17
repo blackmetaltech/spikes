@@ -94,6 +94,7 @@ static var idle := false        # set by the app shell: nothing happening for a 
 static var focused := true      # set by the app shell on focus in/out
 static func apply_fps() -> void:
 	if OS.has_environment("SP_NOTHROTTLE"): Engine.max_fps = 0; return   # benchmarks and tests
+	if OS.get_environment("SP_FPS") != "": Engine.max_fps = int(OS.get_environment("SP_FPS")); return   # pacing measurements: a fixed frame rate (60 = a GPU at vsync)
 	var cap: int = fps_cap
 	if cap >= 1000: cap = 0
 	if not focused: cap = 10 if cap == 0 or cap > 10 else cap          # unfocused window: nearly asleep
