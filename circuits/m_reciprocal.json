@@ -1,0 +1,121 @@
+{
+ "schema_version": 1,
+ "name": "Reciprocal inhibition",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "MN_F",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     300,
+     40
+    ],
+    [
+     300,
+     70
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "MN_E",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     300,
+     240
+    ],
+    [
+     300,
+     270
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "IN",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     160,
+     140
+    ],
+    [
+     160,
+     170
+    ]
+   ],
+   "role": "neuron"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "IN",
+   "post": "MN_E",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -160.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "tone",
+   "kind": "dc",
+   "targets": [
+    "MN_F",
+    "MN_E"
+   ],
+   "weight": 300.0,
+   "value": 1.4
+  },
+  {
+   "name": "ia_flexor",
+   "kind": "dc",
+   "targets": [
+    "MN_F",
+    "IN"
+   ],
+   "weight": 300.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "flexor",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN_F"
+    }
+   ]
+  },
+  {
+   "name": "extensor",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN_E"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_reciprocal",
+  "notes": "docs/circuits/m_reciprocal.md"
+ }
+}
