@@ -30,8 +30,14 @@ run=build/gd-debug/engine/spike-run
 tasks=$("$run" --list-tasks) || { echo "FAIL: spike-run --list-tasks"; fail=1; tasks=""; }
 for id in $tasks; do
   ok=0
+  extra=()
+  # diagnosis cases: the patient circuit fails by design; submitting the right answer (as the lab does via set_variant) must pass
+  if [[ "$id" == dx_* ]]; then
+    ans=$(grep -oE 'answer = "[^"]+"' "$root/engine/src/tasks/$id.cpp" | head -1 | sed -E 's/answer = "(.*)"/\1/')
+    extra=(--variant "$ans")
+  fi
   for seed in 1 2 3; do
-    out=$(SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed "$seed" --require any 2>&1) && { ok=1; break; }
+    out=$(SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed "$seed" "${extra[@]}" --require any 2>&1) && { ok=1; break; }
   done
   if [ "$ok" = 1 ]; then echo "REFERENCE $id passes (seed $seed)"; else echo "$out" | head -3; echo "FAIL: the reference circuit of $id does not pass on seeds 1-3"; fail=1; fi
 done
