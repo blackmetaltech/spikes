@@ -1,0 +1,392 @@
+{
+ "schema_version": 1,
+ "name": "Patient circuit: vagal",
+ "resolution_ms": 0.1,
+ "seed": 21,
+ "populations": [
+  {
+   "id": "CC",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     40,
+     40
+    ],
+    [
+     66,
+     40
+    ],
+    [
+     40,
+     66
+    ],
+    [
+     66,
+     66
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "LOW",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     40,
+     140
+    ],
+    [
+     66,
+     140
+    ],
+    [
+     40,
+     166
+    ],
+    [
+     66,
+     166
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "HIGH",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     40,
+     240
+    ],
+    [
+     66,
+     240
+    ],
+    [
+     40,
+     266
+    ],
+    [
+     66,
+     266
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "NA",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 376.0
+   },
+   "pos": [
+    [
+     200,
+     240
+    ],
+    [
+     226,
+     240
+    ],
+    [
+     200,
+     266
+    ],
+    [
+     226,
+     266
+    ],
+    [
+     200,
+     292
+    ],
+    [
+     226,
+     292
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "VG",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     360,
+     240
+    ],
+    [
+     386,
+     240
+    ],
+    [
+     360,
+     266
+    ],
+    [
+     386,
+     266
+    ],
+    [
+     360,
+     292
+    ],
+    [
+     386,
+     292
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "IML",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 368.0
+   },
+   "pos": [
+    [
+     200,
+     60
+    ],
+    [
+     226,
+     60
+    ],
+    [
+     200,
+     86
+    ],
+    [
+     226,
+     86
+    ],
+    [
+     200,
+     112
+    ],
+    [
+     226,
+     112
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SG",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     360,
+     60
+    ],
+    [
+     386,
+     60
+    ],
+    [
+     360,
+     86
+    ],
+    [
+     386,
+     86
+    ],
+    [
+     360,
+     112
+    ],
+    [
+     386,
+     112
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SA",
+   "model": "sa_node_pacemaker",
+   "n": 1,
+   "params": {
+    "V_m": -60.0
+   },
+   "pos": [
+    [
+     520,
+     150
+    ]
+   ],
+   "role": "neuron"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "CC",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -8.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "HIGH",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 10.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "LOW",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -6.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "CC",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 12.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "LOW",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 10.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "HIGH",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -25.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "IML",
+   "post": "SG",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "exercise_cue",
+   "kind": "poisson",
+   "targets": [
+    "CC"
+   ],
+   "weight": 800.0,
+   "value": 0.0
+  },
+  {
+   "name": "hr_too_low",
+   "kind": "poisson",
+   "targets": [
+    "LOW"
+   ],
+   "weight": 800.0,
+   "value": 0.0
+  },
+  {
+   "name": "hr_too_high",
+   "kind": "poisson",
+   "targets": [
+    "HIGH"
+   ],
+   "weight": 800.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "sa_beat",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SA"
+    }
+   ]
+  },
+  {
+   "name": "vagal",
+   "kind": "modulator",
+   "modulator": "ACh",
+   "neurons": [
+    {
+     "pop": "VG"
+    }
+   ],
+   "gain": 0.012,
+   "tau_ms": 500.0
+  },
+  {
+   "name": "sympathetic",
+   "kind": "modulator",
+   "modulator": "NE",
+   "neurons": [
+    {
+     "pop": "SG"
+    }
+   ],
+   "gain": 0.0031,
+   "tau_ms": 1500.0
+  }
+ ],
+ "modulation": [
+  {
+   "modulator": "ACh",
+   "pop": "SA",
+   "param": "ach",
+   "gain": 1.0
+  },
+  {
+   "modulator": "NE",
+   "pop": "SA",
+   "param": "ne",
+   "gain": 1.0
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "dx_vagal",
+  "notes": "docs/circuits/dx_vagal.md"
+ }
+}

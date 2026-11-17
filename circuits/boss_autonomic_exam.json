@@ -1,0 +1,785 @@
+{
+ "schema_version": 1,
+ "name": "Autonomic exam: baroreflex + central command + pupil + breathing",
+ "resolution_ms": 0.1,
+ "seed": 37,
+ "populations": [
+  {
+   "id": "AFF",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     40,
+     120
+    ],
+    [
+     40,
+     150
+    ],
+    [
+     40,
+     180
+    ],
+    [
+     40,
+     210
+    ],
+    [
+     40,
+     240
+    ],
+    [
+     40,
+     270
+    ]
+   ],
+   "role": "sensor"
+  },
+  {
+   "id": "NTS",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {},
+   "pos": [
+    [
+     180,
+     120
+    ],
+    [
+     180,
+     146
+    ],
+    [
+     180,
+     172
+    ],
+    [
+     180,
+     198
+    ],
+    [
+     180,
+     224
+    ],
+    [
+     180,
+     250
+    ],
+    [
+     180,
+     276
+    ],
+    [
+     180,
+     302
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "NA",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 372.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     320,
+     40
+    ],
+    [
+     320,
+     70
+    ],
+    [
+     320,
+     100
+    ],
+    [
+     320,
+     130
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "VG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     460,
+     40
+    ],
+    [
+     460,
+     70
+    ],
+    [
+     460,
+     100
+    ],
+    [
+     460,
+     130
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "CVLM",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     320,
+     200
+    ],
+    [
+     320,
+     230
+    ],
+    [
+     320,
+     260
+    ],
+    [
+     320,
+     290
+    ],
+    [
+     320,
+     320
+    ],
+    [
+     320,
+     350
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "RVLM",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {
+    "I_e": 380.0
+   },
+   "pos": [
+    [
+     460,
+     200
+    ],
+    [
+     460,
+     230
+    ],
+    [
+     460,
+     260
+    ],
+    [
+     460,
+     290
+    ],
+    [
+     460,
+     320
+    ],
+    [
+     460,
+     350
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "IML",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     600,
+     200
+    ],
+    [
+     600,
+     230
+    ],
+    [
+     600,
+     260
+    ],
+    [
+     600,
+     290
+    ],
+    [
+     600,
+     320
+    ],
+    [
+     600,
+     350
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "SG",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "pos": [
+    [
+     740,
+     200
+    ],
+    [
+     740,
+     230
+    ],
+    [
+     740,
+     260
+    ],
+    [
+     740,
+     290
+    ],
+    [
+     740,
+     320
+    ],
+    [
+     740,
+     350
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SA",
+   "model": "sa_node_pacemaker",
+   "n": 1,
+   "params": {
+    "V_m": -60.0
+   },
+   "pos": [
+    [
+     600,
+     60
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "CC",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     40,
+     400
+    ],
+    [
+     40,
+     430
+    ],
+    [
+     40,
+     460
+    ],
+    [
+     40,
+     490
+    ]
+   ],
+   "role": "sensor"
+  },
+  {
+   "id": "HYP",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 100.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     40,
+     560
+    ],
+    [
+     40,
+     590
+    ],
+    [
+     40,
+     620
+    ],
+    [
+     40,
+     650
+    ]
+   ],
+   "role": "sensor"
+  },
+  {
+   "id": "SCG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0
+   },
+   "pos": [
+    [
+     320,
+     560
+    ],
+    [
+     320,
+     590
+    ],
+    [
+     320,
+     620
+    ],
+    [
+     320,
+     650
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "EW",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0,
+    "tau_syn_in": 10.0
+   },
+   "pos": [
+    [
+     180,
+     640
+    ],
+    [
+     180,
+     670
+    ],
+    [
+     180,
+     700
+    ],
+    [
+     180,
+     730
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "CG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 340.0
+   },
+   "pos": [
+    [
+     320,
+     680
+    ],
+    [
+     320,
+     710
+    ],
+    [
+     320,
+     740
+    ],
+    [
+     320,
+     770
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "CHEMO",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     40,
+     760
+    ],
+    [
+     40,
+     790
+    ],
+    [
+     40,
+     820
+    ],
+    [
+     40,
+     850
+    ]
+   ],
+   "role": "sensor"
+  },
+  {
+   "id": "VRG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 377.0
+   },
+   "pos": [
+    [
+     320,
+     800
+    ],
+    [
+     320,
+     830
+    ],
+    [
+     320,
+     860
+    ],
+    [
+     320,
+     890
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "AFF",
+   "post": "NTS",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 280.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "NTS",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 30.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "NA",
+   "post": "VG",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "NTS",
+   "post": "CVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 200.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "CVLM",
+   "post": "RVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -140.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "RVLM",
+   "post": "IML",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "IML",
+   "post": "SG",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "RVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "CC",
+   "post": "RVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "CVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -120.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "CC",
+   "post": "CVLM",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -120.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -150.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "CC",
+   "post": "NA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -150.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "SCG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "EW",
+   "post": "CG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "EW",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -150.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "VRG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 100.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "CC",
+   "post": "VRG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 60.0,
+    "delay": 3.0
+   }
+  },
+  {
+   "pre": "CHEMO",
+   "post": "VRG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 30.0,
+    "delay": 3.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "baroreceptor",
+   "kind": "poisson",
+   "targets": [
+    "AFF"
+   ],
+   "weight": 1600.0,
+   "value": 41.0
+  },
+  {
+   "name": "exercise_cue",
+   "kind": "poisson",
+   "targets": [
+    "CC"
+   ],
+   "weight": 800.0,
+   "value": 0.0
+  },
+  {
+   "name": "threat",
+   "kind": "poisson",
+   "targets": [
+    "HYP"
+   ],
+   "weight": 250.0,
+   "value": 0.0
+  },
+  {
+   "name": "chemo",
+   "kind": "poisson",
+   "targets": [
+    "CHEMO"
+   ],
+   "weight": 400.0,
+   "value": 50.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "sa_beat",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SA"
+    }
+   ]
+  },
+  {
+   "name": "vagal",
+   "kind": "modulator",
+   "modulator": "ACh",
+   "neurons": [
+    {
+     "pop": "VG"
+    }
+   ],
+   "gain": 0.012,
+   "tau_ms": 500.0
+  },
+  {
+   "name": "sympathetic",
+   "kind": "modulator",
+   "modulator": "NE",
+   "neurons": [
+    {
+     "pop": "SG"
+    }
+   ],
+   "gain": 0.0076,
+   "tau_ms": 1000.0
+  },
+  {
+   "name": "dilator",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SCG"
+    }
+   ]
+  },
+  {
+   "name": "sphincter",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "CG"
+    }
+   ]
+  },
+  {
+   "name": "vent",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "VRG"
+    }
+   ]
+  }
+ ],
+ "modulation": [
+  {
+   "modulator": "ACh",
+   "pop": "SA",
+   "param": "ach",
+   "gain": 1.0
+  },
+  {
+   "modulator": "NE",
+   "pop": "SA",
+   "param": "ne",
+   "gain": 0.25
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "boss_autonomic_exam",
+  "notes": "docs/circuits/boss_autonomic_exam.md"
+ }
+}
