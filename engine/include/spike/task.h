@@ -124,7 +124,12 @@ public:
 
   /// Diagnosis levels: the circuit the player is given (path relative to circuits/), the patient's symptoms, the multiple-choice
   /// candidate lesions (ids like "pre>post" or "pop:ID") and which one is correct.
-  struct Diagnosis { std::string circuit; std::string symptoms; std::vector< std::string > candidates; std::string answer; };
+  struct Diagnosis
+{
+  std::string circuit; std::string symptoms; std::vector< std::string > candidates; std::string answer;
+  std::map< std::string, std::string > labels;   // add-only: candidate id -> plain-language name (shown on the candidate buttons)
+  std::map< std::string, std::string > explain;  // add-only: candidate id -> why it does or does not fit (shown after a wrong submission)
+};
   virtual Diagnosis diagnosis() const { return {}; }
 
   /// Lab-notebook entry unlocked on first pass: a short true fact with its citation.

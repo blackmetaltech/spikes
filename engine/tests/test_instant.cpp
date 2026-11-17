@@ -60,6 +60,15 @@ int main()
   CHECK( a[ "runs" ][ 0 ][ "value" ] == b[ "runs" ][ 0 ][ "value" ] and a[ "runs" ][ 1 ][ "value" ] == b[ "runs" ][ 1 ][ "value" ] );  // deterministic
   CHECK( run( "--task " + best + " --seeds 1 --mode guided", g ) and g.value( "mode", "" ) == "guided" );
   CHECK( run( "--task " + best + " --seeds 1 --mode researcher", g ) and g.value( "mode", "" ) == "researcher" );
+  // --circuit-seed pins the circuit seed (reported per run); the default reseed is 1000 * seed + circuit seed
+  {
+    json p1, p2;
+    CHECK( run( "--task " + best + " --seeds 1,2 --circuit-seed 77", p1 ) and p1[ "runs" ][ 0 ][ "circuit_seed" ] == 77 and p1[ "runs" ][ 1 ][ "circuit_seed" ] == 77 );
+    CHECK( run( "--task " + best + " --seeds 1,2 --circuit-seeds 5,6", p2 ) and p2[ "runs" ][ 0 ][ "circuit_seed" ] == 5 and p2[ "runs" ][ 1 ][ "circuit_seed" ] == 6 );
+    CHECK( a[ "runs" ][ 0 ][ "circuit_seed" ].get< long long >() % 1000 == a[ "runs" ][ 1 ][ "circuit_seed" ].get< long long >() % 1000 );
+    json bad;
+    CHECK( not run( "--task " + best + " --seeds 1,2 --circuit-seeds 5,6,7", bad ) );
+  }
   // a task's declared variant is accepted and echoed
   for ( const auto& id : spike::task_ids() )
     if ( auto t = spike::make_task( id ); t and not t->variants().empty() )

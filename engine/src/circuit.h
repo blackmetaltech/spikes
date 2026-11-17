@@ -35,6 +35,8 @@ struct ProjSpec
   std::vector< std::array< double, 2 > > edge_wd;     // weight, delay per edge
   std::vector< std::pair< int32_t, int32_t > > edges; // pre_idx, post_idx within the populations
   // Synapse-model handling resolved by the parser (docs/CIRCUIT-FORMAT.md "Synapse models"):
+  int spread = 0;                    // weight spread on a rule projection (applied after the connect, engine.cpp): 0 none, 1 weight_sd, 2 weight_cv
+  double spread_amount = 0.0;
   bool gap = false;                  // gap_junction: instantaneous, symmetric (rule: make_symmetric; edges: mirrored by the engine)
   bool dopamine = false;             // stdp_dopamine_synapse: needs a volume_transmitter fed by `dopamine_source`
   int dopamine_pop = -1;             // population index of "dopamine_source"
@@ -75,6 +77,9 @@ struct ModulationSpec
 /// (sa_node_pacemaker: [-74, -45] mV, the cell's diastolic-to-take-off range, so clones start at different phases), else [e_l, v_th].
 /// Returns false when there is no range (no table entry and v_th <= e_l).
 bool vm_init_range( const std::string& model, double e_l, double v_th, double& lo, double& hi );
+
+/// Spread weight of the edge with index `edge` (projection `proj`): w + sd*z (kind 1) or w*(1+cv*z) (kind 2), sign kept, |w'| >= 1e-3 |w|.
+double spread_weight( double w, int kind, double amount, unsigned long long seed, size_t proj, size_t edge );
 
 /// Modulator names the engine knows (Engine::set_modulator).
 bool is_modulator_name( const std::string& s );

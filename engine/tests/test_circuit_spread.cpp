@@ -72,7 +72,15 @@ int main()
     c[ "projections" ][ 0 ].erase( "edges" );
     c[ "projections" ][ 0 ][ "rule" ] = "all_to_all";
     c[ "projections" ][ 0 ][ "weight_cv" ] = 0.1;
-    CHECK( not parse( c.dump(), bad, err ) and err.find( "weight_cv" ) != std::string::npos );
+    CircuitSpec ok;
+    CHECK_MSG( parse( c.dump(), ok, err ), err );  // rule projections accept the spread (applied by the engine after the connect)
+    CHECK( ok.projs[ 0 ].spread == 2 and ok.projs[ 0 ].spread_amount == 0.1 );
+    c[ "projections" ][ 0 ][ "weight_sd" ] = 1.0;
+    CHECK( not parse( c.dump(), bad, err ) and err.find( "not both" ) != std::string::npos );
+    c[ "projections" ][ 0 ].erase( "weight_cv" );
+    c[ "projections" ][ 0 ][ "synapse" ] = { { "synapse_model", "stdp_synapse" } };
+    CHECK( not parse( c.dump(), bad, err ) and err.find( "not supported" ) != std::string::npos );
   }
+  CHECK( spread_weight( 10.0, 2, 0.3, 7, 0, 0 ) == 7.4750909941732 or std::fabs( spread_weight( 10.0, 2, 0.3, 7, 0, 0 ) - 7.4750909941732 ) < 1e-9 );
   return chk::finish( "test_circuit_spread" );
 }

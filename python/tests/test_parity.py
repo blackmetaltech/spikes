@@ -20,6 +20,7 @@ CASES = [
     ("short_term_plasticity.json", 600.0),
     ("dopamine_stdp.json", 600.0),
     ("weight_spread.json", 600.0),  # projection weight_sd / weight_cv: seeded per-edge spread, same draws in both
+    ("weight_spread_rule.json", 600.0),  # weight_cv / weight_sd on rule projections: spread after the connect, canonical connection order
     ("sa_clones.json", 4000.0),  # NESTML cells with the per-model V_m range (skips when the NESTML PyNEST library is not built)
 ]
 

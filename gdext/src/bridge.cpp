@@ -12,7 +12,17 @@
 #include <mutex>
 #include <sstream>
 #include <thread>
+#include <cerrno>
+#include <climits>
+#include <csignal>
+#include <cstring>
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/wait.h>
 #include <unistd.h>
+
+extern char** environ;
 
 namespace spike_gd
 {
@@ -208,6 +218,9 @@ struct Job
 {
   std::thread th;
   std::atomic< bool > done{ false };
+  std::atomic< bool > cancelled{ false };
+  std::mutex mu;  // guards pid
+  pid_t pid = 0;
   bool ok = false;
   std::string error, out;
   double ms = 0;
@@ -216,30 +229,71 @@ std::mutex g_mu;
 std::map< long, std::unique_ptr< Job > > g_jobs;
 long g_next = 1;
 std::string g_runner;
+std::vector< std::string > g_dirs;  // extra search directories (e.g. the project's res://bin, globalized)
 
-bool exists( const std::string& p ) { return access( p.c_str(), X_OK ) == 0; }
-std::string find_runner()
+bool exists( const std::string& p ) { return !p.empty() && access( p.c_str(), X_OK ) == 0; }
+std::string dirname_of( const std::string& p )
 {
-  std::string r = g_runner;
-  if ( r.empty() )
-    if ( const char* e = std::getenv( "SPIKE_RUN" ) )
-      r = e;
-  if ( !r.empty() )
-    return r;
+  const auto i = p.rfind( '/' );
+  return i == std::string::npos ? std::string( "." ) : ( i == 0 ? std::string( "/" ) : p.substr( 0, i ) );
+}
+std::string self_exe_dir()
+{
+  char buf[ 4096 ];
+  const ssize_t n = readlink( "/proc/self/exe", buf, sizeof buf - 1 );
+  return n > 0 ? dirname_of( std::string( buf, size_t( n ) ) ) : std::string();
+}
+std::string self_lib_dir()  // the directory of this shared library (the GDExtension), via dladdr on one of its own functions
+{
+  Dl_info info;
+  if ( dladdr( reinterpret_cast< void* >( &headless_set_runner ), &info ) && info.dli_fname )
+  {
+    char real[ PATH_MAX ];
+    if ( realpath( info.dli_fname, real ) )
+      return dirname_of( real );
+    return dirname_of( info.dli_fname );
+  }
+  return std::string();
+}
+// Resolution order: explicit set_headless_runner path, $SPIKE_RUN, next to the GDExtension library, next to the executable, added search dirs
+// (the project's res://bin), a development tree (./, ../build/...), then PATH. Returns "" if nothing executable was found.
+std::string find_runner( std::string* tried = nullptr )
+{
+  std::vector< std::string > cands;
+  if ( !g_runner.empty() )
+    cands.push_back( g_runner );
+  if ( const char* e = std::getenv( "SPIKE_RUN" ) )
+    if ( *e )
+      cands.push_back( e );
+  std::vector< std::string > dirs;
+  const std::string lib = self_lib_dir(), exe = self_exe_dir();
+  for ( const std::string& d : { lib, exe } )
+    if ( !d.empty() )
+    {
+      dirs.push_back( d );
+      dirs.push_back( d + "/bin" );
+    }
+  for ( const auto& d : g_dirs )
+    dirs.push_back( d );
+  for ( const auto& d : dirs )
+    cands.push_back( d + "/spike-run" );
   for ( const char* c : { "./spike-run", "./bin/spike-run", "../spike-run", "build/bin/spike-run", "build/engine/spike-run", "../build/bin/spike-run", "../build/engine/spike-run", "../../build/bin/spike-run" } )
+    cands.push_back( c );
+  if ( const char* path = std::getenv( "PATH" ) )
+  {
+    std::stringstream ss( path );
+    for ( std::string d; std::getline( ss, d, ':' ); )
+      if ( !d.empty() )
+        cands.push_back( d + "/spike-run" );
+  }
+  for ( const auto& c : cands )
+  {
+    if ( tried )
+      *tried += ( tried->empty() ? "" : ", " ) + c;
     if ( exists( c ) )
       return c;
-  return "spike-run";  // PATH
-}
-std::string shq( const std::string& s )
-{
-  std::string o = "'";
-  for ( char c : s )
-    if ( c == '\'' )
-      o += "'\\''";
-    else
-      o += c;
-  return o + "'";
+  }
+  return std::string();
 }
 bool word( const std::string& s )
 {
@@ -248,10 +302,36 @@ bool word( const std::string& s )
       return false;
   return true;
 }
+// mkstemp in $TMPDIR (default /tmp): unique, mode 0600, created exclusively. Returns the open fd (or -1) and the path.
+int make_temp( const char* tag, std::string& path )
+{
+  const char* t = std::getenv( "TMPDIR" );
+  std::string tmpl = std::string( t && *t ? t : "/tmp" ) + "/spike_hl_" + tag + "_XXXXXX";
+  std::vector< char > buf( tmpl.begin(), tmpl.end() );
+  buf.push_back( 0 );
+  const int fd = mkstemp( buf.data() );
+  if ( fd >= 0 )
+    path = buf.data();
+  return fd;
+}
+void kill_job( Job& j )
+{
+  std::lock_guard< std::mutex > l( j.mu );
+  if ( j.pid > 0 )
+  {
+    kill( -j.pid, SIGKILL );  // the child leads its own process group
+    kill( j.pid, SIGKILL );
+  }
+}
 struct Cleanup
 {
   ~Cleanup()
   {
+    for ( auto& kv : g_jobs )
+    {
+      kv.second->cancelled = true;
+      kill_job( *kv.second );
+    }
     for ( auto& kv : g_jobs )
       if ( kv.second->th.joinable() )
         kv.second->th.join();
@@ -265,8 +345,21 @@ void headless_set_runner( const std::string& path )
   g_runner = path;
 }
 
+void headless_add_search_dir( const std::string& dir )
+{
+  std::lock_guard< std::mutex > l( g_mu );
+  if ( !dir.empty() && std::find( g_dirs.begin(), g_dirs.end(), dir ) == g_dirs.end() )
+    g_dirs.push_back( dir );
+}
+
+std::string headless_runner_path()
+{
+  std::lock_guard< std::mutex > l( g_mu );
+  return find_runner();
+}
+
 long headless_start( const std::string& task_id, const std::string& circuit_json, const std::vector< long long >& seeds_in, const std::string& mode,
-  const std::string& variant, std::string& err )
+  const std::string& variant, std::string& err, const std::vector< long long >& circuit_seeds )
 {
   if ( task_id.empty() || !word( task_id ) || !word( mode ) || !word( variant ) )
   {
@@ -276,64 +369,176 @@ long headless_start( const std::string& task_id, const std::string& circuit_json
   std::vector< long long > seeds = seeds_in;
   if ( seeds.empty() )
     seeds.push_back( 1 );
-  static std::atomic< long > counter{ 0 };
-  const std::string base = "/tmp/spike_hl_" + std::to_string( long( getpid() ) ) + "_" + std::to_string( ++counter );
-  const std::string cfile = base + ".json";
+  if ( !circuit_seeds.empty() && circuit_seeds.size() != 1 && circuit_seeds.size() != seeds.size() )
   {
-    std::ofstream f( cfile );
-    if ( !f )
+    err = "circuit_seeds must be empty, one value, or one per seed";
+    return 0;
+  }
+  std::string runner, tried;
+  {
+    std::lock_guard< std::mutex > l( g_mu );
+    runner = find_runner( &tried );
+  }
+  if ( runner.empty() )
+  {
+    err = "spike-run not found (looked in: " + tried + ")";
+    return 0;
+  }
+  std::string cfile, efile;
+  const int cfd = make_temp( "c", cfile );
+  if ( cfd < 0 )
+  {
+    err = "cannot create a temp file";
+    return 0;
+  }
+  {
+    size_t off = 0;
+    bool wrote = true;
+    while ( off < circuit_json.size() )
     {
+      const ssize_t n = write( cfd, circuit_json.data() + off, circuit_json.size() - off );
+      if ( n <= 0 )
+      {
+        wrote = false;
+        break;
+      }
+      off += size_t( n );
+    }
+    close( cfd );
+    if ( !wrote )
+    {
+      unlink( cfile.c_str() );
       err = "cannot write " + cfile;
       return 0;
     }
-    f << circuit_json;
   }
-  std::string runner;
+  const int efd = make_temp( "e", efile );
+  if ( efd < 0 )
   {
-    std::lock_guard< std::mutex > l( g_mu );
-    runner = find_runner();
+    unlink( cfile.c_str() );
+    err = "cannot create a temp file";
+    return 0;
   }
-  std::string cmd = shq( runner ) + " --task " + shq( task_id ) + " --circuit " + shq( cfile ) + " --seeds ";
-  for ( size_t i = 0; i < seeds.size(); ++i )
-    cmd += ( i ? "," : "" ) + std::to_string( seeds[ i ] );
+  std::vector< std::string > args{ runner, "--task", task_id, "--circuit", cfile, "--seeds" };
+  auto join = []( const std::vector< long long >& v ) {
+    std::string o;
+    for ( size_t i = 0; i < v.size(); ++i )
+      o += ( i ? "," : "" ) + std::to_string( v[ i ] );
+    return o;
+  };
+  args.push_back( join( seeds ) );
+  if ( !circuit_seeds.empty() )
+  {
+    args.push_back( "--circuit-seeds" );
+    args.push_back( join( circuit_seeds ) );
+  }
   if ( !mode.empty() )
-    cmd += " --mode " + shq( mode );
+  {
+    args.push_back( "--mode" );
+    args.push_back( mode );
+  }
   if ( !variant.empty() )
-    cmd += " --variant " + shq( variant );
-  cmd += " 2>" + shq( base + ".err" );
+  {
+    args.push_back( "--variant" );
+    args.push_back( variant );
+  }
+  int pfd[ 2 ];
+  if ( pipe( pfd ) != 0 )
+  {
+    close( efd );
+    unlink( cfile.c_str() );
+    unlink( efile.c_str() );
+    err = "pipe failed";
+    return 0;
+  }
+  fcntl( pfd[ 0 ], F_SETFD, FD_CLOEXEC );
+  fcntl( pfd[ 1 ], F_SETFD, FD_CLOEXEC );
+  fcntl( efd, F_SETFD, FD_CLOEXEC );
+  std::vector< char* > argv;
+  for ( auto& a : args )
+    argv.push_back( const_cast< char* >( a.c_str() ) );
+  argv.push_back( nullptr );
+  posix_spawn_file_actions_t fa;
+  posix_spawnattr_t attr;
+  posix_spawn_file_actions_init( &fa );
+  posix_spawnattr_init( &attr );
+  posix_spawn_file_actions_adddup2( &fa, pfd[ 1 ], 1 );
+  posix_spawn_file_actions_adddup2( &fa, efd, 2 );
+  posix_spawnattr_setflags( &attr, POSIX_SPAWN_SETPGROUP );
+  posix_spawnattr_setpgroup( &attr, 0 );  // own process group, so cancel can kill the whole tree
+  pid_t pid = 0;
+  const int rc = posix_spawn( &pid, runner.c_str(), &fa, &attr, argv.data(), environ );
+  posix_spawn_file_actions_destroy( &fa );
+  posix_spawnattr_destroy( &attr );
+  close( pfd[ 1 ] );
+  close( efd );
+  if ( rc != 0 )
+  {
+    close( pfd[ 0 ] );
+    unlink( cfile.c_str() );
+    unlink( efile.c_str() );
+    err = "cannot start " + runner + ": " + std::strerror( rc );
+    return 0;
+  }
   auto job = std::make_unique< Job >();
   Job* jp = job.get();
-  jp->th = std::thread( [ jp, cmd, cfile, base ] {
+  jp->pid = pid;
+  const int rfd = pfd[ 0 ];
+  jp->th = std::thread( [ jp, rfd, pid, cfile, efile ] {
     const auto t0 = std::chrono::steady_clock::now();
     std::string out;
+    char buf[ 4096 ];
+    ssize_t n;
+    while ( ( n = read( rfd, buf, sizeof buf ) ) > 0 || ( n < 0 && errno == EINTR ) )
+      if ( n > 0 )
+        out.append( buf, size_t( n ) );
+    close( rfd );
     int status = -1;
-    if ( FILE* p = popen( cmd.c_str(), "r" ) )
+    while ( waitpid( pid, &status, 0 ) < 0 && errno == EINTR )
     {
-      char buf[ 4096 ];
-      size_t n;
-      while ( ( n = fread( buf, 1, sizeof buf, p ) ) > 0 )
-        out.append( buf, n );
-      status = pclose( p );
+    }
+    {
+      std::lock_guard< std::mutex > l( jp->mu );
+      jp->pid = 0;  // reaped: a late cancel must not signal a recycled pid
     }
     std::string e;
     {
-      std::ifstream f( base + ".err" );
+      std::ifstream f( efile );
       std::stringstream ss;
       ss << f.rdbuf();
       e = ss.str();
     }
-    std::remove( cfile.c_str() );
-    std::remove( ( base + ".err" ).c_str() );
+    unlink( cfile.c_str() );
+    unlink( efile.c_str() );
     jp->ms = std::chrono::duration< double, std::milli >( std::chrono::steady_clock::now() - t0 ).count();
-    jp->ok = status == 0 && !out.empty();
+    jp->ok = !jp->cancelled && WIFEXITED( status ) && WEXITSTATUS( status ) == 0 && !out.empty();
     jp->out = out;
-    jp->error = jp->ok ? "" : ( e.empty() ? "spike-run failed (status " + std::to_string( status ) + ")" : e );
+    jp->error = jp->ok ? "" : ( jp->cancelled ? "cancelled" : ( e.empty() ? "spike-run failed (status " + std::to_string( status ) + ")" : e ) );
     jp->done = true;
   } );
   std::lock_guard< std::mutex > l( g_mu );
   const long id = g_next++;
   g_jobs[ id ] = std::move( job );
   return id;
+}
+
+bool headless_cancel( long id )
+{
+  std::unique_ptr< Job > j;
+  {
+    std::lock_guard< std::mutex > l( g_mu );
+    auto it = g_jobs.find( id );
+    if ( it == g_jobs.end() )
+      return false;
+    j = std::move( it->second );
+    g_jobs.erase( it );
+  }
+  const bool was_running = !j->done;
+  j->cancelled = true;
+  kill_job( *j );
+  if ( j->th.joinable() )
+    j->th.join();  // prompt: the child is dead, the thread only reaps it and deletes the temp files
+  return was_running;
 }
 
 std::string headless_poll( long id )

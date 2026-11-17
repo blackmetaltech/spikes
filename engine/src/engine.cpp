@@ -16,6 +16,8 @@
 #include "modules/nestml_models.h" // NESTML custom cell models (models/nestml)
 
 #include "connection_id.h"
+#include <tuple>
+#include <algorithm>
 #include "dictionary.h"
 #include "kernel_manager.h"
 #include "nest.h"
@@ -461,6 +463,29 @@ void Engine::Impl::build()
         Dictionary syn = to_dict( p.synapse );
         syn[ "synapse_model" ] = pr.model;
         nest::connect( pr.src, pr.tgt, rule, { syn } );
+        if ( p.spread )
+        {
+          // weight spread (docs/CIRCUIT-FORMAT.md): per connection, in canonical (source, target, port) order so it does not depend on thread layout
+          Dictionary q;
+          q[ "source" ] = pr.src;
+          q[ "target" ] = pr.tgt;
+          q[ "synapse_model" ] = pr.model;
+          std::vector< nest::ConnectionID > all;
+          for ( auto& dq : nest::get_connections( q ) )
+            all.insert( all.end(), dq.begin(), dq.end() );
+          std::sort( all.begin(), all.end(), []( const nest::ConnectionID& x, const nest::ConnectionID& y ) {
+            return std::make_tuple( x.get_source_node_id(), x.get_target_node_id(), x.get_port() ) <
+                   std::make_tuple( y.get_source_node_id(), y.get_target_node_id(), y.get_port() );
+          } );
+          for ( size_t k = 0; k < all.size(); ++k )
+          {
+            std::deque< nest::ConnectionID > one{ all[ k ] };
+            const double w = nest::get_connection_status( one ).at( 0 ).get< double >( "weight" );
+            Dictionary d;
+            d[ "weight" ] = spread_weight( w, p.spread, p.spread_amount, spec.seed, i, k );
+            nest::set_connection_status( one, d );
+          }
+        }
       }
       else if ( not p.edges.empty() )
       {

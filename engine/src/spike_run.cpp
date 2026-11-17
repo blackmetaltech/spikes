@@ -3,7 +3,9 @@
 // sorted by (step, neuron). A summary line goes to stderr so stdout holds spikes only.
 //
 // spike-run --list-tasks prints the registered task ids, one per line.
-// spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k ...] [--require any|all] [--circuits-dir dir]
+// spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--circuit-seed n | --circuit-seeds a,b,c] [--lesion pre>post*k ...] [--require any|all] [--circuits-dir dir]
+//   [--circuit-seed n | --circuit-seeds a,b,c]: pin the circuit seed (one for all seeds, or one per seed) instead of the 1000 * seed + circuit seed reseed,
+//   so an instant check scores the same circuit seed as the live run.
 //   scores a circuit on a task headless, exactly as the game does (same 1 ms slices, a seed also reseeds the circuit: 1000 * seed + circuit seed),
 //   and prints one JSON object on stdout: per-seed value / passed / verdict / parts / neurons / spikes / rate_hz_per_neuron, plus mean and pass count.
 //   --mode guided|standard|researcher and --variant <id> set the v0.3 difficulty mode and challenge variant (Task::set_mode / set_variant) before reset;
@@ -65,7 +67,7 @@ struct Lesion
 static int run_task_mode( int argc, char** argv )
 {
   std::string task_id, circuit_file, dir, require, mode, variant;
-  std::vector< unsigned long long > seeds;
+  std::vector< unsigned long long > seeds, circuit_seeds;
   std::vector< Lesion > lesions;
   int threads = 1;
   auto usage = [] {
@@ -98,6 +100,13 @@ static int run_task_mode( int argc, char** argv )
         if ( not tok.empty() )
           seeds.push_back( std::strtoull( tok.c_str(), nullptr, 10 ) );
     }
+    else if ( ( a == "--circuit-seed" or a == "--circuit-seeds" ) and more )
+    {
+      std::stringstream ss( argv[ ++i ] );
+      for ( std::string tok; std::getline( ss, tok, ',' ); )
+        if ( not tok.empty() )
+          circuit_seeds.push_back( std::strtoull( tok.c_str(), nullptr, 10 ) );
+    }
     else if ( a == "--lesion" and more )
     {
       std::string l = argv[ ++i ];
@@ -119,6 +128,11 @@ static int run_task_mode( int argc, char** argv )
     return usage();
   if ( seeds.empty() )
     seeds.push_back( 1 );
+  if ( not circuit_seeds.empty() and circuit_seeds.size() != 1 and circuit_seeds.size() != seeds.size() )
+  {
+    std::fprintf( stderr, "spike-run: --circuit-seeds needs one value (for every seed) or one per seed (%zu)\n", seeds.size() );
+    return 2;
+  }
   if ( not spike::make_task( task_id ) )
   {
     std::fprintf( stderr, "spike-run: unknown task '%s'\n", task_id.c_str() );
@@ -176,10 +190,12 @@ static int run_task_mode( int argc, char** argv )
   out[ "runs" ] = json::array();
   double sum = 0;
   int passes = 0;
-  for ( auto seed : seeds )
+  for ( size_t si = 0; si < seeds.size(); ++si )
   {
+    const auto seed = seeds[ si ];
     json c = base;
-    c[ "seed" ] = 1000 * seed + base.value( "seed", 1 );
+    // default: task seed also reseeds the circuit (1000 * seed + circuit seed); --circuit-seed(s) pins the circuit seed exactly (the live run's)
+    c[ "seed" ] = circuit_seeds.empty() ? 1000 * seed + base.value( "seed", 1 ) : circuit_seeds[ circuit_seeds.size() == 1 ? 0 : si ];
     spike::Engine e;
     if ( not e.load( c.dump() ) )
     {
@@ -207,6 +223,7 @@ static int run_task_mode( int argc, char** argv )
     const auto sc = task->score();
     json r;
     r[ "seed" ] = seed;
+    r[ "circuit_seed" ] = c[ "seed" ];
     r[ "value" ] = sc.value;
     r[ "passed" ] = sc.passed;
     r[ "verdict" ] = sc.verdict;

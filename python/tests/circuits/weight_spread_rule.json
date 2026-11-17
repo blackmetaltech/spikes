@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "Weight spread on rule projections (parity fixture)",
+  "resolution_ms": 0.1,
+  "seed": 5,
+  "populations": [
+    { "id": "S", "model": "iaf_psc_alpha", "n": 6, "params": { "I_e": 420.0 } },
+    { "id": "T", "model": "iaf_psc_alpha", "n": 6 }
+  ],
+  "projections": [
+    { "pre": "S", "post": "T", "rule": "all_to_all", "weight_cv": 0.5, "synapse": { "weight": 40.0, "delay": 1.0 } },
+    { "pre": "T", "post": "T", "rule": "fixed_indegree", "indegree": 2, "weight_sd": 12.0, "synapse": { "weight": -25.0, "delay": 1.5 } },
+    { "pre": "S", "post": "T", "rule": "one_to_one", "weight_cv": 0.3, "synapse": { "weight": 30.0, "delay": 1.0 } }
+  ],
+  "inputs": [
+    { "name": "drive", "kind": "dc", "targets": ["T"], "weight": 1.0, "value": 200.0 }
+  ],
+  "record": { "spikes": "all" }
+}

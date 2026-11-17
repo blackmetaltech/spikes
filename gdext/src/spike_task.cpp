@@ -3,6 +3,8 @@
 #include "spike/catalog.h"
 #include "bridge.h"
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 
@@ -16,6 +18,13 @@ static PackedStringArray strs( const std::vector< std::string >& v )
   for ( const auto& s : v )
     a.push_back( S( s ) );
   return a;
+}
+
+// the project's res://bin (globalized) is a search directory for spike-run: a shipped game keeps the runner next to its data
+static void add_project_bin()
+{
+  if ( ProjectSettings* ps = ProjectSettings::get_singleton() )
+    spike_gd::headless_add_search_dir( to_std( ps->globalize_path( "res://bin" ) ) );
 }
 
 bool SpikeTask::make( const String& id )
@@ -222,6 +231,11 @@ Dictionary SpikeTask::diagnosis() const
   d[ "symptoms" ] = S( g.symptoms );
   d[ "candidates" ] = strs( g.candidates );
   d[ "answer" ] = S( g.answer );
+  Dictionary lb, ex;
+  for ( auto& [ k, v ] : g.labels ) lb[ S( k ) ] = S( v );
+  for ( auto& [ k, v ] : g.explain ) ex[ S( k ) ] = S( v );
+  d[ "labels" ] = lb;
+  d[ "explain" ] = ex;
   return d;
 }
 Dictionary SpikeTask::notebook() const
@@ -235,15 +249,30 @@ Dictionary SpikeTask::notebook() const
   d[ "citation" ] = S( n.citation );
   return d;
 }
-int64_t SpikeTask::score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant )
+bool SpikeTask::headless_cancel( int64_t job ) { return spike_gd::headless_cancel( long( job ) ); }
+String SpikeTask::headless_runner_path()
+{
+  add_project_bin();
+  return S( spike_gd::headless_runner_path() );
+}
+String SpikeTask::default_model() const { return task_ ? S( task_->default_model() ) : String(); }
+String SpikeTask::recipe() const { return task_ ? S( task_->recipe() ) : String(); }
+int64_t SpikeTask::score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant, int64_t circuit_seed )
 {
   if ( !task_ )
     return 0;
   std::vector< long long > sv;
   for ( int64_t i = 0; i < seeds.size(); ++i )
     sv.push_back( seeds[ i ] );
+  std::vector< long long > cs;
+  if ( circuit_seed >= 0 )
+    cs.push_back( circuit_seed );  // pinned for every task seed (the live run's circuit seed); -1 = the 1000 * seed + circuit seed reseed
+  add_project_bin();
   std::string err;
-  return spike_gd::headless_start( task_->id(), to_std( circuit_json ), sv, to_std( mode ), to_std( variant ), err );
+  const long id = spike_gd::headless_start( task_->id(), to_std( circuit_json ), sv, to_std( mode ), to_std( variant ), err, cs );
+  if ( id == 0 )
+    UtilityFunctions::push_warning( String( "score_headless_async: " ) + S( err ) );
+  return id;
 }
 Dictionary SpikeTask::score_headless_poll( int64_t job )
 {
@@ -319,7 +348,11 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "next_event_ms", "t_ms" ), &SpikeTask::next_event_ms );
   ClassDB::bind_method( D_METHOD( "diagnosis" ), &SpikeTask::diagnosis );
   ClassDB::bind_method( D_METHOD( "notebook" ), &SpikeTask::notebook );
-  ClassDB::bind_method( D_METHOD( "score_headless_async", "circuit_json", "seeds", "mode", "variant" ), &SpikeTask::score_headless_async );
+  ClassDB::bind_method( D_METHOD( "default_model" ), &SpikeTask::default_model );
+  ClassDB::bind_method( D_METHOD( "recipe" ), &SpikeTask::recipe );
+  ClassDB::bind_method( D_METHOD( "score_headless_async", "circuit_json", "seeds", "mode", "variant", "circuit_seed" ), &SpikeTask::score_headless_async, DEFVAL( int64_t( -1 ) ) );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "headless_cancel", "job" ), &SpikeTask::headless_cancel );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "headless_runner_path" ), &SpikeTask::headless_runner_path );
   ClassDB::bind_method( D_METHOD( "score_headless_poll", "job" ), &SpikeTask::score_headless_poll );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_headless_runner", "path" ), &SpikeTask::set_headless_runner );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "catalog_json" ), &SpikeTask::catalog_json );
