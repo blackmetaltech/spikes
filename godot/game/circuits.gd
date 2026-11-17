@@ -61,6 +61,14 @@ static func input_weight(model: String, kind: String) -> float:
 	if kind == "dc": return 300.0
 	return snappedf(weight_of(model) * 3.5, 0.5)
 
+## The first-connect weight of input channel `ch` onto a cell of `model`: the weight the task declared for that sensor (kept in meta.editor.task_weights = {name: {kind, w}} by the
+## lab) else the heuristic input_weight().
+static func first_input_weight(c: Dictionary, ch: Dictionary, model: String) -> float:
+	var tw: Dictionary = c.get("meta", {}).get("editor", {}).get("task_weights", {})
+	var kind := str(ch.get("kind", "poisson")); var e: Variant = tw.get(str(ch.get("name", "")))
+	if e is Dictionary and str(e.get("kind", "")) == kind and float(e.get("w", 0.0)) > 0.0: return float(e["w"])
+	return input_weight(model, kind)
+
 static func empty(name := "New circuit") -> Dictionary:
 	return {"schema_version": 1, "name": name, "resolution_ms": 0.1, "seed": 1, "populations": [], "projections": [], "inputs": [], "outputs": [], "record": {"spikes": "all"}, "meta": {"author": "", "notes": ""}}
 
@@ -162,6 +170,11 @@ static func proj_delay(pr: Dictionary) -> float:
 
 static func proj_model(pr: Dictionary) -> String: return str(pr.get("synapse", {}).get("synapse_model", "static_synapse"))
 
+## Per-synapse weight spread of a projection (`weight_cv`, relative, seeded by the circuit seed): 0 removes the key.
+static func set_proj_spread(pr: Dictionary, cv: float) -> void:
+	if cv <= 0.0: pr.erase("weight_cv")
+	else: pr["weight_cv"] = snappedf(cv, 0.01)
+
 static func set_proj_weight(pr: Dictionary, w: float) -> void:
 	var old := proj_weight(pr)
 	if pr.has("edges"):
@@ -204,7 +217,7 @@ const MOD_TAU := 1000.0     # ms
 ## From the task's own `channel_kinds()` when the extension has it (a Dictionary or JSON, {inputs, outputs} or flat name -> kind, or a list of {name, kind, ...}),
 ## else from the channels of the task's reference circuit (circuits/<ref>.json). Channels neither source names are absent: the caller falls back to rate / poisson.
 static func task_channel_kinds(tid: String, task: Variant = null) -> Dictionary:
-	var out := {"inputs": {}, "outputs": {}}
+	var out := {"inputs": {}, "outputs": {}, "weights": {}}   # "weights": name -> the task's own default input weight (ChannelKind::weight), only where it declares one
 	if tid == "": return out
 	if task != null and task.has_method("channel_kinds"):
 		var v: Variant = task.call("channel_kinds")
@@ -250,7 +263,9 @@ static func _absorb_side(out: Dictionary, side: String, v: Variant) -> void:
 
 static func _absorb_one(out: Dictionary, side: String, name: String, v: Variant) -> void:
 	if name == "": return
-	if side == "inputs": out["inputs"][name] = str(v.get("kind", "poisson")) if v is Dictionary else str(v)
+	if side == "inputs":
+		out["inputs"][name] = str(v.get("kind", "poisson")) if v is Dictionary else str(v)
+		if v is Dictionary and float(v.get("weight", 0.0)) > 0.0: out["weights"][name] = float(v["weight"])
 	else: out["outputs"][name] = _out_kind(v if v is Dictionary else {"kind": str(v)})
 
 ## Make output channel `ch` a rate readout or a modulator release (docs/CIRCUIT-FORMAT.md "Output kind modulator"); the unused keys are removed.
@@ -289,7 +304,7 @@ static func wire_family(c: Dictionary, key: String, name: String, pop: String) -
 			if str(ch.get("name", "")) != str(names[k]): continue
 			var field := "neurons" if key == "outputs" else "targets"
 			var tg: Array = ch.get(field, [])
-			if key == "inputs" and tg.is_empty(): ch["weight"] = input_weight(model, str(ch.get("kind", "poisson")))
+			if key == "inputs" and tg.is_empty(): ch["weight"] = first_input_weight(c, ch, model)
 			if not tg.any(func(x): return proj_pop(x) == pop and x is Dictionary and (x.get("idx", []) as Array).has(k)): tg.append({"pop": pop, "idx": [k]})
 			ch[field] = tg; done += 1
 	return done
