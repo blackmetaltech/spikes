@@ -49,3 +49,11 @@ Inhibition is current based (no reversal potential), so strongly inhibited AIB c
 | AIB -> TR x0 (cannot turn) | worm walks away, 10 mm, fail |
 | ASER -> AIB x0 (OFF pathway removed) | slower (41-51 s vs 27-36 s), fails the 45 s bar on some seeds: the OFF cell is an accelerator |
 | ASER -> AIB x0 and ASEL -> AIY x0 | no sensing, circles, fail |
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** inhibition, subtraction (new); excitation, convergence (used). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Common chatter x0.6 guided, x1.25 researcher; pass time 56 / 45 / 40.5 s (reference 27-35 s). The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 14); noise_x2 (chatter up to 1200 Hz).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `mean_dist_mm`. **Notebook:** Suzuki 2008; Thiele 2009.

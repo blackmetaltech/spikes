@@ -67,3 +67,14 @@ Seeds 1-12 (the test runs 1-10): improvement 0.54-0.70 (limit 0.25), resistance 
 Credits: Renshaw B (1941) J Neurophysiol 4:167; Eccles JC, Fatt P, Koketsu K (1954) J Physiol 126:524; Ryall RW (1970) J Neurophysiol 33:257;
 Hultborn H, Jankowska E, Lindstrom S (1971) J Physiol 215:591, 613; Hultborn H (2006) Prog Neurobiol 78:215 (spinal reflexes: mechanisms and concepts); Farmer SF et al. (1993)
 J Physiol 470:127 (common drive to motor units); Elble RJ, Koller WC (1990) *Tremor* (the 8-12 Hz central drive).
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** recurrent_inhibition (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Improvement >= 0.20 / 0.25 / 0.29, resistance >= 0.24 / 0.30 / 0.35. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 28); strong_tremor (90 % common-drive modulation).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `tremor_pct`. **Notebook:** Renshaw 1941; Hultborn 1971.
+
+### v0.3: control measured on the player's own circuit
+The 0.2 control curve (tremor against pool rate, measured on this reference with its Renshaw cells cut) is now re-scaled per circuit. The episode is 16.45 s: after the stretches the noise input is flat at 400 Hz and twelve 6 ms volleys of 4000 Hz arrive 220 ms apart. The extra pool spikes/s in the 3-15 ms after a volley (per 16 cells) is the open-loop gain of the circuit's noise path, before the recurrent loop (3-10 ms round trip) acts. Control = curve(rate) x clamp(excess / 1100, 0.57, 1.6); an excess under 627 fails ("the pools ignore the common input"). Reference: excess 758-944, improvement 0.39-0.61. With the Renshaw cells cut: improvement 0-0.21; with the noise path also shielded (DESC weights x0.25 or x0.5) it fails on the excess or on improvement. Limits: a cord that has a live noise path and reduces tremor by some other mechanism would pass; this is a measurement of "tremor lower than the unbraked cord with this much input", not of the Renshaw cells themselves (the task cannot see non-motor spikes).

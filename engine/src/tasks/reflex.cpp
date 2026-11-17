@@ -65,7 +65,52 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "touch" }; }
   std::vector< std::string > motor_channels() const override { return { "withdraw" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "touch", in_kind( "poisson", 150, 400 ) } };
+  }
   double duration_ms() const override { return kDuration; }
+  int par_neurons() const override { return variant_par( variant_, 16 ); }  // SN 10 + MN 6 of the recipe
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "threshold", "excitation", "convergence" }; }
+  std::vector< std::string > concepts_used() const override { return {}; }
+  bool on_spine() const override { return true; }
+  /// guided: poke 1.67x stronger, <= 2 false withdrawals, latency <= 75 ms; standard: the brief; researcher: poke 0.8x as strong (200 Hz above the chatter), no false
+  /// withdrawal, latency <= 51 ms (reference circuit: 23-25 ms, passes seeds 1-5).
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 8 cells instead of 16" },
+             { "noise_x2", "the poke is half as strong against the chatter (125 Hz above 150 Hz instead of 250 Hz)" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    const bool jumpy = s.parts[ "false_triggers" ] > false_limit();
+    std::vector< Hint > h;
+    if ( !jumpy )
+    {
+      h.push_back( make_hint( 1, "A poke is only 2.7 times the background rate, so one afferent cannot tell it from noise. Convergence: a cell that needs several inputs at once.", "" ) );
+      h.push_back( make_hint( 2, "Look at the link into the motor pool: it is too weak for the pokes to reach threshold.", "withdraw" ) );
+      h.push_back( make_hint( 3, "Touch onto about 10 receptor cells, those onto 6 motor cells with a link near 140 pA, motor cells onto withdraw.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Noise spikes bunch up by chance. Raise the threshold by asking for more coincident inputs.", "" ) );
+      h.push_back( make_hint( 2, "The motor pool is firing on noise: the links into it are too strong.", "withdraw" ) );
+      h.push_back( make_hint( 3, "Keep the motor link under about 200 pA, or give the touch input more receptor cells so their average is steadier.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "latency_ms", make_metric( score().parts[ "latency_ms" ], "ms", true ) } }; }
+  Note notebook() const override
+  {
+    return { "Convergence beats noise",
+             "Withdrawal reflexes in Aplysia pass sensory input through interneurons that sum many weak afferents, so a brief touch "
+             "stands out from the background chatter of individual sensory neurons.",
+             "Castellucci V, Kandel ER (1974) PNAS 71:5004" };
+  }
 
   void reset( uint64_t seed ) override
   {
@@ -95,7 +140,7 @@ public:
     wiring_.probe( e, sensor_channels(), motor_channels() );
     burst_spikes_ = std::max( kMinBurstSpikes, static_cast< int >( std::ceil( 0.5 * motor_.pool_size( e, "withdraw" ) - 1e-9 ) ) );
     touching_ = in_touch( t_ );
-    e.set_input( "touch", kBg + ( touching_ ? kTouchRate : 0.0 ) );
+    e.set_input( "touch", bg() + ( touching_ ? amp() : 0.0 ) );
     e.step( dt );
     t_ += dt;
     double n = motor_.spike_count( e, "withdraw", dt );
@@ -129,7 +174,7 @@ public:
     b.points = { { 0.0, 0.0 }, { 0.5 * len, 0.0 }, { len, 0.0 } };
     b.heading = 0;
     b.readouts[ "touching" ] = touching_ ? 1.0 : 0.0;
-    b.readouts[ "touch_rate_hz" ] = kBg + ( touching_ ? kTouchRate : 0.0 );
+    b.readouts[ "touch_rate_hz" ] = bg() + ( touching_ ? amp() : 0.0 );
     b.readouts[ "withdrawn" ] = retract;
     b.readouts[ "bursts" ] = bursts_;
     b.readouts[ "t_ms" ] = t_;
@@ -163,7 +208,7 @@ public:
     double v = 100.0 * hf * ( 1.0 - 0.4 * clampd( ( lat - 20.0 ) / 80.0, 0, 1 ) ) - 12.0 * false_triggers_;
     s.value = std::max( 0.0, v );
     bool done = t_ >= kDuration;
-    s.passed = done && misses == 0 && hits == kTouches && false_triggers_ <= 1 && lat <= 60.0;
+    s.passed = done && misses == 0 && hits == kTouches && false_triggers_ <= false_limit() && lat <= tol_max( mode_, 60.0, 1.25, 0.85 );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
@@ -178,15 +223,15 @@ public:
     else if ( bursts_ == 0 )
       o << "withdraw fired " << static_cast< int >( spikes_ ) << " stray spikes but never a burst of " << burst_spikes_
         << " within 25 ms: strengthen the weights into the motor cells, or add more cells feeding them.";
-    else if ( false_triggers_ > 1 && misses )
+    else if ( false_triggers_ > false_limit() && misses )
       o << "Missed " << misses << " of " << kTouches << " pokes and fired " << false_triggers_
         << " false withdrawals: the circuit reacts to noise but not reliably to pokes.";
     else if ( misses )
       o << "Missed " << misses << " of " << kTouches << " pokes (answered " << hits << "): the response is too weak or too late.";
-    else if ( false_triggers_ > 1 )
+    else if ( false_triggers_ > false_limit() )
       o << "Too jumpy: " << false_triggers_ << " withdrawals with no poke. Make the motor cells need several touch inputs at once.";
     else
-      o << "Too slow: mean latency " << static_cast< int >( lat ) << " ms (needs <= 60 ms).";
+      o << "Too slow: mean latency " << static_cast< int >( lat ) << " ms (needs <= " << static_cast< int >( tol_max( mode_, 60.0, 1.25, 0.85 ) ) << " ms).";
     s.verdict = o.str();
     return s;
   }
@@ -194,6 +239,10 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -0.2, -0.5, 1.4, 0.5 }; }
 
 private:
+  // "noise" is the poke's contrast against the chatter: the background stays at 150 Hz, the poke adds 250 Hz / noise factor
+  double bg() const { return kBg; }
+  double amp() const { return kTouchRate / mode_noise( mode_, variant_, 0.6, 1.25 ); }
+  int false_limit() const { return mode_ == "guided" ? 2 : ( mode_ == "researcher" ? 0 : 1 ); }
   bool in_touch( double t ) const
   {
     for ( int k = 0; k < kTouches; ++k )

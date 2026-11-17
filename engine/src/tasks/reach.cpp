@@ -55,7 +55,7 @@ public:
            "that starts on 'go', scales with 'target', and times the three bursts with delays (neurons that inhibit and delay "
            "each other), drive the flexor (ag_motor) and extensor (ant_motor) pools, and keep the stretch reflex to hold the limb at "
            "the new angle. Three reaches of 0.4, 0.7 and 0.5 rad. Score: reach the target within 700 ms of the cue, overshoot by "
-           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'. A starting point (iaf_psc_alpha groups; pA; the "
+           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'. Real motoneurons differ in size and in how strongly each is driven, so a pool is recruited gradually; identical cells all start together and the creep and the reach time then depend on the seed. Give the links onto the pools some weight spread (the lab's spread control; the reference circuit's pool links vary by about +-50 %, a spread (CV) near 0.3 to 0.5) and, in Guided mode, the limits are wider. A starting point (iaf_psc_alpha groups; pA; the "
            "sensors are dc inputs; passes on some seeds only, so expect to tune it): the stretch-reflex loop (Ia sensors at weight 3 onto relay "
            "groups of 6 with tau m 60 ms; pools of 20 cells; Ia > pool 160; Ia > inhibitory groups of 4 at 80; those > opposite pool -160) with the "
            "drive weight lowered to 160 so the pools are nearly silent at rest (a busy resting pool creeps); target (weight 2) onto a relay group of 3 "
@@ -66,8 +66,63 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "go", "target", "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "go", in_kind( "dc", 100, 3 ) }, { "target", in_kind( "dc", 40, 2 ) }, { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 160 ) } };
+  }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return 55; }
+  int par_neurons() const override { return variant_par( variant_, 55 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "timed_bursts" }; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "reciprocal_inhibition", "negative_feedback" }; }
+  bool on_spine() const override { return true; }
+  /// Pass limits (reach time / overshoot / final error / creep before the cue) scale by x1.4 (guided: 980 ms, 0.42, 0.21 rad, 0.14 rad),
+  /// 1 (standard: 700 ms, 0.30, 0.15 rad, 0.10 rad) and x0.85 (researcher: 595 ms, 0.255, 0.1275 rad, 0.085 rad). The quick_reach variant asks 550 ms. (researcher factor x0.95: 665 ms, 0.285, 0.1425 rad, 0.095 rad)
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 28 instead of 55" },
+             { "quick_reach", "reach each target within 550 ms of the cue" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "premature_rad" ] > lim_creep() )
+    {
+      h.push_back( make_hint( 1, "A pattern generator must stay quiet until it is triggered: the pools should be nearly silent at rest.", "" ) );
+      h.push_back( make_hint( 2, "The arm creeps before 'go': lower the tonic drive onto the pools.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Drive weight about 160 pA so the pools are nearly silent at rest.", "" ) );
+    }
+    else if ( s.parts[ "worst_overshoot" ] > lim_over() )
+    {
+      h.push_back( make_hint( 1, "Timed bursts: the agonist burst accelerates, then a delayed antagonist burst brakes. Without the brake the limb overshoots.", "" ) );
+      h.push_back( make_hint( 2, "The braking burst is too weak or too late.", "ant_motor" ) );
+      h.push_back( make_hint( 3, "B1 > B2 with a delay of about 150 ms, B2 > ant_motor at 200 pA, B2 > B3 with 100 ms delay for the final clamp.", "" ) );
+    }
+    else if ( s.parts[ "good_reaches" ] < s.parts[ "reaches_done" ] && s.parts[ "worst_reach_ms" ] > lim_reach() )
+    {
+      h.push_back( make_hint( 1, "The first agonist burst sets the speed. It must be strong and start at the 'go' cue.", "" ) );
+      h.push_back( make_hint( 2, "The first burst is too weak or late.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "go > relay > B1 (4 cells, tau syn 50 ms) at 800, B1 > ag_motor at 1000; give the links onto the pools a little weight spread so the pool is recruited smoothly.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "The target input must set where the arm holds after the bursts: equilibrium-point control.", "" ) );
+      h.push_back( make_hint( 2, "The final angle does not match the target.", "target" ) );
+      h.push_back( make_hint( 3, "target > relay > ag_motor +800 and > ant_motor -320; the same relay drives B2 at 160.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "reach_ms", make_metric( score().parts[ "reach_ms" ], "ms", true ) } }; }
+  Note notebook() const override
+  {
+    return { "Agonist, antagonist, agonist",
+             "Fast, accurate arm movements are made by a triphasic burst: an agonist burst accelerates the limb, an antagonist burst "
+             "brakes it, and a second agonist burst clamps it on the target. Bigger movements get bigger bursts.",
+             "Hallett M, Shahani BT, Young RR (1975) J Neurol Neurosurg Psychiatry 38:1154; Berardelli A et al. (1996) Brain 119:661" };
+  }
 
   std::vector< Event > timeline() const override
   {
@@ -104,7 +159,7 @@ public:
     s.parts[ "reaches_done" ] = m.done;
     const bool done = t_ >= kDuration;
     s.value = m.value;
-    s.passed = done && m.done >= kN && m.good >= kN && m.premature <= 0.10 && wiring_.ok();
+    s.passed = done && m.done >= kN && m.good >= kN && m.premature <= lim_creep() && wiring_.ok();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -112,16 +167,16 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( m.done == 0 )
       o << "Waiting for the first target" << yet;
-    else if ( m.premature > 0.10 )
-      o << "The arm creeps " << std::setprecision( 2 ) << m.premature << " rad before the go cue (limit 0.10): the target input must not move it until 'go'.";
+    else if ( m.premature > lim_creep() )
+      o << "The arm creeps " << std::setprecision( 2 ) << m.premature << " rad before the go cue (limit " << lim_creep() << "): the target input must not move it until 'go'.";
     else if ( m.good < m.done && m.never > 0 )
       o << "The arm does not reach the target: " << m.never << " of " << m.done << " reaches never settle within 0.10 rad.";
-    else if ( m.good < m.done && m.worst_over > 0.30 )
-      o << "Worst overshoot " << m.worst_over * 100 << "% of the distance (limit 30%): the braking (antagonist) burst is too weak or too late.";
-    else if ( m.good < m.done && m.worst_reach_ms > kReachLimit )
-      o << "The slowest reach takes " << m.worst_reach_ms << " ms (limit 700): the first (agonist) burst is too weak or too late.";
+    else if ( m.good < m.done && m.worst_over > lim_over() )
+      o << "Worst overshoot " << m.worst_over * 100 << "% of the distance (limit " << lim_over() * 100 << "%): the braking (antagonist) burst is too weak or too late.";
+    else if ( m.good < m.done && m.worst_reach_ms > lim_reach() )
+      o << "The slowest reach takes " << m.worst_reach_ms << " ms (limit " << lim_reach() << "): the first (agonist) burst is too weak or too late.";
     else if ( m.good < m.done )
-      o << "The worst reach ends " << std::setprecision( 2 ) << m.worst_final << " rad from the target (limit 0.15): the hold command does not match the target.";
+      o << "The worst reach ends " << std::setprecision( 2 ) << m.worst_final << " rad from the target (limit " << lim_final() << "): the hold command does not match the target.";
     else
       o << ( done ? "All reaches good: " : "Good so far: " ) << m.reach_ms << " ms, overshoot " << m.overshoot * 100 << "%.";
     s.verdict = o.str();
@@ -173,6 +228,11 @@ protected:
   void extra_readouts( std::map< std::string, double >& r ) const override { r[ "err_rad" ] = rig_.joint.theta - target_rad(); }
 
 private:
+  double tf() const { return mode_factor( mode_, 1.4, 0.95 ); }
+  double lim_reach() const { return variant_ == "quick_reach" ? 550.0 : kReachLimit * tf(); }
+  double lim_over() const { return 0.30 * tf(); }
+  double lim_final() const { return 0.15 * tf(); }
+  double lim_creep() const { return 0.10 * tf(); }
   struct Metrics
   {
     double reach_ms = -1, overshoot = 0, final_err = 0, premature = 0, value = 0;
@@ -220,7 +280,7 @@ private:
         peak = std::max( peak, th_[ i ] );
       const double over = std::max( 0.0, ( peak - tgt ) / A );
       const double fin = std::fabs( window_mean( th_, t0 + kShow - 300, t0 + kShow ) - tgt );
-      const bool good = reach >= 0 && reach <= kReachLimit && over <= 0.30 && fin <= 0.15;
+      const bool good = reach >= 0 && reach <= lim_reach() && over <= lim_over() && fin <= lim_final();
       if ( good )
         ++m.good;
       const double rt_s = reach >= 0 ? clampd( ( 1000.0 - reach ) / 700.0, 0, 1 ) : 0.0;

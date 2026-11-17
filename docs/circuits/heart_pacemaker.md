@@ -62,3 +62,11 @@ cells of different intrinsic rate; the difference is that a pulse is delivered a
 Credits: Jose AD, Collison D (1970) Cardiovasc Res 4:160 (intrinsic heart rate); Jalife J (1984) J Physiol 356:221; Michaels DC, Matyas EP, Jalife J (1987)
 Circ Res 61:704; Mangoni ME et al. (2006) Circ Res 98:1422; Golomb D (2007) Scholarpedia 2(2):1347 (chi measure); Task Force of the ESC and NASPE (1996)
 Circulation 93:1043 (HRV).
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** coupling, pacemaking (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Rate 55-85 / 60-80 / 62-78 per min, CV < 7 / 5 / 4 %; cell-size spread x0.6 / 1 / x1.25. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 4); noise_x2 (24 % spread in C_m).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `synchrony`. **Notebook:** Jose & Collison 1970; Michaels 1987.

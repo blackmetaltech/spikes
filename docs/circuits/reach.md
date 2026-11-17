@@ -64,3 +64,14 @@ burst size depends non-linearly on the target gain (burst cells fire only above 
 Credits: Wachholder K, Altenburger H (1926) Pflugers Arch 214:642 (the triphasic pattern); Hallett M, Shahani BT, Young RR (1975) J Neurol Neurosurg
 Psychiatry 38:1154; Berardelli A et al. (1996) Brain 119:661 (burst size and duration scale with distance); Feldman AG (1986) J Mot Behav 18:17
 (equilibrium-point control); Gottlieb GL, Corcos DM, Agarwal GC (1989) Behav Brain Sci 12:189 (speed-insensitive and speed-sensitive strategies).
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** timed_bursts (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Limits (reach time, overshoot, final error, creep) x1.4 guided (980 ms ...) / 1 / x0.95. Guided is the novice-passable setting. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 28); quick_reach (<= 550 ms).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `reach_ms`. **Notebook:** Hallett 1975; Berardelli 1996.
+
+### v0.3: novice passability
+The engine now has `weight_sd` / `weight_cv` on `edges` projections and `ChannelKind::weight`; the brief recommends a weight spread (CV 0.3-0.5) on the links onto the pools and the guided limits are x1.4 wider. I could not reproduce the lab's empty-bench circuit exactly here, so the gain from the spread on a novice build is not measured; the reference (spread baked into `edges`) passes all modes.

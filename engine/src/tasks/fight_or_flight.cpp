@@ -85,17 +85,86 @@ public:
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "dashboard"; }
-  int par_neurons() const override { return 45; }
+  int par_neurons() const override { return variant_par( variant_, 45 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "divergent_command" }; }
+  std::vector< std::string > concepts_used() const override { return { "neuromodulation", "reciprocal_inhibition", "excitation" }; }
+  bool on_spine() const override { return true; }
+  /// Resting bands widen x1.15 (guided) or narrow x0.92 (researcher); the required rise and recovery tolerance move by x1.25 / x0.85 in the
+  /// same direction as the bar (guided easier). Threat strength x1.2 guided, x0.9 researcher.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 23 instead of 45" },
+             { "faint_threat", "a faint threat cue (125 Hz instead of 250 Hz): the command must be amplified" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    // the first failing condition, in the order of the verdict
+    int bad_sys = -1, bad_kind = 0;
+    for ( int k = 0; k < 4 && bad_sys < 0; ++k )
+    {
+      const double r = s.parts[ std::string( kName[ k ] ) + "_rest" ], t = s.parts[ std::string( kName[ k ] ) + "_threat" ],
+                   c = s.parts[ std::string( kName[ k ] ) + "_recovery" ];
+      if ( r < blo( k ) || r > bhi( k ) ) { bad_sys = k; bad_kind = 1; }
+      else if ( k == VENT ? ( r > 0.1 && t / r < need_rise( k ) ) : ( t - r < need_rise( k ) ) ) { bad_sys = k; bad_kind = 2; }
+      else if ( k == VENT ? ( r > 0.1 && c > 0.1 && std::max( c / r, r / c ) > tolr( k ) ) : ( std::fabs( c - r ) > tolr( k ) ) ) { bad_sys = k; bad_kind = 3; }
+    }
+    static const char* ch[ 4 ] = { "sa_beat", "sym_vascular", "dilator", "vent" };
+    const std::string target = bad_sys >= 0 ? ch[ bad_sys ] : "threat";
+    if ( s.parts[ "sa_spikes" ] < 1 || bad_kind == 2 )
+    {
+      h.push_back( make_hint( 1, "Divergent command: one cue (the threat) must fan out to every effector, each through its own relay.", "" ) );
+      h.push_back( make_hint( 2, bad_sys >= 0 ? std::string( "The threat did not raise the " ) + kLabel[ bad_sys ] + " enough." : "The threat does not reach the effectors.", target ) );
+      h.push_back( make_hint( 3, "threat > HYP > RVLM > SG > sympathetic (NE); RVLM > SV > sym_vascular; RVLM > SCG > dilator; HYP > VRG > vent.", "" ) );
+    }
+    else if ( bad_kind == 3 )
+    {
+      h.push_back( make_hint( 1, "After the threat the parasympathetic side must take over again, or everything stays high.", "" ) );
+      h.push_back( make_hint( 2, bad_sys >= 0 ? std::string( "The " ) + kLabel[ bad_sys ] + " does not return to rest." : "Something does not return to rest.", target ) );
+      h.push_back( make_hint( 3, "HYP inhibits NA and EW at -150 only while the threat lasts; their bias 380 restores the rest tone.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Each system needs a resting tone inside its band: cells with a standing current fire on their own.", "" ) );
+      h.push_back( make_hint( 2, bad_sys >= 0 ? std::string( "Resting " ) + kLabel[ bad_sys ] + " is outside its band." : "A resting value is outside its band.", target ) );
+      h.push_back( make_hint( 3, "Bias 380 pA on the tonic groups (375 is the rheobase: silent).", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override
+  {
+    Score s = score();
+    double worst = 0;  // largest recovery error relative to its tolerance
+    for ( int k = 0; k < 4; ++k )
+    {
+      const double r = s.parts[ std::string( kName[ k ] ) + "_rest" ], c = s.parts[ std::string( kName[ k ] ) + "_recovery" ];
+      const double back = k == VENT ? ( r > 0.1 && c > 0.1 ? std::max( c / r, r / c ) - 1.0 : 9.0 ) : std::fabs( c - r );
+      worst = std::max( worst, back / ( k == VENT ? kTol[ k ] - 1.0 : kTol[ k ] ) );
+    }
+    return { { "recovery_error", make_metric( worst, "x tol", true ) } };
+  }
+  Note notebook() const override
+  {
+    return { "One command, many organs",
+             "A threat engages the hypothalamus and the brainstem premotor cells, which fan out to sympathetic ganglia (heart, "
+             "vessels, pupil) and respiratory neurons while switching off the cardiac vagus and the Edinger-Westphal nucleus. "
+             "Walter Cannon called the result the emergency function of the sympathetic system.",
+             "Cannon WB (1915) Bodily Changes in Pain, Hunger, Fear and Rage; Dampney RAL (1994) Physiol Rev 74:323" };
+  }
   std::vector< Event > timeline() const override
   {
     return { { kThreatOn, kThreatOff - kThreatOn, "threat cue" }, { kThreatOff, kDuration - kThreatOff, "safe again" } };
   }
   std::vector< Band > bands() const override
   {
-    return { { "hr_bpm", "bpm", kBandLo[ HR ], kBandHi[ HR ] },
-             { "map_mmhg", "mmHg", kBandLo[ MAP ], kBandHi[ MAP ] },
-             { "pupil_mm", "mm", kBandLo[ PUPIL ], kBandHi[ PUPIL ] },
-             { "ventilation", "L/min", kBandLo[ VENT ], kBandHi[ VENT ] } };
+    return { { "hr_bpm", "bpm", blo( HR ), bhi( HR ) },
+             { "map_mmhg", "mmHg", blo( MAP ), bhi( MAP ) },
+             { "pupil_mm", "mm", blo( PUPIL ), bhi( PUPIL ) },
+             { "ventilation", "L/min", blo( VENT ), bhi( VENT ) } };
   }
   std::vector< std::string > modulators() const override { return { "NE", "ACh" }; }
   // 'sympathetic' and 'vagal' must be MODULATOR outputs (NE / ACh release pools); everything else is a rate pool. Gains/taus are those of the
@@ -156,7 +225,7 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
-    double thr = kThreatHz * clampd( ( t_ - kThreatOn ) / kRamp, 0, 1 ) * ( t_ < kThreatOff ? 1.0 : 0.0 );
+    double thr = kThreatHz * threat_scale() * clampd( ( t_ - kThreatOn ) / kRamp, 0, 1 ) * ( t_ < kThreatOff ? 1.0 : 0.0 );
     e.set_input( "threat", thr );
     e.step( dt );
     static const char* kCh[ 7 ] = { "sa_beat", "sympathetic", "vagal", "sym_vascular", "dilator", "sphincter", "vent" };
@@ -253,14 +322,14 @@ public:
       bool ratio = ( k == VENT );
       double rise = ratio ? ( rest[ k ] > 0.1 ? thr[ k ] / rest[ k ] : 0.0 ) : thr[ k ] - rest[ k ];
       double back = ratio ? ( rest[ k ] > 0.1 && rec[ k ] > 0.1 ? std::max( rec[ k ] / rest[ k ], rest[ k ] / rec[ k ] ) : 99.0 ) : std::fabs( rec[ k ] - rest[ k ] );
-      bool c1 = rest[ k ] >= kBandLo[ k ] && rest[ k ] <= kBandHi[ k ];
-      bool c2 = ratio ? rise >= kRise[ k ] : rise >= kRise[ k ];
-      bool c3 = back <= kTol[ k ];
+      bool c1 = rest[ k ] >= blo( k ) && rest[ k ] <= bhi( k );
+      bool c2 = ratio ? rise >= need_rise( k ) : rise >= need_rise( k );
+      bool c3 = back <= tolr( k );
       ok_[ k ] = ( c1 ? 1 : 0 ) + ( c2 ? 2 : 0 ) + ( c3 ? 4 : 0 );
       ok_all += c1 + c2 + c3;
-      double s1 = soft_band( rest[ k ], kBandLo[ k ], kBandHi[ k ], 0.5 * ( kBandHi[ k ] - kBandLo[ k ] ) );
-      double s2 = ratio ? clampd( ( rise - 1.0 ) / ( kRise[ k ] - 1.0 ), 0, 1 ) : clampd( rise / kRise[ k ], 0, 1 );
-      double s3 = ratio ? clampd( 1.0 - ( back - 1.0 ) / ( 2.0 * ( kTol[ k ] - 1.0 ) ), 0, 1 ) : clampd( 1.0 - ( back - 0.0 ) / ( 2.0 * kTol[ k ] ), 0, 1 );
+      double s1 = soft_band( rest[ k ], blo( k ), bhi( k ), 0.5 * ( bhi( k ) - blo( k ) ) );
+      double s2 = ratio ? clampd( ( rise - 1.0 ) / ( need_rise( k ) - 1.0 ), 0, 1 ) : clampd( rise / need_rise( k ), 0, 1 );
+      double s3 = ratio ? clampd( 1.0 - ( back - 1.0 ) / ( 2.0 * ( tolr( k ) - 1.0 ) ), 0, 1 ) : clampd( 1.0 - ( back - 0.0 ) / ( 2.0 * tolr( k ) ), 0, 1 );
       total += 0.2 * s1 + 0.6 * s2 + 0.2 * s3;
       std::string n = kName[ k ];
       s.parts[ n + "_rest" ] = rest[ k ];
@@ -289,11 +358,11 @@ public:
       std::string bad;
       for ( int k = 0; k < 4 && bad.empty(); ++k )
         if ( ( ok_[ k ] & 1 ) == 0 )
-          bad = std::string( "Resting " ) + kLabel[ k ] + " is " + num( rest[ k ] ) + ", outside its band " + num( kBandLo[ k ] ) + "-" + num( kBandHi[ k ] ) + ".";
+          bad = std::string( "Resting " ) + kLabel[ k ] + " is " + num( rest[ k ] ) + ", outside its band " + num( blo( k ) ) + "-" + num( bhi( k ) ) + ".";
       for ( int k = 0; k < 4 && bad.empty(); ++k )
         if ( ( ok_[ k ] & 2 ) == 0 )
           bad = std::string( "The threat did not raise the " ) + kLabel[ k ] + " enough (" + num( rest[ k ] ) + " -> " + num( thr[ k ] ) + "; needs " +
-                ( k == VENT ? "x" + num( kRise[ k ] ) : "+" + num( kRise[ k ] ) ) + ").";
+                ( k == VENT ? "x" + num( need_rise( k ) ) : "+" + num( need_rise( k ) ) ) + ").";
       for ( int k = 0; k < 4 && bad.empty() && done; ++k )
         if ( ( ok_[ k ] & 4 ) == 0 )
           bad = std::string( "The " ) + kLabel[ k ] + " did not recover after the threat (rest " + num( rest[ k ] ) + ", end " + num( rec[ k ] ) + ").";
@@ -312,6 +381,12 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  double threat_scale() const { return mode_factor( mode_, 1.2, 0.9 ) * ( variant_ == "faint_threat" ? 0.5 : 1.0 ); }
+  double bf() const { return mode_factor( mode_, 1.15, 0.92 ); }
+  double blo( int k ) const { return kBandLo[ k ] / bf(); }
+  double bhi( int k ) const { return kBandHi[ k ] * bf(); }
+  double need_rise( int k ) const { return k == VENT ? 1.0 + ( kRise[ k ] - 1.0 ) / mode_factor( mode_ ) : kRise[ k ] / mode_factor( mode_ ); }
+  double tolr( int k ) const { return k == VENT ? 1.0 + ( kTol[ k ] - 1.0 ) * mode_factor( mode_ ) : kTol[ k ] * mode_factor( mode_ ); }
   struct Breath { double t, vt; };
   static std::string num( double v )
   {

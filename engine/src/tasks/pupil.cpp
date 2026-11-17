@@ -76,7 +76,53 @@ public:
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "eye"; }
-  int par_neurons() const override { return 30; }
+  int par_neurons() const override { return variant_par( variant_, 30 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "reciprocal_inhibition" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bars (constriction and redilation amplitude / bright and dark diameters / latency window / fright dilation):
+  /// guided 2.0 mm, 5.0 / 5.5 mm, 120-400 ms, 0.64 mm; standard 2.5, 4.5 / 6.0, 150-350, 0.8; researcher 2.94, 4.2 / 6.3, 160-330, 0.94.
+  /// Fright cue x1.2 guided, x0.9 researcher.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 15 instead of 30" },
+             { "weak_retina", "three retinal fibres instead of four: a weaker light signal" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "sphincter_spikes" ] < 1 || s.parts[ "constriction_mm" ] < amp_min() )
+    {
+      h.push_back( make_hint( 1, "The light reflex is excitation along a chain: retina, pretectum, Edinger-Westphal, ciliary ganglion, sphincter. Light must also switch the dilator off.", "" ) );
+      h.push_back( make_hint( 2, "The sphincter pool is not squeezing the pupil enough.", "sphincter" ) );
+      h.push_back( make_hint( 3, "retina > RGC (bias 100) > PON (bias 225) > EW (bias 340) > CG (bias 340) > sphincter, all links at the default weight; PON inhibits IML.", "" ) );
+    }
+    else if ( s.parts[ "fright_dilation_mm" ] < fright_min() )
+    {
+      h.push_back( make_hint( 1, "Fright dilates the pupil by the sympathetic arm and by inhibiting the parasympathetic Edinger-Westphal cells.", "" ) );
+      h.push_back( make_hint( 2, "The threat input does not reach the sympathetic arm.", "threat" ) );
+      h.push_back( make_hint( 3, "threat > HYP > IML (bias 410) > SCG (bias 340) > dilator, and HYP inhibits EW.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "A reflex arc has a latency made of synaptic and conduction delays; a human pupil answers in 200-250 ms.", "" ) );
+      h.push_back( make_hint( 2, "The constriction latency is outside the window: look at the delays along the parasympathetic chain.", "sphincter" ) );
+      h.push_back( make_hint( 3, "Delay 15 ms on the links of the reflex arm gives about 170-195 ms; the default 2 ms gives under 150 ms.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "constriction_latency_ms", make_metric( score().parts[ "constriction_latency_ms" ], "ms", true ) } }; }
+  Note notebook() const override
+  {
+    return { "Two muscles, one pupil",
+             "Light shuts the pupil through the pretectum, the Edinger-Westphal nucleus and the ciliary ganglion to the iris sphincter. "
+             "Darkness and fright open it through the sympathetic chain to the radial dilator. The human light reflex takes 200-250 ms.",
+             "McDougal DH, Gamlin PD (2015) Compr Physiol 5:439; Loewenfeld IE (1993) The Pupil" };
+  }
   std::vector< Event > timeline() const override
   {
     return { { kBrightOn, kBrightOff - kBrightOn, "light flash (200 cd/m2)" },
@@ -104,8 +150,8 @@ public:
     wiring_.probe( e, sensor_channels(), motor_channels() );
     lum_ = luminance( t_ );
     bool threat = t_ >= kThreatOn && t_ < kThreatOff;
-    e.set_input( "retina", kFibres * eye_.retinal_hz );
-    e.set_input( "threat", threat ? kThreatHz : 0.0 );
+    e.set_input( "retina", fibres() * eye_.retinal_hz );
+    e.set_input( "threat", threat ? kThreatHz * mode_factor( mode_, 1.2, 0.9 ) : 0.0 );
     e.step( dt );
     double hs = motor_.hz_per_neuron( e, "sphincter" ), hd = motor_.hz_per_neuron( e, "dilator" );
     spikes_s_ += motor_.spike_count( e, "sphincter", dt );
@@ -167,7 +213,7 @@ public:
     double fr_s = clampd( fright / 0.8, 0, 1 );
     s.value = 100.0 * ( c_amp + r_amp + c_lat + r_lat + fr_s ) / 5.0;
     bool done = t_ >= kDuration;
-    s.passed = done && con >= 2.5 && bright <= 4.5 && red >= 2.5 && dim2 >= 6.0 && lat_c >= 150 && lat_c <= 350 && fright >= 0.8;
+    s.passed = done && con >= amp_min() && bright <= bright_max() && red >= amp_min() && dim2 >= dark_min() && lat_c >= lat_lo() && lat_c <= lat_hi() && fright >= fright_min();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
@@ -179,20 +225,20 @@ public:
       o << "Pupil " << eye_.diameter_mm << " mm; the light tests are still running.";
     else if ( spikes_d_ < 1 )
       o << "The dilator never fires: no sympathetic drive, so the pupil cannot open in the dark or when frightened.";
-    else if ( con < 2.5 )
-      o << "The pupil only constricted " << con << " mm in bright light (need 2.5): " << ( spikes_s_ < 1 ? "the sphincter never fires." : "the parasympathetic arm is too weak or the dilator is not switched off." );
-    else if ( bright > 4.5 )
-      o << "Bright-light pupil is " << bright << " mm (needs 4.5 or less).";
+    else if ( con < amp_min() )
+      o << "The pupil only constricted " << con << " mm in bright light (need " << amp_min() << "): " << ( spikes_s_ < 1 ? "the sphincter never fires." : "the parasympathetic arm is too weak or the dilator is not switched off." );
+    else if ( bright > bright_max() )
+      o << "Bright-light pupil is " << bright << " mm (needs " << bright_max() << " or less).";
     else if ( lat_c < 0 )
       o << "No clean constriction onset after the light step (the diameter never settled past 20 % of the way to its bright-light value).";
-    else if ( lat_c < 150 || lat_c > 350 )
-      o << "Constriction latency " << lat_c << " ms is outside 150-350 ms (human: 200-250 ms).";
-    else if ( red < 2.5 || dim2 < 6.0 )
+    else if ( lat_c < lat_lo() || lat_c > lat_hi() )
+      o << "Constriction latency " << lat_c << " ms is outside " << lat_lo() << "-" << lat_hi() << " ms (human: 200-250 ms).";
+    else if ( red < amp_min() || dim2 < dark_min() )
       o << "Back in the dark the pupil only reopened to " << dim2 << " mm: the sympathetic dilator is too weak.";
     else if ( t_ < kThreatOff )
       o << "Light reflex works (" << con << " mm in " << lat_c << " ms, reopens to " << dim2 << " mm); the fright cue is still to come.";
-    else if ( fright < 0.8 )
-      o << "The fright cue dilated the pupil only " << fright << " mm (need 0.8): the sympathetic arm from 'threat' is not wired or too weak.";
+    else if ( fright < fright_min() )
+      o << "The fright cue dilated the pupil only " << fright << " mm (need " << fright_min() << "): the sympathetic arm from 'threat' is not wired or too weak.";
     else
       o << "Constricts " << con << " mm in " << lat_c << " ms, reopens " << red << " mm, fright adds " << fright << " mm.";
     s.verdict = o.str();
@@ -202,6 +248,13 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  double amp_min() const { return mode_ == "guided" ? 2.0 : ( mode_ == "researcher" ? 2.94 : 2.5 ); }
+  double bright_max() const { return mode_ == "guided" ? 5.0 : ( mode_ == "researcher" ? 4.2 : 4.5 ); }
+  double dark_min() const { return mode_ == "guided" ? 5.5 : ( mode_ == "researcher" ? 6.3 : 6.0 ); }
+  double lat_lo() const { return mode_ == "guided" ? 120 : ( mode_ == "researcher" ? 160 : 150 ); }
+  double lat_hi() const { return mode_ == "guided" ? 400 : ( mode_ == "researcher" ? 330 : 350 ); }
+  double fright_min() const { return mode_ == "guided" ? 0.64 : ( mode_ == "researcher" ? 0.94 : 0.8 ); }
+  double fibres() const { return variant_ == "weak_retina" ? 3.0 : kFibres; }
   static double luminance( double t )
   {
     if ( t < kBrightOn ) return kDim;

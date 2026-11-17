@@ -72,7 +72,59 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "left_motor", "right_motor" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "drive", in_kind( "dc", 1, 600 ) } };
+  }
   double duration_ms() const override { return kDuration; }
+  int par_neurons() const override { return variant_par( variant_, 16 ); }  // L and R: 8 cells each, as in the recipe
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "adaptation", "half_centre" }; }
+  std::vector< std::string > concepts_used() const override { return { "inhibition", "excitation" }; }
+  bool on_spine() const override { return true; }
+  /// The world has no noise (deterministic), so the modes move the pass bars only: guided phase within 50 deg and speed >= 0.2 BL/s,
+  /// standard 40 deg and 0.25, researcher 34 deg and 0.29 (reference: 180 deg +- a few, 0.8+ BL/s, seeds 1-5).
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 8 instead of 16" },
+             { "fast_swim", "a sprint: swim at 0.5 BL/s or more" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    const double sl = s.parts[ "spikes_left" ], sr = s.parts[ "spikes_right" ];
+    const double swing = std::min( s.parts[ "swing_left_hz" ], s.parts[ "swing_right_hz" ] );
+    std::vector< Hint > h;
+    if ( sl < 1 || sr < 1 )
+    {
+      h.push_back( make_hint( 1, "A swimming rhythm needs both sides to fire in turn. One side is silent.", "" ) );
+      h.push_back( make_hint( 2, sl < 1 ? "left_motor never fired." : "right_motor never fired.", sl < 1 ? "left_motor" : "right_motor" ) );
+      h.push_back( make_hint( 3, "Give drive to a left and a right pool of about 8 adapting cells, each driving its own motor channel.", "" ) );
+    }
+    else if ( swing < 2.0 || std::fabs( s.parts[ "phase_deg" ] - 180.0 ) > 40.0 )
+    {
+      h.push_back( make_hint( 1, "Half-centre: two pools that inhibit each other take turns, because the winner tires (adaptation) and lets go.", "" ) );
+      h.push_back( make_hint( 2, "The sides are not alternating: add or strengthen the inhibitory crossing between them.", "left_motor" ) );
+      h.push_back( make_hint( 3, "Left pool inhibits right and right inhibits left at about -8 nS, with an adapting cell model (b 60, tau_w 100).", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "The rhythm is there; the body needs a stronger, faster command to swim.", "" ) );
+      h.push_back( make_hint( 2, "Raise the burst size of both motor pools.", "right_motor" ) );
+      h.push_back( make_hint( 3, "More drive to both pools lifts the rate difference that bends the body; stay below the weight where the rhythm stops.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "speed_bl_s", make_metric( score().parts[ "speed" ], "BL/s", false ) } }; }
+  Note notebook() const override
+  {
+    return { "Two half-centres",
+             "The lamprey spinal cord makes its swimming rhythm with a left and a right pool of excitatory neurons that "
+             "inhibit each other through crossing interneurons; adaptation ends each burst so the sides alternate.",
+             "Grillner S (2003) Nat Rev Neurosci 4:573" };
+  }
 
   void reset( uint64_t ) override
   {
@@ -151,7 +203,7 @@ public:
     double p_ok = a.valid ? std::max( 0.0, 1.0 - std::fabs( a.phase - 180.0 ) / 90.0 ) : 0.0;
     s.value = 100.0 * ( 0.25 * f_ok + 0.35 * p_ok + 0.40 * std::min( 1.0, a.speed / 0.8 ) );
     bool done = t_ >= kDuration;
-    s.passed = done && a.valid && f_ok > 0 && std::fabs( a.phase - 180.0 ) <= 40.0 && a.speed >= 0.25;
+    s.passed = done && a.valid && f_ok > 0 && std::fabs( a.phase - 180.0 ) <= phase_tol() && a.speed >= speed_min();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
@@ -176,9 +228,9 @@ public:
     }
     else if ( f_ok == 0 )
       o << "Rhythm at " << a.f << " Hz is outside the 1-10 Hz swimming range.";
-    else if ( std::fabs( a.phase - 180.0 ) > 40.0 )
+    else if ( std::fabs( a.phase - 180.0 ) > phase_tol() )
       o << "Left and right are " << static_cast< int >( a.phase ) << " degrees apart, not alternating (180).";
-    else if ( a.speed < 0.25 )
+    else if ( a.speed < speed_min() )
       o << "Alternating at " << a.f << " Hz but only " << a.speed << " BL/s: too slow.";
     else
       o << ( done ? "Swimming" : "Swimming so far" ) << " at " << a.f << " Hz, " << static_cast< int >( a.phase ) << " degrees L/R, "
@@ -226,6 +278,9 @@ private:
       sp_.push_back( U_ );
     }
   }
+
+  double phase_tol() const { return tol_max( mode_, 40.0, 1.25, 0.85 ); }
+  double speed_min() const { return variant_ == "fast_swim" ? 0.5 : tol_min( mode_, 0.25, 1.25, 0.85 ); }
 
   struct Analysis
   {

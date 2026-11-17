@@ -42,3 +42,11 @@ threat --250 pA--> HYP x4 --60 pA--> IML          HYP --(-40 pA)--> EW
 No hippus, no consensual reflex (one eye), no near response, no steady luminance adaptation of the retina beyond the Naka-Rushton curve, and the sympathetic chain is lumped into one cell type (IML, SCG).
 
 Credits: Gamlin PDR (2006) Prog Brain Res 151:379; McDougal DH, Gamlin PD (2015) Compr Physiol 5:439 (pathways, latency); Ellis CJ (1981) Br J Ophthalmol 65:754 and Loewenfeld IE (1993) *The Pupil* (time courses); Steinhauer SR, Hakerem G (1992) Ann N Y Acad Sci 658:182; Watson AB, Yellott JI (2012) J Vis 12(10):12 (diameter range); Naka KI, Rushton WAH (1966) J Physiol 185:536.
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** none new; excitation, inhibition, reciprocal_inhibition used. Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Amplitudes 2.0 / 2.5 / 2.94 mm, latency window 120-400 / 150-350 / 160-330 ms, fright 0.64 / 0.8 / 0.94 mm; fright cue x1.2 / 1 / x0.9. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 15); weak_retina (3 fibres).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `constriction_latency_ms`. **Notebook:** McDougal & Gamlin 2015.

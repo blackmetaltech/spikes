@@ -87,9 +87,54 @@ public:
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "heart"; }
-  int par_neurons() const override { return 7; }
+  int par_neurons() const override { return variant_par( variant_, 7 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "coupling", "pacemaking" }; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "threshold" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bars: guided 55-85 beats/min and CV < 7 %, standard 60-80 and < 5 %, researcher 62-78 and < 4 %. The seeded spread of the cells'
+  /// sizes (12 %) is the noise: x0.6 guided, x1.25 researcher, x2 in the noise_x2 variant.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 4 instead of 7" },
+             { "noise_x2", "cells differ twice as much in size (24 % spread in C_m): coupling must work harder" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "spikes" ] < 1 )
+    {
+      h.push_back( make_hint( 1, "Pacemaking: some cells fire on their own, without any input. A leaky integrate-and-fire cell stays silent.", "" ) );
+      h.push_back( make_hint( 2, "sa_beat reads cells that never fire.", "sa_beat" ) );
+      h.push_back( make_hint( 3, "Use sa_node_pacemaker cells from the parts bin.", "" ) );
+    }
+    else if ( s.parts[ "cells" ] >= 2 && s.parts[ "synchrony" ] < 0.6 )
+    {
+      h.push_back( make_hint( 1, "Coupling: cells with slightly different rates drift apart unless they excite each other and pull one another into step.", "" ) );
+      h.push_back( make_hint( 2, "The cells fire out of step; connect the cluster to itself.", "sa_beat" ) );
+      h.push_back( make_hint( 3, "One group of 4 sa_node_pacemaker cells projecting onto itself with the default 0.2 nS weight.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Intrinsic pacemaking sets the rate; vagal tone (ACh) slows it. The rate or its regularity is outside the band.", "" ) );
+      h.push_back( make_hint( 2, "Look at the cells' own rate and the strength of the coupling.", "sa_beat" ) );
+      h.push_back( make_hint( 3, "The resting vagal tone sets the rate of default sa_node_pacemaker cells; check you have not changed their parameters. Coupling only adds regularity.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "synchrony", make_metric( score().parts[ "synchrony" ], "chi", false ) } }; }
+  Note notebook() const override
+  {
+    return { "The node paces itself",
+             "Cells of the sinoatrial node depolarise by themselves through the funny current I_f and calcium currents. Their "
+             "intrinsic rate is about 100 beats per minute; vagal tone slows it, and gap-junction coupling locks the cells to one rhythm.",
+             "Jose AD, Collison D (1970) Cardiovasc Res 4:160; Michaels DC, Matyas EP, Jalife J (1987) Circ Res 61:704" };
+  }
   std::vector< Event > timeline() const override { return { { 0, kSkip, "settling" }, { kSkip, kDuration - kSkip, "scored window" } }; }
-  std::vector< Band > bands() const override { return { { "hr_bpm", "bpm", 60, 80 } }; }
+  std::vector< Band > bands() const override { return { { "hr_bpm", "bpm", rate_lo(), rate_hi() } }; }
   std::vector< std::string > modulators() const override { return {}; }
 
   void reset( uint64_t seed ) override
@@ -121,7 +166,7 @@ public:
       for ( const auto& o : e.outputs() )
         if ( o.name == "sa_beat" )
           for ( size_t k = 0; k < o.neurons.size(); ++k )
-            e.set_neuron_param( o.neurons[ k ], "C_m", kCmNominal * ( 1.0 + kCmSpread * ( 2.0 * unit_hash( seed_, k ) - 1.0 ) ) );
+            e.set_neuron_param( o.neurons[ k ], "C_m", kCmNominal * ( 1.0 + kCmSpread * mode_noise( mode_, variant_, 0.6, 1.25 ) * ( 2.0 * unit_hash( seed_, k ) - 1.0 ) ) );
     }
     e.step( dt );
     double cnt = motor_.spike_count( e, "sa_beat", dt );
@@ -203,7 +248,7 @@ public:
     }
     s.value = 100.0 * ( 0.5 * rate_term + 0.5 * cv_term ) * ( 0.75 + 0.25 * sync_term );
     bool done = t_ >= kDuration;
-    bool rate_ok = enough && a.hr >= 60 && a.hr <= 80, cv_ok = enough && a.cv < 0.05;
+    bool rate_ok = enough && a.hr >= rate_lo() && a.hr <= rate_hi(), cv_ok = enough && a.cv < cv_max();
     s.passed = done && rate_ok && cv_ok;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
@@ -215,14 +260,14 @@ public:
     else if ( !enough )
       o << "Too few beats (" << static_cast< int >( a.n ) << " in the scored window, 12 needed): the node is pausing or has stopped"
         << yet;
-    else if ( a.hr < 60 )
-      o << "Bradycardia: " << a.hr << " beats/min, below the 60-80 target.";
-    else if ( a.hr > 80 )
-      o << "Tachycardia: " << a.hr << " beats/min, above the 60-80 target"
+    else if ( a.hr < rate_lo() )
+      o << "Bradycardia: " << a.hr << " beats/min, below the " << rate_lo() << "-" << rate_hi() << " target.";
+    else if ( a.hr > rate_hi() )
+      o << "Tachycardia: " << a.hr << " beats/min, above the " << rate_lo() << "-" << rate_hi() << " target"
         << ( pool_ >= 2 && a.chi < 0.6 ? " (the cells are not locked together, so extra beats get through)." : "." );
     else if ( !cv_ok )
       o << "Rate is fine (" << a.hr << "/min) but the rhythm is irregular: beat-to-beat variation " << 100 * a.cv
-        << " % (needs under 5 %)" << ( pool_ >= 2 && a.chi < 0.6 ? "; the cells fire out of step." : "." );
+        << " % (needs under " << 100 * cv_max() << " %)" << ( pool_ >= 2 && a.chi < 0.6 ? "; the cells fire out of step." : "." );
     else
       o << ( done ? "Sinus rhythm" : "Sinus rhythm so far" ) << ": " << a.hr << " beats/min, variation " << 100 * a.cv << " %, "
         << ( pool_ >= 2 ? "cluster synchrony " : "single cell, no cluster bonus; synchrony " ) << a.chi << ".";
@@ -233,6 +278,9 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -1, -1, 1, 1 }; }
 
 private:
+  double rate_lo() const { return mode_ == "guided" ? 55 : ( mode_ == "researcher" ? 62 : 60 ); }
+  double rate_hi() const { return mode_ == "guided" ? 85 : ( mode_ == "researcher" ? 78 : 80 ); }
+  double cv_max() const { return mode_ == "guided" ? 0.07 : ( mode_ == "researcher" ? 0.04 : 0.05 ); }
   struct Stats
   {
     double hr = 0, cv = 0, n = 0, sdnn = 0, rmssd = 0, chi = 0;

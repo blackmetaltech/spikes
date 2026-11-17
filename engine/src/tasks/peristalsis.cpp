@@ -91,7 +91,56 @@ public:
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "gut"; }
-  int par_neurons() const override { return 49; }
+  int par_neurons() const override { return variant_par( variant_, 49 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "travelling_wave" }; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "timed_bursts" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bar: the bolus must arrive within 32 s (guided), 25 s (standard) or 18 s (researcher); the fast_transit variant asks for 15 s.
+  /// The distension afferents are Poisson trains (500 Hz at full distension): their sampling noise is not scaled.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 25 instead of 49" },
+             { "fast_transit", "the bolus must arrive within 15 s" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "ach_spikes" ] < 1 || s.parts[ "net_distance" ] < -0.5 )
+    {
+      h.push_back( make_hint( 1, "Travelling wave: each segment's stretch must excite the muscle just behind the bolus, so the squeeze moves the food on.", "" ) );
+      h.push_back( make_hint( 2, "The excitatory motor pools are silent or push the wrong way.", "ach0" ) );
+      h.push_back( make_hint( 3, "S > AIN (bias 340) segment wiring > EMN (bias 380) with a shift of -1 (oral side) > ach0..7.", "" ) );
+    }
+    else if ( s.parts[ "no_spikes" ] < 1 )
+    {
+      h.push_back( make_hint( 1, "Polarity: squeeze behind, open ahead. The segments ahead of the bolus must relax, or they resist it.", "" ) );
+      h.push_back( make_hint( 2, "The inhibitory motor pools never fire: nothing relaxes the segments ahead.", "no0" ) );
+      h.push_back( make_hint( 3, "S > DIN (bias 340) > IMN (bias 365) with a shift of +1 (aboral side) > no0..7. The bolus then arrives in about 11 s.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "The wave is there but slow. Timing between the ascending and descending chains sets the speed.", "" ) );
+      h.push_back( make_hint( 2, "Shorten the delay between the stretch and the contraction behind it.", "ach0" ) );
+      h.push_back( make_hint( 3, "Delay 3 ms on the S > AIN and S > DIN links; stronger AIN > EMN (36 pA) contracts earlier.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override
+  {
+    Score s = score();
+    return { { "arrival_s", make_metric( s.parts[ "arrival_s" ] >= 0 ? s.parts[ "arrival_s" ] : kDuration / 1000.0, "s", true ) } };
+  }
+  Note notebook() const override
+  {
+    return { "The law of the intestine",
+             "A bolus stretching the gut wall makes the muscle contract on the oral side and relax on the aboral side, so the "
+             "contents move on. The enteric nervous system does this with ascending excitatory and descending inhibitory interneuron chains.",
+             "Bayliss WM, Starling EH (1899) J Physiol 24:99; Furness JB (2012) Nat Rev Gastroenterol Hepatol 9:286" };
+  }
   std::vector< Event > timeline() const override { return { { 0, 2000, "bolus enters" } }; }
   std::vector< Band > bands() const override { return { { "bolus", "frac", 0.0, 1.0 } }; }
   std::vector< std::string > modulators() const override { return { "ACh" }; }
@@ -206,7 +255,7 @@ public:
     s.parts[ "slow_waves" ] = cycles;
     s.value = 100.0 * ( 0.8 * prog + 0.2 * bonus );
     bool done = t_ >= kDuration;
-    s.passed = arrived && arrival_ms_ <= kDeadline;
+    s.passed = arrived && arrival_ms_ <= deadline();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
@@ -215,7 +264,7 @@ public:
     else if ( s.passed )
       o << "The bolus reached the end in " << arrival_ms_ / 1000.0 << " s.";
     else if ( arrived )
-      o << "The bolus arrived, but after " << arrival_ms_ / 1000.0 << " s (limit 25 s)."
+      o << "The bolus arrived, but after " << arrival_ms_ / 1000.0 << " s (limit " << deadline() / 1000.0 << " s)."
         << ( !has_no_ ? " Add 'no0..7' inhibitory outputs (descending interneurons -> motoneurons ahead of the bolus): relaxing the segments ahead makes it much faster." : "" );
     else if ( spikes_ex_ < 1 )
       o << "The excitatory motoneurons (ach0..7) never fire" << yet << " Nothing squeezes behind the bolus.";
@@ -236,6 +285,7 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, kSeg, 1 }; }
 
 private:
+  double deadline() const { return variant_ == "fast_transit" ? 15000 : ( mode_ == "guided" ? 32000 : ( mode_ == "researcher" ? 18000 : kDeadline ) ); }
   double t_ = 0, arrival_ms_ = -1, spikes_ex_ = 0, spikes_inh_ = 0;
   bool probed_ = false, has_no_ = false, has_icc_ = false;
   body::Gut gut_;

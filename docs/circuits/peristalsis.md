@@ -40,3 +40,11 @@ ICCP (pacemaker, oral) --> ICC_0 --> ICC_1 --> ... --> ICC_7 (400 pA, 100 ms hop
 8 segments of a 1-D plug-flow tube, no segmentation motility, no fluid, no ICC-to-muscle dynamics (the plateau is a fixed half sine triggered by the ICC spike). One neuron per type per segment.
 
 Credits: Bayliss WM, Starling EH (1899) J Physiol 24:99; Costa M, Brookes SJH, Hennig GW (2000) Gut 47(Suppl 4):iv15; Furness JB (2012) Nat Rev Gastroenterol Hepatol 9:286; Sanders KM (1996) Gastroenterology 111:492; Huizinga JD, Lammers WJEP (2009) Am J Physiol Gastrointest Liver Physiol 296:G1; FitzHugh R (1961) Biophys J 1:445.
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** travelling_wave (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Arrival within 32 / 25 / 18 s (reference about 11 s). The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 25); fast_transit (15 s).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `arrival_s`. **Notebook:** Bayliss & Starling 1899; Furness 2012.

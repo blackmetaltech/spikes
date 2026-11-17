@@ -64,8 +64,63 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "ag_II", "ant_II", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor", "gamma_motor" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "ag_Ia", in_kind( "dc", 10, 3 ) }, { "ant_Ia", in_kind( "dc", 10, 3 ) }, { "ag_II", in_kind( "dc", 10, 3 ) }, { "ant_II", in_kind( "dc", 10, 3 ) }, { "drive", in_kind( "dc", 1, 300 ) } };
+  }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return 54; }
+  int par_neurons() const override { return variant_par( variant_, 54 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "negative_feedback" }; }
+  std::vector< std::string > concepts_used() const override { return { "recruitment", "reciprocal_inhibition", "excitation" }; }
+  bool on_spine() const override { return true; }
+  /// Perturbation x0.8 (guided) / x1.05 (researcher) on the 1.0-1.8 N m pushes; pass limits rms 0.17 / worst 0.30 / sag 0.17 rad x1.25
+  /// (guided) or x0.92 (researcher).
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 27 instead of 54" },
+             { "strong_pushes", "pushes 1.4 times as hard (1.4-2.5 N m)" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "osc_rad" ] > 0.08 )
+    {
+      h.push_back( make_hint( 1, "Negative feedback with conduction delays rings when its gain is too high.", "" ) );
+      h.push_back( make_hint( 2, "The limb oscillates after a push: lower the gain of the stretch-reflex loop.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Relay > pool at about 160 pA, inhibition onto the opposite pool at -320 pA at most.", "" ) );
+    }
+    else if ( s.parts[ "gamma" ] < 0.1 )
+    {
+      h.push_back( make_hint( 1, "The spindles are nearly silent when the gamma motoneurons are quiet: the feedback loop has nothing to listen to.", "" ) );
+      h.push_back( make_hint( 2, "The gamma pool is not firing.", "gamma_motor" ) );
+      h.push_back( make_hint( 3, "Tonic group (drive 300 pA, tau m 60 ms) > a gamma group of 4 cells at 960 pA.", "" ) );
+    }
+    else if ( s.parts[ "offset_rad" ] > tol_max( mode_, 0.17, 1.25, 0.92 ) )
+    {
+      h.push_back( make_hint( 1, "Gravity pulls the limb down all the time; the flexor needs a steady tone to balance it.", "" ) );
+      h.push_back( make_hint( 2, "The limb sits off target between pushes: the flexor pool needs more (or less) tonic drive.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Tonic group > flexor pool at about 160 pA, nothing onto the extensor.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Negative feedback: the error (length from the target) is sensed by the spindle and fed back to oppose it.", "" ) );
+      h.push_back( make_hint( 2, "The pushes move the limb too far: raise the gain from the spindle secondaries (II) and primaries (Ia) onto the pools.", "ag_II" ) );
+      h.push_back( make_hint( 3, "II and Ia relays > their pool at 160 pA; the II group (3 cells) gives the position signal.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "rms_err_rad", make_metric( score().parts[ "rms_err_rad" ], "rad", true ) } }; }
+  Note notebook() const override
+  {
+    return { "Servo-assisted posture",
+             "Muscle spindles and the stretch reflex form a length servo: the gamma motoneurons set how sensitive the spindles are, "
+             "and the reflex changes alpha drive to hold the limb against loads. Gamma-quiet spindles are nearly silent.",
+             "Merton PA (1953) Ciba Found Symp; Matthews PBC (1972) Mammalian Muscle Receptors and their Central Actions; Hulliger M (1984) Rev Physiol Biochem Pharmacol 101:1" };
+  }
 
   std::vector< Event > timeline() const override
   {
@@ -111,7 +166,7 @@ public:
                         0.15 * clampd( 1.0 - m.offset / 0.35, 0, 1 ) + 0.10 * ( m.osc_flag ? 0.0 : 1.0 ) );
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 20.0 );
-    s.passed = done && m.done >= kN && wiring_.ok() && m.rms <= 0.17 && m.mx <= 0.30 && m.offset <= 0.17 && !m.osc_flag;
+    s.passed = done && m.done >= kN && wiring_.ok() && m.rms <= tol_max( mode_, 0.17, 1.25, 0.92 ) && m.mx <= tol_max( mode_, 0.30, 1.25, 0.92 ) && m.offset <= tol_max( mode_, 0.17, 1.25, 0.92 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 2 );
     const char* yet = done ? "." : " yet.";
@@ -121,13 +176,13 @@ public:
       o << "Settling" << yet;
     else if ( m.osc_flag )
       o << "The limb rings after a push (" << m.osc << " rad p-p): the reflex gain is too high for its delays.";
-    else if ( m.offset > 0.17 )
+    else if ( m.offset > tol_max( mode_, 0.17, 1.25, 0.92 ) )
       o << "The limb " << ( m.signed_offset < 0 ? "sags " : "rides up " ) << std::fabs( m.signed_offset ) << " rad from the target between pushes: "
         << ( m.signed_offset < 0 ? "more flexor tone (or more reflex stiffness) is needed to balance gravity." : "less flexor tone, or more extensor tone, is needed." );
-    else if ( m.mx > 0.30 )
-      o << "Pushes move the limb up to " << m.mx << " rad from the target (limit 0.30): too compliant. Raise gamma drive or reflex gain.";
-    else if ( m.rms > 0.17 )
-      o << "RMS angle error " << m.rms << " rad (limit 0.17).";
+    else if ( m.mx > tol_max( mode_, 0.30, 1.25, 0.92 ) )
+      o << "Pushes move the limb up to " << m.mx << " rad from the target (limit " << tol_max( mode_, 0.30, 1.25, 0.92 ) << "): too compliant. Raise gamma drive or reflex gain.";
+    else if ( m.rms > tol_max( mode_, 0.17, 1.25, 0.92 ) )
+      o << "RMS angle error " << m.rms << " rad (limit " << tol_max( mode_, 0.17, 1.25, 0.92 ) << ").";
     else
       o << ( done ? "Holding" : "Holding so far" ) << ": rms error " << m.rms << " rad, worst " << m.mx << " rad, sag " << m.offset << " rad.";
     s.verdict = o.str();
@@ -139,7 +194,7 @@ protected:
   {
     double tq = 0;
     for ( int k = 0; k < kN; ++k )
-      tq += amp_[ k ] * push_profile( t, onset_[ k ], kHold, kRamp );
+      tq += amp_[ k ] * push_scale() * push_profile( t, onset_[ k ], kHold, kRamp );
     return tq;
   }
   void cues( Engine& e, double ) override { put_cue( e, "drive", 1.0 ); }
@@ -149,6 +204,7 @@ protected:
   void extra_readouts( std::map< std::string, double >& r ) const override { r[ "err_rad" ] = rig_.joint.theta - kTarget; }
 
 private:
+  double push_scale() const { return mode_factor( mode_, 0.8, 1.05 ) * ( variant_ == "strong_pushes" ? 1.4 : 1.0 ); }
   struct Metrics
   {
     double rms = 0, mx = 0, offset = 0, signed_offset = 0, osc = 0;

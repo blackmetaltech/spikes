@@ -79,7 +79,55 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "ASEL", "ASER" }; }
   std::vector< std::string > motor_channels() const override { return { "turn_left", "turn_right" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "ASEL", in_kind( "poisson", 5, 1000 ) }, { "ASER", in_kind( "poisson", 5, 1000 ) } };
+  }
   double duration_ms() const override { return kDuration; }
+  int par_neurons() const override { return variant_par( variant_, 28 ); }  // A 8 + B 8 + TL 8 + idle 4 of the recipe
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "inhibition", "subtraction" }; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "convergence" }; }
+  bool on_spine() const override { return true; }
+  /// guided: chatter x0.6, pass time 56 s; researcher: x1.25, pass time 40.5 s (reference 33-37 s, seeds 1-5).
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 14 instead of 28" },
+             { "noise_x2", "twice as much common salt chatter (up to 1200 Hz on both cells)" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    const bool silent = s.parts[ "spikes_turn_left" ] < 1 && s.parts[ "spikes_turn_right" ] < 1;
+    std::vector< Hint > h;
+    if ( silent )
+    {
+      h.push_back( make_hint( 1, "A sensor that only counts spikes cannot steer: the worm needs a motor pool that turns it.", "" ) );
+      h.push_back( make_hint( 2, "Neither turn channel ever fired: connect the sensors through a cell that drives it.", "turn_left" ) );
+      h.push_back( make_hint( 3, "ASER (concentration falling) onto a cell that drives turn_left; ASEL (rising) onto an inhibitory cell that silences it.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Both salt cells fire together in the stirring chatter. Only the difference carries the message: use inhibition to subtract ASEL from ASER.", "" ) );
+      h.push_back( make_hint( 2, "The turning command listens to one sensor only. Let the ON cell inhibit it.", "ASEL" ) );
+      h.push_back( make_hint( 3, "ASER > A > turn_left (excitatory), ASEL > B (inhibitory) > the same turn pool. Turn only when ASER exceeds ASEL.", "turn_left" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override
+  {
+    Score s = score();
+    return { { "mean_dist_mm", make_metric( s.parts[ "mean_dist_mm" ], "mm", true ) } };
+  }
+  Note notebook() const override
+  {
+    return { "ON minus OFF",
+             "C. elegans senses salt with two neurons, ASEL and ASER. ASEL is excited when salt rises and ASER when it falls; the "
+             "worm steers by comparing their activity, which cancels what they share.",
+             "Suzuki H et al. (2008) Neuron 57:1; Thiele TR, Faumont S, Lockery SR (2009) J Neurosci 29:11904" };
+  }
 
   void reset( uint64_t seed ) override
   {
@@ -191,23 +239,23 @@ public:
     s.parts[ "spikes_turn_left" ] = spikes_l_;
     s.parts[ "spikes_turn_right" ] = spikes_r_;
     s.value = 100.0 * ( 0.6 * ( reached ? 1.0 - t_reach_ / kDuration : 0.0 ) + 0.4 * clampd( 1.0 - mean_d / start_dist_, 0, 1 ) );
-    s.passed = reached && t_reach_ <= kPassTime;
+    s.passed = reached && t_reach_ <= pass_time();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( s.passed )
-      o << "Reached the salt peak after " << t_reach_ / 1000.0 << " s (limit 45 s); mean distance " << mean_d << " mm.";
+      o << "Reached the salt peak after " << t_reach_ / 1000.0 << " s (limit " << pass_time() / 1000.0 << " s); mean distance " << mean_d << " mm.";
     else if ( reached )
-      o << "Reached the peak after " << t_reach_ / 1000.0 << " s, but the bar is 45 s: steer faster. Turn on ASER minus ASEL "
+      o << "Reached the peak after " << t_reach_ / 1000.0 << " s, but the bar is " << pass_time() / 1000.0 << " s: steer faster. Turn on ASER minus ASEL "
            "so the chatter does not fool you.";
-    else if ( t_ < kPassTime )
+    else if ( t_ < pass_time() )
       o << "Still searching: " << s.parts[ "final_dist_mm" ] << " mm from the peak (closest " << min_dist_ << " mm).";
     else if ( spikes_l_ < 1 && spikes_r_ < 1 )
       o << "Neither turn_left nor turn_right ever fired, so the worm walks straight and leaves. Closest approach "
         << min_dist_ << " mm. Check ASEL/ASER reach a cell that drives a motor pool, and the weights are strong enough.";
     else
-      o << "Not at the peak within 45 s (closest approach " << min_dist_ << " mm, mean distance " << mean_d << " mm). Turn when "
+      o << "Not at the peak within " << pass_time() / 1000.0 << " s (closest approach " << min_dist_ << " mm, mean distance " << mean_d << " mm). Turn when "
            "ASER fires and ASEL does not; stay straight when ASEL fires.";
     s.verdict = o.str();
     return s;
@@ -221,6 +269,7 @@ public:
   }
 
 private:
+  double pass_time() const { return tol_max( mode_, kPassTime, 1.25, 0.9 ); }
   double ln_c_head() const
   {
     double hx = pos_[ 0 ] + kHeadOffset * std::cos( psi_ ), hy = pos_[ 1 ] + kHeadOffset * std::sin( psi_ );
@@ -249,7 +298,7 @@ private:
     prev_lnc_ = lnc;
     // common chatter: an Ornstein-Uhlenbeck process (unit variance), only its positive part, raises BOTH cells together
     turb_x_ += -turb_x_ * ( h / kTurbTau ) + std::sqrt( 2.0 * h / kTurbTau ) * turb_rng_.normal();
-    turb_ = kTurb * clampd( turb_x_, 0, 1.5 ) / 1.5;
+    turb_ = kTurb * mode_noise( mode_, variant_, 0.6, 1.25 ) * clampd( turb_x_, 0, 1.5 ) / 1.5;
     rate_l_ = kBase + turb_ + kGain * clampd( sens_.y / kSensSat, 0, 1 );
     rate_r_ = kBase + turb_ + kGain * clampd( -sens_.y / kSensSat, 0, 1 );
     // bookkeeping

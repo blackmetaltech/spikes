@@ -77,8 +77,71 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 280 ) } };
+  }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return 52; }
+  int par_neurons() const override { return variant_par( variant_, 52 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "recruitment", "reciprocal_inhibition" }; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "convergence" }; }
+  bool on_spine() const override { return true; }
+  /// Pass limits: guided latency <= 62 ms, resistance >= 0.24, antagonist suppression >= 0.16; standard 50 ms, 0.30, 0.20;
+  /// researcher 42.5 ms, 0.35, 0.24. The pushes are 2.5 N m in every mode (the loop has no noise of its own).
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 26 instead of 52" },
+             { "heavy_load", "pushes of 3.5 N m instead of 2.5 N m: the reflex must work harder" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    const double rec = s.parts[ "antagonist_suppression" ], res = s.parts[ "resistance" ], osc = s.parts[ "osc_rad" ];
+    std::vector< Hint > h;
+    if ( s.parts[ "latency_ms" ] <= 0 )
+    {
+      h.push_back( make_hint( 1, "A tendon tap sends one brief volley down the Ia fibres: one synapse onto the motoneurons has to be strong enough to fire several cells at once.", "" ) );
+      h.push_back( make_hint( 2, "The motoneuron pool did not answer the tap.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Ia > relay groups of 6 (tau m 60 ms), relay > motor pool of 20 at about 320 pA, tonic drive at 280 pA onto both pools.", "" ) );
+    }
+    else if ( osc > 0.08 )
+    {
+      h.push_back( make_hint( 1, "Negative feedback with a delay rings when its gain is too high.", "" ) );
+      h.push_back( make_hint( 2, "The reflex loop is oscillating: lower the Ia to motoneuron gain.", "ag_Ia" ) );
+      h.push_back( make_hint( 3, "Ia > motoneuron near 320 pA and no more; make the reciprocal inhibition no stronger than the excitation.", "" ) );
+    }
+    else if ( rec < tol_min( mode_, 0.20, 1.25, 0.85 ) )
+    {
+      h.push_back( make_hint( 1, "Reciprocal inhibition: when a muscle is stretched the opposing muscle must be told to relax, or they fight.", "" ) );
+      h.push_back( make_hint( 2, "The antagonist pool keeps firing: it needs an inhibitory interneuron from the opposite Ia.", "ant_motor" ) );
+      h.push_back( make_hint( 3, "Ia > inhibitory interneurons (4 cells, 240 pA), and those > the opposite pool at -320 pA.", "" ) );
+    }
+    else if ( res < tol_min( mode_, 0.30, 1.25, 0.85 ) )
+    {
+      h.push_back( make_hint( 1, "Recruitment: the more the pool is driven, the more motor units fire, so a bigger pool gives more force.", "" ) );
+      h.push_back( make_hint( 2, "The reflex is too weak to cut the deflection: strengthen the Ia link or enlarge the pool.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Use pools of 20 cells and an Ia > motoneuron link of 320 pA.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "The reflex should start within 50 ms of the tap, which is only a few synapses long.", "" ) );
+      h.push_back( make_hint( 2, "Check the path from the Ia input to the motor pool for extra relay steps or slow synapses.", "ag_Ia" ) );
+      h.push_back( make_hint( 3, "Ia > relay (tau m 60 ms) > motoneuron pool; no more than one relay.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "latency_ms", make_metric( score().parts[ "latency_ms" ], "ms", true ) } }; }
+  Note notebook() const override
+  {
+    return { "The knee-jerk is one synapse",
+             "The stretch reflex is monosynaptic: a spindle Ia afferent excites the alpha motoneurons of the same muscle directly, and "
+             "branches onto an interneuron that inhibits the antagonist, which is why the tap on the patellar tendon gives a twitch in "
+             "about 20-30 ms in the leg.",
+             "Lloyd DPC (1943) J Neurophysiol 6:111; Eccles JC, Eccles RM, Lundberg A (1957) J Physiol 137:22" };
+  }
 
   std::vector< Event > timeline() const override
   {
@@ -131,7 +194,7 @@ public:
       s.value = std::min( s.value, 49.0 );
     if ( !wiring_.ok() )
       s.value = 0;  // an empty bench scores nothing ("no ringing" is not an achievement when nothing is wired)
-    s.passed = done && m.done >= kN && wiring_.ok() && tapped && m.latency <= 50.0 && m.resistance >= 0.30 && m.recip >= 0.20 && !m.osc_flag;
+    s.passed = done && m.done >= kN && wiring_.ok() && tapped && m.latency <= tol_max( mode_, 50.0 ) && m.resistance >= tol_min( mode_, 0.30 ) && m.recip >= tol_min( mode_, 0.20 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -156,12 +219,12 @@ public:
       o << "Waiting for the first push" << yet;
     else if ( m.osc_flag )
       o << "Reflex rings: the limb oscillates (" << std::setprecision( 2 ) << m.osc << " rad p-p) after the push. Gain is too high (clonus).";
-    else if ( m.latency > 50.0 )
-      o << "Reflex starts " << m.latency << " ms after a tap: too slow for a spinal reflex (<= 50 ms).";
-    else if ( m.recip < 0.20 )
+    else if ( m.latency > tol_max( mode_, 50.0 ) )
+      o << "Reflex starts " << m.latency << " ms after a tap: too slow for a spinal reflex (<= " << tol_max( mode_, 50.0 ) << " ms).";
+    else if ( m.recip < tol_min( mode_, 0.20 ) )
       o << "Reflex at " << m.latency << " ms, but the opposing muscle keeps firing (suppressed only " << m.recip * 100
         << "%): co-contraction makes the limb stiff and the reflex weak. Add reciprocal Ia inhibition.";
-    else if ( m.resistance < 0.30 )
+    else if ( m.resistance < tol_min( mode_, 0.30 ) )
       o << "Reflex at " << m.latency << " ms but it cuts the deflection by only " << m.resistance * 100 << "%: too weak.";
     else
       o << ( done ? "Stretch reflex at " : "Stretch reflex so far at " ) << m.latency << " ms, deflection cut by " << m.resistance * 100
@@ -175,7 +238,7 @@ protected:
   {
     double tq = 0;
     for ( int k = 0; k < kN; ++k )
-      tq += ( k % 2 == 0 ? -kTorque : kTorque ) * push_profile( t, onset_[ k ], kHold, kRamp );
+      tq += ( k % 2 == 0 ? -1.0 : 1.0 ) * ( variant_ == "heavy_load" ? 3.5 : kTorque ) * push_profile( t, onset_[ k ], kHold, kRamp );
     return tq;
   }
   void cues( Engine& e, double t ) override

@@ -64,3 +64,11 @@ middle of the plateau, not made robust; a player with a better balance (more ref
 Credits: Matthews PBC (1972) *Mammalian Muscle Receptors*; Merton PA (1953) in *The Spinal Cord* (follow-up length servo); Nichols TR, Houk JC (1976)
 J Neurophysiol 39:119 (reflex compensation for variations in muscle force); Houk JC (1979) Annu Rev Physiol 41:99; Hulliger M (1984) Rev Physiol
 Biochem Pharmacol 101:1; Prochazka A, Gorassini M (1998) J Physiol 507:277; Heckman CJ, Gorassini MA, Bennett DJ (2005) Muscle Nerve 31:135.
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** negative_feedback (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Pushes x0.8 / x1 / x1.05; rms, worst error and sag limits x1.25 / 1 / x0.92. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 27); strong_pushes (x1.4).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `rms_err_rad`. **Notebook:** Merton 1953; Hulliger 1984.

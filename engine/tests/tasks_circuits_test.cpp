@@ -56,6 +56,8 @@ static RunResult run_one( const std::string& task_id, const json& circuit_in, ui
     return r;
   }
   auto task = make_task( task_id );
+  if ( const char* m = std::getenv( "TASK_MODE" ) ) task->set_mode( m );        // tuning aid: guided | standard | researcher
+  if ( const char* v = std::getenv( "TASK_VARIANT" ) ) task->set_variant( v );  // tuning aid: a challenge variant id
   task->reset( seed );
   std::map< std::string, long > counts;
   std::map< std::string, int > sizes;
@@ -133,6 +135,7 @@ int main( int argc, char** argv )
   {
     json c = load_circuit( circuits_dir() + reference_circuit( id ) );
     auto t = make_task( id );
+    if ( t->level_kind() == "diagnosis" ) continue;  // a patient's circuit is meant to fail its world; tasks_boss_dx_test checks those
     // channel contract: the circuit declares every channel the task uses
     std::map< std::string, bool > in_ch, out_ch;
     for ( auto& i : c[ "inputs" ] ) in_ch[ i[ "name" ] ] = true;
@@ -141,7 +144,7 @@ int main( int argc, char** argv )
     for ( auto& m : t->motor_channels() ) CHECK_MSG( out_ch.count( m ), id + " output " + m );
     int neurons = 0;
     for ( auto& p : c[ "populations" ] ) neurons += p[ "n" ].get< int >();
-    CHECK_MSG( neurons <= 60, id + " has " + std::to_string( neurons ) + " neurons" );
+    CHECK_MSG( neurons <= ( t->level_kind() == "boss" ? 120 : 60 ), id + " has " + std::to_string( neurons ) + " neurons" );
     std::printf( "%s (%d neurons)\n", id.c_str(), neurons );
     double sum = 0;
     for ( uint64_t seed : { 1, 2, 3 } )
