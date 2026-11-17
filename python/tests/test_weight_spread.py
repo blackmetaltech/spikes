@@ -44,8 +44,25 @@ def test_errors():
         s = spec(extra)
         with pytest.raises(CircuitError, match=msg):
             _prepare_projection(s, s["projections"][0], 0, 1)
-    s = spec({"weight_cv": 0.1})
-    s["projections"][0].pop("edges")
-    s["projections"][0]["rule"] = "all_to_all"
-    with pytest.raises(CircuitError, match="weight_cv"):
-        _prepare_projection(s, s["projections"][0], 0, 1)
+
+
+def rule_spec(extra, model="static_synapse"):
+    pr = {"pre": "A", "post": "A", "rule": "all_to_all", "synapse": {"synapse_model": model, "weight": 10.0}}
+    pr.update(extra)
+    return {"populations": [{"id": "A", "model": "iaf_psc_alpha", "n": 3}], "projections": [pr]}
+
+
+def test_rule_projection_accepted():
+    s = rule_spec({"weight_cv": 0.2})
+    p = _prepare_projection(s, s["projections"][0], 0, 1)
+    assert p["spread"] == (2, 0.2) and "weight_cv" not in p["rule"]
+    s = rule_spec({"weight_sd": 1.5})
+    assert _prepare_projection(s, s["projections"][0], 0, 1)["spread"] == (1, 1.5)
+
+
+def test_rule_projection_errors():
+    for extra, model, msg in [({"weight_sd": 1, "weight_cv": 0.1}, "static_synapse", "not both"), ({"weight_cv": -1}, "static_synapse", "weight_cv"),
+                              ({"weight_cv": 0.1}, "stdp_synapse", "not supported")]:
+        s = rule_spec(extra, model)
+        with pytest.raises(CircuitError, match=msg):
+            _prepare_projection(s, s["projections"][0], 0, 1)

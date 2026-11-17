@@ -36,11 +36,19 @@ std::string motif4_json_edges( const std::vector< double >& triples, int n, int 
 
 // ---- v0.3 instant check (add-only): headless task scoring in a worker thread, one spike-run process per job
 // (the engine is one per process, so a job never shares NEST state with the game's own SpikeSim).
-/// Path of the spike-run executable; empty = $SPIKE_RUN, then ./spike-run, ./bin/spike-run, ../spike-run, build/bin/spike-run, build/engine/spike-run, then PATH.
+/// Path of the spike-run executable. Resolution order when empty: $SPIKE_RUN, next to this library (the GDExtension), next to the executable
+/// (and their bin/), directories added with headless_add_search_dir (the project's res://bin), a development tree (./spike-run, build/bin/..., ../build/...), PATH.
 void headless_set_runner( const std::string& path );
-/// Start a job; returns its id (> 0), or 0 with `err` set. mode/variant may be empty; seeds empty = {1}.
+void headless_add_search_dir( const std::string& dir );
+/// The runner that would be used now, or "" if none is found.
+std::string headless_runner_path();
+/// Start a job; returns its id (> 0), or 0 with `err` set (also when no spike-run is found). mode/variant may be empty; seeds empty = {1}.
+/// circuit_seeds: empty = the task seed reseeds the circuit (1000 * seed + circuit seed); one value = pin the circuit seed for every task seed;
+/// one per seed = pin each (pass the live run's circuit seed so CHECK scores the same circuit). The circuit goes through a private mkstemp file (0600), deleted when the job ends.
 long headless_start( const std::string& task_id, const std::string& circuit_json, const std::vector< long long >& seeds, const std::string& mode,
-  const std::string& variant, std::string& err );
+  const std::string& variant, std::string& err, const std::vector< long long >& circuit_seeds = {} );
+/// Kill the job's spike-run process group, delete its temp files and forget the job. True if it was still running.
+bool headless_cancel( long job );
 /// JSON: {"done":bool,"ok":bool,"error":"","ms":n,"result":{spike-run --task output}} (result only when ok). Unknown id -> done, not ok.
 /// A finished job is forgotten after its result has been polled once.
 std::string headless_poll( long job );

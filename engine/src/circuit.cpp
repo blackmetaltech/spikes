@@ -23,6 +23,18 @@ static double spread_normal( unsigned long long seed, size_t proj, size_t edge )
   return std::sqrt( -2.0 * std::log( u1 ) ) * std::cos( 2.0 * 3.14159265358979323846 * u2 );
 }
 
+double spread_weight( double w, int kind, double amount, unsigned long long seed, size_t proj, size_t edge )
+{
+  const double z = spread_normal( seed, proj, edge );
+  double w2 = kind == 1 ? w + amount * z : w * ( 1.0 + amount * z );
+  const double floor_mag = 1e-3 * std::fabs( w );  // keep the sign (and never exactly 0)
+  if ( w > 0 )
+    w2 = std::max( w2, floor_mag );
+  else if ( w < 0 )
+    w2 = std::min( w2, -floor_mag );
+  return w2;
+}
+
 using nlohmann::json;
 
 namespace
@@ -432,10 +444,24 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           if ( not p[ "rule" ].is_string() )
             fail( sub( path, "rule" ), "must be a string (NEST connection rule name)" );
           for ( auto e = p.begin(); e != p.end(); ++e )
-            if ( e.key() == "weight_sd" or e.key() == "weight_cv" )
-              fail( sub( path, e.key().c_str() ), "weight spread needs an 'edges' projection (a rule projection draws its own targets; give synapse.weight a distribution instead)" );
-            else if ( e.key() != "pre" and e.key() != "post" and e.key() != "synapse" and e.key() != "dopamine_source" )
+            if ( e.key() != "pre" and e.key() != "post" and e.key() != "synapse" and e.key() != "dopamine_source" and e.key() != "weight_sd" and
+                 e.key() != "weight_cv" )
               pr.rule[ e.key() ] = e.value();
+          // weight spread on a rule projection: drawn per connection after the connect (engine.cpp), ordered by (pre, post, port)
+          const bool has_sd = p.contains( "weight_sd" ), has_cv = p.contains( "weight_cv" );
+          if ( has_sd and has_cv )
+            fail( path, "give weight_sd or weight_cv, not both" );
+          if ( has_sd or has_cv )
+          {
+            const std::string key = has_sd ? "weight_sd" : "weight_cv";
+            if ( not p[ key ].is_number() or not( p[ key ].get< double >() >= 0.0 ) )
+              fail( sub( path, key.c_str() ), "must be a number >= 0" );
+            const std::string sm = pr.synapse[ "synapse_model" ].get< std::string >();
+            if ( sm == "gap_junction" or sm.rfind( "stdp", 0 ) == 0 )
+              fail( sub( path, key.c_str() ), "weight spread on a rule projection is not supported for " + sm + " (use an 'edges' projection)" );
+            pr.spread = has_sd ? 1 : 2;
+            pr.spread_amount = p[ key ].get< double >();
+          }
         }
         else
         {
@@ -475,17 +501,7 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             const double amount = p[ key ].get< double >();
             const size_t proj_index = c.projs.size();
             for ( size_t k = 0; k < pr.edge_wd.size(); ++k )
-            {
-              const double w = pr.edge_wd[ k ][ 0 ];
-              const double z = spread_normal( c.seed, proj_index, k );
-              double w2 = has_sd ? w + amount * z : w * ( 1.0 + amount * z );
-              const double floor_mag = 1e-3 * std::fabs( w );  // keep the sign (and never exactly 0)
-              if ( w > 0 )
-                w2 = std::max( w2, floor_mag );
-              else if ( w < 0 )
-                w2 = std::min( w2, -floor_mag );
-              pr.edge_wd[ k ][ 0 ] = w2;
-            }
+              pr.edge_wd[ k ][ 0 ] = spread_weight( pr.edge_wd[ k ][ 0 ], has_sd ? 1 : 2, amount, c.seed, proj_index, k );
           }
         }
         if ( pr.dopamine_pop >= 0 and pr.synapse[ "synapse_model" ] != "stdp_dopamine_synapse" )

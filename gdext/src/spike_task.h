@@ -56,9 +56,15 @@ public:
   double next_event_ms( double t_ms ) const; // < 0 if none
   Dictionary diagnosis() const;              // {circuit, symptoms, candidates:PackedStringArray, answer}
   Dictionary notebook() const;               // {title, text, citation}
+  String default_model() const;              // catalog card id the lab selects by default ("" = lab default)
+  String recipe() const;                     // concrete numbers kept apart from the brief ("" = none)
   // v0.3 instant check: headless scoring in a worker thread (own spike-run process per call; never blocks the main thread)
   /// Start a headless score of `circuit_json` on this task id (make() first). seeds: PackedInt64Array (empty = [1]). Returns a job id (> 0), or 0 on failure.
-  int64_t score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant );
+  int64_t score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant, int64_t circuit_seed = -1 );
+  /// Kill the job's spike-run process, delete its temp files, forget the job. True if it was still running.
+  static bool headless_cancel( int64_t job );
+  /// The spike-run that score_headless_async would launch ("" if none found). Searched: set_headless_runner, $SPIKE_RUN, next to the extension library, next to the executable, res://bin, dev tree, PATH.
+  static String headless_runner_path();
   /// Poll: {done:bool, ok:bool, error:String, passed:bool, value:float (mean), passes:int, seeds:int, runs:Array of {seed, value, passed, parts, verdict}, ms:float}. Unknown id -> {done:true, ok:false}.
   Dictionary score_headless_poll( int64_t job );
   // v0.2 engine bridges (static, add-only): the parts-bin card list, and the neuromodulator channels of a SpikeSim (engine.h set_modulator / modulator)

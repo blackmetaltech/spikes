@@ -135,6 +135,18 @@ def edge_spread_normal(seed: int, proj: int, edge: int) -> float:
     return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
 
 
+def spread_weight(w: float, kind: int, amount: float, seed: int, proj: int, edge: int) -> float:
+    """w + sd*z (kind 1) or w*(1+cv*z) (kind 2), sign kept, |w'| >= 1e-3 |w|. Mirrors spread_weight in engine/src/circuit.cpp."""
+    z = edge_spread_normal(seed, proj, edge)
+    w2 = w + amount * z if kind == 1 else w * (1.0 + amount * z)
+    floor_mag = 1e-3 * abs(w)
+    if w > 0:
+        w2 = max(w2, floor_mag)
+    elif w < 0:
+        w2 = min(w2, -floor_mag)
+    return w2
+
+
 def _spread_edges(pr: dict, edges: list, seed: int, k: int, path: str) -> list:
     """Apply weight_sd (w + sd*z) or weight_cv (w*(1+cv*z)) to every edge weight, keeping the sign (|w'| >= 1e-3 |w|)."""
     if "weight_sd" in pr and "weight_cv" in pr:
@@ -186,13 +198,21 @@ def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
     spath = f"{path}.synapse"
     rule = None
     edges = None
+    spread = None
     if "edges" in pr:
         edges = _spread_edges(pr, [list(e) for e in pr["edges"]], seed, k, path)
     else:
-        for key in ("weight_sd", "weight_cv"):
+        rule = {key: v for key, v in pr.items() if key not in ("pre", "post", "synapse", "dopamine_source", "weight_sd", "weight_cv")}
+        if "weight_sd" in pr and "weight_cv" in pr:
+            raise CircuitError(f"{path}: give weight_sd or weight_cv, not both")
+        for key, kind in (("weight_sd", 1), ("weight_cv", 2)):
             if key in pr:
-                raise CircuitError(f"{path}.{key}: weight spread needs an 'edges' projection (a rule projection draws its own targets; give synapse.weight a distribution instead)")
-        rule = {key: v for key, v in pr.items() if key not in ("pre", "post", "synapse", "dopamine_source")}
+                amount = pr[key]
+                if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not amount >= 0:
+                    raise CircuitError(f"{path}.{key}: must be a number >= 0")
+                if model == "gap_junction" or model.startswith("stdp"):
+                    raise CircuitError(f"{path}.{key}: weight spread on a rule projection is not supported for {model} (use an 'edges' projection)")
+                spread = (kind, float(amount))
     ds = pr.get("dopamine_source")
     if ds is not None:
         if not isinstance(ds, str):
@@ -306,7 +326,7 @@ def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
             for key in ("A_plus", "A_minus", "Wmin", "Wmax", "b", "tau_c", "tau_n", "tau_plus"):
                 if key in syn:
                     common[key] = syn.pop(key)
-    return {"rule": rule, "syn": syn, "common": common, "gap": gap, "dopamine": dopamine, "dopamine_pop": ds, "edges": edges}
+    return {"rule": rule, "syn": syn, "common": common, "gap": gap, "dopamine": dopamine, "dopamine_pop": ds, "edges": edges, "spread": spread}
 
 
 def _parse_modulation(spec: dict) -> list:
@@ -511,6 +531,17 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
             nest.Connect(np.array(src), np.array(tgt), conn_spec="one_to_one", syn_spec=s)
         else:
             nest.Connect(pre_nc, post_nc, conn_spec=pp["rule"], syn_spec=syn)
+            if pp["spread"] is not None:  # per connection, canonical (source, target, port) order (same as the engine)
+                kind, amount = pp["spread"]
+                conns = nest.GetConnections(pre_nc, post_nc, syn["synapse_model"])
+                if len(conns):
+                    st = conns.get(["source", "target", "port", "weight"])
+                    keys = list(zip(st["source"], st["target"], st["port"]))
+                    order = sorted(range(len(keys)), key=lambda j: keys[j])
+                    new = [0.0] * len(keys)
+                    for rank, j in enumerate(order):
+                        new[j] = spread_weight(float(st["weight"][j]), kind, amount, sd, k, rank)
+                    conns.set(weight=new)
 
     # connections: inputs, recorder
     for inp in spec.get("inputs", []):
