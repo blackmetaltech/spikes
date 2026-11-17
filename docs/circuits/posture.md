@@ -67,8 +67,12 @@ Biochem Pharmacol 101:1; Prochazka A, Gorassini M (1998) J Physiol 507:277; Heck
 
 ## v0.3: concepts, modes, variants (item D)
 
-* **Concepts:** negative_feedback (new). Level kind `task`, on the spine.
+* **Concepts:** none new (negative_feedback is taught by the micros and used here). Level kind `task`, on the spine.
 * **Modes** (guided / standard / researcher): Pushes x0.8 / x1 / x1.05; rms, worst error and sag limits x1.25 / 1 / x0.92. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 27); strong_pushes (x1.4).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `rms_err_rad`. **Notebook:** Merton 1953; Hulliger 1984.
+
+### v0.3 fix round: recipe() and the novice bench
+Numbers moved out of the brief into `Task::recipe()`; `default_model()` is `iaf_psc_alpha`. On a bench built as the lab builds one (`novice_bench` in `engine/tests/tasks_spinal_test.cpp`) the old recipe (relay > pool 160, TONIC > MNF 160) failed 0 of 5: the flexor pool, driven past its ceiling (`rmax` 100 Hz per cell: 85-117 Hz), cannot lift the limb any more, and the extensor co-contracts through the reflex. More flexor tone then makes the sag worse (TONIC > MNF 240: sag 0.27 rad), less is better. New recipe: relay > pool 150, TONIC > MNF 70: 10 of 10 seeds in Standard (rms 0.07-0.11 rad against 0.17).
+The verdict now uses the sign of the offset and the flexor pool's rate (`flexor_rate_hz`, mean of the pool rate from 1500 ms): "rides up": less flexor tone; "sags" with the pool below 85 Hz per cell: more tone; "sags" with the pool at its ceiling: lower the tone (and check the extensor). Tier-2 of the offset hint follows the same three cases. The test checks the three verdicts and the bench on seeds 1-5.

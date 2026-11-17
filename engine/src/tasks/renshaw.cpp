@@ -34,6 +34,7 @@
 //       in the hold window), wired, finished.
 // VALUE: 100 * ( 0.55 min(1, improvement / 0.5) + 0.25 min(1, resistance / 0.5) + 0.2 (no oscillation) ), capped at 49 unless the
 //        pools are firing.
+//        and at 49 when the volley gate fails (pools ignore the common input); a finished run that does not pass is capped at 89, so a failing run never shows 100.
 //
 // Biology: Renshaw 1941 (recurrent inhibition); Eccles, Fatt & Koketsu 1954 (cholinergic collaterals); Hultborn, Jankowska &
 // Lindstrom 1971 (Renshaw cells inhibit Ia inhibitory interneurons); Hultborn 2006 review; Farmer 1993 (common drive to motor
@@ -70,25 +71,31 @@ public:
            "motoneurons excite them, they inhibit their own motoneurons (and, as in the real cord, the Ia inhibitory interneurons and "
            "the opposite Renshaw cells). The cord is bathed in background synaptic noise that reaches both pools through shared "
            "fibres, which makes the pools fire in waves and the muscle force wobble (tremor). Hold the limb for six seconds, then "
-           "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with the cord you would have without Renshaw cells. That control is a curve of tremor against pool rate measured on the task's reference circuit (a cord with its Renshaw cells cut), re-scaled for YOUR circuit by how strongly your pools answer the common drive: after the stretches, twelve short volleys on the noise input measure that response. Shielding the pools from the noise therefore cannot pass, and a cord with no recurrent inhibition scores about zero. You need at least a quarter less tremor than that control, while the stretch reflex still resists the pushes and the limb does not ring. A recipe that works (iaf_psc_alpha groups; weights pA): the stretch-reflex circuit (Ia sensors at weight 3 onto "
-           "relay groups of 6 with tau m 60 ms; pools MNF, MNE of 20 cells; Ia > MN 320, Ia > inhibitory IN groups of 4 at 240, IN > opposite "
-           "MN -320) with the drive weight lowered to 200; noise (a Poisson input, weight 100) onto one shared group of 2 cells DESC, and DESC > "
-           "both pools at 40 (shared fibres: every cell gets the same wave); Renshaw groups RF and RE (4 cells, inhibitory): MNF > RF and "
-           "MNE > RE at 80, RF > MNF and RE > MNE at -160, RF > INF and RE > INE at -40, RF > RE and RE > RF at -160.";
+           "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with the cord you would have without Renshaw cells. That control is a curve of tremor against pool rate measured on the task's reference circuit (a cord with its Renshaw cells cut), re-scaled for YOUR circuit by how strongly your pools answer the common drive: after the stretches, twelve short volleys on the noise input measure that response. Shielding the pools from the noise therefore cannot pass, and a cord with no recurrent inhibition scores about zero. You need at least a quarter less tremor than that control, while the stretch reflex still resists the pushes and the limb does not ring. A cell that integrates a 400 Hz Poisson input fires far less often than its input and swallows the volleys, so the cells that carry the noise to the pools must repeat every spike they receive.";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (iaf_psc_alpha groups, except DESC; weights pA): the stretch-reflex circuit (Ia sensors at weight 3 onto relay groups "
+           "of 6 with tau m 60 ms; pools MNF, MNE of 20 cells; Ia > MN 240 with a weight spread (CV) of 0.3; Ia > inhibitory IN groups of 4 at 240; "
+           "IN > opposite MN -500) with the drive weight lowered to 150 (the noise adds drive of its own); noise (a Poisson input, weight 100) onto one "
+           "shared group of 2 parrot_neuron cells DESC (a parrot repeats every spike), and DESC > both pools at 30 (shared fibres: every cell gets "
+           "the same wave); Renshaw groups RF and RE (4 cells, inhibitory): MNF > RF and MNE > RE at 80, RF > MNF and RE > MNE at -160, "
+           "RF > INF and RE > INE at -40, RF > RE and RE > RF at -160.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive", "noise" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
   std::map< std::string, ChannelKind > channel_kinds() const override
   {
-    return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 200 ) }, { "noise", in_kind( "poisson", 400, 100 ) } };
+    return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 150 ) }, { "noise", in_kind( "poisson", 400, 100 ) } };
   }
   double duration_ms() const override { return kDuration; }
   int par_neurons() const override { return variant_par( variant_, 56 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "recurrent_inhibition" }; }
-  std::vector< std::string > concepts_used() const override { return { "inhibition", "reciprocal_inhibition", "recruitment" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "inhibition", "reciprocal_inhibition", "recruitment", "recurrent_inhibition" }; }
   bool on_spine() const override { return true; }
   /// Pass bars: improvement >= 0.20 (guided) / 0.25 / 0.294 (researcher), resistance >= 0.24 / 0.30 / 0.353. The common drive (400 Hz, 60 % depth)
   /// is not scaled by the modes: tremor is measured against a control that is re-scaled per circuit.
@@ -105,13 +112,13 @@ public:
     {
       h.push_back( make_hint( 1, "The motoneuron pools need tonic drive to fire before feedback has anything to hold back.", "" ) );
       h.push_back( make_hint( 2, "The pools are nearly silent.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Drive at about 200 pA onto both pools of 20 cells.", "" ) );
+      h.push_back( make_hint( 3, "Drive at about 150 pA onto both pools of 20 cells (the noise adds drive of its own).", "" ) );
     }
     else if ( s.parts[ "volley_excess_hz" ] < 0.57 * kExcessRef )
     {
       h.push_back( make_hint( 1, "Real motor pools receive common synaptic input; that shared wave is what makes the force wobble.", "" ) );
-      h.push_back( make_hint( 2, "The noise input does not move your pools: route it through shared fibres.", "noise" ) );
-      h.push_back( make_hint( 3, "noise (weight 100) > DESC (2 cells) > both pools at 40 pA.", "" ) );
+      h.push_back( make_hint( 2, "The noise reaches your pools too weakly: a cell that integrates the Poisson input fires far less often than the input and loses the volleys; cells that repeat each spike (parrot_neuron) pass them on.", "noise" ) );
+      h.push_back( make_hint( 3, "noise (weight 100) > DESC (2 parrot_neuron cells) > both pools at 30 pA.", "" ) );
     }
     else if ( s.parts[ "improvement" ] < tol_min( mode_, 0.25 ) )
     {
@@ -189,6 +196,8 @@ public:
     s.value = 100.0 * ( 0.55 * std::min( 1.0, m.improvement / 0.5 ) + 0.25 * std::min( 1.0, m.resistance / 0.5 ) + 0.2 * ( m.osc_flag ? 0.0 : 1.0 ) );
     if ( !firing || m.osc_flag )
       s.value = std::min( s.value, 49.0 );
+    if ( m.have_probe && m.excess < 0.57 * kExcessRef )  // the pools ignore the common input: the tremor figure means nothing
+      s.value = std::min( s.value, 49.0 );
     s.passed = done && m.done >= kN && wiring_.ok() && firing && m.have_probe && m.excess >= 0.57 * kExcessRef && m.improvement >= tol_min( mode_, 0.25 ) && m.resistance >= tol_min( mode_, 0.30 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
@@ -207,7 +216,8 @@ public:
       o << "Tremor " << m.tremor << "%; the common-input volleys are still to come" << yet;
     else if ( m.excess < 0.57 * kExcessRef )
       o << "Your motor pools hardly answer the common input (a volley adds only " << std::setprecision( 0 ) << m.excess
-        << " spikes/s; the reference cord shows about " << kExcessRef << "): there is no common drive for recurrent inhibition to calm. Send the noise through shared fibres to both pools.";
+        << " spikes/s; the reference cord shows about " << kExcessRef << "), so there is no common drive for recurrent inhibition to calm. "
+        << "The noise is lost on its way: cells that integrate a Poisson input fire far less often than the input and swallow the volley, and weak links to the pools lose what is left; use cells that repeat every spike (parrot_neuron) and check their weight onto both pools.";
     else if ( m.improvement < tol_min( mode_, 0.25 ) )
       o << "Force tremor " << m.tremor << "% is only " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit ("
         << std::setprecision( 1 ) << m.control << "% at this rate and this strength of common input): the recurrent loop is too weak, or missing.";
@@ -218,6 +228,8 @@ public:
       o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit, reflex cuts deflection by "
         << m.resistance * 100 << "%.";
     s.verdict = o.str();
+    if ( done && !s.passed )  // a failing run never shows a full score
+      s.value = std::min( s.value, 89.0 );
     return s;
   }
 

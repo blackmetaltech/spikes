@@ -66,8 +66,13 @@ public:
            "also resists the reach, and the burst must not set the arm ringing. Wire the posture circuit (spindles, gamma, tone), add the "
            "burst generator for 'go' and 'target', and add Renshaw cells to both pools. Score: how well the arm is held (rms and worst error "
            "against the target that is displayed), how well it reaches (time, overshoot, final error, three reaches of 0.30, 0.40 and 0.25 rad), "
-           "no ringing after a push, and no creeping before 'go'. 40 s long: pushes arrive before, during and after the reaches. A starting "
-           "point: the Posture circuit with the Reach generator added and Renshaw cells on both pools; expect to re-tune the hold command.";
+           "no ringing after a push, and no creeping before 'go'. 40 s long: pushes arrive before, during and after the reaches.";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A starting point (the numbers are those of the Posture, Reach and Renshaw recipes): the Posture circuit with the Reach generator added and "
+           "Renshaw cells on both pools; expect to re-tune the hold command.";
   }
   std::vector< std::string > sensor_channels() const override
   {

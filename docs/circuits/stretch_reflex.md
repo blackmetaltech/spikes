@@ -79,8 +79,13 @@ LM (1981) in *Handbook of Physiology: The Nervous System II*; Matthews PBC (1991
 
 ## v0.3: concepts, modes, variants (item D)
 
-* **Concepts:** recruitment, reciprocal_inhibition (new). Level kind `task`, on the spine.
+* **Concepts:** none new (recruitment and reciprocal_inhibition are taught by the micros and used here). Level kind `task`, on the spine.
 * **Modes** (guided / standard / researcher): Latency <= 62 / 50 / 42.5 ms, resistance >= 0.24 / 0.30 / 0.35, antagonist suppression >= 0.16 / 0.20 / 0.24. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 26); heavy_load (3.5 N m pushes).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `latency_ms`. **Notebook:** Lloyd 1943; Eccles 1957.
+
+### v0.3 fix round: recipe() and the novice bench
+The numbers moved out of the brief into `Task::recipe()` (Guided shows it inline, Standard behind SHOW RECIPE, Researcher never); `default_model()` is `iaf_psc_alpha`, the cell the recipe assumes.
+The recipe was re-measured on a bench built as the lab builds one (`novice_bench` in `engine/tests/tasks_spinal_test.cpp`: default part, delay 2 ms, all-to-all links, recipe numbers only): drive 320 (was 280), Ia > MN 240 with a weight spread (CV) of 0.3 (was 320, no spread), INs unchanged. The old numbers passed 4 of 6 seeds, the new ones 10 of 10 (seeds 1-10, Standard; worst margin: antagonist suppression 0.21 against 0.20, resistance 0.31 against 0.30). Without the spread the pool is recruited all at once, so some seeds co-contract; with it the reflex is graded. More drive (340) fails 7 of 10 seeds: both pools fight.
+The test checks the bench on seeds 1-5.
