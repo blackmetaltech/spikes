@@ -76,14 +76,63 @@ public:
     d.value = kDriveHz;
     c.kind = "dc";  // graded current (pA)
     c.value = 51;
+    d.weight = 0.005;
+    c.weight = 1;
     return { { "drive", d }, { "chemo", c }, { "phrenic", ChannelKind{ "rate" } } };
   }
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "breathing"; }
   std::string view() const override { return "lungs"; }
-  int par_neurons() const override { return 26; }
+  int par_neurons() const override { return variant_par( variant_, 26 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "rhythm_gating" }; }
+  std::vector< std::string > concepts_used() const override { return { "pacemaking", "coupling", "excitation", "negative_feedback" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bars (rest rate, resting PaCO2, ventilation ratio, PaCO2 peak, recovery): guided 10-22 /min, 33-47, 1.4x, 55, 48; standard 12-20,
+  /// 35-45, 1.6x, 52, 46; researcher 13-19, 36-44, 1.8x, 52, 45. Inspired CO2 x0.8 guided, x1.1 researcher.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 13 instead of 26" },
+             { "strong_co2", "the CO2 challenge is 1.15 times as strong" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    const double rate = s.parts[ "rest_rate_bpm" ];
+    std::vector< Hint > h;
+    if ( s.parts[ "phrenic_spikes" ] < 1 || s.parts[ "rest_breaths" ] < 5 )
+    {
+      h.push_back( make_hint( 1, "Rhythm: bursting pacemaker cells fire a burst, rest, and burst again by themselves. A network of coupled bursters shares one burst.", "" ) );
+      h.push_back( make_hint( 2, "No regular breaths reach the phrenic pool.", "phrenic" ) );
+      h.push_back( make_hint( 3, "About 10 butera_burster cells (g_NaP 2.8, g_tonic 0.29 nS) coupled at 0.03 nS, drive onto them, then 8 iaf cells with I_e 380 pA as phrenic.", "" ) );
+    }
+    else if ( rate < rlo() || rate > rhi() )
+    {
+      h.push_back( make_hint( 1, "The burst rate is set by the drive to the bursters, not by the coupling.", "" ) );
+      h.push_back( make_hint( 2, rate > rhi() ? "Too fast: lower the drive onto the bursters." : "Too slow: raise the drive onto the bursters.", "drive" ) );
+      h.push_back( make_hint( 3, "g_tonic 0.30 nS gives a burst every 4.9 s, 0.35 nS every 2.6 s; keep the coupling near 0.03 nS.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Sensory gating: CO2 must make breathing faster and deeper. The chemosensor reports PaCO2.", "" ) );
+      h.push_back( make_hint( 2, "Ventilation does not rise enough with CO2: the chemo input is not reaching the rhythm and the motor cells.", "chemo" ) );
+      h.push_back( make_hint( 3, "chemo (weight 1) > relay cells (bias 335) > bursters at 0.09 nS (rate) and > phrenic cells at 8 pA (depth).", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "paco2_peak", make_metric( score().parts[ "paco2_peak" ], "mmHg", true ) } }; }
+  Note notebook() const override
+  {
+    return { "Bursting makes the rhythm",
+             "The preBotzinger complex contains neurons that burst on their own through a persistent sodium current; excitatory "
+             "coupling among them synchronises the bursts into the inspiratory rhythm. CO2 sensed by retrotrapezoid neurons "
+             "raises its frequency and the drive to the motoneurons.",
+             "Smith JC et al. (1991) Science 254:726; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232" };
+  }
   std::vector< Event > timeline() const override { return { { kCo2On, kCo2Off - kCo2On, "5% CO2 inhaled" } }; }
-  std::vector< Band > bands() const override { return { { "rr_per_min", "/min", 12, 20 }, { "co2_mmhg", "mmHg", 35, 45 } }; }
+  std::vector< Band > bands() const override { return { { "rr_per_min", "/min", rlo(), rhi() }, { "co2_mmhg", "mmHg", palo(), pahi() } }; }
 
   void reset( uint64_t ) override
   {
@@ -113,7 +162,7 @@ public:
     u_ = clampd( drive_lp_.step( hz / kPhrenicRef, dt ), 0, 1 );
     body::LungInput in;
     in.drive = u_;
-    in.inspired_pco2 = kInspired * clampd( ( t_ - kCo2On ) / kRamp, 0, 1 ) * clampd( ( kCo2Off + kRamp - t_ ) / kRamp, 0, 1 );
+    in.inspired_pco2 = inspired() * clampd( ( t_ - kCo2On ) / kRamp, 0, 1 ) * clampd( ( kCo2Off + kRamp - t_ ) / kRamp, 0, 1 );
     lungs_.step( dt, in );
     t_ += dt;
     if ( lungs_.breaths != last_breaths_ )
@@ -167,14 +216,14 @@ public:
     s.parts[ "paco2_peak" ] = pa_peak;
     s.parts[ "paco2_recovery" ] = pa_rec;
     s.parts[ "phrenic_spikes" ] = spikes_;
-    double rate_ok = rest.n >= 5 ? soft_band( rest.rate, 12, 20, 6 ) : 0.0;
+    double rate_ok = rest.n >= 5 ? soft_band( rest.rate, rlo(), rhi(), 6 ) : 0.0;
     double resp = clampd( ( ratio - 1.0 ) / 0.6, 0, 1 );
-    double ctrl = ( ( pa_rest >= 35 && pa_rest <= 45 ) ? 0.4 : 0.0 ) + 0.6 * clampd( ( 70.0 - pa_peak ) / 18.0, 0, 1 );
+    double ctrl = ( ( pa_rest >= palo() && pa_rest <= pahi() ) ? 0.4 : 0.0 ) + 0.6 * clampd( ( 70.0 - pa_peak ) / 18.0, 0, 1 );
     double rec = soft_band( pa_rec, 33, 46, 8 );
     s.value = 100.0 * ( 0.25 * rate_ok + 0.30 * resp + 0.30 * ctrl + 0.15 * rec );
     bool done = t_ >= kDuration;
-    bool pass = done && rest.n >= 5 && rest.rate >= 12 && rest.rate <= 20 && ratio >= 1.6 && pa_rest >= 35 && pa_rest <= 45 && pa_peak <= 52 &&
-                pa_rec <= 46;
+    bool pass = done && rest.n >= 5 && rest.rate >= rlo() && rest.rate <= rhi() && ratio >= rmin() && pa_rest >= palo() && pa_rest <= pahi() &&
+                pa_peak <= pmax() && pa_rec <= recmax();
     s.passed = pass;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
@@ -187,19 +236,19 @@ public:
       o << "Only " << static_cast< int >( rest.n ) << " breaths in the 36 s of rest" << yet << " Need a regular rhythm of 12-20 per minute: raise the burster drive "
         << "(g_tonic 0.30 nS = a burst every 4.9 s, 0.35 = 2.6 s) and make sure the bursters are coupled so they burst together; if the phrenic pool is "
         << "held silent, check the expiratory inhibition.";
-    else if ( rest.rate < 12 || rest.rate > 20 )
-      o << "Resting rate " << rest.rate << " /min is outside 12-20: "
-        << ( rest.rate > 20 ? "too fast. Weaken the burster coupling (about 0.03 nS) or lower g_tonic / the chemo weight to the bursters (a burster bursts every 4.9 s at g_tonic 0.30)."
+    else if ( rest.rate < rlo() || rest.rate > rhi() )
+      o << "Resting rate " << rest.rate << " /min is outside " << rlo() << "-" << rhi() << ": "
+        << ( rest.rate > rhi() ? "too fast. Weaken the burster coupling (about 0.03 nS) or lower g_tonic / the chemo weight to the bursters (a burster bursts every 4.9 s at g_tonic 0.30)."
                             : "too slow. Raise the drive to the bursters (g_tonic about 0.3-0.35 nS, or more chemo weight) or strengthen the coupling a little." );
-    else if ( pa_rest < 35 || pa_rest > 45 )
-      o << "Resting PaCO2 " << pa_rest << " mmHg is outside 35-45: the breaths are too " << ( pa_rest > 45 ? "shallow" : "deep" ) << ".";
+    else if ( pa_rest < palo() || pa_rest > pahi() )
+      o << "Resting PaCO2 " << pa_rest << " mmHg is outside " << palo() << "-" << pahi() << ": the breaths are too " << ( pa_rest > pahi() ? "shallow" : "deep" ) << ".";
     else if ( !done && t_ < kChB * 1000.0 )
       o << "Breathing at " << rest.rate << " /min at rest, PaCO2 " << pa_rest << " mmHg; the CO2 test is still running.";
-    else if ( ratio < 1.6 )
-      o << "Ventilation rose only " << ratio << "x under 5% CO2 (need 1.6x): no chemoreflex. PaCO2 peaked at " << pa_peak << " mmHg.";
-    else if ( pa_peak > 52 )
-      o << "Ventilation rose " << ratio << "x but PaCO2 still reached " << pa_peak << " mmHg (limit 52).";
-    else if ( pa_rec > 46 && done )
+    else if ( ratio < rmin() )
+      o << "Ventilation rose only " << ratio << "x under the CO2 challenge (need " << rmin() << "x): no chemoreflex. PaCO2 peaked at " << pa_peak << " mmHg.";
+    else if ( pa_peak > pmax() )
+      o << "Ventilation rose " << ratio << "x but PaCO2 still reached " << pa_peak << " mmHg (limit " << pmax() << ").";
+    else if ( pa_rec > recmax() && done )
       o << "PaCO2 had not recovered afterwards (" << pa_rec << " mmHg).";
     else
       o << ( done ? "Breathing" : "Breathing so far" ) << " " << rest.rate << " /min at rest, ventilation " << ratio << "x with CO2, PaCO2 peak " << pa_peak
@@ -211,6 +260,14 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  double rlo() const { return mode_ == "guided" ? 10 : ( mode_ == "researcher" ? 13 : 12 ); }
+  double rhi() const { return mode_ == "guided" ? 22 : ( mode_ == "researcher" ? 19 : 20 ); }
+  double palo() const { return mode_ == "guided" ? 33 : ( mode_ == "researcher" ? 36 : 35 ); }
+  double pahi() const { return mode_ == "guided" ? 47 : ( mode_ == "researcher" ? 44 : 45 ); }
+  double rmin() const { return mode_ == "guided" ? 1.4 : ( mode_ == "researcher" ? 1.8 : 1.6 ); }
+  double pmax() const { return mode_ == "guided" ? 55 : 52; }
+  double recmax() const { return mode_ == "guided" ? 48 : ( mode_ == "researcher" ? 45 : 46 ); }
+  double inspired() const { return kInspired * mode_factor( mode_, 0.8, 1.1 ) * ( variant_ == "strong_co2" ? 1.15 : 1.0 ); }
   struct Breath { double t, vt; };
   struct Win { double rate = 0, ve = 0, n = 0; };
 

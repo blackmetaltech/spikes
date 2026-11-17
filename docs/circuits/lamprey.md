@@ -58,3 +58,11 @@ Calabrese RL (1996) Physiol Rev 76:687; Grillner S (2003) Nat Rev Neurosci 4:573
 J Fluid Mech 9:305.
 
 The thrust model is a toy (T = 1/2 m v_tail^2 (1 - U/c)), not Lighthill's large-amplitude theory. Reference score 99.8 on 5 seeds (the network is noise free, so seeds give identical results).
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** adaptation, half_centre (new); inhibition, excitation (used). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Deterministic world, so only the bars move: phase within 50 / 40 / 34 deg, speed >= 0.2 / 0.25 / 0.29 BL/s. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 8); fast_swim (>= 0.5 BL/s; reference swims at 1.3).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `speed_bl_s`. **Notebook:** Grillner 2003.

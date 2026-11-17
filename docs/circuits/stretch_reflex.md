@@ -76,3 +76,11 @@ Credits: Sherrington CS (1906) *The Integrative Action of the Nervous System*; L
 Lloyd DPC (1943) J Neurophysiol 6:111; Eccles JC, Eccles RM, Lundberg A (1957) J Physiol 137:22; Henneman E (1957) Science 126:1345;
 Kernell D (1965) Acta Physiol Scand 65:65; Matthews PBC (1972) *Mammalian Muscle Receptors and their Central Actions*; Henneman E, Mendell
 LM (1981) in *Handbook of Physiology: The Nervous System II*; Matthews PBC (1991) Trends Neurosci 14:87 (the human stretch reflex, its latencies and the motor cortex).
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** recruitment, reciprocal_inhibition (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Latency <= 62 / 50 / 42.5 ms, resistance >= 0.24 / 0.30 / 0.35, antagonist suppression >= 0.16 / 0.20 / 0.24. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 26); heavy_load (3.5 N m pushes).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `latency_ms`. **Notebook:** Lloyd 1943; Eccles 1957.

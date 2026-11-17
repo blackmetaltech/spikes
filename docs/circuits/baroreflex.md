@@ -68,3 +68,11 @@ baroreceptor coding in the heart module: Chapleau & Abboud 1987 and Mahdi et al.
 Sino-aortic denervation in real animals gives high mean pressure for a day or two and then a normal mean with large variability; the acute hypertension is what the task shows (the
 variability would need the central set point to adapt). The loop includes no respiratory sinus arrhythmia, no chemoreflex and no cardiopulmonary (volume) receptors, which in
 real haemorrhage add to the response.
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** none new; negative_feedback, neuromodulation, inhibition, excitation used. Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): In-band fraction 0.75 / 0.85 / 0.9, settling 20 / 15 / 12 s, tails 0.7 / 0.8 / 0.85; haemorrhage rate x0.8 / 1 / x1.2. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 24); severe_haemorrhage (x1.15).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `worst_settle_s`. **Notebook:** Kirchheim 1976; Guyenet 2006.

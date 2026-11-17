@@ -43,3 +43,11 @@ tau_syn 2 ms). Delays 1 ms (Castellucci & Kandel 1974; Sherrington 1906; Rotter 
 
 Credits: Sherrington CS (1906) *The Integrative Action of the Nervous System*; Castellucci V, Kandel ER (1974) PNAS
 71:5004; Rotter S, Diesmann M (1999) Biol Cybern 81:381.
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** threshold, excitation, convergence (new); none used. Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Poke contrast against the chatter: x1.67 guided, x0.8 researcher (200 Hz above 150); false withdrawals allowed 2 / 1 / 0; mean latency <= 75 / 60 / 51 ms. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 8); noise_x2 (poke 125 Hz above the chatter: reference passes, latency 48-58 ms).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `latency_ms`. **Notebook:** Castellucci & Kandel 1974.

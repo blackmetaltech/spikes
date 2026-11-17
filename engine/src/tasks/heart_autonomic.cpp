@@ -94,7 +94,7 @@ public:
   std::map< std::string, ChannelKind > channel_kinds() const override
   {
     // ChannelKind: kind, value (typical input level), modulator, gain per spike, tau_ms
-    return { { "exercise_cue", { "poisson", 0 } }, { "hr_too_low", { "poisson", 0 } }, { "hr_too_high", { "poisson", 0 } },
+    return { { "exercise_cue", in_kind( "poisson", 0, 800 ) }, { "hr_too_low", in_kind( "poisson", 0, 800 ) }, { "hr_too_high", in_kind( "poisson", 0, 800 ) },
       { "sa_beat", { "rate" } }, { "vagal", { "modulator", 0, "ACh", 0.012, 500 } }, { "sympathetic", { "modulator", 0, "NE", 0.0031, 1500 } } };
   }
   std::vector< std::string > sensor_channels() const override { return { "exercise_cue", "hr_too_low", "hr_too_high" }; }
@@ -102,13 +102,66 @@ public:
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "heart"; }
-  int par_neurons() const override { return 45; }
+  int par_neurons() const override { return variant_par( variant_, 45 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "neuromodulation", "feedforward_feedback" }; }
+  std::vector< std::string > concepts_used() const override { return { "pacemaking", "excitation", "inhibition" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bars (mean error, rest, exercise, recovery): guided 7.5 / 5 / 10 / 5 bpm, standard 6 / 4 / 8 / 4, researcher 5.1 / 3.4 / 6.8 / 3.4.
+  /// The tight_tracking variant asks for 4 / 3 / 6 / 3.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 23 instead of 45" },
+             { "tight_tracking", "tighter tracking: mean error 4 bpm, rest and recovery within 3, exercise within 6" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    const double rest = s.parts[ "rest_hr" ], plat = s.parts[ "exercise_hr" ];
+    std::vector< Hint > h;
+    if ( rest > kRest + lim_rest() )
+    {
+      h.push_back( make_hint( 1, "Neuromodulation: the heart is held at its resting rate by acetylcholine released continuously by the vagus. Without it the node runs at about 100.", "" ) );
+      h.push_back( make_hint( 2, "The vagal output is not releasing enough ACh at rest.", "vagal" ) );
+      h.push_back( make_hint( 3, "NA (6 cells, bias 380) > VG (6, segment, 1500) > vagal, ACh, gain 0.009, tau 500 ms.", "" ) );
+    }
+    else if ( rest < kRest - lim_rest() )
+    {
+      h.push_back( make_hint( 1, "Too much ACh slows the node too far. Keep the vagal tone moderate.", "" ) );
+      h.push_back( make_hint( 2, "Lower the vagal release.", "vagal" ) );
+      h.push_back( make_hint( 3, "Vagal gain about 0.009; bias on the NA group a few pA lower.", "" ) );
+    }
+    else if ( plat < kPeak - lim_plat() )
+    {
+      h.push_back( make_hint( 1, "Feed-forward: exercise_cue announces the effort before the heart rate has changed; the sympathetic branch should answer it and the vagus should withdraw.", "" ) );
+      h.push_back( make_hint( 2, "The sympathetic output is too weak.", "sympathetic" ) );
+      h.push_back( make_hint( 3, "exercise_cue > CC > IML at +12; IML (6, bias 370) > SG > sympathetic, NE gain 0.003, tau 1500 ms; CC > NA at -24.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Feedback corrects what feed-forward misses: the sign of the error (hr_too_low / hr_too_high) trims both branches.", "" ) );
+      h.push_back( make_hint( 2, "The error inputs are not trimming the rate: check their links onto both autonomic branches.", "hr_too_low" ) );
+      h.push_back( make_hint( 3, "Onto NA: HIGH +10, LOW -6; onto IML: LOW +10, HIGH -25.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "mae_bpm", make_metric( score().parts[ "mae_bpm" ], "bpm", true ) } }; }
+  Note notebook() const override
+  {
+    return { "Two chains, one node",
+             "The sinoatrial node is slowed by acetylcholine from vagal postganglionic neurons and sped up by noradrenaline from "
+             "sympathetic ones. At rest the vagal tone dominates: the intrinsic rate is about 100 beats per minute, but the resting "
+             "heart beats near 65.",
+             "Jose AD, Collison D (1970) Cardiovasc Res 4:160; Levy MN (1971) Circ Res 29:437" };
+  }
   std::vector< Event > timeline() const override
   {
     return { { 0, kT1, "rest" }, { kT1, kT2 - kT1, "exercise starts" }, { kT2, kT3 - kT2, "exercise" },
       { kT3, kT4 - kT3, "recovery" }, { kT4, kDuration - kT4, "rest" } };
   }
-  std::vector< Band > bands() const override { return { { "hr_error_bpm", "bpm", -6, 6 } }; }
+  std::vector< Band > bands() const override { return { { "hr_error_bpm", "bpm", -lim_mae(), lim_mae() } }; }
   std::vector< std::string > modulators() const override { return { "NE", "ACh" }; }
 
   void reset( uint64_t ) override
@@ -217,9 +270,9 @@ public:
     s.parts[ "spikes" ] = spikes_;
     s.value = 100.0 * clampd( 1.0 - mae / 15.0, 0, 1 );
     bool done = t_ >= kDuration;
-    bool rest_ok = rest_.n > 0 && std::fabs( rest - kRest ) <= 4, plat_ok = plat_.n > 0 && std::fabs( plat - kPeak ) <= 8,
-         rec_ok = rec_.n > 0 && std::fabs( rec - kRest ) <= 4;
-    s.passed = done && mae <= 6.0 && rest_ok && plat_ok && rec_ok;
+    bool rest_ok = rest_.n > 0 && std::fabs( rest - kRest ) <= lim_rest(), plat_ok = plat_.n > 0 && std::fabs( plat - kPeak ) <= lim_plat(),
+         rec_ok = rec_.n > 0 && std::fabs( rec - kRest ) <= lim_rest();
+    s.passed = done && mae <= lim_mae() && rest_ok && plat_ok && rec_ok;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -240,8 +293,8 @@ public:
     else if ( !rec_ok )
       o << ( rec > kRest ? "Slow recovery: " : "Recovery overshoots into bradycardia: " ) << rec << " beats/min at the end, target " << kRest
         << ( rec > kRest ? ". Vagal tone must return and sympathetic drive must fall." : ". Too much vagal drive after exercise (ACh near the arrest range?)." );
-    else if ( mae > 6.0 )
-      o << "Phases are right on average but tracking is loose: " << mae << " bpm mean error (needs 6 or less).";
+    else if ( mae > lim_mae() )
+      o << "Phases are right on average but tracking is loose: " << mae << " bpm mean error (needs " << lim_mae() << " or less).";
     else
       o << "Tracked the schedule: " << mae << " bpm mean error, rest " << rest << ", exercise " << plat << ", recovery " << rec << ".";
     s.verdict = o.str();
@@ -251,6 +304,10 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -1, -1, 1, 1 }; }
 
 private:
+  bool tight() const { return variant_ == "tight_tracking"; }
+  double lim_mae() const { return tight() ? 4.0 : tol_max( mode_, 6.0 ); }
+  double lim_rest() const { return tight() ? 3.0 : tol_max( mode_, 4.0 ); }
+  double lim_plat() const { return tight() ? 6.0 : tol_max( mode_, 8.0 ); }
   struct Avg
   {
     double sum = 0, n = 0;

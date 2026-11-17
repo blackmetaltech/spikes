@@ -47,7 +47,7 @@ namespace
 
 constexpr double kDuration = 140000, kSkip = 10000;
 constexpr double kStand = 15000, kLie = 60000, kHaem0 = 80000, kHaem1 = 110000;
-constexpr double kHaemRate = 10.0;  // ml/s
+constexpr double kHaemRate = 10.0;  // ml/s (standard)
 constexpr double kLo = 80, kHi = 100, kRecoverHold = 3000;  // ms in band to count as recovered
 constexpr double kSymGain = 0.5;  // sympathetic drive change per unit of NE change (NE 0.2 = resting tone = Heart's sym_rest 0.2)
 
@@ -78,7 +78,7 @@ public:
   std::map< std::string, ChannelKind > channel_kinds() const override
   {
     // ChannelKind: kind, value (typical input level), modulator, gain per spike, tau_ms
-    return { { "baroreceptor", { "poisson", 41 } }, { "sa_beat", { "rate" } }, { "vagal", { "modulator", 0, "ACh", 0.012, 500 } },
+    return { { "baroreceptor", in_kind( "poisson", 41, 1600 ) }, { "sa_beat", { "rate" } }, { "vagal", { "modulator", 0, "ACh", 0.012, 500 } },
       { "sympathetic", { "modulator", 0, "NE", 0.0076, 1000 } } };
   }
   std::vector< std::string > sensor_channels() const override { return { "baroreceptor" }; }
@@ -86,7 +86,58 @@ public:
   double duration_ms() const override { return kDuration; }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "dashboard"; }
-  int par_neurons() const override { return 48; }
+  int par_neurons() const override { return variant_par( variant_, 48 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "negative_feedback", "neuromodulation", "inhibition", "excitation" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bars (fraction of time in 80-100 mmHg / worst settling time / fraction of the last part of each phase in band):
+  /// guided 0.75 / 20 s / 0.7, standard 0.85 / 15 s / 0.8, researcher 0.9 / 12 s / 0.85. Haemorrhage rate x0.8 guided, x1.2 researcher.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 24 instead of 48" },
+             { "severe_haemorrhage", "the blood loss runs 1.15 times as fast (345 ml instead of 300 ml)" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "spikes" ] < 1 || s.parts[ "map_min_mmHg" ] < kLo - 10 )
+    {
+      h.push_back( make_hint( 1, "Negative feedback: low pressure must raise sympathetic output and lower vagal output. If the sympathetic side stays silent the pressure collapses.", "" ) );
+      h.push_back( make_hint( 2, "The sympathetic output is too weak when pressure falls: check RVLM, the tonic sympathetic source.", "sympathetic" ) );
+      h.push_back( make_hint( 3, "baroreceptor at weight 1600 > AFF > NTS; NTS > CVLM (inhibitory) > RVLM (bias 380) > IML > SG > sympathetic.", "" ) );
+    }
+    else if ( s.parts[ "map_max_mmHg" ] > kHi + 15 )
+    {
+      h.push_back( make_hint( 1, "A reflex that over-corrects pushes the pressure past the band: the gain of the loop is too high or too slow.", "" ) );
+      h.push_back( make_hint( 2, "Reduce how strongly the baroreceptor path turns off the sympathetic branch.", "baroreceptor" ) );
+      h.push_back( make_hint( 3, "CVLM > RVLM at about -140; sympathetic gain 0.0076 with tau 1000 ms.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "The reflex needs both limbs: sympathetic withdrawal and vagal slowing for high pressure, the reverse for low.", "" ) );
+      h.push_back( make_hint( 2, "The vagal limb is probably missing or weak.", "vagal" ) );
+      h.push_back( make_hint( 3, "NTS > NA (4, bias 370) 30 > VG (segment, 1500) > vagal (ACh, gain 0.012, tau 500 ms).", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override
+  {
+    Score s = score();
+    double w = std::max( { s.parts[ "settle_stand_s" ], s.parts[ "settle_lie_s" ], s.parts[ "settle_haem_s" ] } );
+    return { { "worst_settle_s", make_metric( w, "s", true ) } };
+  }
+  Note notebook() const override
+  {
+    return { "Pressure in a loop",
+             "Baroreceptors in the carotid sinus and aortic arch fire faster when pressure rises. The nucleus of the solitary tract "
+             "turns that into vagal slowing of the heart and, through the caudal and rostral ventrolateral medulla, a fall in "
+             "sympathetic vasomotor tone: negative feedback that settles pressure within seconds.",
+             "Kirchheim HR (1976) Physiol Rev 56:100; Guyenet PG (2006) Nat Rev Neurosci 7:335" };
+  }
   std::vector< Event > timeline() const override
   {
     return { { kStand, 2000, "stand up" }, { kStand, kLie - kStand, "upright" }, { kLie, 2000, "lie down" },
@@ -138,7 +189,7 @@ public:
       in.sym_cardiac = in.sym_vascular = sym;
       in.vagal = 0.6;
       in.standing = ( t_ >= kStand && t_ < kLie ) ? 1.0 : 0.0;
-      in.haemorrhage_ml_s = ( t_ >= kHaem0 && t_ < kHaem1 ) ? kHaemRate : 0.0;
+      in.haemorrhage_ml_s = ( t_ >= kHaem0 && t_ < kHaem1 ) ? haem_rate() : 0.0;
       heart_.step( h, in );
       t_ += h;
       if ( heart_.beat_now )
@@ -168,7 +219,7 @@ public:
     b.readouts[ "NE" ] = ne_;
     b.readouts[ "ACh" ] = ach_;
     b.readouts[ "standing" ] = ( t_ >= kStand && t_ < kLie ) ? 1.0 : 0.0;
-    b.readouts[ "haemorrhage_ml_s" ] = ( t_ >= kHaem0 && t_ < kHaem1 ) ? kHaemRate : 0.0;
+    b.readouts[ "haemorrhage_ml_s" ] = ( t_ >= kHaem0 && t_ < kHaem1 ) ? haem_rate() : 0.0;
     b.readouts[ "heart_phase" ] = v.phase;
     b.readouts[ "ejection" ] = v.ejection;
     b.readouts[ "beat" ] = v.beat ? 1.0 : 0.0;
@@ -203,8 +254,8 @@ public:
     s.parts[ "spikes" ] = spikes_;
     s.value = 100.0 * frac;
     bool done = t_ >= kDuration;
-    bool tails = worst_tail >= 0.8;
-    s.passed = done && frac >= 0.85 && worst_settle <= 15.0 && tails;
+    bool tails = worst_tail >= tail_min();
+    s.passed = done && frac >= frac_min() && worst_settle <= settle_max() && tails;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -230,7 +281,7 @@ public:
       o << "Pressure overshoots to " << s.parts[ "map_max_mmHg" ] << " mmHg: the reflex over-corrects.";
     else
       o << "Pressure leaves 80-100 mmHg too often: " << 100 * frac << " % in band, settling takes up to " << worst_settle
-        << " s (needs 85 % and 15 s or less).";
+        << " s (needs " << 100 * frac_min() << " % and " << settle_max() << " s or less).";
     s.verdict = o.str();
     return s;
   }
@@ -238,7 +289,11 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -1, -1, 1, 1 }; }
 
 private:
-  static bool passed_all_but( double frac, double worst, bool tails ) { return frac >= 0.85 && worst <= 15.0 && tails; }
+  bool passed_all_but( double frac, double worst, bool tails ) const { return frac >= frac_min() && worst <= settle_max() && tails; }
+  double frac_min() const { return mode_ == "guided" ? 0.75 : ( mode_ == "researcher" ? 0.9 : 0.85 ); }
+  double settle_max() const { return mode_ == "guided" ? 20.0 : ( mode_ == "researcher" ? 12.0 : 15.0 ); }
+  double tail_min() const { return mode_ == "guided" ? 0.7 : ( mode_ == "researcher" ? 0.85 : 0.8 ); }
+  double haem_rate() const { return kHaemRate * mode_factor( mode_, 0.8, 1.2 ) * ( variant_ == "severe_haemorrhage" ? 1.15 : 1.0 ); }
 
   double map_mean() const { return n_ > 0 ? map_sum_ / n_ : 0.0; }
 

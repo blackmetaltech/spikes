@@ -69,3 +69,11 @@ Credits: Jose AD, Collison D (1970) Cardiovasc Res 4:160; Robinson BF, Epstein S
 
 ## Limits
 The schedule is rest 65 and exercise 120; a young adult reaches 170-190 in hard exercise, but the reduced SA cell's NE range ends at about 135/min (NE 1.0), so 120 is the realistic top the model allows. There is no accentuated antagonism. The error channels are handed to the circuit (see above), so this is a controller exercise, not a sensory one.
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** neuromodulation, feedforward_feedback (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Mean error / rest / exercise / recovery: 7.5 / 5 / 10 / 5, 6 / 4 / 8 / 4, 5.1 / 3.4 / 6.8 / 3.4 bpm. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 23); tight_tracking (4 / 3 / 6 / 3 bpm).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `mae_bpm`. **Notebook:** Jose & Collison 1970; Levy 1971.

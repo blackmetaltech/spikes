@@ -9,7 +9,7 @@
 //   Motors   "ag_motor", "ant_motor": alpha motoneuron pools (mean Hz per neuron).
 //   Protocol HOLD 1500-7500 ms: tonic drive and noise, limb free; 6 s are scored for tremor.
 //            Then two imposed stretches (flexor at 8200 + U(0,300) ms, extensor at 10 600 + U(0,300) ms; 2.5 N m, cosine ramps 20 ms,
-//            hold 350 ms) check that the stretch reflex still works with the recurrent loop in place. Episode 13 500 ms.
+//            hold 350 ms) check that the stretch reflex still works with the recurrent loop in place. Episode 16 450 ms (the volleys come last).
 //
 // MEASURES
 //   tremor_pct  : force tremor = lock-in amplitude of the summed muscle force r (F_flexor + F_extensor) at the three drive frequencies
@@ -19,11 +19,18 @@
 //   Common drive: the "noise" rate is 400 Hz x (1 + 0.6 (sin(8.5 Hz) + sin(10 Hz) + sin(11.5 Hz)) / sqrt 3), phases seeded: the 8-12 Hz
 //                 central drive that physiological tremor is made of (Elble & Koller 1990).
 //   rate_cv     : motoneuron-rate instability: sd / mean of the pool rate (Hz per neuron, smoothed with tau 15 ms) in the hold window.
-//   improvement : 1 - tremor_pct / tremor_ref(rate), floored 0: relative reduction against an unbraked cord (the same reference circuit
-//                 with Renshaw cells cut) firing at the same mean rate; tremor_ref is a measured control curve of the REFERENCE circuit (table below); it is not re-measured on the player's circuit.
-//                 0.5 means the tremor is halved.
+//   improvement : 1 - tremor_pct / control, floored 0. The control is the tremor an unbraked cord would show on THIS circuit: the reference
+//                 circuit's measured curve (same circuit with the Renshaw cells cut, tremor against mean pool rate; table below) times
+//                 clamp( excess / 1100, 0.57, 1.6 ), where `excess` is the circuit's own response to the common drive, measured in the last
+//                 second of the episode (VOLLEYS below). 0.5 means the tremor is halved relative to that control.
+//   VOLLEYS     : 13 700 .. 16 340 ms: the noise input is flat at 400 Hz and twelve 6 ms volleys of 4000 Hz arrive 220 ms apart. excess = (pool
+//                 spikes/s in 3-15 ms after a volley minus in the 55 ms before it), mean of the two pools, per 16 cells (so a 20-cell pool is
+//                 not favoured). It is the open-loop gain of the circuit's noise path: the volley is over before the recurrent loop (3-10 ms
+//                 round trip) has done much. A cord that shields its pools from the noise has a small excess, so its control shrinks and it
+//                 cannot "beat" it (and an excess under 627 fails outright: the pools ignore the common input); one that passes the noise on and has no recurrent inhibition tremors like the control (improvement ~ 0).
+//                 Measured on the reference: with Renshaw cells excess 760-940, improvement 0.39-0.61; Renshaw cells cut: improvement 0-0.21.
 //   resistance  : as in stretch_reflex (the recurrent loop must not abolish the reflex), mean of the two stretches.
-// PASS: improvement >= 0.25 (tremor cut by a quarter or more), resistance >= 0.30, no sustained oscillation, pools fire (>= 5 Hz mean
+// PASS: improvement >= 0.25 (tremor cut by a quarter or more against the per-circuit control), resistance >= 0.30, no sustained oscillation, pools fire (>= 5 Hz mean
 //       in the hold window), wired, finished.
 // VALUE: 100 * ( 0.55 min(1, improvement / 0.5) + 0.25 min(1, resistance / 0.5) + 0.2 (no oscillation) ), capped at 49 unless the
 //        pools are firing.
@@ -42,9 +49,12 @@ namespace
 {
 
 constexpr int kN = 2;
-constexpr double kDuration = 13500, kTorque = 2.5, kRamp = 20, kHold = 350, kNoiseHz = 400;
+constexpr double kDuration = 16450, kTorque = 2.5, kRamp = 20, kHold = 350, kNoiseHz = 400;
 constexpr double kHold0 = 1500, kHold1 = 7500, kStretch0 = 8200, kStretchGap = 2400, kJitter = 300;
 constexpr double kEnd = 2 * kRamp + kHold + 100, kQuiet0 = 1500, kQuiet1 = 2200;
+constexpr double kProbe0 = 13700, kProbeGap = 220, kProbeLen = 6, kProbeHz = 4000;  // pulses on the noise channel (inhibitory pause test)
+constexpr int kProbes = 12;
+constexpr double kExcessRef = 1100;  // extra pool spikes/s (16 cells) the reference cord without Renshaw cells shows in the 15 ms after a volley (1000-1250)
 constexpr double kBandHz[ 3 ] = { 8.5, 10.0, 11.5 }, kNoiseDepth = 0.6;
 
 class RenshawTask : public LimbTaskBase
@@ -60,10 +70,7 @@ public:
            "motoneurons excite them, they inhibit their own motoneurons (and, as in the real cord, the Ia inhibitory interneurons and "
            "the opposite Renshaw cells). The cord is bathed in background synaptic noise that reaches both pools through shared "
            "fibres, which makes the pools fire in waves and the muscle force wobble (tremor). Hold the limb for six seconds, then "
-           "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with the task's reference cord "
-           "without Renshaw cells, a control curve of tremor against pool rate measured once on the reference circuit's pool sizes and weights "
-           "(not re-measured on yours, so a very different pool is judged against that curve; at least a quarter less to pass), while the stretch reflex still resists the pushes and the "
-           "limb does not ring. A recipe that works (iaf_psc_alpha groups; weights pA): the stretch-reflex circuit (Ia sensors at weight 3 onto "
+           "take two sudden stretches. Score: how much your recurrent inhibition cuts the force tremor compared with the cord you would have without Renshaw cells. That control is a curve of tremor against pool rate measured on the task's reference circuit (a cord with its Renshaw cells cut), re-scaled for YOUR circuit by how strongly your pools answer the common drive: after the stretches, twelve short volleys on the noise input measure that response. Shielding the pools from the noise therefore cannot pass, and a cord with no recurrent inhibition scores about zero. You need at least a quarter less tremor than that control, while the stretch reflex still resists the pushes and the limb does not ring. A recipe that works (iaf_psc_alpha groups; weights pA): the stretch-reflex circuit (Ia sensors at weight 3 onto "
            "relay groups of 6 with tau m 60 ms; pools MNF, MNE of 20 cells; Ia > MN 320, Ia > inhibitory IN groups of 4 at 240, IN > opposite "
            "MN -320) with the drive weight lowered to 200; noise (a Poisson input, weight 100) onto one shared group of 2 cells DESC, and DESC > "
            "both pools at 40 (shared fibres: every cell gets the same wave); Renshaw groups RF and RE (4 cells, inhibitory): MNF > RF and "
@@ -71,13 +78,69 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive", "noise" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
+  std::map< std::string, ChannelKind > channel_kinds() const override
+  {
+    return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 200 ) }, { "noise", in_kind( "poisson", 400, 100 ) } };
+  }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return 56; }
+  int par_neurons() const override { return variant_par( variant_, 56 ); }
+
+  // ---- v0.3 ----
+  std::string level_kind() const override { return "task"; }
+  std::vector< std::string > concepts_new() const override { return { "recurrent_inhibition" }; }
+  std::vector< std::string > concepts_used() const override { return { "inhibition", "reciprocal_inhibition", "recruitment" }; }
+  bool on_spine() const override { return true; }
+  /// Pass bars: improvement >= 0.20 (guided) / 0.25 / 0.294 (researcher), resistance >= 0.24 / 0.30 / 0.353. The common drive (400 Hz, 60 % depth)
+  /// is not scaled by the modes: tremor is measured against a control that is re-scaled per circuit.
+  std::map< std::string, std::string > variants() const override
+  {
+    return { { "half_neurons", "half the neurons: 28 instead of 56" },
+             { "strong_tremor", "the common drive is 1.5 times as deep (90 % modulation): more tremor to calm" } };
+  }
+  std::vector< Hint > hints() const override
+  {
+    Score s = score();
+    std::vector< Hint > h;
+    if ( s.parts[ "pool_rate_hz" ] < 5.0 )
+    {
+      h.push_back( make_hint( 1, "The motoneuron pools need tonic drive to fire before feedback has anything to hold back.", "" ) );
+      h.push_back( make_hint( 2, "The pools are nearly silent.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Drive at about 200 pA onto both pools of 20 cells.", "" ) );
+    }
+    else if ( s.parts[ "volley_excess_hz" ] < 0.57 * kExcessRef )
+    {
+      h.push_back( make_hint( 1, "Real motor pools receive common synaptic input; that shared wave is what makes the force wobble.", "" ) );
+      h.push_back( make_hint( 2, "The noise input does not move your pools: route it through shared fibres.", "noise" ) );
+      h.push_back( make_hint( 3, "noise (weight 100) > DESC (2 cells) > both pools at 40 pA.", "" ) );
+    }
+    else if ( s.parts[ "improvement" ] < tol_min( mode_, 0.25 ) )
+    {
+      h.push_back( make_hint( 1, "Recurrent inhibition: the harder the pool fires, the harder it is held back by its own Renshaw cells.", "" ) );
+      h.push_back( make_hint( 2, "Add inhibitory cells that the motoneurons excite and that inhibit the same pool.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "RF, RE (4 cells, inhibitory): MNF > RF and MNE > RE at 80, RF > MNF and RE > MNE at -160.", "" ) );
+    }
+    else
+    {
+      h.push_back( make_hint( 1, "Too much recurrent inhibition smothers the stretch reflex or makes the limb ring.", "" ) );
+      h.push_back( make_hint( 2, "Weaken the Renshaw feedback a little.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "RF > MNF and RE > MNE around -160 pA; keep RF > INF at -40 so the reciprocal inhibition survives.", "" ) );
+    }
+    return h;
+  }
+  std::map< std::string, Metric > metrics() const override { return { { "tremor_pct", make_metric( score().parts[ "tremor_pct" ], "%", true ) } }; }
+  Note notebook() const override
+  {
+    return { "The Renshaw loop",
+             "Each alpha motoneuron sends a recurrent collateral to Renshaw cells, which release glycine and GABA back onto the "
+             "motoneuron pool and onto Ia inhibitory interneurons: negative feedback that limits the pool's firing.",
+             "Renshaw B (1941) J Neurophysiol 4:167; Hultborn H, Jankowska E, Lindstrom S (1971) J Physiol 215:591" };
+  }
 
   std::vector< Event > timeline() const override
   {
     std::vector< Event > ev;
     ev.push_back( { kHold0, kHold1 - kHold0, "hold (tremor scored)" } );
+    ev.push_back( { kProbe0, kProbeGap * kProbes, "common-input volleys" } );
     for ( int k = 0; k < kN; ++k )
       ev.push_back( { onset_[ k ], 2 * kRamp + kHold, k % 2 == 0 ? "stretch flexor" : "stretch extensor" } );
     return ev;
@@ -111,8 +174,11 @@ public:
     Score s;
     Metrics m = analyse();
     s.parts[ "tremor_pct" ] = m.tremor;
-    s.parts[ "tremor_reference_pct" ] = tremor_ref( m.rate_mean );
+    s.parts[ "tremor_reference_pct" ] = m.control > 0 ? m.control : tremor_ref( m.rate_mean );
     s.parts[ "improvement" ] = m.improvement;
+    s.parts[ "rate_mod_pct" ] = m.rate_mod;
+    s.parts[ "volley_excess_hz" ] = m.excess;
+    s.parts[ "tremor_control_pct" ] = m.control;
     s.parts[ "rate_cv" ] = m.rate_cv;
     s.parts[ "pool_rate_hz" ] = m.rate_mean;
     s.parts[ "resistance" ] = m.resistance;
@@ -123,7 +189,7 @@ public:
     s.value = 100.0 * ( 0.55 * std::min( 1.0, m.improvement / 0.5 ) + 0.25 * std::min( 1.0, m.resistance / 0.5 ) + 0.2 * ( m.osc_flag ? 0.0 : 1.0 ) );
     if ( !firing || m.osc_flag )
       s.value = std::min( s.value, 49.0 );
-    s.passed = done && m.done >= kN && wiring_.ok() && firing && m.improvement >= 0.25 && m.resistance >= 0.30 && !m.osc_flag;
+    s.passed = done && m.done >= kN && wiring_.ok() && firing && m.have_probe && m.excess >= 0.57 * kExcessRef && m.improvement >= tol_min( mode_, 0.25 ) && m.resistance >= tol_min( mode_, 0.30 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
@@ -137,14 +203,19 @@ public:
       o << "Tremor " << m.tremor << "%, waiting for the pushes" << yet;
     else if ( m.osc_flag )
       o << "The limb rings after the push (" << std::setprecision( 2 ) << m.osc << " rad p-p): too much loop gain.";
-    else if ( m.improvement < 0.25 )
-      o << "Force tremor " << m.tremor << "% is only " << std::setprecision( 0 ) << m.improvement * 100 << "% below the reference cord without Renshaw cells ("
-        << std::setprecision( 1 ) << tremor_ref( m.rate_mean ) << "% at this rate): the recurrent loop is too weak, or missing.";
-    else if ( m.resistance < 0.30 )
+    else if ( !m.have_probe )
+      o << "Tremor " << m.tremor << "%; the common-input volleys are still to come" << yet;
+    else if ( m.excess < 0.57 * kExcessRef )
+      o << "Your motor pools hardly answer the common input (a volley adds only " << std::setprecision( 0 ) << m.excess
+        << " spikes/s; the reference cord shows about " << kExcessRef << "): there is no common drive for recurrent inhibition to calm. Send the noise through shared fibres to both pools.";
+    else if ( m.improvement < tol_min( mode_, 0.25 ) )
+      o << "Force tremor " << m.tremor << "% is only " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit ("
+        << std::setprecision( 1 ) << m.control << "% at this rate and this strength of common input): the recurrent loop is too weak, or missing.";
+    else if ( m.resistance < tol_min( mode_, 0.30 ) )
       o << "The stretch reflex only cuts the deflection by " << std::setprecision( 0 ) << m.resistance * 100
         << "%: the recurrent inhibition is smothering the reflex.";
     else
-      o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below the reference unbraked cord, reflex cuts deflection by "
+      o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit, reflex cuts deflection by "
         << m.resistance * 100 << "%.";
     s.verdict = o.str();
     return s;
@@ -165,10 +236,17 @@ protected:
   }
   double noise_rate( double t ) const
   {
+    if ( t >= kProbe0 - 400 )  // the pause test: flat chatter, then twelve short volleys
+    {
+      for ( int k = 0; k < kProbes; ++k )
+        if ( t >= kProbe0 + kProbeGap * k && t < kProbe0 + kProbeGap * k + kProbeLen )
+          return kProbeHz;
+      return kNoiseHz;
+    }
     double m = 0;
     for ( int k = 0; k < 3; ++k )
       m += std::sin( 2 * kPi * kBandHz[ k ] * t / 1000.0 + phase_[ k ] );
-    return std::max( 0.0, kNoiseHz * ( 1.0 + kNoiseDepth * m / std::sqrt( 3.0 ) ) );
+    return std::max( 0.0, kNoiseHz * ( 1.0 + kNoiseDepth * ( variant_ == "strong_tremor" ? 1.5 : 1.0 ) * m / std::sqrt( 3.0 ) ) );
   }
   void after_tick( double h ) override
   {
@@ -221,7 +299,7 @@ protected:
 private:
   struct Metrics
   {
-    double tremor = 0, improvement = 0, rate_cv = 0, rate_mean = 0, resistance = 0, osc = 0;
+    double p_base = 0, p_burst = 0, p_post = 0, excess = 0, control = 0; bool have_probe = false; double rate_mod = 0, tremor = 0, improvement = 0, rate_cv = 0, rate_mean = 0, resistance = 0, osc = 0;
     int done = 0, osc_flag = 0;
   };
 
@@ -271,7 +349,50 @@ private:
       m.tremor = mean > 1e-9 ? 100.0 * std::sqrt( rss ) / mean : 0;
       m.rate_mean = window_mean( rate_, kHold0, t1 );
       m.rate_cv = m.rate_mean > 1e-6 ? window_sd( rate_, kHold0, t1 ) / m.rate_mean : 0;
-      m.improvement = clampd( 1.0 - m.tremor / tremor_ref( m.rate_mean ), 0, 1 );
+      m.improvement = 0;  // filled below once the volley response is known
+      {
+        // lock-in amplitude of the pool rate at the three drive frequencies, relative to its mean: how strongly the common drive moves the pool
+        double rm = 0, rss2 = 0;
+        for ( long i = a; i < b; ++i )
+          rm += rate_[ i ];
+        rm /= n;
+        for ( int k = 0; k < 3; ++k )
+        {
+          double c = 0, sn = 0;
+          for ( long i = a; i < b; ++i )
+          {
+            const double ph = 2 * kPi * kBandHz[ k ] * ( i + 0.5 ) / 1000.0;
+            c += ( rate_[ i ] - rm ) * std::cos( ph );
+            sn += ( rate_[ i ] - rm ) * std::sin( ph );
+          }
+          const double amp = 2.0 / n * std::sqrt( c * c + sn * sn );
+          rss2 += amp * amp;
+        }
+        m.rate_mod = rm > 1e-9 ? 100.0 * std::sqrt( rss2 ) / rm : 0;
+      }
+    }
+    if ( t_ >= kProbe0 + kProbeGap * kProbes )
+    {
+      double base = 0, burst = 0, post = 0;
+      for ( int k = 0; k < kProbes; ++k )
+      {
+        const double t0 = kProbe0 + kProbeGap * k;
+        base += 0.5 * ( window_mean( cnt_ag_, t0 - 60, t0 - 5 ) + window_mean( cnt_ant_, t0 - 60, t0 - 5 ) ) * 1000.0;
+        burst += 0.5 * ( window_mean( cnt_ag_, t0 + 3, t0 + 15 ) + window_mean( cnt_ant_, t0 + 3, t0 + 15 ) ) * 1000.0;
+        post += 0.5 * ( window_mean( cnt_ag_, t0 + 18, t0 + 60 ) + window_mean( cnt_ant_, t0 + 18, t0 + 60 ) ) * 1000.0;
+      }
+      m.p_base = base / kProbes;
+      m.p_burst = burst / kProbes;
+      m.p_post = post / kProbes;
+      const double cells = std::max( 1.0, 0.5 * ( pool_ag_ + pool_ant_ ) );
+      m.excess = std::max( 0.0, m.p_burst - m.p_base ) * 16.0 / cells;  // extra pool spikes/s in the first 15 ms, per 16 cells
+      m.have_probe = true;
+    }
+    if ( m.have_probe && m.tremor > 0 )
+    {
+      // The unbraked control for THIS circuit: the reference curve, scaled by how strongly its pools answer the common volley.
+      m.control = tremor_ref( m.rate_mean ) * clampd( m.excess / kExcessRef, 0.57, 1.6 );
+      m.improvement = clampd( 1.0 - m.tremor / m.control, 0, 1 );
     }
     double res = 0;
     int nres = 0;

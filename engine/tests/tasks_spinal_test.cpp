@@ -201,6 +201,8 @@ int main( int argc, char** argv )
     // Renshaw
     { "renshaw", { { "MN_F", "RC_F", 0.0 }, { "MN_E", "RC_E", 0.0 } }, "motoneuron collaterals cut (no Renshaw cells driven: tremor is that of an unbraked cord)" },
     { "renshaw", { { "RC_F", "MN_F", 0.0 }, { "RC_E", "MN_E", 0.0 } }, "Renshaw cells fire but cannot inhibit the motoneurons" },
+    { "renshaw", { { "DESC", "MN_F", 0.25 }, { "DESC", "MN_E", 0.25 }, { "MN_F", "RC_F", 0.0 }, { "MN_E", "RC_E", 0.0 } }, "v0.3: pools shielded from the common noise and no Renshaw cells (cannot pass by ignoring the drive: the volley test measures the noise path on the circuit itself)" },
+    { "renshaw", { { "DESC", "MN_F", 0.5 }, { "DESC", "MN_E", 0.5 }, { "MN_F", "RC_F", 0.0 }, { "MN_E", "RC_E", 0.0 } }, "v0.3: half the common input and no Renshaw cells (tremor falls only because the input is smaller: no better than its own control)" },
     // posture
     { "posture", { { "Ia_F", "MN_F", 0.0 }, { "Ia_E", "MN_E", 0.0 }, { "II_F", "MN_F", 0.0 }, { "II_E", "MN_E", 0.0 } }, "spindle afferents cut (no stretch reflex: the limb has no feedback)" },
     { "posture", { { "TONIC", "GAM", 0.0 } }, "no gamma drive (spindles go slack, the length servo loses its sensor: a weaker, seed-dependent failure, so it must only score below 80 where the reference scores about 90)", false },

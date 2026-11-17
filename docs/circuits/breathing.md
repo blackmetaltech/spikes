@@ -43,3 +43,11 @@ The task also says plainly when the sensors are not connected ("sensor 'chemo' i
 No O2 sensing or hypoxic drive, no Hering-Breuer stretch feedback, no active expiration. The chemoreceptor signal is a graded current rather than spikes. The preBotC here is a network of identical bursters with excitatory coupling only; the inhibitory interneurons that real preBotC networks have (Janczewski et al. 2013) are not modelled inside it, expiratory inhibition lives in the EXP cells.
 
 Credits: Smith JC, Ellenberger HH, Ballanyi K, Richter DW, Feldman JL (1991) Science 254:726; Butera RJ, Rinzel J, Smith JC (1999) J Neurophysiol 82:382; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232; Guyenet PG, Stornetta RL, Bayliss DA (2010) Respir Physiol Neurobiol 173:244; Lahiri S, DeLaney RG (1975) Respir Physiol 24:249; Janczewski WA et al. (2013) J Neurosci 33:3045; Grodins FS et al. (1967) J Appl Physiol 22:260 (gas exchange).
+
+## v0.3: concepts, modes, variants (item D)
+
+* **Concepts:** rhythm_gating (new). Level kind `task`, on the spine.
+* **Modes** (guided / standard / researcher): Rest rate 10-22 / 12-20 / 13-19 per min, ventilation ratio 1.4 / 1.6 / 1.8, PaCO2 peak <= 55 / 52 / 52; inspired CO2 x0.8 / 1 / x1.1. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
+* **Variants** (optional branches, never weaken the base bar): half_neurons (par 13); strong_co2 (x1.15).
+* **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
+* **Quality metric:** `paco2_peak`. **Notebook:** Smith 1991; Feldman & Del Negro 2006.
