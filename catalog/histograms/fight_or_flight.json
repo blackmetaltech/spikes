@@ -1,0 +1,73 @@
+{
+ "task": "fight_or_flight",
+ "source": "synthetic: tools/histograms/gen_histograms.py (see docs/HISTOGRAMS.md)",
+ "samples": 16,
+ "metrics": {
+  "neurons": {
+   "unit": "neurons",
+   "lower_is_better": true,
+   "values": [
+    45,
+    53,
+    45,
+    45,
+    45,
+    45,
+    45,
+    46,
+    45,
+    42,
+    45,
+    48,
+    45,
+    59,
+    53,
+    52
+   ]
+  },
+  "energy_hz": {
+   "unit": "spikes/s",
+   "lower_is_better": true,
+   "values": [
+    16.14,
+    14.131,
+    16.71,
+    12.842,
+    16.079,
+    15.694,
+    16.644,
+    14.42,
+    16.581,
+    16.254,
+    16.076,
+    14.305,
+    16.111,
+    13.123,
+    13.421,
+    13.431
+   ]
+  },
+  "recovery_error": {
+   "unit": "x tol",
+   "lower_is_better": true,
+   "values": [
+    0.2576,
+    0.1881,
+    0.4833,
+    0.2604,
+    0.3067,
+    0.1679,
+    0.3907,
+    0.0073,
+    0.2718,
+    0.2821,
+    0.3031,
+    0.2547,
+    0.0875,
+    0.0962,
+    0.3153,
+    0.0019
+   ]
+  }
+ }
+}

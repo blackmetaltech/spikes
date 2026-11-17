@@ -1,0 +1,58 @@
+{
+ "task": "heart_autonomic",
+ "source": "synthetic: tools/histograms/gen_histograms.py (see docs/HISTOGRAMS.md)",
+ "samples": 11,
+ "metrics": {
+  "neurons": {
+   "unit": "neurons",
+   "lower_is_better": true,
+   "values": [
+    37,
+    55,
+    34,
+    49,
+    37,
+    37,
+    37,
+    37,
+    36,
+    37,
+    51
+   ]
+  },
+  "energy_hz": {
+   "unit": "spikes/s",
+   "lower_is_better": true,
+   "values": [
+    8.529,
+    5.247,
+    8.158,
+    6.474,
+    5.766,
+    8.716,
+    8.629,
+    8.425,
+    8.25,
+    8.53,
+    8.09
+   ]
+  },
+  "mae_bpm": {
+   "unit": "bpm",
+   "lower_is_better": true,
+   "values": [
+    2.9004,
+    3.2124,
+    4.4304,
+    2.7695,
+    4.5607,
+    3.3101,
+    3.3704,
+    3.1023,
+    2.2903,
+    3.0796,
+    4.6115
+   ]
+  }
+ }
+}
