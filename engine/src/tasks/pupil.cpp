@@ -56,7 +56,13 @@ public:
            "column, superior cervical ganglion) drives the radial dilator and the pupil opens (slower). Light also switches the "
            "sympathetic side off. Wire 'retina' to the reflex arc and 'threat' to the sympathetic arm, and read out 'sphincter' and "
            "'dilator'. Score: a step to bright light must constrict the pupil by 2.5 mm or more within about a quarter of a second, the "
-           "return to dark must open it again, and a fright cue must dilate it. A recipe that works (iaf_psc_alpha groups; every link at the "
+           "return to dark must open it again, and a fright cue must dilate it. ";
+  }
+  /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (iaf_psc_alpha groups; every link at the "
            "default weight, excitatory 80 pA, inhibitory -80 pA; ADVANCED bias I_e in pA): retina onto RGC (6 cells, bias 100) > PON (4, 225) "
            "> EW (4, 340, tau syn I 10 ms) > CG (4, 340) > sphincter, all three links with delay 15 ms (the reflex then takes about 200 ms); threat onto HYP (4, "
            "bias 100) > IML (4, bias 410, tau syn E and I 10 ms) > SCG (4, bias 340) > dilator; PON inhibits IML (light switches the sympathetic "

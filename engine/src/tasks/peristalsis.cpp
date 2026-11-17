@@ -66,7 +66,13 @@ public:
            "contract. Start simple: wire 'dist0..7' (stretch sensors) through interneurons to 'ach0..7' (excitatory motor pools), each stretch "
            "segment exciting the pool just oral of it; the gut then runs its own slow wave. Then improve it: add 'no0..7' outputs (inhibitory "
            "motor pools, ahead of the bolus: they make it faster) and 'icc0..7' outputs (slow-wave pacemakers of your own, which then replace "
-           "the built-in clock). Score: the bolus must reach the end of the tube within 25 s. A recipe that works (iaf_psc_alpha groups of 8; "
+           "the built-in clock). Score: the bolus must reach the end of the tube within 25 s. ";
+  }
+  /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (iaf_psc_alpha groups of 8; "
            "pA; bias = ADVANCED I_e; drag a sensor or a group onto a numbered channel and the whole family is wired, neuron k to channel k, "
            "and in a link's inspector choose wiring 'neuron k to k' with a shift): dist0..7 onto S; S > AIN (bias 340) segment shift 0, weight "
            "100, delay 3 ms; AIN > EMN (bias 380, tau syn I 10 ms) segment shift -1 (each AIN cell to the pool just oral of it), weight 36; "

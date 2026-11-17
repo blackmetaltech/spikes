@@ -8,7 +8,7 @@
 // hints in 3 tiers, metrics, notebook with citation, modes, timeline and bands, channel_kinds for every channel).
 // Diagnosis cases: the patient circuit is the reference circuit of the underlying task minus the answer's projections, the candidates
 // are real lesion ids (each matches a projection of the reference), the symptom shows in the patient's own run, and score() accepts only the
-// right answer submitted with set_variant(id).
+// right answer submitted with set_variant(id). The answer's projection stays in the patient circuit at weight 0 (every candidate is drawn).
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -110,6 +110,13 @@ static void print( const std::string& what, uint64_t seed, const RunResult& r )
   for ( auto& [ k, v ] : r.score.parts )
     std::printf( " %s=%.3g", k.c_str(), v );
   std::printf( "  (%.1fs)\n    %s\n", r.wall_s, r.score.verdict.c_str() );
+  if ( std::getenv( "DX_RATES" ) )
+  {
+    std::printf( "    rates Hz:" );
+    for ( auto& [ pop, hz ] : r.rate_hz )
+      std::printf( " %s=%.1f", pop.c_str(), hz );
+    std::printf( "\n" );
+  }
   if ( !r.error.empty() )
     std::printf( "    ENGINE ERROR: %s\n", r.error.c_str() );
 }
@@ -268,6 +275,20 @@ int main( int argc, char** argv )
     }
   }
 
+  // ================================================================ recipe / default part (Lead decisions): numbers live in recipe(), not in the brief
+  for ( const std::string id : { "boss_autonomic_exam", "breathing", "m_negative_feedback", "heart_autonomic", "heart_pacemaker", "baroreflex", "pupil", "peristalsis", "fight_or_flight" } )
+  {
+    auto t = make_task( id );
+    CHECK_MSG( !t->default_model().empty(), id + " default_model" );
+    CHECK_MSG( !t->recipe().empty(), id + " recipe" );
+    CHECK_MSG( t->brief().find( "A recipe that" ) == std::string::npos && t->brief().find( "A starting point" ) == std::string::npos, id + " brief still carries the recipe" );
+    // the declared default cell is the one the reference circuit's populations use
+    json c = load_circuit( circuits_dir() + reference_circuit( id ) );
+    bool used = false;
+    for ( auto& p : c[ "populations" ] ) used = used || p[ "model" ] == t->default_model();
+    CHECK_MSG( used, id + " default_model " + t->default_model() + " not in the reference circuit" );
+  }
+
   // ================================================================ diagnosis cases
   std::set< std::string > answers;
   for ( const auto& dc : kDx )
@@ -303,23 +324,41 @@ int main( int argc, char** argv )
         CHECK_MSG( apply_lesion( tmp, l ) > 0, id + ": candidate " + cand + " matches no projection of " + reference_circuit( dc.inner ) );
     }
     {
+      // same projections as the reference, in the same order: the answer's carry weight 0, every other weight is untouched
       json expect = ref;
-      std::vector< json > keep;
       auto drop = parse_lesion( dg.answer );
-      for ( auto& p : expect[ "projections" ] )
-      {
-        bool d = false;
-        for ( auto& l : drop )
-          if ( p[ "pre" ] == l.pre && p[ "post" ] == l.post ) d = true;
-        if ( !d ) keep.push_back( p );
-      }
-      CHECK( pat[ "projections" ] == json( keep ) );
+      for ( auto& l : drop )
+        CHECK( apply_lesion( expect, l ) > 0 );
+      CHECK( pat[ "projections" ] == expect[ "projections" ] );
       CHECK( pat[ "populations" ] == ref[ "populations" ] );
       CHECK( pat[ "inputs" ] == ref[ "inputs" ] );
       CHECK( pat[ "outputs" ] == ref[ "outputs" ] );
-      CHECK( pat[ "projections" ].size() < ref[ "projections" ].size() );
-      CHECK( pat.dump().find( dg.answer ) == std::string::npos );  // the file does not leak the answer
+      CHECK( pat[ "projections" ].size() == ref[ "projections" ].size() );
+      // every candidate's projection is present in the patient file; only the answer's are silent
+      for ( const auto& cand : dg.candidates )
+        for ( auto& l : parse_lesion( cand ) )
+        {
+          int present = 0, live = 0;
+          for ( auto& p : pat[ "projections" ] )
+          {
+            if ( p[ "pre" ] != l.pre || p[ "post" ] != l.post ) continue;
+            ++present;
+            double w = p.contains( "edges" ) ? p[ "edges" ][ 0 ][ 2 ].get< double >() : p[ "synapse" ][ "weight" ].get< double >();
+            if ( w != 0.0 ) ++live;
+          }
+          CHECK_MSG( present > 0, id + ": candidate " + cand + " is not drawn" );
+          CHECK_MSG( ( live == 0 ) == ( cand == dg.answer ), id + ": only the answer may be at weight 0 (" + cand + ")" );
+        }
     }
+
+    // the contract fields the lab shows: plain label and the authored 'why not' for every candidate, no recipe, default cell of the inner task
+    for ( const auto& cand : dg.candidates )
+    {
+      CHECK_MSG( dg.labels.count( cand ) && !dg.labels.at( cand ).empty(), id + " label " + cand );
+      CHECK_MSG( dg.explain.count( cand ) && !dg.explain.at( cand ).empty(), id + " explain " + cand );
+    }
+    CHECK( t->recipe().empty() );
+    CHECK( t->default_model() == make_task( dc.inner )->default_model() );
 
     // the patient's own run shows the symptom, and the diagnosis is judged by the submitted answer
     RunResult r = run_one( id, pat, 1 );

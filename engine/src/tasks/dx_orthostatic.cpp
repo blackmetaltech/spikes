@@ -18,7 +18,7 @@ DxSpec spec()
   s.vignette = "A 68-year-old man sees stars and nearly faints every time he stands up, and has to sit down within a minute. You are given the circuit of "
                "his arterial baroreflex; the examiner stands him up at 15 s, lays him down at 60 s and later takes blood.";
   s.symptoms = "Blood pressure is low even lying down (about 68 mmHg mean) and falls further, to the mid-50s, on standing and after blood loss. "
-               "His heart and arteries are healthy, the baroreceptors report the fall normally, and the brainstem cells that should answer are firing.";
+               "His heart and arteries are healthy, and the baroreceptors report the fall normally.";
   s.candidates = { "RVLM>IML", "AFF>NTS", "NTS>CVLM", "CVLM>RVLM", "NA>VG" };
   s.answer = "RVLM>IML";
   s.labels = {

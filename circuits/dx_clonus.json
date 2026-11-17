@@ -903,6 +903,16 @@
    }
   },
   {
+   "pre": "MN_F",
+   "post": "RC_F",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 1.0
+   }
+  },
+  {
    "pre": "RC_F",
    "post": "MN_F",
    "rule": "all_to_all",
@@ -1639,6 +1649,16 @@
    "synapse": {
     "synapse_model": "static_synapse",
     "weight": -9.0,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "MN_E",
+   "post": "RC_E",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
     "delay": 1.0
    }
   },

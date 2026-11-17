@@ -10,7 +10,8 @@
 //
 // Candidate ids are lesion ids of the lesion lab: "pre>post" (every projection pre -> post), several joined with "+" for a
 // bilateral lesion ("MN_F>RC_F+MN_E>RC_E"). The patient circuit file is the reference circuit of the underlying task with the
-// answer's projections DELETED (circuits/tools/gen_boss_dx.py), so a lesion lab "restore the wire" test is possible.
+// answer's projections kept in the file with their weight set to 0 (circuits/tools/gen_boss_dx.py): every candidate is drawn, selectable and
+// cuttable in the lesion lab, and the dead wire is told apart by activity (a source that fires into a target that is silent), not by a missing arrow.
 #pragma once
 #include <algorithm>
 #include <map>
@@ -50,8 +51,11 @@ public:
   {
     std::ostringstream o;
     o << s_.vignette << "\n\nFindings: " << s_.symptoms
-      << "\n\nThis circuit is a working one with ONE connection missing. Run it, watch the scopes, use the lesion lab to test your "
-         "ideas (a cut you add that makes no difference was not the missing one), then name the lesion. Candidates:";
+      << "\n\nThis circuit is a working one with ONE connection dead: every candidate is drawn, but the dead one carries nothing. Run it and "
+         "watch which groups fire and which do not answer their input: the dead connection leads from an active group into one that fails to "
+         "respond to it. To probe, cut a suspected connection in the lesion lab and see whether the symptoms or the activity downstream "
+         "change: cutting a connection that is working changes something, while cutting the dead one changes nothing (and neither does "
+         "cutting anything after a silent group). Then name the lesion. Candidates:";
     for ( auto& c : s_.candidates )
       o << "\n - " << c << ": " << s_.labels.at( c );
     return o.str();
@@ -96,7 +100,10 @@ public:
       ++wrong_;
   }
 
-  Diagnosis diagnosis() const override { return { s_.id + ".json", s_.symptoms, s_.candidates, s_.answer }; }
+  Diagnosis diagnosis() const override { return { s_.id + ".json", s_.symptoms, s_.candidates, s_.answer, s_.labels, s_.explain }; }
+  // the patient is watched on the cell type of the underlying task's reference circuit; a diagnosis has no recipe
+  std::string default_model() const override { return inner_->default_model(); }
+  std::string recipe() const override { return ""; }
   Note notebook() const override { return s_.note; }
 
   std::vector< Hint > hints() const override
@@ -108,7 +115,7 @@ public:
     for ( auto& c : s_.candidates )
       if ( c != s_.answer && other.empty() )
         other = c;
-    h.push_back( { 3, "It is either " + s_.answer + " or " + other + ". Cut the one you suspect in the lesion lab: if the symptom does not change, it was not the missing wire.", s_.hint2_target } );
+    h.push_back( { 3, "It is either " + s_.answer + " or " + other + ". Trace the groups at both ends of each: the dead connection leads from an active group into one that does not answer. Then cut each in the lesion lab: a working one changes the activity or the symptoms, the dead one changes nothing (so does one after a silent group).", s_.hint2_target } );
     return h;
   }
 

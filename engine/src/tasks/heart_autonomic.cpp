@@ -82,7 +82,13 @@ public:
            "afferents (feed-forward), and hr_too_low and hr_too_high hand you the sign of the heart-rate error directly, in place "
            "of the baroreceptors and arterial stretch afferents that would report it in the body. Cutting the vagus should show up "
            "as resting tachycardia (about 100), or cutting the sympathetic chain as a heart that cannot speed up. Too much ACh "
-           "slows the node a lot, so keep the vagal drive moderate. Score: mean tracking error, and the average rate in each phase. A recipe that "
+           "slows the node a lot, so keep the vagal drive moderate. Score: mean tracking error, and the average rate in each phase. ";
+  }
+  /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that "
            "works (iaf_psc_alpha groups; pA; bias = ADVANCED I_e): the three sensors at a weight of about 800 onto relay groups CC, LOW and HIGH "
            "(4 cells each; the sensor weight is set on the sensor); vagal chain NA (6 cells, bias 380: it fires on its own, that is the vagal tone) "
            "> VG (6, segment wiring neuron k to k, weight 1500) > vagal output, set to release ACh with gain 0.009 and tau 500 ms; "

@@ -332,6 +332,16 @@
    }
   },
   {
+   "pre": "RVLM",
+   "post": "IML",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 1.0
+   }
+  },
+  {
    "pre": "IML",
    "post": "SG",
    "rule": "one_to_one",

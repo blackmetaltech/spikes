@@ -22,3 +22,6 @@ motor pool fires at about 48 impulses/s per cell instead of about 30, the stretc
 ## Biology and limits
 Renshaw cells damp the 8-12 Hz coupling between descending drive and muscle (Williams & Baker 2009); reduced recurrent inhibition has been proposed as one contributor to spasticity (Hultborn 2006; Pierrot-Deseilligny & Burke 2005). The game's
 patient shows too much tremor and an over-driven pool, not clonus itself (the model limb does not ring); the case is about finding the missing brake. Credits: Williams ER, Baker SN (2009) J Neurosci 29:6616; Hultborn H (2006) Prog Neurobiol 78:215; Pierrot-Deseilligny E, Burke D (2005) *The Circuitry of the Human Spinal Cord*; Hidler JM, Rymer WZ (1999) IEEE Trans Rehabil Eng 7:327 (reflex instability in spasticity).
+
+## How it is built
+The patient circuit is the reference circuit of the underlying task with the answer's projection(s) kept in the file at weight 0: every candidate is drawn and can be cut or probed in the lesion lab, and the dead wire is found from activity (a source that fires into a target that does not answer), not from a missing arrow. Cutting a working candidate changes the symptoms or the downstream rates; cutting the dead one (or anything after a silent group) changes nothing.

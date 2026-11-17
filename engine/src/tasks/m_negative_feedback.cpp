@@ -43,8 +43,9 @@ public:
               "times. The sensor 'level' reports the level (higher level, stronger signal). Wire tone onto the effort cells and read them out on "
               "'effort'. Then use the sensor to oppose the drive: the more level, the less effort. The sign matters: a signal that adds "
               "to the effort when the level is high makes things worse. Route the level through a cell set to inhibitory onto the effort cells. "
-              "The loop needs gain: the sensor gives 900 pA per unit of level, so about 3 inhibitory cells and a weight of about -300 pA is "
-              "the right size (the default -80 is too weak).";
+              "The loop needs gain: a weak inhibitory link (the default weight) is not enough.";
+    i.recipe = "The sensor gives 900 pA per unit of level, so about 3 inhibitory cells and a weight of about -300 pA onto the effort cells is "
+               "the right size (the default -80 is too weak).";
     i.chapter = "spinal";
     i.sensors = { "tone", "level" };
     i.motors = { "effort" };
@@ -62,8 +63,8 @@ public:
       { 3, "tone onto the effort cells (2 cells); level onto a group of 3 cells set to inhibitory, which projects onto the effort cells at about -300 pA. "
            "If the level still moves too far under a push, add cells or strengthen the link.", "level" } };
     i.note = { "Negative feedback",
-      "Walter Cannon coined homeostasis in the 1930s, but already in 1929 he described the organisation that holds the body's variables "
-      "steady: sensors that notice a departure and effectors that oppose it. Every loop of this book (stretch reflex, posture, baroreflex) "
+      "Walter Cannon coined the word homeostasis in 1926 and developed the idea in his 1929 review: the body's variables are held "
+      "steady by sensors that notice a departure and effectors that oppose it. Every loop of this book (stretch reflex, posture, baroreflex) "
       "has this shape: measure, subtract from the set point, push back.",
       "Cannon WB (1929) Organization for physiological homeostasis. Physiol Rev 9:399-431" };
     return i;
