@@ -75,6 +75,9 @@ var _check_task = null             # instant check: the task handle that owns th
 var _check_job := 0
 var _check_t0 := 0
 var _check_btn: Button = null
+var _recipe_open := false          # Standard: the SHOW RECIPE button was pressed this visit (Progress.record_recipe holds it across visits)
+var _last_edit_ms := -10000      # play-log edit coalescing: a slider drag is one edit
+var _half_warned := false
 var _mode_row: Control = null
 var _skip_btn: Button = null
 var _results_btn: Button = null
@@ -173,6 +176,7 @@ func build() -> void:
 func _live_circuit() -> Dictionary: return Lesion.apply(circuit, lesions) if lesion_on and not lesions.is_empty() else circuit
 
 func _exit_tree() -> void:
+	_check_cancel()
 	if task_id != "": Playlog.level_end(task_id, _rec_pass or bool(_dx.get("solved", false)))
 	GameAudio.silence_body()
 	if app != null and not circuit.is_empty() and not _is_dx(): app.lab_keep[task_id] = circuit
@@ -185,7 +189,7 @@ func _start(tid: String) -> void:
 	if OS.get_environment("SP_TASK") != "": task_id = OS.get_environment("SP_TASK")
 	mode = Progress.mode(); variant = Campaign.pending_variant; Campaign.pending_variant = ""
 	if OS.get_environment("SP_VARIANT") != "": variant = OS.get_environment("SP_VARIANT")
-	if task_id != "": Playlog.level_start(task_id, variant)
+	if task_id != "": Playlog.level_start(task_id, variant)   # the only level_start of a visit (a variant switch is an event, the map sends none)
 	var loaded := false
 	if _is_dx() and ext_ok:   # a diagnosis case: the patient's circuit, read-only, straight from the task
 		var dt = Campaign.make(task_id)
@@ -206,6 +210,7 @@ func _start(tid: String) -> void:
 		if FileAccess.file_exists(saved) and OS.get_environment("SP_NOAUTOSAVE") == "": circuit = Circuits.parse(FileAccess.get_file_as_string(saved)); loaded = not circuit.is_empty()
 	if not loaded: circuit = _skeleton(task_id)
 	Circuits.ensure_pos(circuit)
+	_ensure_task_weights()
 	part_card = _default_part()
 	_reload(true)
 	if OS.get_environment("SP_SPEED") == "" and tele.task != null: tele.speed = _default_speed(float(tele.task.duration_ms()), str(Campaign.info(task_id).get("kind", "task")))
@@ -220,12 +225,21 @@ static func _default_speed(duration_ms: float, kind := "task") -> float:
 		if duration_ms / s <= WANT_WALL_S * 1000.0: return s
 	return 10.0
 
-## N3: the part the next neuron is made from at the start: the first model of the task's reference circuit that is not the plain integrate-and-fire cell
-## (the heart lab opens on the SA-node card, not on iaf_psc_alpha), else iaf_psc_alpha.
+## The part the next neuron is made from at the start: the cell type the task declares (SpikeTask.default_model(): what its reference circuit and verdicts
+## assume), else the first population model of the task's reference circuit (iaf_psc_alpha included), else iaf_psc_alpha. Never a guess from the name.
 func _default_part() -> String:
-	for id in _task_cards():
-		var c := Catalog.card(id)
-		if str(c.get("model", "")) != "iaf_psc_alpha" and Catalog.usable(id, task_id == ""): return id
+	if task_id == "": return "iaf_psc_alpha"
+	var dm := ""
+	var t = Campaign.make(task_id)
+	if t != null and t.has_method("default_model"): dm = str(t.call("default_model"))
+	if dm != "":
+		if Catalog.has_card(dm): return dm
+		var cs := Catalog.cards_of(dm)
+		if not cs.is_empty(): return str(cs[0]["id"])
+	var ref := Circuits.parse(Circuits.read_reference(_ref_path(task_id)))
+	if not (ref.get("populations", []) as Array).is_empty():
+		var tc := _task_cards()
+		if not tc.is_empty(): return str(tc[0])
 	return "iaf_psc_alpha"
 
 ## Catalogue card ids "for this task": the cards of the models its reference circuit uses (in order of first use), then the other cards of the task's chapter.
@@ -275,14 +289,32 @@ func _skeleton(tid: String) -> Dictionary:
 			var kinds := Circuits.task_channel_kinds(tid, t)
 			for s in t.sensor_channels():
 				var kind: String = str((kinds["inputs"] as Dictionary).get(str(s), SENSOR_KIND.get(tid, "poisson")))
-				c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0})
+				var tw: float = float((kinds["weights"] as Dictionary).get(str(s), 0.0))   # the task's own sensor weight (ChannelKind::weight), else the heuristic
+				c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": tw if tw > 0.0 else Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0})
 			for m in t.motor_channels():
 				var ch := {"name": str(m), "kind": "rate", "neurons": []}
 				var ok: Dictionary = (kinds["outputs"] as Dictionary).get(str(m), {"kind": "rate"})
 				Circuits.set_output_kind(ch, str(ok.get("kind", "rate")), str(ok.get("modulator", "NE")), float(ok.get("gain", Circuits.MOD_GAIN)), float(ok.get("tau_ms", Circuits.MOD_TAU)))
 				c["outputs"].append(ch)
 		c["meta"]["task"] = tid
+		_store_task_weights(c, tid, t)
 	return c
+
+## Remember the task-declared sensor weights in meta.editor.task_weights = {name: {kind, w}} so the first connect (editor, family wiring) uses them.
+func _store_task_weights(c: Dictionary, tid: String, t: Variant = null) -> void:
+	if tid == "" or not ext_ok: return
+	if t == null: t = Campaign.make(tid)
+	if t == null: return
+	var kinds := Circuits.task_channel_kinds(tid, t); var tw := {}
+	for name in kinds["weights"]:
+		tw[name] = {"kind": str((kinds["inputs"] as Dictionary).get(name, "poisson")), "w": float(kinds["weights"][name])}
+	var meta: Dictionary = c.get("meta", {}); var ed: Dictionary = meta.get("editor", {})
+	if tw.is_empty(): ed.erase("task_weights")
+	else: ed["task_weights"] = tw
+	meta["editor"] = ed; c["meta"] = meta
+
+func _ensure_task_weights() -> void:
+	if task_id != "" and not _is_dx() and not (circuit.get("meta", {}).get("editor", {}) as Dictionary).has("task_weights"): _store_task_weights(circuit, task_id)
 
 func _reload(first := false) -> void:
 	var keep: Array = tele.watched.duplicate() if tele != null else []
@@ -318,7 +350,8 @@ func _banner_raw(msg: String) -> void:
 	banner.text = msg; banner.visible = true
 
 func _on_structure() -> void:
-	if task_id != "": Playlog.event("edit", {"task": task_id})
+	if task_id != "" and Time.get_ticks_msec() - _last_edit_ms > 1500: Playlog.event("edit", {"task": task_id})
+	_last_edit_ms = Time.get_ticks_msec()
 	_dirty = 0.0; _lesion_reset(); _surprise_done.erase("osc")
 	if editor != null: editor.verdict_target = ""
 	if score_card != null: score_card.guilty = ""
@@ -451,7 +484,8 @@ func _sel_audio() -> void:
 	GameAudio.set_spike_focus(f)
 
 func _toggle_run() -> void:
-	tele.running = not tele.running; GameAudio.event("run" if tele.running else "pause")
+	tele.running = not tele.running
+	GameAudio.event("run" if tele.running else "pause")
 	if not tele.running: GameAudio.silence_body()
 	_sync_run_btn()
 func _sync_run_btn() -> void:
@@ -462,7 +496,6 @@ func _restart() -> void:
 	if score_card != null: score_card.guilty = ""
 	if celebration != null: celebration.abort()
 	GameAudio.event("run")
-	if task_id != "": Playlog.event("run", {"task": task_id, "seed": int(circuit.get("seed", 1))})
 	if tele.sim != null: tele.reset(); tele.running = true; _sync_run_btn()
 	elif tele.task != null: tele.task.reset(int(circuit.get("seed", 1)))
 	task_view.attach(tele)
@@ -549,7 +582,8 @@ func _rate_per_neuron() -> float: return tele.spike_rate_hz() / maxf(float(Circu
 
 func _stars_now() -> int:
 	if tele == null or tele.task == null: return 0
-	return Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0))
+	var st := Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0))
+	return mini(st, 2) if _recipe_used() else st
 
 ## Called every frame: record a pass the moment it happens and the final result at the end of the episode; raise the end card; report a stopped run.
 func _watch_episode() -> void:
@@ -561,6 +595,7 @@ func _watch_episode() -> void:
 		_rec_pass = true
 		var first := not bool(Progress.best(task_id)["passed"]) and not _is_reference() and variant == ""
 		_record(true, false)
+		if mode == "researcher" and variant == "": first = false; celebration.toast("Passed once", "Researcher mode counts a pass only from TEST x5: press TEST x5 to record it.", Kit.AMBER, 5.0)
 		if editor != null: editor.hint_target = ""; editor.verdict_target = ""
 		if score_card != null: score_card.guilty = ""
 		GameAudio.event("pass")
@@ -576,9 +611,30 @@ func _record(passed: bool, five_seeds: bool, mean := -1.0, rate := -2.0) -> void
 	var r := _rate_per_neuron() if rate < -1.5 else rate
 	var v := float(tele.score.get("value", 0.0)) if mean < 0.0 else mean
 	if variant != "":
-		if passed and not _is_reference(): Progress.record_variant(task_id, variant)
+		if passed and not _is_reference() and _variant_ok(): Progress.record_variant(task_id, variant)
 		return
-	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference()})
+	if mode == "researcher" and not five_seeds: passed = false   # Researcher: a pass needs all five TEST seeds
+	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference(), "recipe_used": _recipe_used()})
+
+## The challenge variants that bind the lab, not only the engine's verdict: half_neurons passes only within half the par (Progress.budget).
+func _variant_ok() -> bool:
+	if variant != "half_neurons": return true
+	var par := Progress.budget(task_id)
+	if par <= 0: return true
+	var lim := par / 2; var n := Circuits.neuron_count(circuit)
+	if n <= lim: return true
+	if not _half_warned and celebration != null:
+		_half_warned = true
+		celebration.toast("Over the half-neuron limit", "%d neurons; this variant allows %d (half of par %d). It does not count until the circuit is smaller." % [n, lim, par], Kit.AMBER, 6.0)
+	return false
+
+## A recipe is in force for the stars: Guided shows it inline (no cost), Standard costs the third star once SHOW RECIPE was pressed.
+func _recipe_used() -> bool: return mode == "standard" and (_recipe_open or Progress.recipe_used(task_id))
+
+## Task::recipe() when the extension has it (concrete numbers kept apart from the brief), else "".
+func _recipe_text() -> String:
+	if task_id == "" or tele == null or tele.task == null or not tele.task.has_method("recipe"): return ""
+	return str(tele.task.call("recipe"))
 
 func _overlay_hide() -> void:
 	if _overlay != null and is_instance_valid(_overlay): _overlay.queue_free()
@@ -773,6 +829,15 @@ func _inspect_brief(small: int) -> void:
 	insp_body.add_child(_head("BRIEF" if task_id != "" else "FREE RUN", Kit.exc(), _title() if task_id != "" else "build any circuit and watch it run"))
 	var txt := t if t != "" else "Add neurons, connect them by dragging from one disc's rim to another, and watch the raster and the voltage traces."
 	var l := Kit.label(txt, small, Kit.TEXT_SOFT, true); insp_body.add_child(l)
+	var rec := _recipe_text()
+	if rec != "" and mode != "researcher":
+		if mode == "guided" or _recipe_open:
+			var rh := HBoxContainer.new(); rh.add_theme_constant_override("separation", 8); rh.add_child(Kit.chip("RECIPE", Kit.AMBER, 14)); insp_body.add_child(rh)
+			insp_body.add_child(Kit.label(rec, small, Kit.TEXT, true))
+			if mode == "standard": insp_body.add_child(Kit.label("You used the recipe: this level can earn two stars, not three.", small, Kit.AMBER, true))
+		else:
+			var rb := Kit.btn("SHOW RECIPE", func(): _recipe_open = true; Progress.record_recipe(task_id); _build_inspector(), "amber", 18); rb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; insp_body.add_child(rb)
+			insp_body.add_child(Kit.label("The recipe gives the numbers. Using it costs the third star.", small, Kit.TEXT_SOFT, true))
 	if task_id != "" and Progress.budget(task_id) > 0: insp_body.add_child(Kit.label("Stars: 1 pass.  2 pass on 5 seeds (TEST x5).  3 the same with %d neurons or fewer." % Progress.budget(task_id), small, Kit.TEXT_SOFT, true))
 	var leg := HBoxContainer.new(); leg.add_theme_constant_override("separation", 8)
 	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.GREEN, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
@@ -898,6 +963,9 @@ func _inspect_proj(i: int, small: int) -> void:
 		insp_body.add_child(Kit.label("Segment wiring connects neuron k of %s to neuron k%s of %s, one synapse per segment, instead of all %d x %d pairs." % [pre, ("" if off == 0 else " %+d" % off), post, na, nb], small, Kit.TEXT_SOFT, true))
 	insp_body.add_child(_val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); _on_structure(), -1, true))
 	insp_body.add_child(_val_row("delay", 0.0, Circuits.DELAY_MAX, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, maxf(0.1, snappedf(x, 0.1))); _on_structure(), -1, true))
+	if pr.get("synapse", {}).get("synapse_model", "static_synapse") != "gap_junction":
+		insp_body.add_child(_val_row("spread", 0.0, 100.0, 1.0, float(pr.get("weight_cv", 0.0)) * 100.0, "%", func(x): Circuits.set_proj_spread(pr, snappedf(x, 1.0) * 0.01); _on_structure(), 0))
+		insp_body.add_child(Kit.label("Spread: each synapse of this axon gets its own weight, varying by this much around the value above (fixed by the circuit seed; TEST x5 draws it again for every seed). A circuit that only works with identical weights fails here.", small, Kit.TEXT_SOFT, true))
 
 
 func _inspect_channel(key: String, name: String, small: int) -> void:
@@ -1172,7 +1240,7 @@ func _set_mode(m: String) -> void:
 func _set_variant(v: String) -> void:
 	if v == variant: return
 	variant = v; _surprise_done.clear(); _reload(); _build_inspector()
-	Playlog.level_start(task_id, variant)
+	if task_id != "": Playlog.event("variant", {"task": task_id, "variant": variant})
 
 ## The hint button's label and visibility: it counts the failed runs until the ladder opens, and is gone in Researcher mode.
 func _hint_btn_sync() -> void:
@@ -1297,11 +1365,22 @@ func _check_start() -> void:
 		celebration.toast("Instant check is not in this build", "Rebuild the extension (scripts/build-gd.sh) to get headless scoring.", Kit.RED, 4.0); return
 	_check_task = Campaign.make(task_id)
 	if _check_task == null: return
-	_check_job = int(_check_task.score_headless_async(Circuits.to_json(Telemetry.sanitized(_live_circuit())), PackedInt64Array([int(circuit.get("seed", 1))]), mode, variant))
+	var cseed := int(circuit.get("seed", 1)); var cj := Circuits.to_json(Telemetry.sanitized(_live_circuit()))
+	var nargs := 0
+	for m in _check_task.get_method_list():
+		if str(m["name"]) == "score_headless_async": nargs = (m["args"] as Array).size()
+	if nargs >= 5: _check_job = int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), mode, variant, cseed))   # extension with a circuit-seed argument: the live world and circuit seeds
+	else: _check_job = int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), mode, variant))
 	_check_t0 = Time.get_ticks_msec()
 	if _check_job == 0: _check_task = null; celebration.toast("Check could not start", "The headless scorer refused the circuit.", Kit.RED, 4.0); return
 	if _check_btn != null and is_instance_valid(_check_btn): _check_btn.text = "CHECKING..."; _check_btn.disabled = true
 	Playlog.event("check", {"task": task_id})
+
+## Stop a running instant check (leaving the lab, or a new check): the worker process is killed when the extension can, else the result is just dropped.
+func _check_cancel() -> void:
+	if _check_job != 0 and _check_task != null:
+		if _check_task.has_method("headless_cancel") or ClassDB.class_has_method("SpikeTask", "headless_cancel"): _check_task.call("headless_cancel", _check_job)
+	_check_job = 0; _check_task = null
 
 func _check_poll() -> void:
 	if _check_job == 0 or _check_task == null: return

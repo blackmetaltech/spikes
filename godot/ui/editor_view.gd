@@ -548,7 +548,7 @@ func _make_link(src: Dictionary, dst: Dictionary) -> void:
 					if Circuits.proj_pop(x) == str(dst["id"]): return
 				if tg.is_empty():   # first connection: a weight that makes that neuron model fire (not a silent 120 pA onto a 20 nS cell)
 					var pi := Circuits.pop_index(circuit, str(dst["id"]))
-					if pi >= 0: ch["weight"] = Circuits.input_weight(str(circuit["populations"][pi].get("model", "iaf_psc_alpha")), str(ch.get("kind", "poisson")))
+					if pi >= 0: ch["weight"] = Circuits.first_input_weight(circuit, ch, str(circuit["populations"][pi].get("model", "iaf_psc_alpha")))
 				tg.append(str(dst["id"])); ch["targets"] = tg; structure_changed.emit(); return
 	elif src["t"] == "pop" and dst["t"] == "out":
 		if Circuits.wire_family(circuit, "outputs", str(dst["name"]), str(src["id"])) > 0: structure_changed.emit(); return   # a group of n onto a family of n motors: neuron k to motor k
