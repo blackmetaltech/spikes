@@ -215,15 +215,8 @@ func _start(tid: String) -> void:
 	_reload(true)
 	if OS.get_environment("SP_SPEED") == "" and tele.task != null: tele.speed = _default_speed(float(tele.task.duration_ms()), str(Campaign.info(task_id).get("kind", "task")))
 
-## G3 / v0.3 pacing: the default speed by episode length. Micro-puzzles (2-5 s episodes) run at 1x; a longer episode runs at the smallest of the stepper's own
-## speeds (1x, 2x, 5x, 10x) that finishes in about WANT_WALL_S seconds of waiting, so no task takes longer than ~25 s per run; the player can still change it,
-## and SKIP jumps over the quiet stretches between scripted events.
-const WANT_WALL_S := 25.0
-static func _default_speed(duration_ms: float, kind := "task") -> float:
-	if kind == "micro" or duration_ms <= 12000.0: return 1.0
-	for s in [1.0, 2.0, 5.0, 10.0]:
-		if duration_ms / s <= WANT_WALL_S * 1000.0: return s
-	return 10.0
+## G3 / v0.3 pacing: the default speed by episode length, from Telemetry.default_speed (it also knows what the machine measured it can deliver).
+static func _default_speed(duration_ms: float, kind := "task") -> float: return Telemetry.default_speed(duration_ms, kind)
 
 ## The part the next neuron is made from at the start: the cell type the task declares (SpikeTask.default_model(): what its reference circuit and verdicts
 ## assume), else the first population model of the task's reference circuit (iaf_psc_alpha included), else iaf_psc_alpha. Never a guess from the name.
@@ -243,7 +236,12 @@ func _default_part() -> String:
 	return "iaf_psc_alpha"
 
 ## Catalogue card ids "for this task": the cards of the models its reference circuit uses (in order of first use), then the other cards of the task's chapter.
-func _task_cards() -> Array:
+func _task_cards() -> Array: return _cards_for(true)
+
+## Only the cards of the models the reference circuit uses: the parts picker lets these be chosen even when their chapter is still locked (a recipe needs them).
+func _reference_cards() -> Array: return _cards_for(false)
+
+func _cards_for(with_chapter: bool) -> Array:
 	var out := []
 	if task_id == "": return out
 	var ref := Circuits.parse(Circuits.read_reference(_ref_path(task_id)))
@@ -261,6 +259,9 @@ func _task_cards() -> Array:
 				if str(p.get("model", "")) == m and not (c["preset"] as Dictionary).is_empty() and (c["preset"] as Dictionary) != p.get("params", {}): match_all = false
 			if match_all and not (c["preset"] as Dictionary).is_empty(): pick = c; break
 		if not out.has(pick["id"]): out.append(pick["id"])
+		for c in cs:   # every preset card of a used model (a reference may use two presets of one model)
+			if not out.has(c["id"]) and not with_chapter: out.append(c["id"])
+	if not with_chapter: return out
 	var chap := str(Campaign.info(task_id).get("chapter", ""))
 	for c in Catalog.cards():
 		if Catalog.chapter_of(c["id"]) == chap and not out.has(c["id"]): out.append(c["id"])
@@ -452,7 +453,7 @@ func _open_parts() -> void:
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 12); v.add_child(hd)
 	var t := Kit.shout("Parts bin", 34 if not phone else 24, Kit.TEXT); t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hd.add_child(t)
 	hd.add_child(Kit.btn("CLOSE", _close_parts, "panel", 20 if not phone else 18))
-	var bin := PartsBin.new().setup("pick", Circuits.sandbox, part_card, _task_cards()); v.add_child(bin)
+	var bin := PartsBin.new().setup("pick", Circuits.sandbox, part_card, _task_cards(), _reference_cards()); v.add_child(bin)
 	bin.picked.connect(func(id): part_card = id; _close_parts(); _sync_parts_btn())
 
 func _close_parts() -> void:
@@ -1281,6 +1282,7 @@ func _hint_render() -> void:
 		_hint_panel.next_pressed.connect(_hint_next); _hint_panel.close_pressed.connect(_hint_close)
 		if Layout.phone:
 			ov.add_child(_hint_panel); _hint_panel.set_anchors_preset(Control.PRESET_TOP_LEFT); _hint_panel.offset_left = 14.0; _hint_panel.offset_top = 52.0; _hint_panel.custom_minimum_size.x = 400.0
+			_hint_panel.max_h = maxf((ov.size.y if ov.size.y > 100.0 else get_viewport_rect().size.y) - 52.0 - 8.0, 120.0)   # the tiers scroll inside the card so tier 3 is reachable on a short screen
 		else:
 			panels["circuit"].add_child(_hint_panel); panels["circuit"].move_child(_hint_panel, 1)
 	_hint_panel.show_state(mode, _hints_cache, int(_hint_tier.get(task_id, 0)), int(_fails.get(task_id, 0)))
@@ -1382,10 +1384,26 @@ func _check_cancel() -> void:
 		if _check_task.has_method("headless_cancel") or ClassDB.class_has_method("SpikeTask", "headless_cancel"): _check_task.call("headless_cancel", _check_job)
 	_check_job = 0; _check_task = null
 
+var _check_toast: PanelContainer = null
+var _check_lbl: Label = null
+## While the async check runs: a card under the header with the seed count and the elapsed time (the worker reports no finer progress than done / not done).
+func _check_progress(on: bool) -> void:
+	if not on:
+		if _check_toast != null and is_instance_valid(_check_toast): _check_toast.queue_free()
+		_check_toast = null; _check_lbl = null; return
+	if _check_toast == null or not is_instance_valid(_check_toast):
+		_check_toast = PanelContainer.new(); _check_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_check_toast.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.CYAN, 2, 12, 12 if Layout.phone else 16, true))
+		_check_lbl = Kit.label("", 17 if not Layout.phone else 15, Kit.TEXT, true); _check_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE; _check_toast.add_child(_check_lbl)
+		ov.add_child(_check_toast); _check_toast.z_index = 61
+		_check_toast.set_anchors_preset(Control.PRESET_TOP_LEFT); _check_toast.offset_left = 240.0; _check_toast.offset_top = 56.0; _check_lbl.custom_minimum_size.x = 380.0
+	_check_lbl.text = "CHECK running... 1/1 seed, %.1f s" % ((Time.get_ticks_msec() - _check_t0) * 0.001)
+
 func _check_poll() -> void:
 	if _check_job == 0 or _check_task == null: return
 	var r: Dictionary = _check_task.score_headless_poll(_check_job)
-	if not bool(r.get("done", false)): return
+	if not bool(r.get("done", false)): _check_progress(true); return
+	_check_progress(false)
 	var ms := float(r.get("ms", float(Time.get_ticks_msec() - _check_t0)))
 	_check_job = 0; _check_task = null
 	if _check_btn != null and is_instance_valid(_check_btn): _check_btn.text = "CHECK"; _check_btn.disabled = false

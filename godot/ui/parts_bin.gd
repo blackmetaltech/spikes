@@ -12,11 +12,12 @@ var selected := ""
 var scroll: ScrollContainer
 var grid: Container
 var featured: Array = []         # card ids "for this task", shown first under their own heading (pick mode)
+var reference: Array = []        # card ids of the models the task's reference circuit uses: pickable even when their chapter is still locked (pick mode)
 var _scroll_keep := 0
 var _expanded := ""            # phone: the one card shown in full (every other part is a one-line row)
 
-func setup(m: String, sb: bool, current_card := "", for_task: Array = []) -> PartsBin:
-	mode = m; sandbox = sb; selected = current_card; featured = for_task.filter(func(id): return Catalog.has_card(id))
+func setup(m: String, sb: bool, current_card := "", for_task: Array = [], ref_cards: Array = []) -> PartsBin:
+	mode = m; reference = ref_cards.filter(func(id): return Catalog.has_card(id)); sandbox = sb; selected = current_card; featured = for_task.filter(func(id): return Catalog.has_card(id))
 	size_flags_vertical = Control.SIZE_EXPAND_FILL; size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", int(10 * Kit.f()))
 	_build(); return self
@@ -75,7 +76,7 @@ func _row(m: String) -> Control:
 	var cd := Catalog.card(m); var fam := str(cd.get("family", ""))
 	var sub := str(cd.get("model", m)) + ("   " + fam if fam != "" else "")
 	if not Catalog.available(m): sub = "not in this build"
-	elif not Catalog.unlocked(m, sandbox): sub = "unlocks in " + str(Campaign.chapter_def(Catalog.chapter_of(m))["title"])
+	elif not usable: sub = "unlocks in " + str(Campaign.chapter_def(Catalog.chapter_of(m))["title"])
 	var sl := Kit.label(sub, 14, Gfx.VIOLET if usable else Kit.TEXT_SOFT); sl.clip_text = true; v.add_child(sl)
 	var ser := Catalog.series(m, "fi"); var t := Thumb.new(); t.kind = "fi"; t.xs = ser[0]; t.ys = ser[1]; t.dim = not usable; t.custom_minimum_size = Vector2(120, 50); t.size_flags_vertical = Control.SIZE_SHRINK_CENTER; t.mouse_filter = Control.MOUSE_FILTER_IGNORE; h.add_child(t)
 	if usable: var b := Kit.btn("USE", func(): picked.emit(m), "amber", 17); b.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(b)
@@ -87,7 +88,7 @@ func _restore_scroll() -> void:
 
 ## Usable cards first, then the ones that unlock later, then the ones this build cannot run.
 func _rank(m: String, order: Array) -> int:
-	var avail := Catalog.available(m); var open := Catalog.unlocked(m, sandbox)
+	var avail := Catalog.available(m); var open := _usable(m) or Catalog.unlocked(m, sandbox)
 	return (0 if (avail and open) else (1 if avail else 2)) * 1000 + order.find(m)
 
 func _select(m: String) -> void:
@@ -96,10 +97,11 @@ func _select(m: String) -> void:
 	_scroll_keep = scroll.scroll_vertical if scroll != null else 0
 	_build()
 
-func _usable(m: String) -> bool: return Catalog.usable(m, sandbox)
+func _usable(m: String) -> bool:
+	return Catalog.usable(m, sandbox) or (mode == "pick" and reference.has(m) and Catalog.available(m))
 
 func _card(m: String, f: float, phone: bool) -> Control:
-	var usable := _usable(m); var avail := Catalog.available(m); var open := Catalog.unlocked(m, sandbox)
+	var usable := _usable(m); var avail := Catalog.available(m); var open := usable or Catalog.unlocked(m, sandbox)
 	var is_sel := m == selected
 	var w := (360.0 * f) if not phone else 300.0
 	var p := PanelContainer.new(); p.custom_minimum_size = Vector2(w, 0)

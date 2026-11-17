@@ -155,6 +155,19 @@ static func _banner(c: Control, t: Telemetry, r: Rect2) -> float:
 ## A single joint with an agonist / antagonist pair. Reads theta_deg (or angle_deg: from the horizontal, 0 = pointing right, y up, so upright is 90), ag_act /
 ## ant_act (0..1) or ag_force_N / ant_force_N (scaled to the largest seen) for the two muscle bellies, ag_Ia_hz / ant_Ia_hz for the spindles, ext_torque_Nm for the
 ## push arrow, load (0..1), and the target (target_deg or target_rad) which is drawn as a ghost only when `has_target` says the task has one.
+# ---------------------------------------------------------------- onset sounds
+## Edge detector for the body sounds: `key` identifies one signal, `v` is its level (0..1). Fires once when it rises through ON (re-armed below OFF), so a redrawn or paused frame never re-fires; forgets everything when time goes back (a reset) or the telemetry object changes.
+static var _on := {"id": 0, "t": -1.0, "lvl": {}}
+static func onset(t: Telemetry, key: String, v: float, on := 0.3, off := 0.15) -> bool:
+	if t == null: return false
+	var id := t.get_instance_id(); var tm := float(t.t_ms)
+	if int(_on["id"]) != id or tm < float(_on["t"]) - 1.0: _on = {"id": id, "t": tm, "lvl": {}}
+	_on["t"] = tm
+	var lv: Dictionary = _on["lvl"]; var was := bool(lv.get(key, false))
+	if was and v < off: lv[key] = false
+	elif not was and v >= on: lv[key] = true; return true
+	return false
+
 static func _limb(c: Control, t: Telemetry, r: Rect2) -> void:
 	var d := ro(t); var fz := Kit.fs(14)
 	if not has_any(d, ["theta_deg", "theta_rad", "angle_deg"]): _empty(c, r, "Waiting for theta_deg (or angle_deg) in the task's readouts."); return
@@ -191,6 +204,8 @@ static func _limb(c: Control, t: Telemetry, r: Rect2) -> void:
 		if d.has(ik): ias[q] = clampf(rv(d, ik) / maxf(hmax(t, ik, 20.0), 20.0), 0.0, 1.0)
 		else: ias[q] = acts[q] * 0.6
 	var tt := t.t_ms * 0.001
+	for q in 2:
+		if onset(t, "twitch%d" % q, acts[q]): GameAudio.body("twitch", clampf(0.4 + 0.6 * acts[q], 0.0, 1.0))
 	var dirv := (hd - el) / maxf(u, 1.0)
 	# the ghost of the target, behind the arm (only when the task has one)
 	if has_t:
@@ -476,6 +491,8 @@ static func _gut(c: Control, t: Telemetry, r: Rect2) -> void:
 		seg.append(rv(d, "seg%d" % i))
 		ex.append(clampf(rv(d, "ex%d" % i) / maxf(hmax(t, "ex%d" % i, 1.0), 1.0), 0.0, 1.0) if d.has("ex%d" % i) else rv(d, "seg%d" % i))
 		inh.append(clampf(rv(d, "inh%d" % i) / maxf(hmax(t, "inh%d" % i, 1.0), 1.0), 0.0, 1.0) if d.has("inh%d" % i) else 0.0)
+	for i in 8:
+		if onset(t, "gut%d" % i, float(seg[i]), 0.4, 0.2): GameAudio.body("gut", clampf(0.3 + 0.5 * float(seg[i]), 0.0, 1.0))
 	var ban := _banner(c, t, r)
 	var area := Rect2(r.position.x, r.position.y + 6.0 + ban, r.size.x, r.size.y - strip_h - 8.0 - ban)
 	var res := Anatomy.gut(c, area, {"seg": seg, "ex": ex, "inh": inh, "bolus": rv(d, "bolus"), "t": t.t_ms * 0.001, "labels": not small})
