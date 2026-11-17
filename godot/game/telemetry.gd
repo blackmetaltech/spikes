@@ -60,19 +60,29 @@ var mods := {}                               # "NE" / "ACh" / "DA" -> concentrat
 var _next_hist := 0.0
 var _owed := 0.0
 var _wall := 0.0
+var task_id := ""                            # the level this run belongs to ("" = free run); the play log counts a run at every episode start
+var _ep_t0 := 0                              # ticks (us) at the episode start: SP_TIMING reports the wall time of a whole run
+var _dbg_frames := 0; var _dbg_step_us := 0.0
+var _vc := 0
+var _hold_last := 0.0                        # last model ms pushed to the scopes (decimated voltage samples at high speed)
+## v0.3 pacing: the slowest stepping any run has measured so far in this session (model ms per wall ms with the whole share spent stepping). Unknown = 0.
+static var throughput := 0.0
+const WALL_SHARE := 0.7                      # share of a frame's wall time the stepper may use when the run is behind (a software renderer, a slow frame)
+const BUDGET_MAX_US := 60000
 
 func now() -> float: return _wall
 
-## Build everything for `c` (circuit Dictionary) and `task_id` ("" = free run). The task is ALWAYS created first, so a circuit the engine rejects (or one with
+## Build everything for `c` (circuit Dictionary) and `tid` ("" = free run). The task is ALWAYS created first, so a circuit the engine rejects (or one with
 ## nothing in it yet) still shows the task's world and brief, with a verdict that names what is missing. Returns true when the engine is running the circuit;
 ## on false `error` holds the engine's message ("" for a bench with no neurons yet).
-func setup(c: Dictionary, task_id: String, ext_ok: bool) -> bool:
+func setup(c: Dictionary, tid: String, ext_ok: bool) -> bool:
+	task_id = tid
 	circuit = c; error = ""; finished = false; failed = false; sim = null; task = null; body = {}; score = {}
 	if not ext_ok: error = "The spike-gd GDExtension is not loaded. Run scripts/build-gd.sh."; return false
-	if task_id != "":
-		task = Campaign.make(task_id)
-		if task == null: error = "unknown task " + task_id; return false
-		hist_on = _wants_hist(task_id)
+	if tid != "":
+		task = Campaign.make(tid)
+		if task == null: error = "unknown task " + tid; return false
+		hist_on = _wants_hist(tid)
 		configure(task, mode, variant)
 		task.reset(int(c.get("seed", 1))); body = task.body(); score = task.score()
 	n = Circuits.neuron_count(c); kinds = Circuits.kind_per_neuron(c)
@@ -155,7 +165,8 @@ func _apply_issue() -> void:
 
 func reset(seed := -1) -> void:
 	if sim == null: return
-	episode += 1
+	episode += 1; _ep_t0 = Time.get_ticks_usec()
+	if task_id != "": Playlog.run_started(task_id, int(circuit.get("seed", 1)))
 	var circ := Circuits.to_json(sanitized(circuit))
 	failed = false
 	if not sim.load_circuit(circ): error = str(sim.error()); failed = true; running = false; return   # a fresh kernel: same circuit, same seed, so an episode is repeatable
@@ -250,22 +261,35 @@ func advance(dt: float) -> void:
 		_owed = minf(_owed + dt * 1000.0 * speed, 200.0 * maxf(speed, 1.0) if budget_us < 100000 else 1.0e9)
 		if skip_to > t_ms: _owed = maxf(_owed, skip_to - t_ms)
 		else: skip_to = -1.0
-		var t0 := Time.get_ticks_usec(); var k := 0
+		# v0.3 pacing: at the base budget when the run is on time; when it is behind (speed > 1, a slow frame, a software renderer) it may spend a share of the
+		# frame's wall time instead of a fixed 9 ms, so the lab delivers the speed it was asked for.
+		var budget := budget_us
+		if speed > 1.5 or skip_to >= 0.0: budget = clampi(int(dt * 1.0e6 * WALL_SHARE), budget_us, maxi(BUDGET_MAX_US, budget_us))
+		var t0 := Time.get_ticks_usec(); var k := 0; var dur := duration(); var vstride := 1 if speed <= 2.0 else clampi(int(speed * 0.5), 2, 8)
 		while _owed >= SLICE_MS:
 			if task != null: task.step(sim, SLICE_MS)
 			else: sim.step(SLICE_MS)
-			if _step_failed(): break
+			k += 1
+			if k % 4 == 1 and _step_failed(): break   # the engine's error text is polled every 4th slice (two bridge calls per slice were a third of the cost)
 			t_ms += SLICE_MS; _owed -= SLICE_MS; stepped += SLICE_MS
 			if hist_on and task != null and t_ms >= _next_hist: _sample_hist()
-			for w in watched: _push_volt(w)
-			if task != null and t_ms >= duration(): finished = true; break
-			k += 1
+			_vc += 1   # voltage samples: every slice at <= 2x, every `vstride`-th at faster speeds (the others repeat it; each read is a bridge call per watched neuron)
+			if _vc >= vstride:
+				_vc = 0
+				for w in watched: _push_volt(w)
+			else:
+				for w in watched:
+					var a: PackedFloat32Array = volt[w]; a.append(a[a.size() - 1] if a.size() > 0 else 0.0)
+			if task != null and t_ms >= dur: finished = true; break
 			if skip_to >= 0.0 and t_ms >= skip_to: skip_to = -1.0; _owed = minf(_owed, 4.0); break
-			if k % 4 == 0 and Time.get_ticks_usec() - t0 > budget_us:
+			if k % 4 == 0 and Time.get_ticks_usec() - t0 > budget:
 				if skip_to < 0.0: _owed = minf(_owed, 4.0)
 				break
+		var el := float(Time.get_ticks_usec() - t0); _dbg_frames += 1; _dbg_step_us += el
+		if stepped >= 20.0 and el > 0.0: throughput = stepped * 1000.0 / el if throughput <= 0.0 else lerpf(throughput, stepped * 1000.0 / el, 0.1)
 		var want := dt * 1000.0 * speed
 		achieved = lerpf(achieved, speed * (stepped / want) if want > 0.0 else speed, 0.1)
+		if finished and OS.get_environment("SP_TIMING") != "": _report_timing()
 	_collect()
 	if sim != null:
 		for ch in rates.keys():
@@ -284,14 +308,36 @@ func advance(dt: float) -> void:
 	if running and not finished: view_t = clampf(view_t + dt * 1000.0 * achieved_or_speed(), t_ms - 40.0, t_ms)
 	else: view_t = t_ms
 
-## Body sounds from the task's readouts: a heartbeat whenever last_beat_ms moves, the lungs from the volume fraction.
+## Body sounds from the task's readouts: a heartbeat whenever last_beat_ms moves, the lungs from the volume fraction. They play at any speed: beats are
+## decimated to one per HEART_MIN_GAP_S of wall time (at 10x only every few beats sound, never none), and the breath's flow is scaled by the speed so a fast
+## run sounds like breathing, not like a buzz. Only a skip-to-event is silent.
+const HEART_MIN_GAP_S := 0.32
+var _last_beat_wall := -10.0
 func _body_audio() -> void:
+	if skip_to >= 0.0: return
 	var ro: Dictionary = body.get("readouts", {})
 	if ro.has("last_beat_ms"):
 		var lb := float(ro["last_beat_ms"])
-		if lb > _last_beat + 1.0 and lb >= 0.0 and speed <= 5.0 and skip_to < 0.0: GameAudio.body("heart", 1.0)
+		if lb > _last_beat + 1.0 and lb >= 0.0 and _wall - _last_beat_wall >= (HEART_MIN_GAP_S if speed > 1.5 else 0.0):
+			GameAudio.body("heart", 1.0); _last_beat_wall = _wall
 		_last_beat = lb
-	if ro.has("volume") and speed <= 5.0 and skip_to < 0.0: GameAudio.body("breath", clampf(float(ro["volume"]), 0.0, 1.0))
+	if ro.has("volume"): GameAudio.body("breath", clampf(float(ro["volume"]), 0.0, 1.0), maxf(speed, 1.0))
+
+## SP_TIMING=1: print the wall time of each finished episode (and quit with SP_TIMING_QUIT), for the pacing measurements.
+func _report_timing() -> void:
+	var wall := float(Time.get_ticks_usec() - _ep_t0) / 1.0e6
+	print("TIMING task=%s speed=%.0f model_s=%.1f wall_s=%.1f delivered=%.1fx frames=%d step_ms_per_frame=%.1f throughput=%.1fx score=%.0f passed=%s" % [task_id, speed, t_ms * 0.001, wall, t_ms * 0.001 / maxf(wall, 0.001), _dbg_frames, _dbg_step_us / 1000.0 / maxf(_dbg_frames, 1), throughput, float(score.get("value", 0.0)), str(score.get("passed", false))])
+	if OS.get_environment("SP_TIMING_QUIT") != "": Engine.get_main_loop().quit()
+
+## The speed a level opens at, from its length and what the machine has measured it can deliver: the smallest stepper speed (1, 2, 5, 10) that finishes in about
+## `want_wall_s`; when the measured throughput says a speed cannot be delivered, the speeds above it are not counted as faster. Micro-puzzles run at 1x.
+static func default_speed(duration_ms: float, kind := "task", want_wall_s := 25.0) -> float:
+	if kind == "micro" or duration_ms <= 12000.0: return 1.0
+	var cap := 10.0 if throughput <= 0.0 else clampf(throughput * WALL_SHARE * 0.8, 1.0, 10.0)
+	var best := 10.0
+	for sp in [1.0, 2.0, 5.0, 10.0]:
+		if duration_ms / minf(sp, cap) <= want_wall_s * 1000.0: best = sp; break
+	return best
 
 ## The engine reports step failures through its error text (or `last_step_ok()` where the extension has it). A task's set_input on a channel the circuit
 ## does not declare is not a failure of the run: unwired sensors are simply never driven.

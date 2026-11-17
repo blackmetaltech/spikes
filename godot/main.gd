@@ -98,8 +98,13 @@ func _input(e: InputEvent) -> void:
 		if Settings.idle: Settings.idle = false; Settings.apply_fps()
 
 func _process(_dt: float) -> void:
-	var idle := Time.get_ticks_msec() / 1000.0 - _last_input > 60.0
+	# no idle frame cap while a run is playing: the lab steps a share of each frame, so halving the frame rate halved a watched run's speed
+	var idle := Time.get_ticks_msec() / 1000.0 - _last_input > 60.0 and not _run_playing()
 	if idle != Settings.idle: Settings.idle = idle; Settings.apply_fps()
+
+func _run_playing() -> bool:
+	var lab := screen as LabScreen
+	return lab != null and lab.tele != null and lab.tele.sim != null and lab.tele.running and not lab.tele.finished
 
 # ---------- layout ----------
 func _on_resized() -> void:
@@ -347,6 +352,20 @@ func _task_checks() -> void:
 		var lab := screen as LabScreen
 		_check(lab != null and not lab._is_reference(), "tasks: %s did not open on an empty bench" % id)
 		if lab == null: continue
+		# 0. novice check (lab A): the lab opens on the task's own cell type (default_model(), else the reference's first model), and keeps its sensor weights
+		var dm := str(t.call("default_model")) if t != null and t.has_method("default_model") else ""
+		var want_card := dm
+		if want_card == "":
+			var rp: Array = ref.get("populations", [])
+			if not rp.is_empty(): want_card = str(rp[0].get("model", ""))
+		if want_card != "" and (str(info.get("kind", "")) == "micro" or id == "reflex"):
+			_check(lab.part_card == want_card or str(Catalog.card(lab.part_card).get("model", "")) == want_card, "tasks: %s opens on part '%s', the task default is '%s'" % [id, lab.part_card, want_card])
+		if t != null and t.has_method("channel_kinds") and not lab._is_dx():   # a diagnosis case opens the patient circuit, not a bench
+			var ck: Dictionary = t.channel_kinds()
+			for nm in (ck.get("inputs", {}) as Dictionary):
+				var tw := float(ck["inputs"][nm].get("weight", 0.0))
+				if tw <= 0.0: continue
+				for ch in lab.circuit.get("inputs", []): if str(ch.get("name", "")) == str(nm): _check(is_equal_approx(float(ch.get("weight", 0.0)), tw), "tasks: %s sensor %s starts at weight %s, the task says %s" % [id, nm, ch.get("weight"), tw])
 		var sk: Dictionary = lab.circuit.duplicate(true)
 		for key in ["inputs", "outputs"]:
 			var want := {}
