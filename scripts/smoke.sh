@@ -35,4 +35,9 @@ for id in $tasks; do
   done
   if [ "$ok" = 1 ]; then echo "REFERENCE $id passes (seed $seed)"; else echo "$out" | head -3; echo "FAIL: the reference circuit of $id does not pass on seeds 1-3"; fail=1; fi
 done
+# --- audio smoke (item H): every sound loads, every GameAudio API is called, the spike limiter is checked ---
+godot --headless --path godot -s tests/test_audio.gd > "$log" 2>&1
+grep -E "^AUDIO|SCRIPT ERROR|Parse Error" "$log"
+grep -q "^AUDIO OK" "$log" && ! grep -qE "SCRIPT ERROR|Parse Error" "$log" || { echo "FAIL: audio smoke (godot/tests/test_audio.gd)"; fail=1; }
+# --- end audio smoke ---
 [ "$fail" = 0 ] && echo "smoke.sh: all good" || exit 1
