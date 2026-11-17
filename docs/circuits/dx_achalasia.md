@@ -17,3 +17,6 @@ A man whose swallowed food sticks. In the circuit: the bolus moves but arrives a
 
 ## Biology
 In achalasia the nitric-oxide/VIP inhibitory neurons of the oesophageal myenteric plexus are lost, so the sphincter and the segments ahead of a bolus do not relax. Credits: Goyal RK, Chaudhury A (2010) Gastroenterology 139:1086; Pandolfino JE, Gawron AJ (2015) JAMA 313:1841; Bayliss WM, Starling EH (1899) J Physiol 24:99.
+
+## How it is built
+The patient circuit is the reference circuit of the underlying task with the answer's projection(s) kept in the file at weight 0: every candidate is drawn and can be cut or probed in the lesion lab, and the dead wire is found from activity (a source that fires into a target that does not answer), not from a missing arrow. Cutting a working candidate changes the symptoms or the downstream rates; cutting the dead one (or anything after a silent group) changes nothing.

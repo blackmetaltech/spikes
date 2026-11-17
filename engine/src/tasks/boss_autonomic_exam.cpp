@@ -73,7 +73,13 @@ public:
            "reflex down (CVLM) while they push the sympathetic side up and the vagal side down. Wire all of it into one circuit and read out the pacemaker "
            "('sa_beat'), the two heart modulators ('sympathetic' = NE, 'vagal' = ACh: set both to kind modulator), 'dilator', 'sphincter' and 'vent'. Score: "
            "five phases (rest, stand, exercise, threat, recovery) x the four organs, 19 conditions; each is a soft score, the task passes when all hold. "
-           "A starting point: the Baroreflex circuit, plus the Fight-or-Flight pupil and breathing arms, with the hypothalamus and the exercise relay "
+           "";
+  }
+  /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A starting point: the Baroreflex circuit, plus the Fight-or-Flight pupil and breathing arms, with the hypothalamus and the exercise relay "
            "both inhibiting the vagal and depressor cells and exciting the vasomotor cells and the ventral respiratory group, and a chemoreceptor relay "
            "onto the ventral respiratory group.";
   }
@@ -360,9 +366,9 @@ public:
 
   Note notebook() const override
   {
-    return { "Central command turns the baroreflex up, not off",
+    return { "Central command resets the baroreflex",
              "During exercise the arterial pressure rises, yet the baroreflex keeps working: central command resets it to operate at the higher pressure "
-             "instead of pulling the pressure back down. The same happens in the defence reaction. A circuit with a fixed baroreflex set point fights every "
+             "(here by turning down the depressor arm, CVLM) instead of pulling the pressure back down. The same happens in the defence reaction. A circuit with a fixed baroreflex set point fights every "
              "rise; real brainstems do not.",
              "Raven PB, Fadel PJ, Ogoh S (2006) J Physiol 574:85; Rowell LB, O'Leary DS (1990) J Appl Physiol 69:407; Dampney RAL (1994) Physiol Rev 74:323" };
   }

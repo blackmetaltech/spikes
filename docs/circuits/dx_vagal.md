@@ -20,3 +20,6 @@ In the circuit: `ach_rest` 0, rest HR 99, `rest_rmssd_ms` 0.5, peak 130.
 ## Biology
 The sinus node's own rate is about 100/min and vagal tone slows it to 60-70; blocking or cutting the vagus raises the resting rate to the intrinsic rate (Jose & Collison 1970), as in the denervated transplanted heart, which rests at 90-100.
 Credits: Jose AD, Collison D (1970) Cardiovasc Res 4:160; Robinson BF et al. (1966) Circ Res 19:400; Task Force (1996) Circulation 93:1043.
+
+## How it is built
+The patient circuit is the reference circuit of the underlying task with the answer's projection(s) kept in the file at weight 0: every candidate is drawn and can be cut or probed in the lesion lab, and the dead wire is found from activity (a source that fires into a target that does not answer), not from a missing arrow. Cutting a working candidate changes the symptoms or the downstream rates; cutting the dead one (or anything after a silent group) changes nothing.

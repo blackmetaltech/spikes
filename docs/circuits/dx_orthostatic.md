@@ -20,3 +20,6 @@ A 68-year-old man nearly faints each time he stands. In the circuit: mean pressu
 ## Biology
 Standing pools blood in the legs; a healthy baroreflex raises sympathetic tone within seconds. With the descending sympathetic outflow interrupted (autonomic failure, spinal cord lesions) pressure falls on standing (Freeman et al. 2011: a fall of 20 mmHg systolic or more).
 Credits: Freeman R et al. (2011) Clin Auton Res 21:69; Guyenet PG (2006) Nat Rev Neurosci 7:335; Dampney RAL (1994) Physiol Rev 74:323. Limit: the model's heart rate still rises through vagal withdrawal, while real neurogenic OH typically has a fixed pulse.
+
+## How it is built
+The patient circuit is the reference circuit of the underlying task with the answer's projection(s) kept in the file at weight 0: every candidate is drawn and can be cut or probed in the lesion lab, and the dead wire is found from activity (a source that fires into a target that does not answer), not from a missing arrow. Cutting a working candidate changes the symptoms or the downstream rates; cutting the dead one (or anything after a silent group) changes nothing.

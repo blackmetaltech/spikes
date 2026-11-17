@@ -140,6 +140,8 @@ func _concept_card(c: String, ix: Dictionary) -> Control:
 	if done:
 		var bl := Campaign.concept_blurb(c)
 		if bl != "": v.add_child(Kit.label(bl, 18, Kit.TEXT, true))
+		var cc := Campaign.concept_citation(c)
+		if cc != "": v.add_child(Kit.label(cc, 15, Kit.CYAN, true))
 		v.add_child(Kit.label("Introduced in %s." % title, 16, Kit.TEXT_SOFT, true))
 		var used := []
 		for u in ix["used_by"]:

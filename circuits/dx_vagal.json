@@ -263,6 +263,16 @@
    }
   },
   {
+   "pre": "NA",
+   "post": "VG",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 1.0
+   }
+  },
+  {
    "pre": "CC",
    "post": "IML",
    "rule": "all_to_all",

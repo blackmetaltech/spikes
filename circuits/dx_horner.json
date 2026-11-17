@@ -265,6 +265,16 @@
     "weight": -40.0,
     "delay": 3.0
    }
+  },
+  {
+   "pre": "IML",
+   "post": "SCG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 3.0
+   }
   }
  ],
  "inputs": [

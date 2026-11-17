@@ -79,7 +79,13 @@ public:
            "resting range. Real node cells are not identical (here every cell gets its own size, so its own rate), so a cluster "
            "has to agree on one rhythm: couple the cells with excitatory synapses (the stand-in for gap junctions) so the fastest "
            "does not run away with the beat. Uncoupled copies of a cell drift apart and fail; one cell alone passes but scores "
-           "no higher than 75. The more tightly the coupled cluster fires together (synchrony), the higher the score. A recipe that works: one group of 4 "
+           "no higher than 75. The more tightly the coupled cluster fires together (synchrony), the higher the score. ";
+  }
+  /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
+  std::string default_model() const override { return "sa_node_pacemaker"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works: one group of 4 "
            "SA-node cells wired to itself with the default weight (0.2 nS), onto sa_beat.";
   }
   std::vector< std::string > sensor_channels() const override { return {}; }

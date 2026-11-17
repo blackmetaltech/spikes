@@ -168,6 +168,26 @@
  ],
  "projections": [
   {
+   "pre": "RTN",
+   "post": "PBC",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "RTN",
+   "post": "PHR",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 2.0
+   }
+  },
+  {
    "pre": "PBC",
    "post": "PBC",
    "rule": "all_to_all",

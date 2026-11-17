@@ -56,7 +56,13 @@ public:
            "phrenic motoneurons, the phrenic nerve drives the diaphragm, and the lungs fill. Blood CO2 closes the loop: chemoreceptors "
            "report PaCO2, and the brainstem answers with faster and deeper breaths. Score: 12-20 breaths per minute at rest; when the air "
            "gets 5% CO2 (50-110 s) ventilation must rise at least 1.6x and PaCO2 must stay below 52 mmHg; it must come back afterwards. "
-           "A recipe that works, in steps (units: weights of burster synapses are nS, of iaf cells pA; 'drive' is a Poisson train, "
+           "";
+  }
+  /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
+  std::string default_model() const override { return "butera_burster"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works, in steps (units: weights of burster synapses are nS, of iaf cells pA; 'drive' is a Poisson train, "
            "'chemo' is a current in pA): (1) about 10 butera_burster cells (PBC), g_NaP 2.8 nS and g_tonic 0.29 nS, each excited by every "
            "other with a WEAK weight of about 0.03 nS (not 1: strong coupling gives 100+ breaths a minute); 'drive' onto PBC at weight "
            "0.005. Alone a burster fires a burst every 4-5 s. (2) 8 iaf_psc_alpha phrenic cells (PHR) with I_e about 380 pA, excited by "
@@ -125,11 +131,13 @@ public:
   std::map< std::string, Metric > metrics() const override { return { { "paco2_peak", make_metric( score().parts[ "paco2_peak" ], "mmHg", true ) } }; }
   Note notebook() const override
   {
-    return { "Bursting makes the rhythm",
-             "The preBotzinger complex contains neurons that burst on their own through a persistent sodium current; excitatory "
-             "coupling among them synchronises the bursts into the inspiratory rhythm. CO2 sensed by retrotrapezoid neurons "
-             "raises its frequency and the drive to the motoneurons.",
-             "Smith JC et al. (1991) Science 254:726; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232" };
+    return { "Where the breathing rhythm comes from",
+             "The preBotzinger complex of the medulla generates the inspiratory rhythm. Some of its neurons burst on their own through a persistent "
+             "sodium current, and in the pacemaker hypothesis excitatory coupling among them synchronises the bursts into the rhythm; in the "
+             "group-pacemaker hypothesis the rhythm emerges from the recurrent excitation of the network itself, and it can survive when the persistent "
+             "sodium current is blocked. This level builds the pacemaker version; the question is still open. CO2 sensed by retrotrapezoid neurons "
+             "raises the frequency and the drive to the motoneurons.",
+             "Smith JC et al. (1991) Science 254:726; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232 (review of both hypotheses)" };
   }
   std::vector< Event > timeline() const override { return { { kCo2On, kCo2Off - kCo2On, "5% CO2 inhaled" } }; }
   std::vector< Band > bands() const override { return { { "rr_per_min", "/min", rlo(), rhi() }, { "co2_mmhg", "mmHg", palo(), pahi() } }; }
