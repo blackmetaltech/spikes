@@ -1,0 +1,258 @@
+{
+ "pitches": 8,
+ "sfx": {
+  "ambient_lab": {
+   "db": -34.0,
+   "group": "ambient",
+   "jitter": false,
+   "loop": true,
+   "ms": 8000
+  },
+  "breath_loop": {
+   "db": -24.0,
+   "group": "body",
+   "jitter": false,
+   "loop": true,
+   "ms": 2000
+  },
+  "gut_0": {
+   "db": -22.0,
+   "group": "body",
+   "jitter": true,
+   "loop": false,
+   "ms": 349
+  },
+  "gut_1": {
+   "db": -22.0,
+   "group": "body",
+   "jitter": true,
+   "loop": false,
+   "ms": 449
+  },
+  "gut_2": {
+   "db": -22.0,
+   "group": "body",
+   "jitter": true,
+   "loop": false,
+   "ms": 550
+  },
+  "heart_dub": {
+   "db": -9.0,
+   "group": "body",
+   "jitter": false,
+   "loop": false,
+   "ms": 120
+  },
+  "heart_lub": {
+   "db": -6.0,
+   "group": "body",
+   "jitter": false,
+   "loop": false,
+   "ms": 160
+  },
+  "spike_exc_0": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_1": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_2": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_3": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_4": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_5": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_6": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_exc_7": {
+   "db": -9.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 30
+  },
+  "spike_inh_0": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_1": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_2": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_3": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_4": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_5": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_6": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "spike_inh_7": {
+   "db": -12.0,
+   "group": "spike",
+   "jitter": false,
+   "loop": false,
+   "ms": 20
+  },
+  "twitch": {
+   "db": -9.0,
+   "group": "body",
+   "jitter": true,
+   "loop": false,
+   "ms": 140
+  },
+  "ui_back": {
+   "db": -12.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 60
+  },
+  "ui_celebrate": {
+   "db": -7.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 2400
+  },
+  "ui_click": {
+   "db": -12.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 50
+  },
+  "ui_fail": {
+   "db": -11.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 800
+  },
+  "ui_hint": {
+   "db": -12.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 699
+  },
+  "ui_lesion_cut": {
+   "db": -9.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 260
+  },
+  "ui_pass": {
+   "db": -9.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 1300
+  },
+  "ui_pause": {
+   "db": -10.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 240
+  },
+  "ui_run": {
+   "db": -10.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 220
+  },
+  "ui_star1": {
+   "db": -10.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 899
+  },
+  "ui_star2": {
+   "db": -10.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 1600
+  },
+  "ui_star3": {
+   "db": -8.0,
+   "group": "ui",
+   "jitter": false,
+   "loop": false,
+   "ms": 1399
+  }
+ },
+ "version": 1
+}
