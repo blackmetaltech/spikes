@@ -1,0 +1,79 @@
+{
+ "task": "boss_autonomic_exam",
+ "source": "synthetic: tools/histograms/gen_histograms.py (see docs/HISTOGRAMS.md)",
+ "samples": 18,
+ "metrics": {
+  "neurons": {
+   "unit": "neurons",
+   "lower_is_better": true,
+   "values": [
+    75,
+    75,
+    89,
+    75,
+    83,
+    75,
+    75,
+    77,
+    87,
+    85,
+    75,
+    75,
+    75,
+    99,
+    88,
+    74,
+    75,
+    85
+   ]
+  },
+  "energy_hz": {
+   "unit": "spikes/s",
+   "lower_is_better": true,
+   "values": [
+    19.644,
+    19.117,
+    19.994,
+    19.473,
+    21.489,
+    20.117,
+    20.105,
+    19.12,
+    20.338,
+    19.551,
+    20.558,
+    19.81,
+    19.546,
+    16.169,
+    21.24,
+    20.262,
+    19.624,
+    20.027
+   ]
+  },
+  "map_standing_error": {
+   "unit": "mmHg",
+   "lower_is_better": true,
+   "values": [
+    3.3911,
+    3.8904,
+    4.1766,
+    1.2198,
+    1.6353,
+    3.8407,
+    4.4416,
+    4.063,
+    2.828,
+    2.6906,
+    2.3988,
+    3.9879,
+    5.3119,
+    4.2307,
+    1.392,
+    1.2071,
+    4.6877,
+    5.2888
+   ]
+  }
+ }
+}
