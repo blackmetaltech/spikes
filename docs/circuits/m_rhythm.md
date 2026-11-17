@@ -41,3 +41,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): Sensor
 
 ## Biology
 Smith JC, Ellenberger HH, Ballanyi K, Richter DW, Feldman JL (1991) Pre-Botzinger complex: a brainstem region that may generate respiratory rhythm in mammals. Science 254:726-729. Guyenet PG, Stornetta RL, Bayliss DA (2010) Central respiratory chemoreception. J Comp Neurol 518:3883-3906 (RTN neurons add drive that raises respiratory frequency). Izhikevich EM (2003) IEEE Trans Neural Netw 14:1569-1572 (the chattering cell).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `izhikevich_CH` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** One Izhikevich chattering cell (n = 1) read out on phrenic, with chemo wired to it. This cell bursts for a drive of about 4 to 9 pA, so set the chemo weight to about 5 pA per unit: 5 pA at rest bursts about 10 times a second, 8 pA after the CO2 rise about 15. Any higher weight, such as 300, makes the cell fire continuously.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **1 run** (gate: at most 8).

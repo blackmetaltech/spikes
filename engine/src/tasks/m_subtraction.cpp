@@ -50,6 +50,9 @@ public:
     i.concepts_new = { "subtraction" };
     i.concepts_used = { "inhibition", "convergence" };
     i.par_neurons = 2;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "plus > out cell > diff. minus > cell B (inhibitory) > out cell, with the B > out weight at about -1100 pA. Too weak "
+               "and equal inputs still fire; too strong and plus 3 against minus 2 goes quiet.";
     i.kinds = { { "plus", micro::dc( 3.0 ) }, { "minus", micro::dc( 3.0 ) }, { "diff", micro::rate() } };
     i.bands = { { "fire_ok", "of 3", 3, 3 }, { "silent_ok", "of 4", 4, 4 } };
     for ( int s = 0; s < kSeg; ++s )

@@ -44,7 +44,7 @@ public:
               "'go' (50 ms) must release three bursts in order on 'b1', 'b2', 'b3', each 100-220 ms after the previous one, and then silence. It happens "
               "twice, at about 0.6 s and 2 s; nothing may fire on its own before. Build a chain: go onto a first group read out on b1; b1's group onto a "
               "second group read out on b2; that onto a third. The links must be strong enough to make the next group fire (the default weight "
-              "is not, about 300 pA is) and slow: set the delay of each link to about 120 ms (the delay slider reaches 250 ms). Cells stop firing when "
+              "is not) and slow: a delay of the order of 100 ms on each link (the delay slider reaches 250 ms). Cells stop firing when "
               "their input stops, so each burst ends by itself.";
     i.chapter = "spinal";
     i.sensors = { "go" };
@@ -53,6 +53,10 @@ public:
     i.concepts_new = { "timed_bursts" };
     i.concepts_used = { "excitation", "threshold" };
     i.par_neurons = 12;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "go onto group 1 (4 cells, read out on b1). Group 1 onto group 2 (4 cells, b2) at about 300 pA with delay 120 ms; "
+               "group 2 onto group 3 (4 cells, b3) the same. The weight needed scales inversely with the number of cells in the "
+               "group before it: about 1200 pA in all, so 300 pA from 4 cells, 600 from 2, 1000 or more from a single cell.";
     i.kinds = { { "go", dc( kGo ) }, { "b1", rate() }, { "b2", rate() }, { "b3", rate() } };
     i.bands = {};
     i.timeline = { { 600, kGoLen, "go" }, { 2000, kGoLen, "go" } };
@@ -190,8 +194,8 @@ protected:
     a.key = "all_three";
     a.ok = all_fire;
     a.soft = all_fire ? 1.0 : 0.3;
-    a.fail = miss + ": a group does not fire strongly enough. Strengthen the link into it (the default 80 pA is far too weak for a relay; about 300 pA), or "
-             "give the previous group more cells.";
+    a.fail = miss + ": a group does not fire strongly enough. Strengthen the link into it (the default 80 pA is far too weak for a relay): the weight "
+             "needed times the number of cells in the previous group is about 1200 pA, or give the previous group more cells.";
     a.place = "The first link in the chain that is too weak: the group after it never gets enough input to burst.";
     a.target = miss.rfind( "b3", 0 ) == 0 ? "b3" : "b2";
     a.recipe = "go onto group 1 (4 cells); group 1 onto group 2 and group 2 onto group 3 (4 cells each) at about 300 pA with delay 120 ms.";

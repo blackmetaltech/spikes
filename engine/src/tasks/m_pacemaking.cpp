@@ -47,6 +47,9 @@ public:
     i.concepts_new = { "pacemaking" };
     i.concepts_used = { "threshold" };
     i.par_neurons = 1;
+    i.default_model = "sa_node_pacemaker";
+    i.recipe = "One SA node cell wired to 'beat', nothing else: it beats about 100 times a minute on its own. No sensor, no input "
+               "weight, no bias current.";
     i.kinds = { { "beat", micro::rate() } };
     i.bands = { { "bpm", "beats/min", 50, 140 }, { "cv_pct", "%", 0, 15 } };
     i.modulators = { "ACh", "NE" };

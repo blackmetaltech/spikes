@@ -64,6 +64,8 @@ public:
     std::vector< Event > timeline;
     std::vector< std::string > modulators;
     Note note;
+    std::string default_model = "iaf_psc_alpha";  // catalog card the lab opens the level on (the cell the reference and verdicts assume)
+    std::string recipe;                            // concrete numbers, kept out of the brief (shown by mode in the lab)
   };
 
   explicit MicroBase( Info i ) : info_( std::move( i ) ) {}
@@ -85,6 +87,8 @@ public:
   std::vector< std::string > concepts_new() const override { return info_.concepts_new; }
   std::vector< std::string > concepts_used() const override { return info_.concepts_used; }
   Note notebook() const override { return info_.note; }
+  std::string default_model() const override { return info_.default_model; }
+  std::string recipe() const override { return info_.recipe; }
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
   BodyState body() const override
   {

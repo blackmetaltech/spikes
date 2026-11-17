@@ -52,6 +52,9 @@ public:
     i.concepts_new = { "travelling_wave" };
     i.concepts_used = { "excitation", "inhibition" };
     i.par_neurons = 4;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "tone onto 3 groups (seg0, seg1, seg2; the first connection sets 300 pA per unit, which is right). dist1 onto "
+               "seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -160 pA; dist2 onto seg1.";
     i.kinds = { { "tone", dc( kTone ) }, { "dist1", dc( kPress ) }, { "dist2", dc( kPress ) }, { "seg0", rate() }, { "seg1", rate() }, { "seg2", rate() } };
     i.bands = { { "seg2_vs_tone", "", 0.0, 0.3 } };
     i.timeline = { { 700, 800, "bolus at segment 1" }, { 1700, 800, "bolus at segment 2" } };

@@ -50,6 +50,10 @@ public:
     i.concepts_new = { "inhibition" };
     i.concepts_used = { "threshold", "excitation" };
     i.par_neurons = 2;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "drive > cell A > out. stop > cell B (inhibitory) > cell A, with the B > A weight at about -1000 pA. The default -80 pA "
+               "only slows A down a little (by about 8 %); the inhibition has to cut the whole drive, so the weight is roughly 12 "
+               "times larger.";
     i.kinds = { { "drive", micro::dc( kLevel ) }, { "stop", micro::dc( kLevel ) }, { "out", micro::rate() } };
     i.bands = { { "during_spikes", "spikes", 0, 2 }, { "before_spikes", "spikes", 8, 400 } };
     i.timeline = { { kDrive0, kDrive1 - kDrive0, "drive on" }, { kStop0, kStop1 - kStop0, "stop on" } };

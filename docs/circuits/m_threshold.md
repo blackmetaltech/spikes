@@ -40,3 +40,9 @@ Hints: (1) a neuron fires only when input pushes it past threshold, rheobase 375
 Metric: `latency_ms` of the first step spike (lower is better).
 
 Credits: Lapicque L (1907) J Physiol Pathol Gen 9:620; Brunel N, van Rossum MCW (2007) Biol Cybern 97:337; Hodgkin AL (1948) J Physiol 107:165.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** Wire pulse to one integrate-and-fire cell and the cell to 'spike'. The cell's rheobase is 375 pA, so set the pulse weight between about 400 and 600 pA: at the lab's start of 300 even the step (level 1.0) stays under it, and above 625 the blip (level 0.6) crosses it too.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).

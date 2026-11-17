@@ -51,6 +51,10 @@ public:
     i.concepts_new = { "excitation" };
     i.concepts_used = { "threshold" };
     i.par_neurons = 2;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "tap > cell A (the default weights work) > cell B. A is wired to 'source', B to 'echo'. Raise the A > B weight to about "
+               "1500 pA so that one spike fires B, then lengthen the delay to about 4 or 5 ms (it starts at 2) until the echo latency "
+               "reads 8 ms.";
     i.kinds = { { "tap", micro::dc( 2.0 ) }, { "source", micro::rate() }, { "echo", micro::rate() } };
     i.bands = { { "latency_ms", "ms", kTarget - 1.5, kTarget + 1.5 }, { "echo_pct", "%", 90, 100 } };
     for ( int k = 0; k < kTaps; ++k ) i.timeline.push_back( { 300.0 + 500.0 * k, 100.0, "tap" } );
@@ -128,8 +132,8 @@ public:
     else if ( st.coincident > 0 && st.echoes == 0 )
       o << "The echo fires at the same instant as the source: they are the same cell. Wire the source and the echo to two different cells.";
     else if ( st.echoes == 0 )
-      o << "The echo cell never fired. One spike through a weak synapse is only a nudge of about a millivolt: raise the weight of the link "
-           "from the source cell to the echo cell a lot.";
+      o << "The echo cell never fired. One spike through a weak synapse is only a nudge of about a millivolt, and this cell needs about 15 mV "
+           "from a single spike: raise the weight of the link from the source cell to the echo cell a lot (well beyond 1000 pA).";
     else if ( !b )
       o << "The echo answers only " << fmt( 100.0 * st.echoes / st.src ) << " % of the source spikes. Strengthen the link so every spike gets through.";
     else if ( !c && st.mean_lat < kTarget - tw )

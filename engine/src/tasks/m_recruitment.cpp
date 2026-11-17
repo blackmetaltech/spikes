@@ -48,7 +48,6 @@ public:
               "mu_large (0.60 at full rate). The force must follow the staircase 0.10 / 0.40 / 1.00 (within 0.09) and be zero at rest. "
               "Wire the command to a group of cells for each pool and read each group out on its channel. With identical cells every "
               "pool switches on at the same effort, so the force jumps from 0 to 1.00: give the three pools different thresholds. A "
-              "cell's rheobase is 375 pA and the command delivers 360, 660 and 960 pA (weight 300 pA per unit times the level), so a "
               "bias current (ADVANCED, I_e) that lowers or raises each pool's threshold sorts the pools out.";
     i.chapter = "spinal";
     i.sensors = { "command" };
@@ -57,6 +56,11 @@ public:
     i.concepts_new = { "recruitment" };
     i.concepts_used = { "threshold", "excitation" };
     i.par_neurons = 3;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "A cell's rheobase is 375 pA and the command delivers 360, 660 and 960 pA (weight 300 pA per unit times the level "
+               "1.2 / 2.2 / 3.2). Three groups, each driven by 'command' and read out on its own channel. Give the small pool a "
+               "bias of about +100 pA, the mid pool none, the large pool about -350 pA: then 360 pA recruits only the small "
+               "pool, 660 pA the mid pool too, 960 pA all three.";
     i.kinds = { { "command", dc( 2.2 ) }, { "mu_small", rate() }, { "mu_mid", rate() }, { "mu_large", rate() } };
     i.bands = { { "force_error", "", -0.09, 0.09 } };
     i.timeline = { { kT0, kStepLen, "light effort" }, { kT0 + kStepLen, kStepLen, "medium effort" }, { kT0 + 2 * kStepLen, kStepLen, "maximal effort" } };

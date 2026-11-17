@@ -45,8 +45,8 @@ public:
               "pulls it down by 0.5. The effector is slow, so plain feedback lets the level sag by about 0.3. The first workload is announced by "
               "the sensor 'cue', a quarter of a second ahead; the second, at 3.5 s, is not. Keep the level within 0.23 of the target during the "
               "announced workload and inside the band at the end of both. Wire 'tone' onto the effort cells and read them on 'effort'. Feedback: "
-              "'level' through a group set to inhibitory onto the effort cells (more level, less effort; 3 cells at -300 pA is the right size). "
-              "Feed-forward: 'cue' onto the effort cells (the lab's first weight of 300 pA per unit is about right) so that effort rises before the "
+              "'level' through a group set to inhibitory onto the effort cells (more level, less effort). "
+              "Feed-forward: 'cue' onto the effort cells so that effort rises before the "
               "workload arrives. Too little cue leaves the dip; too much overshoots.";
     i.chapter = "heart";
     i.sensors = { "tone", "level", "cue" };
@@ -55,6 +55,10 @@ public:
     i.concepts_new = { "feedforward_feedback" };
     i.concepts_used = { "negative_feedback", "excitation" };
     i.par_neurons = 4;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "tone onto 2 effort cells. level onto 3 inhibitory cells that project onto the effort cells at about -300 pA (the "
+               "sensor gives 900 pA per unit of level). cue onto the effort cells (the first connection's weight of 300 pA per "
+               "unit is right, 150 is too little).";
     i.kinds = { { "tone", dc( kTone ) }, { "level", dc( 1.5 ) }, { "cue", dc( kCue ) }, { "effort", rate() } };
     i.bands = { { "level", "", 0.4, 0.6 } };
     i.timeline = { { 1100, 1300, "cue (warning)" }, { 1350, 1050, "workload (warned)" }, { 3500, 1200, "workload (no cue)" } };

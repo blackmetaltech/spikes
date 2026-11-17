@@ -36,3 +36,9 @@ Hints: (1) adaptation is a slow spike-triggered current; (2) use the aeif cell, 
 Metric: `adaptation_ratio` (higher is better).
 
 Credits: Connors BW, Gutnick MJ (1990) Trends Neurosci 13:99; Brette R, Gerstner W (2005) J Neurophysiol 94:3637.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `aeif_cond_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** step > one aeif cell > spikes. Keep the default step weight (300) and the cell's NEST-default values, and in its advanced parameters set tau_w to 300-400 ms: the cell starts near 50 spikes/s and settles near 10. The longer the adaptation current takes to fade, the more of it builds up; b alone only helps a little (even 200 pA gives a ratio of 2.7), and with b = 0 there is no adaptation at all.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **3 runs** (gate: at most 8).

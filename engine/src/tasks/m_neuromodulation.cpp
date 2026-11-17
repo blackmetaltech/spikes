@@ -47,6 +47,11 @@ public:
     i.concepts_new = { "neuromodulation" };
     i.concepts_used = { "pacemaking", "excitation" };
     i.par_neurons = 2;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "vagus > cell V (an ordinary integrate-and-fire cell, the default sensor weight is right) > 'vagal'; an SA node cell > "
+               "'beat'. V fires about 85 times a second, the vagal output (gain 0.012, tau 500 ms) turns that into an ACh level near "
+               "0.5, and the heart slows from about 103 to 67 per minute. More cells on 'vagal' means more ACh: too many stop the "
+               "node.";
     i.kinds = { { "vagus", micro::dc( kLevel ) }, { "beat", micro::rate() }, { "vagal", micro::modulator( "ACh", 0.012, 500.0 ) } };
     i.bands = { { "slowing", "x", 1.25, 3.0 }, { "ACh", "a.u.", 0.15, 1.5 } };
     i.timeline = { { kOn, kDur - kOn, "vagus on" } };

@@ -15,6 +15,7 @@
 #include <sstream>
 #include "check.h"
 #include "nlohmann/json.hpp"
+#include "micro_lab.h"
 #include "spike/task.h"
 
 using nlohmann::json;
@@ -54,7 +55,7 @@ static std::string circuits_dir() { return std::string( SPIKE_SOURCE_DIR ) + "/c
 static json load_circuit( const std::string& f ) { return json::parse( chk::slurp( f ) ); }
 
 // ---- the lab's bench, in a few lines -----------------------------------------------------------------------------------------
-// skeleton: every sensor with its declared kind (first-connect weight 300 pA per unit for dc, 280 for Poisson) and every motor as a rate readout.
+// skeleton: every sensor with its declared kind and the lab's first-connect weight (microlab::sensor_weight) and every motor as a rate readout.
 static json skeleton( const std::string& id )
 {
   auto t = make_task( id );
@@ -64,7 +65,8 @@ static json skeleton( const std::string& id )
   for ( auto& s : t->sensor_channels() )
   {
     const std::string k = kinds.count( s ) ? kinds[ s ].kind : "poisson";
-    c[ "inputs" ].push_back( { { "name", s }, { "kind", k }, { "targets", json::array() }, { "weight", k == "dc" ? 300.0 : 280.0 }, { "value", 0.0 } } );
+    c[ "inputs" ].push_back( { { "name", s }, { "kind", k }, { "targets", json::array() },
+      { "weight", microlab::sensor_weight( *t, s, microlab::part_of( t->default_model() ) ) }, { "value", 0.0 } } );
   }
   for ( auto& m : t->motor_channels() )
     c[ "outputs" ].push_back( { { "name", m }, { "kind", "rate" }, { "neurons", json::array() } } );
@@ -75,6 +77,13 @@ static void grp( json& c, const std::string& id, int n, const char* model = "iaf
   json pos = json::array();
   for ( int k = 0; k < n; ++k ) pos.push_back( { 0, 30 * k } );
   c[ "populations" ].push_back( { { "id", id }, { "model", model }, { "n", n }, { "params", params }, { "pos", pos }, { "role", "neuron" } } );
+}
+// a group of cells of the part the lab opens the level on (Task::default_model()), with parameters the player changed
+static void dgrp( json& c, const std::string& task, const std::string& id, int n, json extra = json::object() )
+{
+  auto p = microlab::part_of( make_task( task )->default_model() );
+  for ( auto it = extra.begin(); it != extra.end(); ++it ) p.params[ it.key() ] = it.value();
+  grp( c, id, n, p.model.c_str(), p.params );
 }
 static void link( json& c, const std::string& pre, const std::string& post, double w, double delay = 2.0 )
 {
@@ -132,6 +141,156 @@ struct Puzzle
   struct Lesion { const char* what; std::function< void( json& ) > apply; };
   std::vector< Lesion > lesions;
 };
+
+
+// ---- the novice path ---------------------------------------------------------------------------------------------------------------
+// The first build of each path is made of the lab's own defaults: the part the parts picker opens on (default_model()), the first-connect weight
+// of each sensor (the task's declared weight, else 300 pA per unit) and the default synapse weight onto the part (80 pA for the integrate-and-fire
+// cell, delay 2 ms; a link set to inhibitory carries the same weight, negative). The following builds change what the verdict says, one thing at a
+// time. The gate of docs/DESIGN-0.3.md section 10: every path ends in a pass (on 5 seeds) within 8 runs, with no recipe and no hint.
+struct NStep { const char* what; std::function< json() > build; bool pass; const char* verdict_has; };
+struct NPath { std::string task; std::vector< NStep > steps; };
+
+static std::vector< NPath > novice_paths()
+{
+  std::vector< NPath > v;
+  // m_recruitment: three single cells, the command onto each; the bias (ADVANCED, I_e) is the knob
+  auto recruit = []( double bs, double bm, double bl ) {
+    return [ = ] {
+      json c = skeleton( "m_recruitment" );
+      dgrp( c, "m_recruitment", "S", 1, { { "I_e", bs } } ), dgrp( c, "m_recruitment", "M", 1, { { "I_e", bm } } ), dgrp( c, "m_recruitment", "L", 1, { { "I_e", bl } } );
+      sens( c, "command", { "S", "M", "L" } );
+      motor( c, "mu_small", "S" ), motor( c, "mu_mid", "M" ), motor( c, "mu_large", "L" );
+      return c;
+    };
+  };
+  v.push_back( { "m_recruitment", {
+    { "three identical cells (every bias 0)", recruit( 0, 0, 0 ), false, "stayed silent" },
+    { "small pool +100 pA", recruit( 100, 0, 0 ), false, "too early" },
+    { "large pool -100 pA", recruit( 100, 0, -100 ), false, "too early" },
+    { "large pool -250 pA", recruit( 100, 0, -250 ), false, "too early" },
+    { "large pool -350 pA", recruit( 100, 0, -350 ), true, "clean staircase" } } } );
+  auto recip = []( double w ) {
+    return [ = ] {
+      json c = skeleton( "m_reciprocal" );
+      dgrp( c, "m_reciprocal", "F", 2 ), dgrp( c, "m_reciprocal", "E", 2 ), dgrp( c, "m_reciprocal", "IN", 2 );
+      sens( c, "tone", { "F", "E" } ), sens( c, "ia_flexor", { "F", "IN" } );
+      link( c, "IN", "E", w );
+      motor( c, "flexor", "F" ), motor( c, "extensor", "E" );
+      return c;
+    };
+  };
+  v.push_back( { "m_reciprocal", {
+    { "Ia through an interneuron left excitatory (the default +80)", recip( 80 ), false, "did not relax" },
+    { "the interneuron set inhibitory (-80)", recip( -80 ), true, "reciprocal inhibition" } } } );
+  auto recur = []( double w ) {
+    return [ = ] {
+      json c = skeleton( "m_recurrent" );
+      dgrp( c, "m_recurrent", "MN", 4 ), dgrp( c, "m_recurrent", "RC", 2 );
+      sens( c, "drive", { "MN" } ), sens( c, "kick", { "MN" } );
+      link( c, "MN", "RC", w ), link( c, "RC", "MN", -w );
+      motor( c, "mn", "MN" );
+      return c;
+    };
+  };
+  v.push_back( { "m_recurrent", {
+    { "4 motoneurons, 2 Renshaw cells, both links at the default 80 pA", recur( 80 ), false, "nothing holds" },
+    { "both links 300 pA", recur( 300 ), false, "too little" },
+    { "both links 450 pA", recur( 450 ), false, "too weak" },
+    { "both links 600 pA", recur( 600 ), true, "gain control" } } } );
+  auto negfb = []( double w ) {
+    return [ = ] {
+      json c = skeleton( "m_negative_feedback" );
+      dgrp( c, "m_negative_feedback", "EFF", 2 ), dgrp( c, "m_negative_feedback", "INH", 3 );
+      sens( c, "tone", { "EFF" } ), sens( c, "level", { "INH" } );
+      link( c, "INH", "EFF", w );
+      motor( c, "effort", "EFF" );
+      return c;
+    };
+  };
+  v.push_back( { "m_negative_feedback", {
+    { "level through cells left excitatory (+80)", negfb( 80 ), false, "inhibitory" },
+    { "the cells set inhibitory (-80)", negfb( -80 ), false, "" },
+    { "-160", negfb( -160 ), false, "" },
+    { "-300", negfb( -300 ), true, "negative feedback" } } } );
+  auto feedfwd = []( double w ) {
+    return [ = ] {
+      json c = skeleton( "m_feedforward" );
+      dgrp( c, "m_feedforward", "EFF", 2 ), dgrp( c, "m_feedforward", "INH", 3 );
+      sens( c, "tone", { "EFF" } ), sens( c, "level", { "INH" } ), sens( c, "cue", { "EFF" } );
+      link( c, "INH", "EFF", w );
+      motor( c, "effort", "EFF" );
+      return c;
+    };
+  };
+  v.push_back( { "m_feedforward", {
+    { "feedback cells at the default inhibitory weight (-80), cue onto the effort cells", feedfwd( -80 ), false, "inhibitory" },
+    { "feedback weight -300", feedfwd( -300 ), true, "Feed-forward" } } } );
+  auto bursts = []( double w, double delay ) {
+    return [ = ] {
+      json c = skeleton( "m_timed_bursts" );
+      dgrp( c, "m_timed_bursts", "G1", 1 ), dgrp( c, "m_timed_bursts", "G2", 1 ), dgrp( c, "m_timed_bursts", "G3", 1 );
+      sens( c, "go", { "G1" } );
+      link( c, "G1", "G2", w, delay ), link( c, "G2", "G3", w, delay );
+      motor( c, "b1", "G1" ), motor( c, "b2", "G2" ), motor( c, "b3", "G3" );
+      return c;
+    };
+  };
+  v.push_back( { "m_timed_bursts", {
+    { "a chain of three single cells at the default 80 pA, 2 ms", bursts( 80, 2 ), false, "never burst" },
+    { "300 pA", bursts( 300, 2 ), false, "never burst" },
+    { "1200 pA (the verdict: weight x cells in the previous group is about 1200)", bursts( 1200, 2 ), false, "delay" },
+    { "1200 pA with a delay of 120 ms", bursts( 1200, 120 ), true, "pattern generator" } } } );
+  auto rhythm = []( double w ) {
+    return [ = ] {
+      json c = skeleton( "m_rhythm" );
+      dgrp( c, "m_rhythm", "B", 1 );
+      sens( c, "chemo", { "B" }, w );
+      motor( c, "phrenic", "B" );
+      return c;
+    };
+  };
+  v.push_back( { "m_rhythm", {
+    { "the part the lab opens on (chattering) with the lab's first-connect weight", [] {
+        json c = skeleton( "m_rhythm" );
+        dgrp( c, "m_rhythm", "B", 1 );
+        sens( c, "chemo", { "B" } );
+        motor( c, "phrenic", "B" );
+        return c; }, true, "rhythm tuned by a sensor" } } } );
+  v.push_back( { "m_rhythm", {
+    { "a plain dc weight of 300 pA per unit", rhythm( 300 ), false, "steady train" },
+    { "weight 5", rhythm( 5 ), true, "rhythm tuned by a sensor" } } } );
+  auto wave = []( double w ) {
+    return [ = ] {
+      json c = skeleton( "m_wave" );
+      dgrp( c, "m_wave", "S0", 2 ), dgrp( c, "m_wave", "S1", 2 ), dgrp( c, "m_wave", "S2", 2 ), dgrp( c, "m_wave", "IN", 2 );
+      sens( c, "tone", { "S0", "S1", "S2" } );
+      sens( c, "dist1", { "S0", "IN" } ), sens( c, "dist2", { "S1" } );
+      link( c, "IN", "S2", w );
+      motor( c, "seg0", "S0" ), motor( c, "seg1", "S1" ), motor( c, "seg2", "S2" );
+      return c;
+    };
+  };
+  v.push_back( { "m_wave", {
+    { "dist1 through an interneuron left excitatory (+80)", wave( 80 ), false, "inhibitory" },
+    { "the interneuron set inhibitory (-80)", wave( -80 ), true, "wave has a direction" } } } );
+  auto diverge = []( double wh, double wp ) {
+    return [ = ] {
+      json c = skeleton( "m_divergent" );
+      dgrp( c, "m_divergent", "C", 2 ), dgrp( c, "m_divergent", "H", 1 ), dgrp( c, "m_divergent", "P", 1 ), dgrp( c, "m_divergent", "S", 1 ), dgrp( c, "m_divergent", "G", 1 ), dgrp( c, "m_divergent", "IN", 2 );
+      sens( c, "alarm", { "C", "IN" } ), sens( c, "tone", { "G" } );
+      link( c, "C", "H", wh ), link( c, "C", "P", wp ), link( c, "C", "S", wp ), link( c, "IN", "G", -80 );
+      motor( c, "heart", "H" ), motor( c, "pupil", "P" ), motor( c, "sweat", "S" ), motor( c, "gut", "G" );
+      return c;
+    };
+  };
+  v.push_back( { "m_divergent", {
+    { "a command group of 2 cells, every link at the default 80 pA, inhibitory route -80 to the gut", diverge( 80, 80 ), false, "heart reaches only" },
+    { "the links 300 pA", diverge( 300, 300 ), false, "heart reaches only" },
+    { "the links 600 pA", diverge( 600, 600 ), false, "pupil fires" },
+    { "the heart's link 600, pupil and sweat 280", diverge( 600, 280 ), true, "one command, many effectors" } } } );
+  return v;
+}
 
 static std::vector< Puzzle > puzzles()
 {
@@ -288,6 +447,10 @@ int main( int argc, char** argv )
     CHECK( t->duration_ms() >= 2000 && t->duration_ms() <= 5000 );
     CHECK( t->par_neurons() >= 1 && t->par_neurons() <= 12 );
     CHECK( t->title().size() >= 5 && t->brief().size() > 400 );
+    // the lab opens the level on a declared part (the reference is built of the same cell type); the recipe lives apart from the brief
+    CHECK_MSG( !t->default_model().empty(), p.id + " declares default_model" );
+    CHECK_MSG( t->recipe().size() > 60, p.id + " has a recipe (concrete numbers, kept out of the brief)" );
+    CHECK_MSG( t->brief().find( " pA" ) == std::string::npos && t->brief().find( " nS" ) == std::string::npos, p.id + ": the brief carries numbers that belong to recipe()" );
     CHECK( t->view() == "dashboard" );
     auto kinds = t->channel_kinds();
     for ( auto& s : t->sensor_channels() ) CHECK_MSG( kinds.count( s ) && ( kinds[ s ].kind == "dc" || kinds[ s ].kind == "poisson" ), p.id + " sensor kind " + s );
@@ -302,6 +465,7 @@ int main( int argc, char** argv )
     CHECK( !h.empty() && !h[ 1 ].target.empty() );
 
     json ref = load_circuit( circuits_dir() + reference_circuit( p.id ) );
+    CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == microlab::part_of( t->default_model() ).model, p.id + ": default_model " + t->default_model() + " is the reference's first cell type" );
     for ( auto& s : t->sensor_channels() )
     {
       bool have = false;
@@ -378,5 +542,54 @@ int main( int argc, char** argv )
       CHECK_MSG( passes == 0, p.id + " still passes with lesion: " + l.what );
     }
   }
+  // ---- the novice path: lab defaults first, then what each verdict says; at most 8 runs, on 5 seeds ----
+  std::printf( "\nnovice paths (lab default part and weights):\n" );
+  std::set< std::string > first_seen;
+  std::map< std::string, int > runs_to_pass;
+  for ( const auto& p : novice_paths() )
+  {
+    auto t = make_task( p.task );
+    const bool primary = first_seen.insert( p.task ).second;
+    int runs = 0;
+    bool passed = false;
+    for ( const auto& st : p.steps )
+    {
+      ++runs;
+      json c = st.build();
+      if ( runs == 1 && primary )
+        CHECK_MSG( c[ "populations" ][ 0 ][ "model" ] == microlab::part_of( t->default_model() ).model, p.task + ": the first build of the primary path uses the default part " + t->default_model() );
+      Run r = run_circuit( p.task, c, 1 );
+      CHECK_MSG( r.loaded, std::string( st.what ) + ": " + r.error );
+      std::printf( "  %s run %d (%s): %.1f %s\n    %s\n", p.task.c_str(), runs, st.what, r.score.value, r.score.passed ? "PASS" : "fail", r.score.verdict.c_str() );
+      CHECK_MSG( r.score.passed == st.pass, p.task + " step '" + st.what + "' expected " + ( st.pass ? "pass" : "fail" ) + ": " + r.score.verdict );
+      if ( *st.verdict_has )
+        CHECK_MSG( r.score.verdict.find( st.verdict_has ) != std::string::npos, p.task + " step '" + st.what + "' verdict should mention '" + st.verdict_has + "': " + r.score.verdict );
+      if ( st.pass )
+      {
+        for ( uint64_t seed = 2; seed <= 5; ++seed )
+          CHECK_MSG( run_circuit( p.task, c, seed ).score.passed, p.task + " step '" + st.what + "' seed " + std::to_string( seed ) );
+        passed = true;
+        break;
+      }
+      else if ( r.score.value > 0 )
+        CHECK_MSG( r.score.value < 100.0, p.task + " a failing step shows 100" );
+    }
+    CHECK_MSG( passed, p.task + ": the novice path never passes" );
+    CHECK_MSG( runs <= 8, p.task + ": needs " + std::to_string( runs ) + " runs" );
+    if ( primary ) runs_to_pass[ p.task ] = runs;
+  }
+  // an empty bench (every channel wired to one idle cell) scores 0, not partial credit
+  for ( const auto& p : puzzles() )
+  {
+    auto t = make_task( p.id );
+    json c = skeleton( p.id );
+    dgrp( c, p.id, "X", 1 );
+    for ( auto& m : t->motor_channels() ) motor( c, m, "X" );
+    for ( auto& sname : t->sensor_channels() ) sens( c, sname, { "X" }, 0.0 );
+    Run r = run_circuit( p.id, c, 1 );
+    CHECK_MSG( r.loaded && !r.score.passed && r.score.value == 0.0, p.id + ": nothing fires -> value 0, got " + std::to_string( r.score.value ) + " (" + r.score.verdict + ")" );
+  }
+  std::printf( "\nnovice runs to pass with the lab's default part (primary path):\n" );
+  for ( auto& [ k, n ] : runs_to_pass ) std::printf( "  %-20s %d\n", k.c_str(), n );
   return chk::finish( "tasks_micro_b_test" );
 }

@@ -22,6 +22,7 @@
 #include <sstream>
 #include "check.h"
 #include "nlohmann/json.hpp"
+#include "micro_lab.h"
 #include "spike/task.h"
 
 using nlohmann::json;
@@ -89,6 +90,24 @@ struct Bench
   {
     c[ "populations" ].push_back( { { "id", id }, { "model", model }, { "n", n }, { "params", params } } );
     return *this;
+  }
+  // The lab's own first build: the cell the parts picker opens the level on (Task::default_model()), with the preset it carries.
+  std::string task_id;
+  Bench() = default;
+  explicit Bench( const std::string& task ) : task_id( task ) {}
+  microlab::Part dflt() const { return microlab::part_of( make_task( task_id )->default_model() ); }
+  Bench& cell( const std::string& id, int n = 1, json extra = json::object() )  // a default-part cell (extra: parameters the player changes)
+  {
+    auto p = dflt();
+    for ( auto it = extra.begin(); it != extra.end(); ++it ) p.params[ it.key() ] = it.value();
+    return pop( id, p.model, n, p.params );
+  }
+  // a sensor with the weight of the lab's first connection (the task's declared weight, else 300 pA per unit dc)
+  Bench& sense( const std::string& name, std::vector< std::string > pops, double weight = -1 )
+  {
+    auto t = make_task( task_id );
+    auto k = t->channel_kinds()[ name ];
+    return in( name, k.kind, weight >= 0 ? weight : microlab::sensor_weight( *t, name, dflt() ), std::move( pops ) );
   }
   Bench& proj( const std::string& pre, const std::string& post, double w, double delay = 2.0 )
   {
@@ -283,6 +302,10 @@ int main( int argc, char** argv )
     CHECK( t->par_neurons() >= 1 && t->par_neurons() <= 4 );
     CHECK( t->view() == "dashboard" );
     CHECK( !t->title().empty() );
+    // the lab opens the level on this part; the reference circuit is built of the same cell type, and the recipe lives apart from the brief
+    CHECK_MSG( !t->default_model().empty(), id + " declares default_model" );
+    CHECK_MSG( t->recipe().size() > 60, id + " has a recipe (concrete numbers, kept out of the brief)" );
+    CHECK_MSG( t->brief().find( " pA" ) == std::string::npos && t->brief().find( " nS" ) == std::string::npos, id + ": the brief carries numbers that belong to recipe()" );
     CHECK_MSG( t->brief().size() > 300 && t->brief().size() < 1400, id + " brief length " + std::to_string( t->brief().size() ) );
     CHECK_MSG( t->brief().find( "recipe" ) == std::string::npos, id + ": the brief must not carry the recipe (that is hint tier 3)" );
     CHECK( !t->bands().empty() );
@@ -330,6 +353,7 @@ int main( int argc, char** argv )
     // -------------------------------------------------------- reference circuit
     json ref = load_circuit( id );
     const int n = neuron_count( ref );
+    CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == microlab::part_of( t->default_model() ).model, id + ": default_model " + t->default_model() + " is the reference's first cell type" );
     CHECK_MSG( n >= 1 && n <= 4, id + " reference has " + std::to_string( n ) + " neurons" );
     CHECK_MSG( reference_circuit( id ) == id + ".json", id + " reference circuit name" );
     std::map< std::string, bool > in_ch, out_ch;
@@ -426,49 +450,95 @@ int main( int argc, char** argv )
     }
   }
 
-  // ------------------------------------------------------------ the novice path: builds a player makes from an empty bench, with the lab's defaults
-  // (iaf_psc_alpha synapse 80 pA, aeif 8 nS, SA node 0.2 nS; delay 2 ms; dc sensors start at weight 300 pA). Every path ends in a pass within 8 runs.
+  // ------------------------------------------------------------ the novice path: builds a player makes from an empty bench, with what the lab hands over
+  // The FIRST build of every path is made of the lab's own defaults: the cell the parts picker opens on (Task::default_model(): the part the reference and
+  // the verdicts assume), the default synapse weight onto it (iaf 80 pA, aeif 8 nS, SA node 0.2 nS; delay 2 ms) and the first-connect weight of each sensor
+  // (the task's declared weight, else 300 pA per unit for dc). The following builds change what the verdict says. Every path ends in a pass within 8 runs.
   const json MODACH = { { "modulator", "ACh" }, { "gain", 0.012 }, { "tau_ms", 500.0 } };
   const json ADAPT = { { "a", 0.0 }, { "b", 60.0 }, { "tau_w", 100.0 }, { "V_reset", -58.0 } };  // the "Adapting" preset
   struct Path { std::string task; std::vector< Step > steps; };
   std::vector< Path > paths;
+  auto B = []( const char* t ) { return Bench( t ); };
   paths.push_back( { "m_threshold", {
-    { "pulse > N1 > spike at the start weight 300", Bench().pop( "N1" ).in( "pulse", "dc", 300, { "N1" } ).out( "spike", { "N1" } ).c, false, "never fired" },
-    { "weight raised to 450", Bench().pop( "N1" ).in( "pulse", "dc", 450, { "N1" } ).out( "spike", { "N1" } ).c, true, "Clean threshold" } } } );
+    { "pulse > N1 > spike at the lab's start weight", B( "m_threshold" ).cell( "N1" ).sense( "pulse", { "N1" } ).out( "spike", { "N1" } ).c, false, "never fired" },
+    { "weight raised to 450", B( "m_threshold" ).cell( "N1" ).sense( "pulse", { "N1" }, 450 ).out( "spike", { "N1" } ).c, true, "Clean threshold" } } } );
+  auto excite = []( double w, double delay ) {
+    return Bench( "m_excitation" ).cell( "N1" ).cell( "N2" ).sense( "tap", { "N1" } ).out( "source", { "N1" } ).out( "echo", { "N2" } ).proj( "N1", "N2", w, delay ).c;
+  };
   paths.push_back( { "m_excitation", {
-    { "tap > A > B at the default 80 pA", Bench().pop( "N1" ).pop( "N2" ).in( "tap", "dc", 300, { "N1" } ).out( "source", { "N1" } ).out( "echo", { "N2" } ).proj( "N1", "N2", 80 ).c, false, "never fired" },
-    { "weight x5 (400)", Bench().pop( "N1" ).pop( "N2" ).in( "tap", "dc", 300, { "N1" } ).out( "source", { "N1" } ).out( "echo", { "N2" } ).proj( "N1", "N2", 400 ).c, false, "never fired" },
-    { "weight 1500 (the verdict said: a lot)", Bench().pop( "N1" ).pop( "N2" ).in( "tap", "dc", 300, { "N1" } ).out( "source", { "N1" } ).out( "echo", { "N2" } ).proj( "N1", "N2", 1500 ).c, false, "too early" },
-    { "delay + 2.3 ms as the verdict says", Bench().pop( "N1" ).pop( "N2" ).in( "tap", "dc", 300, { "N1" } ).out( "source", { "N1" } ).out( "echo", { "N2" } ).proj( "N1", "N2", 1500, 4.3 ).c, true, "echoed" } } } );
+    { "tap > A > B at the default weight", excite( 80, 2 ), false, "never fired" },
+    { "weight x5 (400)", excite( 400, 2 ), false, "never fired" },
+    { "weight 1500 (the verdict said: well beyond 1000)", excite( 1500, 2 ), false, "too early" },
+    { "delay + 2.3 ms as the verdict says", excite( 1500, 4.3 ), true, "echoed" } } } );
+  auto converge = []( double w ) {
+    return Bench( "m_convergence" ).cell( "N1" ).sense( "in_a", { "N1" }, w ).sense( "in_b", { "N1" }, w ).sense( "in_c", { "N1" }, w ).out( "out", { "N1" } ).c;
+  };
   paths.push_back( { "m_convergence", {
-    { "three sensors at the start weight 300 onto one cell", Bench().pop( "N1" ).in( "in_a", "dc", 300, { "N1" } ).in( "in_b", "dc", 300, { "N1" } ).in( "in_c", "dc", 300, { "N1" } ).out( "out", { "N1" } ).c, false, "also fired for" },
-    { "all three weights halved (150)", Bench().pop( "N1" ).in( "in_a", "dc", 150, { "N1" } ).in( "in_b", "dc", 150, { "N1" } ).in( "in_c", "dc", 150, { "N1" } ).out( "out", { "N1" } ).c, true, "all three inputs together" } } } );
+    { "three sensors at the lab's start weight onto one cell", Bench( "m_convergence" ).cell( "N1" ).sense( "in_a", { "N1" } ).sense( "in_b", { "N1" } ).sense( "in_c", { "N1" } ).out( "out", { "N1" } ).c, false, "also fired for" },
+    { "all three weights halved (150)", converge( 150 ), true, "all three inputs together" } } } );
+  auto stop = []( const char* task, double w ) {
+    return Bench( task ).cell( "N1" ).cell( "N2" ).sense( "drive", { "N1" } ).sense( "stop", { "N2" } ).out( "out", { "N1" } ).proj( "N2", "N1", w ).c;
+  };
   paths.push_back( { "m_inhibition", {
-    { "stop wired through an excitatory cell", Bench().pop( "N1" ).pop( "N2" ).in( "drive", "dc", 300, { "N1" } ).in( "stop", "dc", 300, { "N2" } ).out( "out", { "N1" } ).proj( "N2", "N1", 80 ).c, false, "no difference" },
-    { "stop cell set inhibitory (-80)", Bench().pop( "N1" ).pop( "N2" ).in( "drive", "dc", 300, { "N1" } ).in( "stop", "dc", 300, { "N2" } ).out( "out", { "N1" } ).proj( "N2", "N1", -80 ).c, false, "times its present weight" },
-    { "weight -1000 as the verdict said", Bench().pop( "N1" ).pop( "N2" ).in( "drive", "dc", 300, { "N1" } ).in( "stop", "dc", 300, { "N2" } ).out( "out", { "N1" } ).proj( "N2", "N1", -1000 ).c, true, "Stop silences" } } } );
+    { "stop wired through an excitatory cell", stop( "m_inhibition", 80 ), false, "no difference" },
+    { "stop cell set inhibitory (-80)", stop( "m_inhibition", -80 ), false, "times its present weight" },
+    { "weight -1000 as the verdict said", stop( "m_inhibition", -1000 ), true, "Stop silences" } } } );
+  auto subtract = []( double w ) {
+    return Bench( "m_subtraction" ).cell( "N1" ).cell( "N2" ).sense( "plus", { "N1" } ).sense( "minus", { "N2" } ).out( "diff", { "N1" } ).proj( "N2", "N1", w ).c;
+  };
   paths.push_back( { "m_subtraction", {
-    { "plus > out, minus > inhibitory cell > out at -80", Bench().pop( "N1" ).pop( "N2" ).in( "plus", "dc", 300, { "N1" } ).in( "minus", "dc", 300, { "N2" } ).out( "diff", { "N1" } ).proj( "N2", "N1", -80 ).c, false, "times its present weight" },
-    { "inhibitory link -1100", Bench().pop( "N1" ).pop( "N2" ).in( "plus", "dc", 300, { "N1" } ).in( "minus", "dc", 300, { "N2" } ).out( "diff", { "N1" } ).proj( "N2", "N1", -1100 ).c, true, "plus minus minus" } } } );
+    { "plus > out, minus > inhibitory cell > out at -80", subtract( -80 ), false, "times its present weight" },
+    { "inhibitory link -1100", subtract( -1100 ), true, "plus minus minus" } } } );
+  auto adapt = []( json extra ) { return Bench( "m_adaptation" ).cell( "N1", 1, extra ).sense( "step", { "N1" } ).out( "spikes", { "N1" } ).c; };
   paths.push_back( { "m_adaptation", {
-    { "step > one aeif cell (NEST default part) > spikes", Bench().pop( "N1", "aeif_cond_alpha" ).in( "step", "dc", 300, { "N1" } ).out( "spikes", { "N1" } ).c, false, "falls only a little" },
-    { "tau_w raised to 400 ms", Bench().pop( "N1", "aeif_cond_alpha", 1, { { "tau_w", 400.0 } } ).in( "step", "dc", 300, { "N1" } ).out( "spikes", { "N1" } ).c, true, "The cell adapts" } } } );
+    { "step > one aeif cell (the part the lab opens on) > spikes", adapt( json::object() ), false, "falls only a little" },
+    { "b raised to 200 (the first thing the verdict names): helps a little, not enough", adapt( { { "b", 200.0 } } ), false, "falls only a little" },
+    { "tau_w raised to 400 ms", adapt( { { "tau_w", 400.0 } } ), true, "The cell adapts" } } } );
+  auto halfc = []( double drive, double w, json extra ) {
+    return Bench( "m_half_centre" ).cell( "N1", 1, extra ).cell( "N2", 1, extra ).sense( "drive", { "N1", "N2" }, drive ).out( "left", { "N1" } ).out( "right", { "N2" } )
+      .proj( "N1", "N2", w ).proj( "N2", "N1", w ).c;
+  };
   paths.push_back( { "m_half_centre", {
-    { "two Adapting cells, both left excitatory", Bench().pop( "N1", "aeif_cond_alpha", 1, ADAPT ).pop( "N2", "aeif_cond_alpha", 1, ADAPT ).in( "drive", "dc", 300, { "N1", "N2" } ).out( "left", { "N1" } ).out( "right", { "N2" } ).proj( "N1", "N2", 8 ).proj( "N2", "N1", 8 ).c, false, "inhibitory" },
-    { "both set inhibitory (-8 nS)", Bench().pop( "N1", "aeif_cond_alpha", 1, ADAPT ).pop( "N2", "aeif_cond_alpha", 1, ADAPT ).in( "drive", "dc", 300, { "N1", "N2" } ).out( "left", { "N1" } ).out( "right", { "N2" } ).proj( "N1", "N2", -8 ).proj( "N2", "N1", -8 ).c, true, "A half-centre" } } } );
-  paths.push_back( { "m_half_centre", {  // the other tempting first build: plain cells with strong inhibition: one side wins for good
+    { "two default aeif cells, both left excitatory (+8 nS), drive at the lab's 300 pA", halfc( 300, 8, json::object() ), false, "Nothing fired" },
+    { "drive weight raised to 400 as the verdict says", halfc( 400, 8, json::object() ), false, "inhibitory" },
+    { "both links set inhibitory (-8 nS)", halfc( 400, -8, json::object() ), true, "A half-centre" } } } );
+  paths.push_back( { "m_half_centre", {  // the other route the verdict names: the Adapting preset, which fires at the lab's own 300 pA
+    { "two Adapting cells, both left excitatory", halfc( 300, 8, ADAPT ), false, "inhibitory" },
+    { "both set inhibitory (-8 nS)", halfc( 300, -8, ADAPT ), true, "A half-centre" } } } );
+  paths.push_back( { "m_half_centre", {  // another tempting first build: plain cells with strong inhibition: one side wins for good
     { "plain integrate-and-fire cells, inhibition -1600", Bench().pop( "N1" ).pop( "N2" ).in( "drive", "dc", 450, { "N1", "N2" } ).out( "left", { "N1" } ).out( "right", { "N2" } ).proj( "N1", "N2", -1600 ).proj( "N2", "N1", -1600 ).c, false, "adapting" },
-    { "Adapting aeif cells", Bench().pop( "N1", "aeif_cond_alpha", 1, ADAPT ).pop( "N2", "aeif_cond_alpha", 1, ADAPT ).in( "drive", "dc", 300, { "N1", "N2" } ).out( "left", { "N1" } ).out( "right", { "N2" } ).proj( "N1", "N2", -8 ).proj( "N2", "N1", -8 ).c, true, "A half-centre" } } } );
+    { "Adapting aeif cells", halfc( 300, -8, ADAPT ), true, "A half-centre" } } } );
+  auto couple = []( double w ) {
+    return Bench( "m_coupling" ).cell( "N1" ).cell( "N2" ).out( "a", { "N1" } ).out( "b", { "N2" } ).proj( "N1", "N2", w ).proj( "N2", "N1", w ).c;
+  };
   paths.push_back( { "m_coupling", {
-    { "two SA cells linked both ways at the default 0.2 nS", Bench().pop( "N1", "sa_node_pacemaker" ).pop( "N2", "sa_node_pacemaker" ).out( "a", { "N1" } ).out( "b", { "N2" } ).proj( "N1", "N2", 0.2 ).proj( "N2", "N1", 0.2 ).c, false, "Not locked" },
-    { "weight 2 nS", Bench().pop( "N1", "sa_node_pacemaker" ).pop( "N2", "sa_node_pacemaker" ).out( "a", { "N1" } ).out( "b", { "N2" } ).proj( "N1", "N2", 2.0 ).proj( "N2", "N1", 2.0 ).c, true, "Locked" } } } );
+    { "two SA cells linked both ways at the default 0.2 nS", couple( 0.2 ), false, "Not locked" },
+    { "weight 2 nS", couple( 2.0 ), true, "Locked" } } } );
   paths.push_back( { "m_pacemaking", {
+    { "the part the lab opens on (the SA node cell) on 'beat'", Bench( "m_pacemaking" ).cell( "N1" ).out( "beat", { "N1" } ).c, true, "A pacemaker" } } } );
+  paths.push_back( { "m_pacemaking", {  // a player who swaps the part for a plain cell first
     { "a plain cell on 'beat'", Bench().pop( "N1" ).out( "beat", { "N1" } ).c, false, "stays silent" },
     { "a plain cell with a bias current of 380 pA", Bench().pop( "N1", "iaf_psc_alpha", 1, { { "I_e", 380.0 } } ).out( "beat", { "N1" } ).c, false, "far too fast" },
     { "the SA node cell", Bench().pop( "N1", "sa_node_pacemaker" ).out( "beat", { "N1" } ).c, true, "A pacemaker" } } } );
+  // the vagal cell is an ordinary cell (the part the lab opens on); the player puts the pacemaker on 'beat' deliberately
+  auto neuromod = [ & ]( bool wire_vagal ) {
+    return Bench( "m_neuromodulation" ).cell( "N1" ).pop( "N2", "sa_node_pacemaker" ).sense( "vagus", { "N1" } ).out( "beat", { "N2" } ).out( "vagal", wire_vagal ? std::vector< std::string >{ "N1" } : std::vector< std::string >{}, MODACH ).c;
+  };
   paths.push_back( { "m_neuromodulation", {
-    { "vagus > cell > vagal, pacemaker on beat", Bench().pop( "N1" ).pop( "N2", "sa_node_pacemaker" ).in( "vagus", "dc", 300, { "N1" } ).out( "beat", { "N2" } ).out( "vagal", {}, MODACH ).c, false, "Not wired" },
-    { "the vagal output wired to the vagus cell", Bench().pop( "N1" ).pop( "N2", "sa_node_pacemaker" ).in( "vagus", "dc", 300, { "N1" } ).out( "beat", { "N2" } ).out( "vagal", { "N1" }, MODACH ).c, true, "slows the heart" } } } );
+    { "vagus > cell > vagal, pacemaker on beat", neuromod( false ), false, "Not wired" },
+    { "the vagal output wired to the vagus cell", neuromod( true ), true, "slows the heart" } } } );
+  // the default part each path starts on is the one the task declares and the reference circuit uses
+  {
+    std::set< std::string > seen;
+    for ( const auto& p : paths )
+    {
+      if ( !seen.insert( p.task ).second ) continue;
+      auto t = make_task( p.task );
+      const auto part = microlab::part_of( t->default_model() );
+      const json first = p.steps[ 0 ].circuit[ "populations" ][ 0 ];
+      CHECK_MSG( first[ "model" ] == part.model, p.task + ": the first build of the path is made with the lab's default part " + t->default_model() );
+    }
+  }
   std::map< std::string, int > runs_to_pass;
   for ( const auto& p : paths )
   {
@@ -498,7 +568,8 @@ int main( int argc, char** argv )
     }
     CHECK_MSG( passed, p.task + ": the novice path never passes" );
     CHECK_MSG( runs <= 8, p.task + ": needs " + std::to_string( runs ) + " runs" );
-    if ( runs_to_pass.count( p.task ) == 0 || runs > runs_to_pass[ p.task ] ) runs_to_pass[ p.task ] = runs;
+    if ( runs_to_pass.count( p.task ) == 0 ) runs_to_pass[ p.task ] = runs;  // the primary path (the first one of the task): the one made of the lab's defaults
+    CHECK_MSG( runs <= 8, p.task + ": a path needs " + std::to_string( runs ) + " runs" );
   }
 
   // ------------------------------------------------------------ modes scale only the tolerance

@@ -9,7 +9,7 @@
 //   from the peak +- 0.5 rad (so a worm that never turns fails). Heading noise: dpsi = 0.15 rad/sqrt(s) * dW.
 //   Body drawn as 12 points over 1 mm following the path of the head.
 //   Head sensor 0.3 mm ahead of the body centre. s(t) = d ln c / dt at the head, low-passed with tau = 200 ms
-//   (log: Weber-like, ASE cells respond to relative changes, Suzuki et al. 2008 Neuron 57:1).
+//   (log: Weber-like, ASE cells respond to relative changes, Suzuki et al. 2008 Nature 454:114).
 //     ASEL (ON : fires when c rises)   rate = 5 + 400 * clamp(  s / 0.05 /s, 0, 1 )  Hz
 //     ASER (OFF: fires when c falls)   rate = 5 + 400 * clamp( -s / 0.05 /s, 0, 1 )  Hz
 //   i.e. a 5 Hz background plus a response that saturates at |d ln c/dt| = 0.05 per second.
@@ -69,13 +69,18 @@ public:
            "and turn_right clockwise. Turning one way is enough, because a worm that keeps turning eventually points "
            "uphill. The rule to build: turn while things get worse, go straight while they get better. Catch: the plate "
            "is stirred, and now and then BOTH cells chatter together for a second or so. That chatter means nothing; "
-           "only ASER minus ASEL does. So wire ASER to excite turn_left and ASEL to inhibit it. A recipe that works (8 iaf cells in every "
-           "group; pA): ASER onto a group A and ASEL onto a group B with a sensor weight of about 1000 (each sensor cell then fires once per "
-           "input spike); A onto the turn_left group with +1000; B set inhibitory (E / I) and onto turn_left with -1000; turn_right must be "
-           "connected to a neuron too, but an idle group will do. With 4 cells per group the worm reaches the peak on some seeds only. "
-           "Pass: get within 10 % of the plate radius of the peak within 45 s "
+           "only ASER minus ASEL does. So wire ASER to excite turn_left and ASEL to inhibit it (inhibition does the "
+           "subtraction). Pass: get within 10 % of the plate radius of the peak within 45 s "
            "(one cell listening to ASER alone is too slow and gets thrown off by the chatter). Score: how fast, and "
            "how close you stay on average.";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (8 integrate-and-fire cells in every group; weights in pA): ASER onto a group A and ASEL onto a group B "
+           "with a sensor weight of about 1000 (each sensor cell then fires once per input spike); A onto the turn_left group with +1000; "
+           "B set inhibitory (E / I) and onto turn_left with -1000; turn_right must be connected to a neuron too, but an idle group will "
+           "do. With 4 cells per group the worm reaches the peak on some seeds only.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ASEL", "ASER" }; }
   std::vector< std::string > motor_channels() const override { return { "turn_left", "turn_right" }; }
@@ -88,8 +93,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "inhibition", "subtraction" }; }
-  std::vector< std::string > concepts_used() const override { return { "excitation", "convergence" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }  // the micros teach inhibition and subtraction; this level uses them
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "subtraction" }; }
   bool on_spine() const override { return true; }
   /// guided: chatter x0.6, pass time 56 s; researcher: x1.25, pass time 40.5 s (reference 33-37 s, seeds 1-5).
   std::map< std::string, std::string > variants() const override
@@ -124,9 +129,10 @@ public:
   Note notebook() const override
   {
     return { "ON minus OFF",
-             "C. elegans senses salt with two neurons, ASEL and ASER. ASEL is excited when salt rises and ASER when it falls; the "
-             "worm steers by comparing their activity, which cancels what they share.",
-             "Suzuki H et al. (2008) Neuron 57:1; Thiele TR, Faumont S, Lockery SR (2009) J Neurosci 29:11904" };
+             "C. elegans senses salt with two neurons, ASEL and ASER. ASEL is excited by a rise in salt and ASER by a fall; "
+             "the worm steers by comparing their activity, which cancels what they share.",
+             "Suzuki H, Thiele TR, Faumont S, Ezcurra M, Lockery SR, Schafer WR (2008) Nature 454:114-117; "
+             "Thiele TR, Faumont S, Lockery SR (2009) J Neurosci 29:11904-11911" };
   }
 
   void reset( uint64_t seed ) override

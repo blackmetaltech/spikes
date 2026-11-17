@@ -43,3 +43,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): The in
 
 ## Biology
 Sherrington CS (1906) The Integrative Action of the Nervous System: reciprocal innervation, the antagonist relaxes when the agonist is excited. Lloyd DPC (1946) Integrative pattern of excitation and inhibition in two-neuron reflex arcs. J Neurophysiol 9:439-444 (the disynaptic inhibition of antagonist motoneurons by group Ia afferents).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** tone onto a flexor group and an extensor group (2 cells each; the first connection sets 300 pA per unit, which is right). ia_flexor onto the flexor group (the stretch adds 600 pA) and onto an interneuron group of 2 cells set to inhibitory, which projects to the extensor group at the default weight (-80 pA); raise it to about -160 pA if the extensor does not fall silent.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).

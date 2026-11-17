@@ -123,6 +123,31 @@ static void test_reflex()
     Score s2 = run_task( *t, b, 3 );
     CHECK( s2.value == s.value && s2.parts == s.parts );
   }
+  // One false withdrawal on an otherwise perfect arc (a lone cell that answers every poke but also fires once on the chatter): Standard does not pass it,
+  // Guided allows one. The convergence lesson is only enforced if a single stray burst costs the pass.
+  {
+    double burst_start = -1;
+    StubBrain b;
+    b.pool_size[ "withdraw" ] = 3;
+    b.f = [ & ]( double tm, const auto& in, auto& out ) {
+      double touch = in.count( "touch" ) ? in.at( "touch" ) : 0;
+      if ( touch > 200 && burst_start < 0 ) burst_start = tm + 25;
+      if ( burst_start >= 0 && tm >= burst_start && tm < burst_start + 100 ) out[ "withdraw" ] = 3 * 100.0;
+      if ( burst_start >= 0 && tm >= burst_start + 100 ) burst_start = -1;
+      if ( tm >= 700 && tm < 760 ) out[ "withdraw" ] = 3 * 100.0;  // a burst with no poke (the first poke is after 1500 ms)
+    };
+    for ( const char* mode : { "standard", "researcher", "guided" } )
+    {
+      burst_start = -1;
+      t->set_mode( mode );
+      Score s = run_task( *t, b, 3 );
+      show( ( std::string( "one false burst, " ) + mode ).c_str(), s );
+      CHECK( s.parts[ "false_triggers" ] == 1 && s.parts[ "misses" ] == 0 );
+      CHECK( s.passed == ( std::string( mode ) == "guided" ) );
+      CHECK( s.verdict.find( "Clean" ) == std::string::npos );  // a run with a false withdrawal is not called clean
+    }
+    t->set_mode( "standard" );
+  }
   // Silent circuit: six misses.
   {
     StubBrain b; b.pool_size[ "withdraw" ] = 3; b.f = []( double, const auto&, auto& ) {};

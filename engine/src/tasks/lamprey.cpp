@@ -65,10 +65,14 @@ public:
            "pools with mutual inhibition, give them the drive, and read out left_motor and right_motor. Both sides must "
            "burst (a rhythm on one side only does not count). Score: "
            "swim frequency inside 1-10 Hz, left and right about 180 degrees apart, and forward speed (the body "
-           "makes a travelling wave and a simple reactive-thrust model pushes it along). A recipe that works: two groups of 8 aeif_cond_alpha "
-           "cells (preset Adapting), each set inhibitory (E / I) and wired to the other with the default weight (-8 nS), drive (a dc "
-           "input: the weight is pA of current per unit of drive) onto both with about 600 pA, each group onto its own motor channel. "
-           "Below about 550 pA nothing fires; above about 700 the rhythm is lost on some seeds.";
+           "makes a travelling wave and a simple reactive-thrust model pushes it along).";
+  }
+  std::string default_model() const override { return "aeif_cond_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works: two groups of 8 aeif_cond_alpha cells (preset Adapting), each set inhibitory (E / I) and wired to the other "
+           "with the default weight (-8 nS), drive (a dc input: the weight is pA of current per unit of drive) onto both with about 600 pA, "
+           "each group onto its own motor channel. Below about 550 pA nothing fires; above about 700 the rhythm is lost on some seeds.";
   }
   std::vector< std::string > sensor_channels() const override { return { "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "left_motor", "right_motor" }; }
@@ -81,8 +85,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "adaptation", "half_centre" }; }
-  std::vector< std::string > concepts_used() const override { return { "inhibition", "excitation" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }  // the micros teach adaptation and the half-centre; this level builds the swimmer
+  std::vector< std::string > concepts_used() const override { return { "adaptation", "half_centre", "inhibition" }; }
   bool on_spine() const override { return true; }
   /// The world has no noise (deterministic), so the modes move the pass bars only: guided phase within 50 deg and speed >= 0.2 BL/s,
   /// standard 40 deg and 0.25, researcher 34 deg and 0.29 (reference: 180 deg +- a few, 0.8+ BL/s, seeds 1-5).
@@ -211,7 +215,8 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_l_ < 1 && spikes_r_ < 1 )
       o << "Both motor channels are silent: neither left_motor nor right_motor has fired" << yet
-        << " Check that drive reaches your neurons and that the weights are strong enough.";
+        << " Check that drive reaches your neurons and that the drive weight (pA of current per unit of drive) is over the cells' rheobase: "
+           "the adaptive cells need about 550 pA or more.";
     else if ( spikes_l_ < 1 )
       o << "left_motor never fired" << yet << " Both sides must burst in turn; only right_motor is active.";
     else if ( spikes_r_ < 1 )

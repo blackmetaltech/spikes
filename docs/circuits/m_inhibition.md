@@ -36,3 +36,9 @@ Hints: (1) inhibition lowers the membrane; a sensor can only excite, so use an i
 Metric: `during_spikes`.
 
 Credits: Hartline HK, Wagner HG, Ratliff F (1956) J Gen Physiol 39:651 (lateral inhibition in Limulus).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** drive > cell A > out. stop > cell B (inhibitory) > cell A, with the B > A weight at about -1000 pA. The default -80 pA only slows A down a little (by about 8 %); the inhibition has to cut the whole drive, so the weight is roughly 12 times larger.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **3 runs** (gate: at most 8).
