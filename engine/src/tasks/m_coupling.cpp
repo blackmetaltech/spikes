@@ -49,6 +49,9 @@ public:
     i.concepts_new = { "coupling" };
     i.concepts_used = { "pacemaking", "excitation" };
     i.par_neurons = 2;
+    i.default_model = "sa_node_pacemaker";
+    i.recipe = "N1 (SA node cell) > 'a' and N2 (SA node cell) > 'b'. Link N1 > N2 and N2 > N1 (both excitatory) and raise their weight "
+               "from 0.2 nS to about 2 nS.";
     i.kinds = { { "a", micro::rate() }, { "b", micro::rate() } };
     i.bands = { { "drift_pct", "% of a beat", 0, 12 }, { "rate_diff_pct", "%", 0, 4 } };
     i.modulators = { "ACh", "NE" };

@@ -36,3 +36,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): The in
 
 ## Biology
 Cannon WB (1929) Organization for physiological homeostasis. Physiol Rev 9:399-431. The stretch reflex, the baroreflex and the pupil light reflex all have the same elements: a sensor, a comparison with a set point, and an effector that opposes the difference.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** The sensor gives 900 pA per unit of level, so about 3 inhibitory cells and a weight of about -300 pA onto the effort cells is the right size (the default -80 is too weak).
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **4 runs** (gate: at most 8).

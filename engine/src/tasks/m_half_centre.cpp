@@ -51,6 +51,11 @@ public:
     i.concepts_new = { "half_centre" };
     i.concepts_used = { "inhibition", "adaptation" };
     i.par_neurons = 2;
+    i.default_model = "aeif_cond_alpha";
+    i.recipe = "drive > L and drive > R (the default sensor weight 300 is right for the Adapting preset). L and R: one aeif cell each, "
+               "Adapting preset, both inhibitory. L > R and R > L at the default weight (-8 nS), L > 'left' and R > 'right'. Each side then "
+               "bursts for a few hundred milliseconds and gives way to the other. With the NEST-default aeif cell the drive has to be raised "
+               "to about 400 pA of weight (its rheobase is about 620 pA).";
     i.kinds = { { "drive", micro::dc( kLevel ) }, { "left", micro::rate() }, { "right", micro::rate() } };
     i.bands = { { "switches", "switches", 6, 100 }, { "overlap_pct", "%", 0, 25 } };
     i.timeline = { { 0, kDur, "tonic drive" } };
@@ -114,7 +119,8 @@ public:
     else if ( !done() )
       o << "Running: " << static_cast< int >( st.switches ) << " switches so far.";
     else if ( total_l_ + total_r_ < 1 )
-      o << "Nothing fired. The drive must reach both cells and be over their rheobase (the adaptive cell needs the default 300 pA weight or more).";
+      o << "Nothing fired. The drive (2 x the sensor weight, in pA) must reach both cells and be over their rheobase: the NEST-default adaptive "
+           "cell needs about 620 pA, which is more than the lab's 300 pA sensor weight gives. Raise the drive weight, or choose the Adapting preset.";
     else if ( total_l_ < 1 || total_r_ < 1 )
       o << "Only the " << ( total_l_ >= 1 ? "left" : "right" ) << " side fires: the other side is silenced for good (or never got the drive). A half-centre "
            "needs the drive on both cells and a way for the active side to let go: use adapting cells.";

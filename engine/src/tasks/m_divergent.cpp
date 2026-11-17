@@ -47,10 +47,10 @@ public:
               "arrives at about 1 s for 1.2 s. Four effectors listen: heart must go from silence to at least 100 spikes/s, pupil and sweat to a gentler "
               "15-80 spikes/s, all starting within 100 ms of each other, and gut (which holds a little tone from 'tone', about 40 spikes/s) must fall to "
               "a third of that or less. Everything must return to rest after the cue. Give each effector a group and a channel; tone goes to the gut only. "
-              "The alarm sensor has one weight, so it drives every cell it touches equally (900 pA, about 135 spikes/s): too much for the pupil and the "
-              "sweat. Put a command group between them: the alarm drives it, and it contacts each effector with its own weight (the lab's default 80 pA "
-              "is far too weak; about 600 pA makes the heart fire, about 280 pA a gentle response). The gut needs an inhibitory route: a cell set to "
-              "inhibitory between the alarm and the gut.";
+              "The alarm sensor has one weight, so it drives every cell it touches equally (about 135 spikes/s): too much for the pupil and the "
+              "sweat. Put a command group between them: the alarm drives it, and it contacts each effector with its own weight (the lab's default "
+              "is far too weak for the heart, and a gentle response needs a weaker link than a strong one). The gut needs an inhibitory route: a "
+              "cell set to inhibitory between the alarm and the gut.";
     i.chapter = "autonomic";
     i.sensors = { "alarm", "tone" };
     i.motors = { "heart", "pupil", "sweat", "gut" };
@@ -58,6 +58,11 @@ public:
     i.concepts_new = { "divergent_command" };
     i.concepts_used = { "excitation", "inhibition" };
     i.par_neurons = 5;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "alarm onto a command group of 2 cells. The command group onto heart at about 600 pA, onto pupil and onto sweat "
+               "at about 280 pA (1 cell each); these weights scale inversely with the size of the command group: about 1200 pA "
+               "in all onto the heart and about 560 pA onto pupil and sweat, so 1200 and 560 from a single command cell. alarm "
+               "also onto an inhibitory group of 2 cells that projects onto gut at about -160 pA. tone onto gut only.";
     i.kinds = { { "alarm", dc( kAlarm ) }, { "tone", dc( kTone ) }, { "heart", rate() }, { "pupil", rate() }, { "sweat", rate() }, { "gut", rate() } };
     i.bands = { { "gut_vs_rest", "", 0.0, 0.3 } };
     i.timeline = { { 900, 1200, "alarm" } };
@@ -156,15 +161,15 @@ protected:
     ex.ok = heart_ok && pupil_ok && sweat_ok;
     ex.soft = ( ramp( act[ 0 ], 0, heart_min ) + ( pupil_ok ? 1.0 : 0.3 ) + ( sweat_ok ? 1.0 : 0.3 ) ) / 3.0;
     if ( !heart_ok )
-      ex.fail = "The heart reaches only " + fmt( act[ 0 ] ) + " spikes/s in the alarm (needs " + fmt( heart_min ) + "): it needs a strong synapse from the command. Raise its weight (about 600 pA).";
+      ex.fail = "The heart reaches only " + fmt( act[ 0 ] ) + " spikes/s in the alarm (needs " + fmt( heart_min ) + "): it needs a strong synapse from the command. Raise its weight (about 1200 pA in all from the command group: 600 pA from each of 2 cells).";
     else if ( !pupil_ok )
       ex.fail = std::string( "The pupil fires " ) + fmt( act[ 1 ] ) + " spikes/s in the alarm, the gentle response is " + fmt( g_lo ) + "-" + fmt( g_hi ) +
-                ( act[ 1 ] > g_hi ? ": too strong. The same weight cannot serve the heart and the pupil; give the pupil its own, weaker synapse from the command group (about 280 pA)."
-                                  : ": too weak or silent. Wire the alarm to the pupil group through the command group (about 280 pA).");
+                ( act[ 1 ] > g_hi ? ": too strong. The same weight cannot serve the heart and the pupil; give the pupil its own, weaker synapse from the command group (about 560 pA in all, 280 from each of 2 cells)."
+                                  : ": too weak or silent. Wire the alarm to the pupil group through the command group (about 560 pA in all).");
     else
       ex.fail = std::string( "Sweat fires " ) + fmt( act[ 2 ] ) + " spikes/s in the alarm, the gentle response is " + fmt( g_lo ) + "-" + fmt( g_hi ) +
-                ( act[ 2 ] > g_hi ? ": too strong. Give it its own, weaker synapse from the command group (about 280 pA)."
-                                  : ": too weak or silent. Wire the alarm to the sweat group through the command group (about 280 pA).");
+                ( act[ 2 ] > g_hi ? ": too strong. Give it its own, weaker synapse from the command group (about 560 pA in all)."
+                                  : ": too weak or silent. Wire the alarm to the sweat group through the command group (about 560 pA in all).");
     ex.place = !heart_ok ? "The heart: its synapse from the command must be strong." : ( !pupil_ok ? "The pupil: its synapse must be weaker than the heart's." : "Sweat: its synapse must be weaker than the heart's." );
     ex.target = !heart_ok ? "heart" : ( !pupil_ok ? "pupil" : "sweat" );
     ex.recipe = "alarm onto a command group (2 cells); command onto heart at about 600 pA, onto pupil and sweat at about 280 pA (1 cell each).";

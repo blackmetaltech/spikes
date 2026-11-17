@@ -34,3 +34,9 @@ Hints: (1) a neuron sums what converges on it; make each input weak, even two to
 Metric: `latency_ms` (mean time from the onset of an a+b+c pattern to the first spike).
 
 Credits: Mendell LM, Henneman E (1971) J Neurophysiol 34:171 (a Ia fibre gives about 0.1 mV; a motoneuron needs about 10 mV).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** Wire in_a, in_b and in_c to one integrate-and-fire cell and the cell to 'out'. Set each of the three sensor weights to about 150 pA: one input gives 150, two give 300 (under the 375 pA rheobase), three give 450 (over it). The lab starts them at 300, where two already fire.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).

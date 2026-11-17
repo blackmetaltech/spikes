@@ -65,6 +65,8 @@ public:
     std::vector< Band > bands;
     std::vector< Event > timeline;
     Note note;
+    std::string default_model = "iaf_psc_alpha";  // catalog card the lab opens the level on (the cell the reference and verdicts assume)
+    std::string recipe;                            // concrete numbers, kept out of the brief (shown by mode in the lab)
     std::string concept_hint;           // hint tier 1
     std::vector< Hint > generic_hints;  // shown when no criterion fails (a passed run) or the circuit is not wired
   };
@@ -87,6 +89,8 @@ public:
   std::vector< std::string > concepts_new() const override { return info_.concepts_new; }
   std::vector< std::string > concepts_used() const override { return info_.concepts_used; }
   Note notebook() const override { return info_.note; }
+  std::string default_model() const override { return info_.default_model; }
+  std::string recipe() const override { return info_.recipe; }
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
   BodyState body() const override
@@ -131,6 +135,8 @@ public:
     s.value = s.passed ? 100.0 : 85.0 * soft / std::max< size_t >( cs.size(), 1 );
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 30.0 );  // a circuit that leaves a channel unwired has not tried the puzzle yet
+    if ( !s.passed && silent() )
+      s.value = 0;  // nothing fired anywhere: staying quiet at rest is not partial credit
     s.parts[ "criteria_met" ] = met;
     s.parts[ "criteria_total" ] = static_cast< double >( cs.size() );
     if ( !wiring_.ok() )
@@ -192,6 +198,17 @@ protected:
   virtual void measure( std::map< std::string, double >& parts, std::vector< Crit >& crits, std::string& pass_msg ) const = 0;
 
   bool done() const { return t_ >= info_.duration_ms - 1e-6; }
+  /// True while no motor channel has fired a single spike.
+  bool silent() const
+  {
+    for ( const auto& m : info_.motors )
+    {
+      auto it = cum_.find( m );
+      if ( it != cum_.end() && !it->second.empty() && it->second.back() > 0.5 )
+        return false;
+    }
+    return true;
+  }
 
   /// Spikes of motor channel `ch` in (t0, t1] ms of model time.
   double spikes( const std::string& ch, double t0, double t1 ) const

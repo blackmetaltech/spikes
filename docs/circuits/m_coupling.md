@@ -34,3 +34,9 @@ Hints: (1) oscillators of different speed lock when each pulls the other; (2) tw
 Metric: `drift_ms`.
 
 Credits: Jalife J (1984) J Physiol 356:221; Michaels DC, Matyas EP, Jalife J (1987) Circ Res 61:704.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `sa_node_pacemaker` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** N1 (SA node cell) > 'a' and N2 (SA node cell) > 'b'. Link N1 > N2 and N2 > N1 (both excitatory) and raise their weight from 0.2 nS to about 2 nS.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).

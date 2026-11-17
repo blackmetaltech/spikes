@@ -44,3 +44,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): Delays
 
 ## Biology
 Hallett M, Shahani BT, Young RR (1975) EMG analysis of stereotyped voluntary movements in man. J Neurol Neurosurg Psychiatry 38:1154-1162: fast, accurate elbow movements show a triphasic EMG, an agonist burst, an antagonist burst and a second agonist burst, with 100-200 ms between bursts, nearly identical from trial to trial; Wacholder K, Altenburger H (1926) on the same pattern. In the tank the delays stand for polysynaptic pathways.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** go onto group 1 (4 cells, read out on b1). Group 1 onto group 2 (4 cells, b2) at about 300 pA with delay 120 ms; group 2 onto group 3 (4 cells, b3) the same. The weight needed scales inversely with the number of cells in the group before it: about 1200 pA in all, so 300 pA from 4 cells, 600 from 2, 1000 or more from a single cell.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **4 runs** (gate: at most 8).

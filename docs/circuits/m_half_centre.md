@@ -22,10 +22,11 @@ Without the start-up asymmetry the reference alternates only on some seeds: iden
 ## Novice path
 | run | build | result |
 |---|---|---|
-| 1 | two Adapting aeif cells, both left excitatory | "both sides fire together ... check that both cells are inhibitory" |
-| 2 | both set inhibitory, links at the default -8 nS, both cells get the drive | pass |
+| 1 | two aeif cells of the part the lab opens on (NEST default), both left excitatory (+8 nS), drive at the lab's 300 pA | "Nothing fired ... the NEST-default adaptive cell needs about 620 pA" (its rheobase; the drive is 2 x the weight) |
+| 2 | drive weight 400 pA | "both sides fire together ... check that both cells are inhibitory" |
+| 3 | both set inhibitory (-8 nS) | pass (330-420 pA of drive weight pass 5 of 5 seeds; 450 does not on every seed) |
 
-(The other tempting build, plain cells with strong inhibition, fails with "use adapting cells", then passes with the Adapting preset: also 2 runs.) **2 runs.**
+**3 runs** with the default part. The other routes: the Adapting preset (fires at the lab's own 300 pA) with both links left excitatory then set inhibitory: 2 runs; plain cells with strong inhibition fail with "use adapting cells", then the Adapting preset passes: 2 runs.
 
 ## Modes
 Switches needed 4 / 6 / 8; overlap <= 25 % / 15 % / 10 %; noise x0 / x1 / x2.
@@ -33,7 +34,13 @@ Switches needed 4 / 6 / 8; overlap <= 25 % / 15 % / 10 %; noise x0 / x1 / x2.
 ## What breaks it
 One inhibitory link cut (overlap 40-80 %); both cut; Tonic preset (no adaptation: both sides fire in step, 100 % overlap).
 
-Hints: (1) mutual inhibition plus a way for the active side to tire; (2) two inhibitory cells, adapting aeif; (3) the full recipe at default weights.
+Hints: (1) mutual inhibition plus a way for the active side to tire; (2) two inhibitory cells, adapting aeif; (3) the full recipe at default weights (the NEST-default aeif cell needs a drive weight of about 400 pA, the Adapting preset the lab's 300).
 Metric: `period_ms` (cycle period, lower = faster).
 
 Credits: Brown TG (1911) Proc R Soc B 84:308; Grillner S (2003) Nat Rev Neurosci 4:573.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `aeif_cond_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** drive > L and drive > R (the default sensor weight 300 is right for the Adapting preset). L and R: one aeif cell each, Adapting preset, both inhibitory. L > R and R > L at the default weight (-8 nS), L > 'left' and R > 'right'. Each side then bursts for a few hundred milliseconds and gives way to the other. With the NEST-default aeif cell the drive has to be raised to about 400 pA of weight (its rheobase is about 620 pA).
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **3 runs** (gate: at most 8).

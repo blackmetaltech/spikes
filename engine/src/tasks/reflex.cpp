@@ -22,7 +22,7 @@
 //   miss       : a touch whose 150 ms deadline passed with no burst
 //   false      : a burst that is not inside any [onset, onset + 400 ms] window (after-discharge in that window is free)
 //   value      : 100 * hit_fraction * (1 - 0.4*clamp((mean_latency-20)/80, 0, 1)) - 12*false_triggers, floored at 0
-//   pass       : no misses, at most 1 false trigger, mean latency <= 60 ms
+//   pass       : no misses, no false trigger (Guided: at most 1), mean latency <= 60 ms. A lone cell cannot meet this on any seed.
 //
 // Biology: the withdrawal reflex arc (sensory afferent -> interneuron -> motoneuron), e.g. the Aplysia siphon/gill
 // withdrawal (Kandel) or the leech/vertebrate flexor reflex; the interesting part is noise rejection by convergence.
@@ -59,25 +59,32 @@ public:
            "listening to one afferent cannot do it, because noise spikes bunch up by chance. Give the touch input "
            "several receptor cells, and let the motor cells need several of their spikes at the same time "
            "(convergence averages the noise away). Too much weight makes the motor cells fire on noise, too little "
-           "and they stay silent: tune the weights between the two. A recipe that works (weights are pA): touch onto 10 cells (the first "
-           "connection sets the sensor weight), those onto 6 motor cells with a link of about 140 (the default 80 misses pokes, above about "
-           "200 the motor cells fire on noise), the motor cells onto withdraw.";
+           "and they stay silent: tune the weights between the two. One cell on its own cannot pass, whatever its weight: a lone "
+           "cell either misses pokes or fires on the chatter.";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (integrate-and-fire cells, weights in pA): touch onto 10 cells (the first connection sets the sensor "
+           "weight, 280), those onto 6 motor cells with a link of about 140 (the default 80 answers too slowly or misses pokes, above "
+           "about 170 the motor cells fire on noise), the motor cells onto withdraw.";
   }
   std::vector< std::string > sensor_channels() const override { return { "touch" }; }
   std::vector< std::string > motor_channels() const override { return { "withdraw" }; }
   std::map< std::string, ChannelKind > channel_kinds() const override
   {
-    return { { "touch", in_kind( "poisson", 150, 400 ) } };
+    // 280 = the lab's own Poisson start for an integrate-and-fire cell (3.5 x 80 pA); the recipe is tuned to it
+    return { { "touch", in_kind( "poisson", 150, 280 ) } };
   }
   double duration_ms() const override { return kDuration; }
   int par_neurons() const override { return variant_par( variant_, 16 ); }  // SN 10 + MN 6 of the recipe
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "threshold", "excitation", "convergence" }; }
-  std::vector< std::string > concepts_used() const override { return {}; }
+  std::vector< std::string > concepts_new() const override { return {}; }  // the micros teach all three; this level combines them
+  std::vector< std::string > concepts_used() const override { return { "threshold", "excitation", "convergence" }; }
   bool on_spine() const override { return true; }
-  /// guided: poke 1.67x stronger, <= 2 false withdrawals, latency <= 75 ms; standard: the brief; researcher: poke 0.8x as strong (200 Hz above the chatter), no false
+  /// guided: poke 1.67x stronger, <= 1 false withdrawal, latency <= 75 ms; standard: the brief; researcher: poke 0.8x as strong (200 Hz above the chatter), no false
   /// withdrawal, latency <= 51 ms (reference circuit: 23-25 ms, passes seeds 1-5).
   std::map< std::string, std::string > variants() const override
   {
@@ -99,17 +106,19 @@ public:
     {
       h.push_back( make_hint( 1, "Noise spikes bunch up by chance. Raise the threshold by asking for more coincident inputs.", "" ) );
       h.push_back( make_hint( 2, "The motor pool is firing on noise: the links into it are too strong.", "withdraw" ) );
-      h.push_back( make_hint( 3, "Keep the motor link under about 200 pA, or give the touch input more receptor cells so their average is steadier.", "" ) );
+      h.push_back( make_hint( 3, "Keep the motor link under about 170 pA, or give the touch input more receptor cells so their average is steadier.", "" ) );
     }
     return h;
   }
   std::map< std::string, Metric > metrics() const override { return { { "latency_ms", make_metric( score().parts[ "latency_ms" ], "ms", true ) } }; }
   Note notebook() const override
   {
-    return { "Convergence beats noise",
-             "Withdrawal reflexes in Aplysia pass sensory input through interneurons that sum many weak afferents, so a brief touch "
-             "stands out from the background chatter of individual sensory neurons.",
-             "Castellucci V, Kandel ER (1974) PNAS 71:5004" };
+    return { "Many weak inputs, one decision",
+             "A single Ia afferent produces an excitatory potential of only about a tenth of a millivolt in a cat spinal motoneuron, "
+             "which needs roughly 10 mV to fire. A motoneuron therefore fires only when many afferents arrive together: summing "
+             "independent inputs makes the signal grow faster than the chatter, so a real stimulus stands out from the background "
+             "firing of single receptors (the principle of the reflex arc built here).",
+             "Mendell LM, Henneman E (1971) J Neurophysiol 34:171-187" };
   }
 
   void reset( uint64_t seed ) override
@@ -215,8 +224,13 @@ public:
     else if ( !done )
       o << "In progress: " << hits << " of " << kTouches << " pokes answered, " << false_triggers_ << " false withdrawals.";
     else if ( s.passed )
-      o << "Clean reflex: all " << kTouches << " pokes answered in " << static_cast< int >( lat ) << " ms on average, "
-        << false_triggers_ << " false withdrawals.";
+    {
+      if ( false_triggers_ == 0 )
+        o << "Clean reflex: all " << kTouches << " pokes answered in " << static_cast< int >( lat ) << " ms on average, no false withdrawals.";
+      else
+        o << "Reflex works: all " << kTouches << " pokes answered in " << static_cast< int >( lat ) << " ms on average, but " << false_triggers_
+          << " false withdrawal" << ( false_triggers_ > 1 ? "s" : "" ) << " from noise (Guided allows " << false_limit() << ").";
+    }
     else if ( spikes_ < 1 )
       o << "withdraw never fired: the motor cells got no spikes at all. Check the touch input reaches a neuron, "
            "that each link to the next cell exists, and increase the weights along the chain.";
@@ -242,7 +256,9 @@ private:
   // "noise" is the poke's contrast against the chatter: the background stays at 150 Hz, the poke adds 250 Hz / noise factor
   double bg() const { return kBg; }
   double amp() const { return kTouchRate / mode_noise( mode_, variant_, 0.6, 1.25 ); }
-  int false_limit() const { return mode_ == "guided" ? 2 : ( mode_ == "researcher" ? 0 : 1 ); }
+  // Standard and Researcher allow no false withdrawal: with one allowed, a lone cell tuned to its weight passed on some seeds
+  // and the convergence lesson was not enforced (a lone cell cannot clear all of the pokes AND stay quiet on the chatter on any seed).
+  int false_limit() const { return mode_ == "guided" ? 1 : 0; }
   bool in_touch( double t ) const
   {
     for ( int k = 0; k < kTouches; ++k )

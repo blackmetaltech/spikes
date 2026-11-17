@@ -52,8 +52,9 @@ Inhibition is current based (no reversal potential), so strongly inhibited AIB c
 
 ## v0.3: concepts, modes, variants (item D)
 
-* **Concepts:** inhibition, subtraction (new); excitation, convergence (used). Level kind `task`, on the spine.
+* **Concepts:** none new; excitation, inhibition, subtraction used (`m_inhibition` and `m_subtraction` teach inhibition and subtraction first). Level kind `task`, on the spine.
 * **Modes** (guided / standard / researcher): Common chatter x0.6 guided, x1.25 researcher; pass time 56 / 45 / 40.5 s (reference 27-35 s). The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 14); noise_x2 (chatter up to 1200 Hz).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
-* **Quality metric:** `mean_dist_mm`. **Notebook:** Suzuki 2008; Thiele 2009.
+* **Quality metric:** `mean_dist_mm`. **Notebook:** Suzuki et al. 2008 *Nature* 454:114 (the earlier entry cited it as *Neuron* 57:1, which is wrong; `m_subtraction` always had it right); Thiele, Faumont & Lockery 2009 *J Neurosci* 29:11904.
+* **Default part:** `iaf_psc_alpha`. **Recipe** (`recipe()`, kept out of the brief): 8 cells in every group; ASER onto A and ASEL onto B at a sensor weight of about 1000 pA; A onto turn_left at +1000, B inhibitory onto turn_left at -1000; turn_right wired to an idle group.

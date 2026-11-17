@@ -46,3 +46,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): Every 
 
 ## Biology
 Henneman E, Somjen G, Carpenter DO (1965) Functional significance of cell size in spinal motoneurons. J Neurophysiol 28:560-580: the threshold of a motoneuron to a synaptic input is inversely related to its size, so units are recruited from small and weak to large and strong, always in the same order. The reason is input resistance: the same synaptic current depolarises a small cell more. The tank gets the same ordering from the bias current (a shortcut for input resistance); the game's concept card says so.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** A cell's rheobase is 375 pA and the command delivers 360, 660 and 960 pA (weight 300 pA per unit times the level 1.2 / 2.2 / 3.2). Three groups, each driven by 'command' and read out on its own channel. Give the small pool a bias of about +100 pA, the mid pool none, the large pool about -350 pA: then 360 pA recruits only the small pool, 660 pA the mid pool too, 960 pA all three.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **5 runs** (gate: at most 8).

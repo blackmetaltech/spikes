@@ -44,9 +44,10 @@ public:
               "negative feedback loop in one synapse pair. Here a steady 'drive' makes the motoneurons fire at about 50 spikes/s. At 1 s an extra "
               "volley 'kick' adds to their input, and 1 s later it doubles. Without a brake the rate would climb by about 60 and 105 spikes/s. "
               "Keep the extra rate the kicks add under 27 spikes/s for the first and under 42 for the second, while still firing at "
-              "least 15 spikes/s at the base drive. Wire drive and kick onto the motoneuron group and read it out on 'mn'. Then let the "
-              "motoneurons excite a few cells set to inhibitory (the Renshaw cells) that inhibit the motoneurons back. The Renshaw cells only "
-              "fire if the loop is strong: the default weights are far too weak (about 600 pA both ways works for 2 Renshaw cells).";
+              "least 15 spikes/s at the base drive. Wire drive and kick onto the motoneuron group (a small group of cells) and read it out "
+              "on 'mn'. Then let the motoneurons excite a few cells set to inhibitory (the Renshaw cells) that inhibit the motoneurons back. "
+              "The Renshaw cells only fire if the loop is strong: the default weights are far too weak, and how strong depends on how many "
+              "cells sum onto each other.";
     i.chapter = "spinal";
     i.sensors = { "drive", "kick" };
     i.motors = { "mn" };
@@ -54,6 +55,11 @@ public:
     i.concepts_new = { "recurrent_inhibition" };
     i.concepts_used = { "inhibition", "excitation" };
     i.par_neurons = 5;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "A group of 4 motoneurons (drive and kick onto it at the first-connection weight, 300 pA per unit) and 2 Renshaw "
+               "cells set to inhibitory. The loop weights of about 600 pA both ways (motoneurons onto Renshaw, Renshaw back at "
+               "-600) work for these sizes: the weight needed scales inversely with the number of cells that sum. With a single "
+               "motoneuron and 2 Renshaw cells about 1600 pA both ways is needed.";
     i.kinds = { { "drive", dc( kDrive ) }, { "kick", dc( kKick1 ) }, { "mn", rate() } };
     i.bands = { { "rate_rise_hz", "spikes/s", -25, 42 } };
     i.timeline = { { kB0, 1000, "kick" }, { kB0 + 1000, 1000, "double kick" } };
@@ -61,12 +67,12 @@ public:
                      "itself, so extra input from anywhere is held down, like a gain control.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "Close a loop: the motoneuron group should feed a small inhibitory group and that group should project back onto the motoneurons.", "mn" },
-      { 3, "mn group of 4 cells (drive and kick onto it). An inhibitory group of 2 cells (Renshaw) receives the motoneurons at about 300 pA and returns "
-           "-300 pA (about -450 if the rate still rises too much).", "mn" } };
+      { 3, "mn group of 4 cells (drive and kick onto it). An inhibitory group of 2 cells (Renshaw) receives the motoneurons at about 600 pA and returns "
+           "-600 pA (for a group of 4 motoneurons; the weight needed scales inversely with the number of cells).", "mn" } };
     i.note = { "Renshaw cells",
       "In 1941 Birdsey Renshaw found interneurons in the spinal cord that fire after the motoneurons do, driven by the motoneurons' own "
       "axon collaterals. Later work showed they inhibit the same motoneurons and their neighbours. The loop turns each motoneuron's activity "
-      "into its own brake: it limits firing rate, helps synchronise the pool and, as in clonus when it fails, keeps the output stable.",
+      "into its own brake: it limits the firing rate of the pool, a gain control on the motor output.",
       "Renshaw B (1941) Influence of discharge of motoneurons upon excitation of neighboring motoneurons. J Neurophysiol 4:167-183; "
       "Eccles JC, Fatt P, Koketsu K (1954) J Physiol 126:524-562" };
     return i;
@@ -142,7 +148,9 @@ protected:
     kb.ok = db <= lim_b;
     kb.soft = 1.0 - ramp( db, lim_b, kUnprotB );
     kb.fail = "The first kick lifts the rate by " + fmt( db ) + " spikes/s, from " + fmt( ra ) + " to " + fmt( rb ) + " (limit " + fmt( lim_b ) +
-              "; with no brake it is about " + fmt( kUnprotB ) + "): nothing holds the motoneurons back. Their own output must excite an inhibitory cell that inhibits them in return.";
+              "; with no brake it is about " + fmt( kUnprotB ) + ( db >= 0.75 * kUnprotB
+                ? "): nothing holds the motoneurons back. Their own output must excite an inhibitory cell that inhibits them in return."
+                : "): something brakes them, but too little. Strengthen the loop: both weights, or more cells in the loop." );
     kb.place = "The loop around the motoneurons: they should drive an inhibitory group that projects back onto them.";
     kb.target = "mn";
     kb.recipe = "mn (4 cells) onto an inhibitory group of 2 cells at about 600 pA, and that group back onto mn at about -600 pA.";

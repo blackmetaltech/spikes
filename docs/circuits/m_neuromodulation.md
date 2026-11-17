@@ -35,3 +35,9 @@ Hints: (1) a neuromodulator changes how cells behave over a region, not one spik
 Metric: `slowing_ratio` (higher is better).
 
 Credits: Loewi O (1921) Pflugers Arch 189:239 (Vagusstoff).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** vagus > cell V (an ordinary integrate-and-fire cell, the default sensor weight is right) > 'vagal'; an SA node cell > 'beat'. V fires about 85 times a second, the vagal output (gain 0.012, tau 500 ms) turns that into an ACh level near 0.5, and the heart slows from about 103 to 67 per minute. More cells on 'vagal' means more ACh: too many stop the node.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).

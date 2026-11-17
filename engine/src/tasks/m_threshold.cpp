@@ -37,17 +37,21 @@ public:
     Info i;
     i.id = "m_threshold";
     i.title = "Threshold";
-    i.brief = "A neuron does nothing until its input is strong enough, and then it fires. Here a current source called 'pulse' gives a "
-              "small blip (60 % of full strength) and later a big step (full strength). Build one neuron that stays silent during the "
-              "blip but fires during the step: at least 8 spikes in the step, none at any other time. The strength reaching the cell is "
-              "the sensor's weight times the level, so the weight is your knob. Every cell has a smallest steady current that makes it "
-              "fire, its rheobase: weaker input than that is simply ignored.";
+    i.brief = "A neuron does nothing until its input is strong enough (its rheobase, the smallest steady current that makes it fire: "
+              "weaker input is simply ignored), and then it fires. Your knob is the weight of the 'pulse' sensor: the current the "
+              "cell gets is the weight times the level. 'pulse' gives a small blip (60 % of full strength) and later a big step (full "
+              "strength): build one neuron that stays silent during the blip but fires during the step, at least 8 spikes in the step "
+              "and none at any other time.";
     i.chapter = "invertebrates";
     i.sensors = { "pulse" };
     i.motors = { "spike" };
     i.duration_ms = kDur;
     i.concepts_new = { "threshold" };
     i.par_neurons = 1;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "Wire pulse to one integrate-and-fire cell and the cell to 'spike'. The cell's rheobase is 375 pA, so set the pulse weight "
+               "between about 400 and 600 pA: at the lab's start of 300 even the step (level 1.0) stays under it, and above 625 the blip "
+               "(level 0.6) crosses it too.";
     i.kinds = { { "pulse", micro::dc( 1.0 ) }, { "spike", micro::rate() } };
     i.bands = { { "step_spikes", "spikes", 8, 200 }, { "blip_spikes", "spikes", 0, 0.5 } };
     i.timeline = { { kBlip0, kBlip1 - kBlip0, "small blip" }, { kStep0, kStep1 - kStep0, "big step" } };
@@ -101,6 +105,8 @@ public:
       s.passed = false;
     std::ostringstream o;
     const double total = step_n_ + blip_n_ + off_n_;
+    if ( total == 0 )
+      s.value = 0;  // a cell that never fired has tried nothing yet: keeping silent through the blip is not partial credit
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )

@@ -46,3 +46,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): The in
 
 ## Biology
 Cannon WB (1915) Bodily Changes in Pain, Hunger, Fear and Rage. D. Appleton, New York: the sympathetic division discharges as a unit in fear or rage, speeding the heart, dilating the pupils, driving sweat and stopping digestion. A sympathetic preganglionic neuron contacts many postganglionic neurons, so one command reaches many organs (Janig W (2006) The Integrative Action of the Autonomic Nervous System. Cambridge University Press).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** alarm onto a command group of 2 cells. The command group onto heart at about 600 pA, onto pupil and onto sweat at about 280 pA (1 cell each); these weights scale inversely with the size of the command group: about 1200 pA in all onto the heart and about 560 pA onto pupil and sweat, so 1200 and 560 from a single command cell. alarm also onto an inhibitory group of 2 cells that projects onto gut at about -160 pA. tone onto gut only.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **4 runs** (gate: at most 8).

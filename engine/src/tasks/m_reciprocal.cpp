@@ -43,7 +43,7 @@ public:
               "flexor is stretched (the 'ia_flexor' afferent switches on for 1 s): the flexor pool must speed up by at least 15 spikes/s "
               "while the extensor pool drops to a third of its resting rate or less, and the extensor must come back after the stretch. "
               "Wire tone to both pools, ia_flexor to the flexor pool, and give ia_flexor a second route to the extensor that inverts its "
-              "sign: through an interneuron set to inhibitory. The extensor only has a few pA of drive above its threshold, so a little "
+              "sign: through an interneuron set to inhibitory. The extensor only has a little drive above its threshold, so a little "
               "inhibition is enough.";
     i.chapter = "spinal";
     i.sensors = { "tone", "ia_flexor" };
@@ -52,6 +52,11 @@ public:
     i.concepts_new = { "reciprocal_inhibition" };
     i.concepts_used = { "excitation", "inhibition" };
     i.par_neurons = 3;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "tone onto a flexor group and an extensor group (2 cells each; the first connection sets 300 pA per unit, which "
+               "is right). ia_flexor onto the flexor group (the stretch adds 600 pA) and onto an interneuron group of 2 cells "
+               "set to inhibitory, which projects to the extensor group at the default weight (-80 pA); raise it to about -160 "
+               "pA if the extensor does not fall silent.";
     i.kinds = { { "tone", dc( kTone ) }, { "ia_flexor", dc( kIa ) }, { "flexor", rate() }, { "extensor", rate() } };
     i.bands = { { "extensor_vs_rest", "", 0.0, 0.3 } };
     i.timeline = { { kOn, kOff - kOn, "flexor stretched" } };

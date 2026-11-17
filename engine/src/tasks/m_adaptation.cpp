@@ -41,8 +41,8 @@ public:
               "neurons slow down: they fire fast at the start of a step and then settle at a lower rate, because each spike leaves behind a "
               "slow current that holds the membrane back (spike-frequency adaptation). Build a cell that does that: its rate in the first "
               "100 ms of the step must be at least 3.5 times its rate in the last second, and it must keep firing (at least 3 per second). "
-              "The cell you need is the adaptive exponential one: its parameter b is the jump of the adaptation current at each spike, "
-              "and tau_w how slowly it fades. The step is the sensor weight times 3.";
+              "The cell you need is the adaptive exponential one (the lab opens on it): its parameter b is the jump of the adaptation "
+              "current at each spike, and tau_w how slowly it fades. The step is the sensor weight times 3.";
     i.chapter = "invertebrates";
     i.sensors = { "step" };
     i.motors = { "spikes" };
@@ -50,6 +50,11 @@ public:
     i.concepts_new = { "adaptation" };
     i.concepts_used = { "threshold" };
     i.par_neurons = 1;
+    i.default_model = "aeif_cond_alpha";
+    i.recipe = "step > one aeif cell > spikes. Keep the default step weight (300) and the cell's NEST-default values, and in its advanced "
+               "parameters set tau_w to 300-400 ms: the cell starts near 50 spikes/s and settles near 10. The longer the adaptation current "
+               "takes to fade, the more of it builds up; b alone only helps a little (even 200 pA gives a ratio of 2.7), and with b = 0 there "
+               "is no adaptation at all.";
     i.kinds = { { "step", micro::dc( kLevel ) }, { "spikes", micro::rate() } };
     i.bands = { { "ratio", "x", 3.5, 30 }, { "late_hz", "Hz", 3, 200 } };
     i.timeline = { { kOn, kOff - kOn, "current step" } };
@@ -120,7 +125,7 @@ public:
            "lower the adaptation (b) or raise the step weight.";
     else if ( !c )
       o << "The rate falls only a little: " << fmt( e ) << " spikes/s at the start, " << fmt( l ) << " at the end (ratio " << fmt( ratio, 1 )
-        << ", needs " << fmt( need, 1 ) << "). Use the adaptive exponential cell if you have not, and give it more adaptation: raise tau_w (how slowly the adaptation current fades) or b.";
+        << ", needs " << fmt( need, 1 ) << "). Use the adaptive exponential cell if you have not, and give it more adaptation: raise tau_w (how slowly the adaptation current fades); raising b alone helps only a little.";
     else
       o << "The cell adapts: " << fmt( e ) << " spikes/s at the start of the step, " << fmt( l ) << " by the end (a factor " << fmt( ratio, 1 ) << ").";
     s.verdict = o.str();

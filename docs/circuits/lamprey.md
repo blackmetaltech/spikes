@@ -61,8 +61,9 @@ The thrust model is a toy (T = 1/2 m v_tail^2 (1 - U/c)), not Lighthill's large-
 
 ## v0.3: concepts, modes, variants (item D)
 
-* **Concepts:** adaptation, half_centre (new); inhibition, excitation (used). Level kind `task`, on the spine.
+* **Concepts:** none new; adaptation, half_centre, inhibition used (`m_adaptation` and `m_half_centre` teach them first). Level kind `task`, on the spine.
 * **Modes** (guided / standard / researcher): Deterministic world, so only the bars move: phase within 50 / 40 / 34 deg, speed >= 0.2 / 0.25 / 0.29 BL/s. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 8); fast_swim (>= 0.5 BL/s; reference swims at 1.3).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `speed_bl_s`. **Notebook:** Grillner 2003.
+* **Default part:** `aeif_cond_alpha` (the reference's E and CC cells; the Adapting preset is a change the player makes). **Recipe** (`recipe()`, kept out of the brief): two groups of 8 aeif cells (Adapting), each inhibitory onto the other at the default -8 nS, drive at about 600 pA onto both, each group onto its own motor channel. The "both silent" verdict now names the drive weight (about 550 pA or more) instead of saying only "check the weights".

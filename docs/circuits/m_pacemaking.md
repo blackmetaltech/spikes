@@ -20,11 +20,9 @@ reference circuit), so the first build usually passes.
 ## Novice path
 | run | build | result |
 |---|---|---|
-| 1 | a plain cell on `beat` | "stays silent ... a pacemaker cell fires by itself" |
-| 2 | the same with a 380 pA bias | "fires, but at 1320 per minute ... far too fast" |
-| 3 | the SA node cell | pass |
+| 1 | the SA node cell the lab opens the level on, on `beat` | pass |
 
-**3 runs** for a player who starts with the plain cell; **1** with the lab's default part. Several uncoupled SA cells on `beat` fail on irregularity (merged trains).
+**1 run** with the lab's default part. A player who swaps in a plain cell first: it stays silent ("a pacemaker cell fires by itself"), with a 380 pA bias it fires at 1320 per minute ("far too fast"), then the SA node cell passes: 3 runs. Several uncoupled SA cells on `beat` fail on irregularity (merged trains).
 
 ## Modes
 Rate 40-160 / 50-140 / 50-140 per minute; CV <= 25 % / 15 % / 10 %. There is no stimulus, so no noise.
@@ -36,3 +34,9 @@ Hints: (1) pacemaking is rhythmic firing with no input; (2) the SA node pacemake
 Metric: `interval_cv_pct`.
 
 Credits: DiFrancesco D (1993) Annu Rev Physiol 55:455; Jose AD, Collison D (1970) Cardiovasc Res 4:160.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `sa_node_pacemaker` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** One SA node cell wired to 'beat', nothing else: it beats about 100 times a minute on its own. No sensor, no input weight, no bias current.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **1 run** (gate: at most 8).

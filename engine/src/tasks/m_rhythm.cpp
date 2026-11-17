@@ -42,10 +42,9 @@ public:
               "the chemoreceptors raise the drive and the bursts come faster. In this tank the rhythm is ten times faster than a breath, so "
               "a run fits in five seconds. Build one bursting cell read out on 'phrenic' and feed it the sensor 'chemo' (the CO2 signal: level 1.0 "
               "at rest, 1.6 from about 2.5 s). At rest it must burst between 5 and 14 times a second (bursts of two spikes or more, not a steady "
-              "train), and after the CO2 rise at least 1.4 times faster. Take the part 'Izhikevich chattering' (a bursting preset) as a single "
-              "cell: a pool of identical cells would burst out of step and smear the rhythm. The sensor is in pA per unit of level: the lab "
-              "starts it at 300, which makes any cell fire continuously. This cell bursts for a drive of about 4 to 9, so set the chemo weight to "
-              "about 5.";
+              "train), and after the CO2 rise at least 1.4 times faster. Take the part 'Izhikevich chattering' (a bursting preset, the lab opens on it) "
+              "as a single cell: a pool of identical cells would burst out of step and smear the rhythm. The sensor's weight is the current per unit of level, "
+              "and a bursting cell only bursts inside a window of drive: too much makes it fire continuously.";
     i.chapter = "breathing";
     i.sensors = { "chemo" };
     i.motors = { "phrenic" };
@@ -53,6 +52,11 @@ public:
     i.concepts_new = { "rhythm_gating" };
     i.concepts_used = { "pacemaking", "excitation" };
     i.par_neurons = 1;
+    i.default_model = "izhikevich_CH";
+    i.recipe = "One Izhikevich chattering cell (n = 1) read out on phrenic, with chemo wired to it. This cell bursts for a drive "
+               "of about 4 to 9 pA, so set the chemo weight to about 5 pA per unit: 5 pA "
+               "at rest bursts about 10 times a second, 8 pA after the CO2 rise about 15. Any higher weight, such as 300, makes "
+               "the cell fire continuously.";
     i.kinds = { { "chemo", dc( kRest, 5.0 ) }, { "phrenic", rate() } };
     i.bands = { { "burst_rate_hz", "bursts/s", 5, 14 } };
     i.timeline = { { 2400, 2600, "CO2 rises" } };
@@ -159,8 +163,8 @@ protected:
     r.ok = rhythm_ok;
     r.soft = fa <= 0 ? 0.0 : ( fa < lo ? ramp( fa, 0, lo ) : 1.0 - ramp( fa, hi, 2 * hi ) );
     if ( na <= 2 && sa + la >= 20 )
-      r.fail = "At rest the cell fires a steady train (" + fmt( sa + la ) + " spikes, " + fmt( na ) + " bursts): the drive is far above the bursting window. The lab starts the sensor at 300 pA per "
-               "unit; lower the chemo weight to about 5.";
+      r.fail = "At rest the cell fires a steady train (" + fmt( sa + la ) + " spikes, " + fmt( na ) + " bursts): the drive is far above the bursting window. The chemo weight is pA of current per "
+               "unit of level (a plain dc sensor starts at 300); lower it to about 5.";
     else if ( na == 0 && la == 0 )
       r.fail = "At rest the cell is silent: its drive is below the bursting window. Raise the chemo weight (it needs about 4-9 pA of drive at the rest level).";
     else if ( na == 0 || ( na ? sa / na < 2.0 : true ) )

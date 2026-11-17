@@ -46,3 +46,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): The in
 
 ## Biology
 Bayliss WM, Starling EH (1899) The movements and innervation of the small intestine. J Physiol 24:99-143: "the law of the intestine", contraction above a stimulated point and inhibition below it. The enteric nervous system implements it with ascending excitatory (cholinergic) and descending inhibitory (nitrergic) interneurons (Furness JB (2006) The Enteric Nervous System, Blackwell). The big task `peristalsis` has the same chains with 8 segments.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** tone onto 3 groups (seg0, seg1, seg2; the first connection sets 300 pA per unit, which is right). dist1 onto seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -160 pA; dist2 onto seg1.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).

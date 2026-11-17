@@ -55,6 +55,10 @@ public:
     i.concepts_new = { "convergence" };
     i.concepts_used = { "threshold", "excitation" };
     i.par_neurons = 1;
+    i.default_model = "iaf_psc_alpha";
+    i.recipe = "Wire in_a, in_b and in_c to one integrate-and-fire cell and the cell to 'out'. Set each of the three sensor weights to "
+               "about 150 pA: one input gives 150, two give 300 (under the 375 pA rheobase), three give 450 (over it). The lab starts "
+               "them at 300, where two already fire.";
     i.kinds = { { "in_a", micro::dc( 1.0 ) }, { "in_b", micro::dc( 1.0 ) }, { "in_c", micro::dc( 1.0 ) }, { "out", micro::rate() } };
     i.bands = { { "target_hits", "of 2", 2, 2 }, { "false_spikes", "spikes", 0, 0.5 } };
     for ( int p = 0; p < kPatterns; ++p ) i.timeline.push_back( { kT0 + kSlot * p, kLen, kName[ p ] } );

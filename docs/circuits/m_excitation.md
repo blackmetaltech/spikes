@@ -39,3 +39,9 @@ Hints: (1) weight decides whether a spike gets through, delay when; (2) the link
 Metric: `latency_error_ms` (|mean latency - 8|, lower is better).
 
 Credits: Katz B, Miledi R (1965) Proc R Soc B 161:483 (synaptic delay).
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** tap > cell A (the default weights work) > cell B. A is wired to 'source', B to 'echo'. Raise the A > B weight to about 1500 pA so that one spike fires B, then lengthen the delay to about 4 or 5 ms (it starts at 2) until the echo latency reads 8 ms.
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **4 runs** (gate: at most 8).

@@ -44,3 +44,9 @@ Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): The fe
 
 ## Biology
 Krogh A, Lindhard J (1913) The regulation of respiration and circulation during the initial stages of muscular work. J Physiol 47:112-136: the cardiovascular and respiratory response starts within seconds of exercise, too fast for chemical feedback, so a command from the motor system drives it (central command); reflex feedback then trims it. The tank's plant and time constants are game values.
+
+## Default part and recipe (v0.3 fix round)
+* **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.
+* **`recipe()`:** tone onto 2 effort cells. level onto 3 inhibitory cells that project onto the effort cells at about -300 pA (the sensor gives 900 pA per unit of level). cue onto the effort cells (the first connection's weight of 300 pA per unit is right, 150 is too little).
+  The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
+* **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).
