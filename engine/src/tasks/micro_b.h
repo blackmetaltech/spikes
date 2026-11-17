@@ -25,11 +25,12 @@ namespace spike::tasks::microb
 {
 
 /// ChannelKind builders (aggregate initialisation of ChannelKind trips -Wmissing-field-initializers).
-inline Task::ChannelKind dc( double level )
+inline Task::ChannelKind dc( double level, double weight = 300.0 )
 {
   Task::ChannelKind k;
   k.kind = "dc";
   k.value = level;
+  k.weight = weight;  // default first-connect weight, pA per unit of level
   return k;
 }
 inline Task::ChannelKind poisson( double hz )
