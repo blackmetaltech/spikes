@@ -5,6 +5,9 @@ extends RefCounted
 static var volume := 0.8
 static var music_volume := 0.7
 static var sfx_volume := 0.9
+# --- audio (item H): spike click bus level ---
+static var spike_volume := 0.8
+# --- end audio ---
 ## UI scale on top of the automatic window stretch. 0 = auto (handhelds and phones are scaled up to a readable size).
 static var ui_scale := 0.0
 static var text_boost := 1.0
@@ -19,7 +22,14 @@ static var window_mode := 1
 static var vsync := 1
 ## 0 = uncapped
 static var fps_cap := 0
+## Local, opt-in play log (game/playlog.gd): time per level, runs, hint tiers, mid-level quits, edits before the first pass. Off by default, stored on the
+## device, never sent anywhere; the player exports it as JSON from Settings > Game.
+static var telemetry := false
 const PATH := "user://settings.cfg"
+
+## The difficulty mode (guided | standard | researcher). It is part of the save (Progress), not of the device settings; this is the settings screen's door to it.
+static func mode() -> String: return Progress.mode()
+static func set_mode(m: String) -> void: Progress.set_mode(m)
 
 static var deck := false
 static var compat := false   # not Forward+ (OpenGL compatibility or Forward Mobile)
@@ -39,11 +49,13 @@ static func load_all() -> void:
 	if c.load(PATH) != OK: return
 	volume = clampf(float(c.get_value("a", "volume", 0.8)), 0.0, 1.0)
 	music_volume = clampf(float(c.get_value("a", "music_volume", 0.7)), 0.0, 1.0); sfx_volume = clampf(float(c.get_value("a", "sfx_volume", 0.9)), 0.0, 1.0)
+	spike_volume = clampf(float(c.get_value("a", "spike_volume", 0.8)), 0.0, 1.0)   # audio (item H)
 	var us := float(c.get_value("a", "ui_scale", 0.0))
 	ui_scale = 0.0 if us < 0.8 else clampf(us, 0.8, 2.0)
 	text_boost = clampf(float(c.get_value("a", "text_boost", 1.0)), 1.0, 1.5)
 	colorblind = bool(c.get_value("a", "colorblind", false)); reduced_motion = bool(c.get_value("a", "reduced_motion", false))
 	layout = str(c.get_value("a", "layout", "auto")); if not layout in ["auto", "desktop", "handheld", "phone"]: layout = "auto"
+	telemetry = bool(c.get_value("a", "telemetry", false))
 	window_mode = clampi(int(c.get_value("a", "window_mode", 1)), 0, 2); vsync = clampi(int(c.get_value("a", "vsync", 1)), 0, 2); fps_cap = int(c.get_value("a", "fps_cap", 0))
 
 ## Writes user://settings.cfg (skipped with SP_NOAUTOSAVE, which smoke tests and screenshots set).
@@ -52,9 +64,10 @@ static func save_all() -> void:
 	if no_save or OS.has_environment("SP_NOAUTOSAVE"): return
 	var c := ConfigFile.new()
 	c.set_value("a", "volume", volume); c.set_value("a", "music_volume", music_volume); c.set_value("a", "sfx_volume", sfx_volume)
+	c.set_value("a", "spike_volume", spike_volume)   # audio (item H)
 	c.set_value("a", "ui_scale", ui_scale); c.set_value("a", "text_boost", text_boost)
 	c.set_value("a", "colorblind", colorblind); c.set_value("a", "reduced_motion", reduced_motion)
-	c.set_value("a", "layout", layout)
+	c.set_value("a", "layout", layout); c.set_value("a", "telemetry", telemetry)
 	c.set_value("a", "window_mode", window_mode); c.set_value("a", "vsync", vsync); c.set_value("a", "fps_cap", fps_cap)
 	c.save(PATH)
 
@@ -69,6 +82,7 @@ static func effective_ui_scale(window: Window) -> float:
 ## Push the current values into the engine (call after load and after every change).
 static func apply(window: Window) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.0001)))
+	GameAudio.apply_volumes()   # audio (item H): Music / SFX / Spikes buses
 	window.content_scale_factor = effective_ui_scale(window)
 	if not OS.has_environment("SP_NODISPLAY") and not headless():
 		var wm: int = [Window.MODE_WINDOWED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN][window_mode]

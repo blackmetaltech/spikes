@@ -8,8 +8,8 @@ extends Node
 ##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
 ##             SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
-const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd"}
-const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title", "parts": "tasks"}
+const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd", "notebook": "res://ui/screens/notebook.gd"}
+const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title", "parts": "tasks", "notebook": "tasks"}
 
 ## Hand-over between screens: which task the lab opens, whether it starts from the reference circuit, circuits kept between lab visits, and what the analysis shows.
 var lab_task := ""
@@ -33,6 +33,9 @@ var _kind := ""
 func _ready() -> void:
 	if OS.get_environment("SP_BUDGET_US") != "": Telemetry.budget_us = int(OS.get_environment("SP_BUDGET_US"))
 	Settings.load_all()
+	# --- audio init (item H): GameAudio.* helpers are no-ops until this exists ---
+	add_child(GameAudio.new())
+	# --- end audio init ---
 	Settings.apply(get_window()); Settings.write_log(get_window())
 	Layout.update(get_window())
 	_kind = Layout.kind

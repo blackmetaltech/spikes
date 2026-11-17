@@ -1,7 +1,7 @@
 class_name SettingsScreen
 extends Screen
-## Settings: Display / Audio / Controls tabs on an instrument panel. Every change is applied and saved at once.
-const TABS := ["Display", "Audio", "Controls"]
+## Settings: Display / Audio / Controls / Game (difficulty mode, local play log) tabs on an instrument panel. Every change is applied and saved at once.
+const TABS := ["Display", "Audio", "Controls", "Game"]
 var tab := "Display"
 var body: VBoxContainer
 var scroll: ScrollContainer
@@ -54,6 +54,7 @@ func _fill() -> void:
 		"Display": _display()
 		"Audio": _audio()
 		"Controls": _controls()
+		"Game": _game()
 
 func _commit(relayout := false) -> void:
 	Settings.save_all(); Settings.apply(get_window())
@@ -91,6 +92,29 @@ func _display() -> void:
 	var cc := _section("About", Kit.TEXT_SOFT)
 	_add_row(cc, "Credits and licences", Kit.btn("CREDITS", func(): app.show_screen("credits"), "panel", 24, Vector2(170, 0)), "Engine, fonts and sources.")
 
+func _game() -> void:
+	var d := _section("Difficulty", Kit.exc())
+	_add_row(d, "Mode", Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], Progress.mode(), func(id): Settings.set_mode(str(id)); _mode_note.text = str(Progress.MODE_BLURB[Progress.mode()]); Playlog.event("mode", {"mode": id}), 260.0),
+		"Part of your save. Switch any time with no penalty; only the star labels say which mode a result was earned in.")
+	_mode_note = Kit.label(str(Progress.MODE_BLURB[Progress.mode()]), 18, Kit.TEXT, true); d.add_child(_mode_note)
+	var l := _section("Play log", Kit.GREEN)
+	_add_row(l, "Record my play", Kit.toggle(Settings.telemetry, func(v): Settings.telemetry = v; _commit(); _log_refresh()), "Off by default. Keeps time per level, runs, hint tiers, quits and edits before your first pass, on this device only. Nothing is ever sent.")
+	_log_note = Kit.label("", 17, Kit.TEXT_SOFT, true); l.add_child(_log_note)
+	var br := HBoxContainer.new(); br.add_theme_constant_override("separation", 12); l.add_child(br)
+	br.add_child(Kit.btn("EXPORT JSON", func(): _export_log(), "panel", 22, Vector2(200, 0)))
+	br.add_child(Kit.btn("CLEAR", func(): Playlog.clear(); _log_refresh(), "panel", 22, Vector2(130, 0)))
+	_log_refresh()
+
+var _mode_note: Label
+var _log_note: Label
+func _log_refresh(msg := "") -> void:
+	if _log_note == null or not is_instance_valid(_log_note): return
+	var n := Playlog.count()
+	_log_note.text = msg if msg != "" else ("%s. %d events recorded." % ["Recording" if Settings.telemetry else "Not recording", n])
+func _export_log() -> void:
+	var path := Playlog.export_file()
+	_log_refresh(("Saved to " + path) if path != "" else "Could not write the file.")
+
 func _scale_id() -> String:
 	for id in ["0", "0.8", "1", "1.25", "1.5", "1.75", "2"]:
 		if absf(float(id) - Settings.ui_scale) < 0.01: return id
@@ -100,13 +124,14 @@ func _boost_id() -> String:
 		if absf(float(id) - Settings.text_boost) < 0.01: return id
 	return "1"
 
-func _audio() -> void:
+func _audio() -> void:   # audio section (item H)
 	var s := _section("Volume")
 	_add_row(s, "Master", Kit.slider(Settings.volume, func(x): Settings.volume = x; _commit()))
-	_add_row(s, "Spike clicks", Kit.slider(Settings.sfx_volume, func(x): Settings.sfx_volume = x; _commit()))
+	_add_row(s, "Spike clicks", Kit.slider(Settings.spike_volume, func(x): Settings.spike_volume = x; _commit()))
+	_add_row(s, "Body and UI", Kit.slider(Settings.sfx_volume, func(x): Settings.sfx_volume = x; _commit()))
 	_add_row(s, "Ambience", Kit.slider(Settings.music_volume, func(x): Settings.music_volume = x; _commit()))
 	var n := _section("Note", Kit.inh())
-	n.add_child(Kit.label("Spikes become soft clicks, optional and rate-limited, with the pitch set by the neuron. They arrive in a later release; the sliders are ready for them.", 17, Kit.TEXT, true))
+	n.add_child(Kit.label("Every spike is a soft click: warm for excitatory neurons, cool for inhibitory, pitch set by the population. Dense firing is thinned into a crackle. The heartbeat and breathing follow the body.", 17, Kit.TEXT, true))
 
 func _controls() -> void:
 	var intro := Kit.label("Spike is mouse and touch first. Keyboard and gamepad can drive every menu.", 18, Kit.TEXT, true)

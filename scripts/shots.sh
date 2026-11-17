@@ -29,7 +29,7 @@ shot() {   # shot <name> <WxH> <env assignments...>
   if [ "$SS" != 1 ] && [ -n "$im" ]; then "$im" "$png" -filter Lanczos -resize "${w}x${h}!" "$out/$name-$size.png"; else cp "$png" "$out/$name-$size.png"; fi
   echo "wrote docs/screenshots/$name-$size.png"
 }
-ONLY=${ONLY:-"title tasks tasks-spinal tasks-heart tasks-autonomic parts lab-lesion lab-sandbox real-heart real-breathing real-stretch view-heart view-dash view-lungs view-eye view-gut view-limb lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings credits"}
+ONLY=${ONLY:-"title tasks tasks-spinal tasks-heart tasks-autonomic parts lab-lesion lab-sandbox real-heart real-breathing real-stretch view-heart view-dash view-lungs view-eye view-gut view-limb lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings settings-game notebook notebook-concepts credits"}
 PHONE_ONLY=" lab-world lab-scopes lab-menu "
 for size in 1920x1080 844x390; do
   for s in $ONLY; do
@@ -64,6 +64,9 @@ for size in 1920x1080 844x390; do
       lab-adv) shot lab-adv $size SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SEL=pop:E_L SP_ADV=1 SP_SIM_UNTIL=3000 SP_SHOT_AT=3 ;;
       lab-menu) shot lab-menu $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=1 SP_MENU=1 SP_SIM_UNTIL=3000 SP_SHOT_AT=3 ;;
       analysis) shot analysis $size SP_SCREEN=analysis SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SHOT_AT=7 ;;
+      settings-game) shot settings-game $size SP_SCREEN=settings SP_TAB=Game ;;
+      notebook) shot notebook $size SP_SCREEN=notebook SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
+      notebook-concepts) shot notebook-concepts $size SP_SCREEN=notebook SP_NB_TAB=Concepts SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
       credits) shot credits $size SP_SCREEN=credits ;;
       *) echo "unknown screen $s" >&2; exit 2 ;;
     esac
