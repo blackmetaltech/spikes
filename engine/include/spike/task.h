@@ -131,6 +131,13 @@ public:
   struct Note { std::string title; std::string text; std::string citation; };
   virtual Note notebook() const { return {}; }
 
+  /// The catalog card id the lab's parts picker selects by default for this level: the cell type the reference circuit and the
+  /// verdicts assume (e.g. "iaf_psc_alpha", "aeif_cond_alpha", "sa_node_pacemaker"). Empty = the lab's own default.
+  virtual std::string default_model() const { return ""; }
+  /// The recipe (concrete numbers) kept apart from the brief, so the lab can show it by mode: Guided inline, Standard behind
+  /// SHOW RECIPE (costs the third star), Researcher never. Empty = the brief carries no recipe.
+  virtual std::string recipe() const { return ""; }
+
 protected:
   std::string mode_ = "standard";
   std::string variant_;
