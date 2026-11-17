@@ -68,26 +68,31 @@ public:
            "motoneuron pools ag_motor and ant_motor, give both pools tonic drive, and add the inhibitory crossing. Score: the motor "
            "reply to a tap must come within 50 ms (a spinal reflex, not a decision), the reflex must cut the deflection to well "
            "below what the muscles' own stiffness would allow, the opposing muscle must be switched off, and the limb must "
-           "settle without ringing (too much reflex gain oscillates: clonus). A recipe that works (iaf_psc_alpha groups; weights pA; the "
-           "Ia sensors are dc inputs, so their weight is pA of current per Hz of afferent rate, and the drive weight is pA of tonic current): "
-           "ag_Ia and ant_Ia at weight 3 onto relay groups IaF and IaE (6 cells, ADVANCED tau m 60 ms so they fire regularly at the afferent "
-           "rate); motoneuron pools MNF and MNE of 20 cells with drive at weight 280 onto both; IaF > MNF and IaE > MNE at 320; "
-           "IaF > INF and IaE > INE (4 cells, inhibitory) at 240; INF > MNE and INE > MNF at -320. A weaker Ia > MN link (80) misses tendon taps "
-           "on some seeds; much stronger gains ring.";
+           "settle without ringing (too much reflex gain oscillates: clonus).";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (iaf_psc_alpha groups; weights pA; the Ia sensors are dc inputs, so their weight is pA of current per Hz of "
+           "afferent rate, and the drive weight is pA of tonic current): ag_Ia and ant_Ia at weight 3 onto relay groups IaF and IaE (6 cells, "
+           "ADVANCED tau m 60 ms so they fire regularly at the afferent rate); motoneuron pools MNF and MNE of 20 cells with drive at weight 320 "
+           "onto both; IaF > MNF and IaE > MNE at 240 with a weight spread (CV) of 0.3, so the pool is recruited gradually instead of all at once; "
+           "IaF > INF and IaE > INE (4 cells, inhibitory) at 240; INF > MNE and INE > MNF at -320. A much weaker Ia > MN link (80) misses tendon taps; "
+           "much stronger gains, or more drive, ring or make both pools fight.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
   std::map< std::string, ChannelKind > channel_kinds() const override
   {
-    return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 280 ) } };
+    return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 320 ) } };
   }
   double duration_ms() const override { return kDuration; }
   int par_neurons() const override { return variant_par( variant_, 52 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "recruitment", "reciprocal_inhibition" }; }
-  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "convergence" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "convergence", "recruitment", "reciprocal_inhibition" }; }
   bool on_spine() const override { return true; }
   /// Pass limits: guided latency <= 62 ms, resistance >= 0.24, antagonist suppression >= 0.16; standard 50 ms, 0.30, 0.20;
   /// researcher 42.5 ms, 0.35, 0.24. The pushes are 2.5 N m in every mode (the loop has no noise of its own).
@@ -105,13 +110,13 @@ public:
     {
       h.push_back( make_hint( 1, "A tendon tap sends one brief volley down the Ia fibres: one synapse onto the motoneurons has to be strong enough to fire several cells at once.", "" ) );
       h.push_back( make_hint( 2, "The motoneuron pool did not answer the tap.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Ia > relay groups of 6 (tau m 60 ms), relay > motor pool of 20 at about 320 pA, tonic drive at 280 pA onto both pools.", "" ) );
+      h.push_back( make_hint( 3, "Ia > relay groups of 6 (tau m 60 ms), relay > motor pool of 20 at about 240 pA (spread 0.3), tonic drive at 320 pA onto both pools.", "" ) );
     }
     else if ( osc > 0.08 )
     {
       h.push_back( make_hint( 1, "Negative feedback with a delay rings when its gain is too high.", "" ) );
       h.push_back( make_hint( 2, "The reflex loop is oscillating: lower the Ia to motoneuron gain.", "ag_Ia" ) );
-      h.push_back( make_hint( 3, "Ia > motoneuron near 320 pA and no more; make the reciprocal inhibition no stronger than the excitation.", "" ) );
+      h.push_back( make_hint( 3, "Ia > motoneuron near 240 pA and no more; make the reciprocal inhibition no stronger than the excitation.", "" ) );
     }
     else if ( rec < tol_min( mode_, 0.20, 1.25, 0.85 ) )
     {
@@ -123,7 +128,7 @@ public:
     {
       h.push_back( make_hint( 1, "Recruitment: the more the pool is driven, the more motor units fire, so a bigger pool gives more force.", "" ) );
       h.push_back( make_hint( 2, "The reflex is too weak to cut the deflection: strengthen the Ia link or enlarge the pool.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Use pools of 20 cells and an Ia > motoneuron link of 320 pA.", "" ) );
+      h.push_back( make_hint( 3, "Use pools of 20 cells and an Ia > motoneuron link of 240 pA with a weight spread (CV) of 0.3.", "" ) );
     }
     else
     {

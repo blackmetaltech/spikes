@@ -67,11 +67,17 @@ Psychiatry 38:1154; Berardelli A et al. (1996) Brain 119:661 (burst size and dur
 
 ## v0.3: concepts, modes, variants (item D)
 
-* **Concepts:** timed_bursts (new). Level kind `task`, on the spine.
+* **Concepts:** none new (timed_bursts is taught by the micros and is used here). Level kind `task`, on the spine.
 * **Modes** (guided / standard / researcher): Limits (reach time, overshoot, final error, creep) x1.4 guided (980 ms ...) / 1 / x0.95. Guided is the novice-passable setting. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 28); quick_reach (<= 550 ms).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `reach_ms`. **Notebook:** Hallett 1975; Berardelli 1996.
 
-### v0.3: novice passability
-The engine now has `weight_sd` / `weight_cv` on `edges` projections and `ChannelKind::weight`; the brief recommends a weight spread (CV 0.3-0.5) on the links onto the pools and the guided limits are x1.4 wider. I could not reproduce the lab's empty-bench circuit exactly here, so the gain from the spread on a novice build is not measured; the reference (spread baked into `edges`) passes all modes.
+### v0.3: novice passability (fix round): reach moves to a branch
+The engine's `weight_cv` works on `edges` projections (the lab's spread slider writes the all-to-all pairs as edges). I built the novice bench as the lab builds it (`novice_bench` in `engine/tests/tasks_spinal_test.cpp`: iaf_psc_alpha everywhere, delay 2 ms, all-to-all links) and tuned it by hand and by hill-climbing the burst and hold weights. Findings:
+* The old brief recipe (drive 160, target weight 2, hold +800 / -320, three bursts with tau syn 50 ms) fails 0 of 6: the target relay fires at 7-11 Hz, so the hold command is too weak (the arm holds 0.3 instead of 0.6 rad); B2 and B3 chain into tonic firing (B3 82 Hz), so the flexor pool saturates.
+* The hold command is steep and thresholded: with drive 250, target weight 3, target > MN_F +1500 and > MN_E -450 the arm holds 0.5 / 0.9 / 0.55 rad for targets 0.6 / 0.9 / 0.7 (final error under 0.15 rad) and rests at 0.20 rad.
+* Adding only the first burst (GO > B1 600, B1 > MN_F 800, B1 > MN_E -400; no B2 or B3) reaches in 380-420 ms on average and passes Standard on 3 of 6 seeds (seeds 1, 4, 6); the others miss the 700 ms limit by 20-130 ms. A go weight of 650 gives faster reaches but overshoot above 30 % on some seeds, 600 reaches too slowly on others: the burst is thresholded and the margin between the two does not cover six seeds.
+* A weight spread (CV 0.3 on the links onto the pools) did not help: 0 of 6 (mean value 72 against 82).
+* Hill-climbing the hold and burst weights (about 14 parameters, seeds 1-4) found nothing better than 2 of 4.
+So no bench built from recipe numbers passes Standard on 5 of 6 seeds. Per the lead decision, `on_spine()` is false: reach is a branch until a novice bench passes it (the reference circuit passes every mode). The recipe in `recipe()` is the 3-of-6 starting point and says so; the test builds it on seeds 1-5 and only prints the result. A passing novice reach needs either a slow-synapse burst cell that fires a burst of controlled size (an `aeif_cond_alpha` burst cell as in the reference, but that is not the lab's default part) or a graded burst, which the iaf cell does not give.

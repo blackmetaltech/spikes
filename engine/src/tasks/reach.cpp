@@ -55,29 +55,35 @@ public:
            "that starts on 'go', scales with 'target', and times the three bursts with delays (neurons that inhibit and delay "
            "each other), drive the flexor (ag_motor) and extensor (ant_motor) pools, and keep the stretch reflex to hold the limb at "
            "the new angle. Three reaches of 0.4, 0.7 and 0.5 rad. Score: reach the target within 700 ms of the cue, overshoot by "
-           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'. Real motoneurons differ in size and in how strongly each is driven, so a pool is recruited gradually; identical cells all start together and the creep and the reach time then depend on the seed. Give the links onto the pools some weight spread (the lab's spread control; the reference circuit's pool links vary by about +-50 %, a spread (CV) near 0.3 to 0.5) and, in Guided mode, the limits are wider. A starting point (iaf_psc_alpha groups; pA; the "
-           "sensors are dc inputs; passes on some seeds only, so expect to tune it): the stretch-reflex loop (Ia sensors at weight 3 onto relay "
-           "groups of 6 with tau m 60 ms; pools of 20 cells; Ia > pool 160; Ia > inhibitory groups of 4 at 80; those > opposite pool -160) with the "
-           "drive weight lowered to 160 so the pools are nearly silent at rest (a busy resting pool creeps); target (weight 2) onto a relay group of 3 "
-           "(tau m 60) > ag_motor pool +800 and > ant_motor pool -320 (the hold command: the target shifts the balance, Feldman); go (weight 3) onto a "
-           "relay group of 3 > burst group B1 (4 cells, tau syn 50 ms) 800 > ag_motor 1000 and ant_motor -400; B1 > B2 (4 cells, tau syn 50) "
-           "150 with delay 150 ms (the target relay also drives B2 at 160) > ant_motor 200 (the brake), B2 > B3 (4 cells, tau syn 50) 400 with delay 100 ms > ag_motor 900 (the final clamp), "
-           "each stage inhibiting the one before at -400. Delays go up to 250 ms and tau syn up to 50 ms.";
+           "less than 30% of the distance, finish within 0.15 rad, and do not creep before 'go'. Real motoneurons differ in size and in how strongly each is driven, so a pool is recruited gradually; identical cells all start together and the creep and the reach time then depend on the seed.";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A starting point (iaf_psc_alpha groups; pA; the sensors are dc inputs; it reaches on about half the seeds, so expect to tune it, and the "
+           "braking and clamping bursts are yours to add): the stretch-reflex loop (Ia sensors at weight 3 onto relay groups of 6 with tau m 60 ms; "
+           "pools of 20 cells; Ia > pool 160; Ia > inhibitory groups of 4 at 80; those > opposite pool -160) with the drive weight at 250; target "
+           "(weight 3) onto a relay group of 3 (tau m 60) > ag_motor pool +1500 and > ant_motor pool -450 (the hold command: the target shifts the balance, "
+           "Feldman); go (weight 3) onto a relay group of 3 > burst group B1 (4 cells, tau syn 50 ms) 600 > ag_motor 800 and ant_motor -400. A delayed "
+           "second group B2 (B1 > B2 with a delay of 100-250 ms, tau syn 50 ms) > ant_motor is the brake against overshoot, and B2 > B3 > ag_motor the "
+           "final clamp. Delays go up to 250 ms and tau syn up to 50 ms. The bursts are thresholded: a go weight of 650 instead of 600 doubles their size.";
   }
   std::vector< std::string > sensor_channels() const override { return { "go", "target", "ag_Ia", "ant_Ia", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor" }; }
   std::map< std::string, ChannelKind > channel_kinds() const override
   {
-    return { { "go", in_kind( "dc", 100, 3 ) }, { "target", in_kind( "dc", 40, 2 ) }, { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 160 ) } };
+    return { { "go", in_kind( "dc", 100, 3 ) }, { "target", in_kind( "dc", 40, 3 ) }, { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 250 ) } };
   }
   double duration_ms() const override { return kDuration; }
   int par_neurons() const override { return variant_par( variant_, 55 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "timed_bursts" }; }
-  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "reciprocal_inhibition", "negative_feedback" }; }
-  bool on_spine() const override { return true; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "excitation", "inhibition", "reciprocal_inhibition", "negative_feedback", "timed_bursts" }; }
+  /// Off the spine until a novice bench passes it (lead decision, docs/CRITIQUE-0.3.md): the best recipe from an empty bench passes Standard on
+  /// about half the seeds (docs/circuits/reach.md), the reference circuit on all.
+  bool on_spine() const override { return false; }
   /// Pass limits (reach time / overshoot / final error / creep before the cue) scale by x1.4 (guided: 980 ms, 0.42, 0.21 rad, 0.14 rad),
   /// 1 (standard: 700 ms, 0.30, 0.15 rad, 0.10 rad) and x0.85 (researcher: 595 ms, 0.255, 0.1275 rad, 0.085 rad). The quick_reach variant asks 550 ms. (researcher factor x0.95: 665 ms, 0.285, 0.1425 rad, 0.095 rad)
   std::map< std::string, std::string > variants() const override
@@ -93,7 +99,7 @@ public:
     {
       h.push_back( make_hint( 1, "A pattern generator must stay quiet until it is triggered: the pools should be nearly silent at rest.", "" ) );
       h.push_back( make_hint( 2, "The arm creeps before 'go': lower the tonic drive onto the pools.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Drive weight about 160 pA so the pools are nearly silent at rest.", "" ) );
+      h.push_back( make_hint( 3, "Drive weight about 250 pA so the pools are nearly silent at rest.", "" ) );
     }
     else if ( s.parts[ "worst_overshoot" ] > lim_over() )
     {
@@ -105,13 +111,13 @@ public:
     {
       h.push_back( make_hint( 1, "The first agonist burst sets the speed. It must be strong and start at the 'go' cue.", "" ) );
       h.push_back( make_hint( 2, "The first burst is too weak or late.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "go > relay > B1 (4 cells, tau syn 50 ms) at 800, B1 > ag_motor at 1000; give the links onto the pools a little weight spread so the pool is recruited smoothly.", "" ) );
+      h.push_back( make_hint( 3, "go > relay > B1 (4 cells, tau syn 50 ms) at 600, B1 > ag_motor at 800; the bursts are thresholded, so a small change of the go weight changes their size a lot.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "The target input must set where the arm holds after the bursts: equilibrium-point control.", "" ) );
       h.push_back( make_hint( 2, "The final angle does not match the target.", "target" ) );
-      h.push_back( make_hint( 3, "target > relay > ag_motor +800 and > ant_motor -320; the same relay drives B2 at 160.", "" ) );
+      h.push_back( make_hint( 3, "target (weight 3) > relay > ag_motor +1500 and > ant_motor -450.", "" ) );
     }
     return h;
   }

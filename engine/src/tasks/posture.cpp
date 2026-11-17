@@ -40,6 +40,7 @@ namespace
 constexpr int kN = 6;
 constexpr double kDuration = 13500, kTarget = 0.5, kRamp = 20, kHold = 250, kLead = 2200, kSpacing = 1800, kJitter = 300;
 constexpr double kScoreFrom = 1500, kQuiet0 = 900, kQuiet1 = 1600;
+constexpr double kCeilingHz = 85;  // per-cell rate of the flexor pool beyond which more tone no longer lifts the limb (rmax 100 Hz)
 
 class PostureTask : public LimbTaskBase
 {
@@ -55,12 +56,19 @@ public:
            "forearm is NOT supported: it weighs 1.5 kg and must be held 29 degrees above horizontal while six random pushes knock it "
            "either way. Wire the spindle afferents (ag_Ia, ant_Ia, ag_II, ant_II) to the motoneuron pools, drive a gamma pool "
            "(gamma_motor) from the descending tone, and give the flexor more tone than the extensor so that gravity is balanced "
-           "at the target. Score: root-mean-square angle error, the worst error, the sag between pushes, and no ringing. A recipe that works "
-           "(iaf_psc_alpha groups; weights pA; the spindle sensors are dc inputs, so their weight is pA per Hz): the four spindle sensors at weight 3 "
-           "onto relay groups (Ia: 4 cells, II: 3 cells, ADVANCED tau m 60 ms); pools MNF and MNE of 20 cells; Ia and II relays > their pool at "
-           "160; Ia relays > inhibitory groups of 2 at 80, which inhibit the opposite pool at -320; drive (weight 300) onto a tonic group of 6 "
-           "(tau m 60 ms): TONIC > MNF at 160 (the flexor tone that balances gravity; none onto MNE) and TONIC > GAM, the gamma group of 4 cells, "
-           "at 960 (a silent gamma pool leaves the spindles quiet and the loop deaf).";
+           "at the target. Score: root-mean-square angle error, the worst error, the sag between pushes, and no ringing. Too much flexor "
+           "tone is as bad as too little: a pool driven past its ceiling cannot lift the limb any further.";
+  }
+  std::string default_model() const override { return "iaf_psc_alpha"; }
+  std::string recipe() const override
+  {
+    return "A recipe that works (iaf_psc_alpha groups; weights pA; the spindle sensors are dc inputs, so their weight is pA per Hz): the four "
+           "spindle sensors at weight 3 onto relay groups (Ia: 4 cells, II: 3 cells, ADVANCED tau m 60 ms); pools MNF and MNE of 20 cells; Ia and II "
+           "relays > their pool at 150 (the lab's weight spread of 30 % is not needed here); Ia relays > inhibitory groups of 2 at 80, which inhibit the "
+           "opposite pool at -320; drive (weight 300) onto a tonic group of 6 (tau m 60 ms): TONIC > MNF at 70 (the flexor tone that balances "
+           "gravity; none onto MNE) and TONIC > GAM, the gamma group of 4 cells, at 960 (a silent gamma pool leaves the spindles quiet and the loop deaf). "
+           "Raise the tone only while the limb sags and the flexor pool is below its ceiling; if the limb sags with the flexor pool already at "
+           "its ceiling, lower the tone.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "ag_II", "ant_II", "drive" }; }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor", "gamma_motor" }; }
@@ -73,8 +81,8 @@ public:
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
-  std::vector< std::string > concepts_new() const override { return { "negative_feedback" }; }
-  std::vector< std::string > concepts_used() const override { return { "recruitment", "reciprocal_inhibition", "excitation" }; }
+  std::vector< std::string > concepts_new() const override { return {}; }
+  std::vector< std::string > concepts_used() const override { return { "recruitment", "reciprocal_inhibition", "excitation", "negative_feedback" }; }
   bool on_spine() const override { return true; }
   /// Perturbation x0.8 (guided) / x1.05 (researcher) on the 1.0-1.8 N m pushes; pass limits rms 0.17 / worst 0.30 / sag 0.17 rad x1.25
   /// (guided) or x0.92 (researcher).
@@ -91,7 +99,7 @@ public:
     {
       h.push_back( make_hint( 1, "Negative feedback with conduction delays rings when its gain is too high.", "" ) );
       h.push_back( make_hint( 2, "The limb oscillates after a push: lower the gain of the stretch-reflex loop.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Relay > pool at about 160 pA, inhibition onto the opposite pool at -320 pA at most.", "" ) );
+      h.push_back( make_hint( 3, "Relay > pool at about 150 pA, inhibition onto the opposite pool at -320 pA at most.", "" ) );
     }
     else if ( s.parts[ "gamma" ] < 0.1 )
     {
@@ -102,14 +110,16 @@ public:
     else if ( s.parts[ "offset_rad" ] > tol_max( mode_, 0.17, 1.25, 0.92 ) )
     {
       h.push_back( make_hint( 1, "Gravity pulls the limb down all the time; the flexor needs a steady tone to balance it.", "" ) );
-      h.push_back( make_hint( 2, "The limb sits off target between pushes: the flexor pool needs more (or less) tonic drive.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Tonic group > flexor pool at about 160 pA, nothing onto the extensor.", "" ) );
+      h.push_back( make_hint( 2, s.parts[ "mean_err_rad" ] > 0 ? "The limb rides above the target between pushes: the flexor pool needs less tonic drive."
+                                  : s.parts[ "flexor_rate_hz" ] >= kCeilingHz ? "The limb sags although the flexor pool is already at its ceiling: less tonic drive, not more."
+                                                                              : "The limb sags between pushes: the flexor pool needs more tonic drive.", "ag_motor" ) );
+      h.push_back( make_hint( 3, "Tonic group > flexor pool at about 70 pA, nothing onto the extensor.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Negative feedback: the error (length from the target) is sensed by the spindle and fed back to oppose it.", "" ) );
       h.push_back( make_hint( 2, "The pushes move the limb too far: raise the gain from the spindle secondaries (II) and primaries (Ia) onto the pools.", "ag_II" ) );
-      h.push_back( make_hint( 3, "II and Ia relays > their pool at 160 pA; the II group (3 cells) gives the position signal.", "" ) );
+      h.push_back( make_hint( 3, "II and Ia relays > their pool at 150 pA; the II group (3 cells) gives the position signal.", "" ) );
     }
     return h;
   }
@@ -148,6 +158,7 @@ public:
     c.joint.spindle.gamma_sta_bias = 80;
     base_reset( c, kTarget );
     th_.clear();
+    rate_.clear();
   }
 
   Score score() const override
@@ -160,6 +171,7 @@ public:
     s.parts[ "mean_err_rad" ] = m.signed_offset;
     s.parts[ "osc_rad" ] = m.osc;
     s.parts[ "gamma" ] = rig_.gam;
+    s.parts[ "flexor_rate_hz" ] = m.flexor_rate;
     s.parts[ "pushes_done" ] = m.done;
     const bool done = t_ >= kDuration;
     s.value = 100.0 * ( 0.45 * clampd( 1.0 - m.rms / 0.35, 0, 1 ) + 0.30 * clampd( 1.0 - m.mx / 0.6, 0, 1 ) +
@@ -177,8 +189,15 @@ public:
     else if ( m.osc_flag )
       o << "The limb rings after a push (" << m.osc << " rad p-p): the reflex gain is too high for its delays.";
     else if ( m.offset > tol_max( mode_, 0.17, 1.25, 0.92 ) )
-      o << "The limb " << ( m.signed_offset < 0 ? "sags " : "rides up " ) << std::fabs( m.signed_offset ) << " rad from the target between pushes: "
-        << ( m.signed_offset < 0 ? "more flexor tone (or more reflex stiffness) is needed to balance gravity." : "less flexor tone, or more extensor tone, is needed." );
+    {
+      o << "The limb " << ( m.signed_offset < 0 ? "sags " : "rides up " ) << std::fabs( m.signed_offset ) << " rad from the target between pushes: ";
+      if ( m.signed_offset > 0 )
+        o << "less flexor tone (or more extensor tone) is needed.";
+      else if ( m.flexor_rate >= kCeilingHz )
+        o << "the flexor pool already fires at " << std::setprecision( 0 ) << m.flexor_rate << " Hz per cell, at its ceiling, so more tone cannot lift the limb: lower the flexor tone (and check the extensor is not co-contracting).";
+      else
+        o << "more flexor tone (or more reflex stiffness) is needed to balance gravity.";
+    }
     else if ( m.mx > tol_max( mode_, 0.30, 1.25, 0.92 ) )
       o << "Pushes move the limb up to " << m.mx << " rad from the target (limit " << tol_max( mode_, 0.30, 1.25, 0.92 ) << "): too compliant. Raise gamma drive or reflex gain.";
     else if ( m.rms > tol_max( mode_, 0.17, 1.25, 0.92 ) )
@@ -198,7 +217,11 @@ protected:
     return tq;
   }
   void cues( Engine& e, double ) override { put_cue( e, "drive", 1.0 ); }
-  void after_tick( double ) override { th_.push_back( rig_.joint.theta ); }
+  void after_tick( double ) override
+  {
+    th_.push_back( rig_.joint.theta );
+    rate_.push_back( rig_.rate_ag );
+  }
   double target_rad() const override { return kTarget; }
   bool has_target() const override { return true; }
   void extra_readouts( std::map< std::string, double >& r ) const override { r[ "err_rad" ] = rig_.joint.theta - kTarget; }
@@ -207,7 +230,7 @@ private:
   double push_scale() const { return mode_factor( mode_, 0.8, 1.05 ) * ( variant_ == "strong_pushes" ? 1.4 : 1.0 ); }
   struct Metrics
   {
-    double rms = 0, mx = 0, offset = 0, signed_offset = 0, osc = 0;
+    double rms = 0, mx = 0, offset = 0, signed_offset = 0, osc = 0, flexor_rate = 0;
     int done = 0, osc_flag = 0;
   };
 
@@ -245,6 +268,7 @@ private:
         m.osc = std::max( m.osc, p2p );
       }
     }
+    m.flexor_rate = window_mean( rate_, kScoreFrom, static_cast< double >( b ) );
     if ( n > 0 )
     {
       m.offset = off / n;
@@ -254,7 +278,7 @@ private:
   }
 
   double onset_[ kN ] = {}, amp_[ kN ] = {};
-  std::vector< double > th_;
+  std::vector< double > th_, rate_;
 };
 
 } // namespace
