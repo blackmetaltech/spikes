@@ -1,0 +1,42 @@
+{
+ "schema_version": 1,
+ "name": "Pacemaking: a cell that beats on its own",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N1",
+   "model": "sa_node_pacemaker",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     160
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [],
+ "outputs": [
+  {
+   "name": "beat",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N1"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_pacemaking",
+  "notes": "docs/circuits/m_pacemaking.md"
+ }
+}

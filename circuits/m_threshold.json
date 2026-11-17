@@ -1,0 +1,54 @@
+{
+ "schema_version": 1,
+ "name": "Threshold: fire on the step, not on the blip",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N1",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     260,
+     160
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "pulse",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N1"
+    }
+   ],
+   "weight": 450.0,
+   "value": 1.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "spike",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N1"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_threshold",
+  "notes": "docs/circuits/m_threshold.md"
+ }
+}
