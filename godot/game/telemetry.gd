@@ -289,8 +289,8 @@ func advance(dt: float) -> void:
 		if stepped >= 20.0 and el > 0.0: throughput = stepped * 1000.0 / el if throughput <= 0.0 else lerpf(throughput, stepped * 1000.0 / el, 0.1)
 		var want := dt * 1000.0 * speed
 		achieved = lerpf(achieved, speed * (stepped / want) if want > 0.0 else speed, 0.1)
-		if finished and OS.get_environment("SP_TIMING") != "": _report_timing()
 	_collect()
+	if finished and OS.get_environment("SP_TIMING") != "": _report_timing()  # after _collect: report the final score, not the in-progress one
 	if sim != null:
 		for ch in rates.keys():
 			if not out_mask.has(ch): continue   # an output nothing is wired to reads 0

@@ -6,6 +6,8 @@ extends PanelContainer
 const UNLOCK_FAILS := 2
 const TIER_NAMES := {1: "THE IDEA", 2: "THE PLACE", 3: "A PARTIAL RECIPE"}
 
+var max_h := 0.0   # > 0: the tiers sit in a ScrollContainer no taller than this (phone overlay)
+
 signal next_pressed
 signal close_pressed
 
@@ -37,6 +39,11 @@ func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel
 	if not available(mode, fails):
 		v.add_child(Kit.label("Hints open after %d failed runs in Standard mode (%d so far). Guided mode has them free from the start." % [UNLOCK_FAILS, fails], fs, Kit.TEXT_SOFT, true)); return self
 	var by := {}
+	var body: VBoxContainer = v
+	if max_h > 0.0:
+		var sc := ScrollContainer.new(); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		sc.custom_minimum_size.y = minf(maxf(max_h - 150.0, 80.0), 400.0)
+		v.add_child(sc); body = VBoxContainer.new(); body.add_theme_constant_override("separation", 6); body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sc.add_child(body)
 	for h in hints:
 		var tr := int(h.get("tier", 0))
 		if not by.has(tr): by[tr] = h
@@ -45,7 +52,7 @@ func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel
 		v.add_child(Kit.btn("ASK AGAIN", func(): next_pressed.emit(), "amber", 18)); return self
 	for tr in [1, 2, 3]:
 		if tr > shown or not by.has(tr): continue
-		var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 10); v.add_child(row)
+		var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 10); body.add_child(row)
 		var ch := Kit.chip("%d  %s" % [tr, TIER_NAMES[tr]], Kit.AMBER if tr < 3 else Kit.CYAN, 14); ch.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; row.add_child(ch)
 		var h: Dictionary = by[tr]; var txt := str(h.get("text", ""))
 		if tr == 2 and str(h.get("target", "")) != "": txt += "  (outlined in the editor)" if txt != "" else "Look at the outlined part of the circuit."
