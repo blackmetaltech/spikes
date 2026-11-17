@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.3.0] - 2026-11-17 — Learning curve
+
+0.3 turns the campaign into a learning ladder (design in `docs/DESIGN-0.3.md`): one new idea per level, a hint for when you are stuck, and a reason to come back after three stars.
+
+### Added
+- **19 micro-puzzles.** Each one isolates a single concept, from threshold, excitation and convergence to divergent command. They use 1-4 neurons and run for 3-5 s, and they come just before the task that needs that concept. A scripted beginner, using the lab's own default cell and weights, passes each one in 1-5 runs.
+- **Two boss levels.** The spinal sprint combines posture, pushes, reaches and Renshaw cells. The autonomic exam is a whole day (rest, standing, exercise, a threat, recovery) with heart, blood pressure, pupil and breathing all scored.
+- **Six diagnosis cases:** clonus, vagotomy, orthostatic hypotension, CCHS, Horner's syndrome and achalasia. You get the patient's circuit with a hidden lesion and its symptoms. You probe it with the scopes and the lesion lab, pick the lesion, and get a "why not" explanation for every wrong guess.
+- **Difficulty modes.** Modes change tolerance, noise and perturbation strength, never the circuit's structure.
+  - **Guided:** the recipe is shown in the brief, and hints are free.
+  - **Standard:** SHOW RECIPE caps that level at 2 stars, and hints unlock after 2 failed runs.
+  - **Researcher:** no recipe, no hints, and a pass only counts from TEST x5.
+- **Hint ladder.** Tier 1 names the concept, tier 2 outlines the faulty part of your circuit, tier 3 gives a partial recipe. After a failed run, the guilty element glows.
+- **Challenge variants.** There are two per task, for example half the neurons, double noise, a heavier load, a stronger haemorrhage or a fainter threat.
+- **Post-solve histograms** of neurons, energy and quality, with your own target pinned on top. They are seeded from generated passing variants (see `docs/HISTOGRAMS.md`), not from other players.
+- **Lab notebook.** Every pass unlocks a true, cited finding, and a concept glossary with citations sits alongside.
+- **Sound.**
+  - Spike clicks like a real electrophysiology monitor (warm for excitatory cells, cool for inhibitory ones, rate-limited).
+  - Heartbeat, breath, muscle twitches, gut sounds and UI sounds.
+  - Four volume sliders.
+- **Feel.** A first-pass celebration, surprise toasts, instant CHECK (headless scoring in a few seconds), skip to the next event, and a default speed set from the measured throughput.
+- **Campaign.**
+  - The map shows a main path plus branches.
+  - A chapter opens when the previous chapter's main path, or the one two before it, is passed.
+  - Concept chips show what each level introduces and what it uses.
+  - Opt-in local play log, exportable as JSON.
+- **Engine.**
+  - Seeded per-connection weight spread (`weight_cv`, `weight_sd`) on any projection, with PyNEST parity.
+  - Async headless scoring with seed pinning and cancel.
+  - Per-task default sensor weights, default cell type and recipe.
+  - New task contract: level kind, concepts, modes, variants, hints, metrics, pacing, diagnosis and notebook.
+
+### Changed
+- Every level opens on the cell type its puzzle and verdicts assume. Briefs explain the concept only; the numbers live in the recipe.
+- **Reflex:** the task now needs convergence, so a single cell cannot pass it.
+- **Renshaw:** it measures your own circuit's response to input volleys, so removing the Renshaw cells fails.
+- **Posture:** the verdict reads which way the limb is off.
+- **Big tasks:** they list the concepts their micro-puzzles taught as used, not new.
+- **Adapting preset:** retuned so it actually adapts (tau_w 500 ms).
+
+### Known gaps
+- **Reach is a branch, not on the main path.** No beginner circuit has passed it reliably yet; the best is 3 of 6 seeds.
+- **Histograms are generated, not real players.** The slow levels (bosses, fight-or-flight, autonomic heart rate) have only 11-19 samples.
+- **Renshaw loophole:** a circuit that lowers tremor by another route through the noise path could still pass.
+- **Unverified glossary citations:** several were written from memory and still need a physiologist's check.
+- **Untested on hardware:** surprise toasts have not fired in testing, and the new sounds have not had a listening pass.
+- **Builds:** a shipped build must put `spike-run` next to the extension for CHECK to work. Desktop Linux only, and NEST runs on one thread.
+
 ## [0.2.0] - 2026-11-16 — Body systems
 
 The game widens from three small circuits to a campaign of eleven vertebrate-physiology tasks, with real effectors, new cell types and neuromodulators.
