@@ -455,3 +455,79 @@ static func default_watch(c: Dictionary) -> Array:
 		for pi in c.get("populations", []).size():
 			out.append(pop_first(c, pi))
 	return out.slice(0, 4)
+
+# ---------- v0.3: the critical path, candidate lesions, the guilty element ----------
+## Whole-run spikes of each population: {pop id: count} from a Telemetry's per-neuron counts.
+static func pop_activity(c: Dictionary, count: PackedInt32Array) -> Dictionary:
+	var out := {}; var pops: Array = c.get("populations", [])
+	for pi in pops.size():
+		var s := 0; var f := pop_first(c, pi)
+		for k in pop_n(pops[pi]):
+			if f + k < count.size(): s += count[f + k]
+		out[str(pops[pi].get("id", ""))] = s
+	return out
+
+## The route a signal takes from a sensor to a motor channel, as the list ["in:<name>", <pop id>, ..., "out:<name>"]: among the simple paths over the circuit's
+## projections the one whose populations all fired and whose total activity is highest (shorter wins a tie); with no activity at all, the shortest path.
+## [] when no sensor reaches a motor. `sensors` / `motors` limit the channels (the task's own; empty = every channel).
+static func critical_path(c: Dictionary, activity: Dictionary, sensors: Array = [], motors: Array = []) -> Array:
+	var adj := {}
+	for pr in c.get("projections", []):
+		var a := proj_pop(pr.get("pre", "")); var b := proj_pop(pr.get("post", ""))
+		if a == "" or b == "" or pop_index(c, a) < 0 or pop_index(c, b) < 0: continue
+		if not adj.has(a): adj[a] = []
+		if not (adj[a] as Array).has(b): (adj[a] as Array).append(b)
+	var sinks := {}   # pop -> out channel
+	for ch in c.get("outputs", []):
+		var nm := str(ch.get("name", ""))
+		if not motors.is_empty() and not motors.has(nm): continue
+		for x in ch.get("neurons", []): sinks[proj_pop(x)] = nm if not sinks.has(proj_pop(x)) else sinks[proj_pop(x)]
+	var best := []; var best_score := -1.0e9
+	for ch in c.get("inputs", []):
+		var nm := str(ch.get("name", ""))
+		if not sensors.is_empty() and not sensors.has(nm): continue
+		for tg in ch.get("targets", []):
+			var start := proj_pop(tg)
+			var stack := [[start]]
+			while not stack.is_empty():
+				var path: Array = stack.pop_back()
+				var last: String = path[path.size() - 1]
+				if sinks.has(last):
+					var sc := 0.0; var all_on := true
+					for p in path:
+						var act := float(activity.get(p, 0))
+						if act <= 0.0: all_on = false
+						sc += log(1.0 + act)
+					sc = sc * (1.0 if all_on else 0.1) - 0.4 * path.size() + (50.0 if all_on else 0.0)
+					if sc > best_score: best_score = sc; best = ["in:" + nm] + path + ["out:" + str(sinks[last])]
+				if path.size() >= 8: continue
+				for nx in adj.get(last, []):
+					if not path.has(nx): stack.append(path + [nx])
+	return best
+
+## Index of the first projection from population `pre` to `post`, -1 when there is none.
+static func proj_between(c: Dictionary, pre: String, post: String) -> int:
+	var projs: Array = c.get("projections", [])
+	for i in projs.size():
+		if proj_pop(projs[i].get("pre", "")) == pre and proj_pop(projs[i].get("post", "")) == post: return i
+	return -1
+
+## The population a diagnosis candidate is about, for the editor to outline: the target of the first connection of "pre>post[+pre>post...]" (the wire is missing
+## from the patient's circuit, so its target is where the lost drive shows), or the population of "pop:ID".
+static func candidate_focus(cand: String) -> String:
+	if cand.begins_with("pop:"): return cand.substr(4)
+	var first := cand.split("+")[0].split(">")
+	return first[1].strip_edges() if first.size() == 2 else ""
+
+## A candidate in the player's words: "the pathway E_L to I_R" / "the cells of E_L"; compound candidates ("A>B+C>D") join their parts with "and".
+static func candidate_text(cand: String) -> String:
+	if "+" in cand:
+		var parts := []
+		for c in cand.split("+"):
+			parts.append(candidate_text(c).trim_prefix("the pathway "))
+		return "the pathways " + " and ".join(parts)
+	if cand.begins_with("pop:"): return "the cells of %s" % cand.substr(4)
+	if cand.begins_with("in:"): return "the sensory input %s" % cand.substr(3)
+	var p := cand.split(">")
+	if p.size() == 2: return "the pathway %s to %s" % [p[0].strip_edges(), p[1].strip_edges()]
+	return cand

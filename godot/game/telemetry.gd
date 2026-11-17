@@ -50,6 +50,11 @@ const HIST_STEP_MS := 50.0
 var hist_on := false
 var hist_t := PackedFloat32Array()          # ms
 var hist := {}                               # readout name -> PackedFloat32Array aligned with hist_t
+var mode := "standard"                       # v0.3 difficulty mode ("guided" | "standard" | "researcher") and challenge variant, applied to the task before reset()
+var variant := ""
+var audio_on := true                         # live view: spikes click, the heart beats, the lungs breathe (GameAudio); off for headless-style runs
+var _last_beat := -1.0
+var skip_to := -1.0                          # v0.3 pacing: model time (ms) a "skip to next event" is fast-forwarding to (< 0 = not skipping)
 var lesioned := false                        # the lab runs a lesioned copy of the circuit: do not complain about its wiring
 var mods := {}                               # "NE" / "ACh" / "DA" -> concentration set by the player (sandbox dials)
 var _next_hist := 0.0
@@ -68,6 +73,7 @@ func setup(c: Dictionary, task_id: String, ext_ok: bool) -> bool:
 		task = Campaign.make(task_id)
 		if task == null: error = "unknown task " + task_id; return false
 		hist_on = _wants_hist(task_id)
+		configure(task, mode, variant)
 		task.reset(int(c.get("seed", 1))); body = task.body(); score = task.score()
 	n = Circuits.neuron_count(c); kinds = Circuits.kind_per_neuron(c)
 	rates = {}
@@ -90,6 +96,17 @@ func setup(c: Dictionary, task_id: String, ext_ok: bool) -> bool:
 	watched = Circuits.default_watch(c)
 	reset()
 	return true
+
+## v0.3: put a task in a difficulty mode and challenge variant (before reset()). A task object that has no such methods (mock tasks, an older extension) is left alone.
+static func configure(t: Variant, mode_id: String, variant_id: String) -> void:
+	if t == null: return
+	if t.has_method("set_mode"): t.call("set_mode", mode_id)
+	if t.has_method("set_variant"): t.call("set_variant", variant_id)
+
+## Fast-forward to model time `t` (ms): the stepper ignores the speed and spends its whole frame budget until it gets there.
+func skip_until(t: float) -> void:
+	if sim == null or finished: return
+	skip_to = t; running = true
 
 ## The circuit as the engine takes it: channels that select no neuron yet are left out (their input is never driven and their output reads 0).
 static func sanitized(c: Dictionary) -> Dictionary:
@@ -142,7 +159,7 @@ func reset(seed := -1) -> void:
 	var circ := Circuits.to_json(sanitized(circuit))
 	failed = false
 	if not sim.load_circuit(circ): error = str(sim.error()); failed = true; running = false; return   # a fresh kernel: same circuit, same seed, so an episode is repeatable
-	t_ms = 0.0; view_t = 0.0; _owed = 0.0; finished = false; total_spikes = 0
+	t_ms = 0.0; view_t = 0.0; _owed = 0.0; finished = false; total_spikes = 0; skip_to = -1.0; _last_beat = -1.0
 	sp_n = PackedInt32Array(); sp_t = PackedFloat64Array()
 	count = PackedInt32Array(); count.resize(n); first_t = PackedFloat64Array(); first_t.resize(n); last_t = PackedFloat64Array(); last_t.resize(n)
 	isi_sum = PackedFloat64Array(); isi_sum.resize(n); isi_sq = PackedFloat64Array(); isi_sq.resize(n); isi_n = PackedInt32Array(); isi_n.resize(n)
@@ -220,6 +237,9 @@ func duration() -> float: return float(task.duration_ms()) if task != null else 
 
 ## Advance by `dt` seconds of wall time.
 func advance(dt: float) -> void:
+	if finished or not running:
+		if skip_to >= 0.0 or (audio_on and running == false): GameAudio.silence_body()
+		skip_to = -1.0
 	if sim != null and (not running or finished or hold):   # paused: the glows, pulses and scopes hold the instant
 		_collect(); view_t = t_ms; return
 	_wall += dt
@@ -228,6 +248,8 @@ func advance(dt: float) -> void:
 	var stepped := 0.0
 	if running and not finished:
 		_owed = minf(_owed + dt * 1000.0 * speed, 200.0 * maxf(speed, 1.0) if budget_us < 100000 else 1.0e9)
+		if skip_to > t_ms: _owed = maxf(_owed, skip_to - t_ms)
+		else: skip_to = -1.0
 		var t0 := Time.get_ticks_usec(); var k := 0
 		while _owed >= SLICE_MS:
 			if task != null: task.step(sim, SLICE_MS)
@@ -238,7 +260,10 @@ func advance(dt: float) -> void:
 			for w in watched: _push_volt(w)
 			if task != null and t_ms >= duration(): finished = true; break
 			k += 1
-			if k % 4 == 0 and Time.get_ticks_usec() - t0 > budget_us: _owed = minf(_owed, 4.0); break
+			if skip_to >= 0.0 and t_ms >= skip_to: skip_to = -1.0; _owed = minf(_owed, 4.0); break
+			if k % 4 == 0 and Time.get_ticks_usec() - t0 > budget_us:
+				if skip_to < 0.0: _owed = minf(_owed, 4.0)
+				break
 		var want := dt * 1000.0 * speed
 		achieved = lerpf(achieved, speed * (stepped / want) if want > 0.0 else speed, 0.1)
 	_collect()
@@ -253,9 +278,20 @@ func advance(dt: float) -> void:
 				j -= 1
 			var hz := float(cnt) / (RATE_WIN_MS * 0.001 * maxf(float(nn), 1.0))
 			rates[ch] = lerpf(float(rates[ch]), hz, clampf(dt * 10.0, 0.0, 1.0))
-	if task != null and stepped > 0.0: body = task.body(); score = task.score(); _apply_issue()
+	if task != null and stepped > 0.0:
+		body = task.body(); score = task.score(); _apply_issue()
+		if audio_on: _body_audio()
 	if running and not finished: view_t = clampf(view_t + dt * 1000.0 * achieved_or_speed(), t_ms - 40.0, t_ms)
 	else: view_t = t_ms
+
+## Body sounds from the task's readouts: a heartbeat whenever last_beat_ms moves, the lungs from the volume fraction.
+func _body_audio() -> void:
+	var ro: Dictionary = body.get("readouts", {})
+	if ro.has("last_beat_ms"):
+		var lb := float(ro["last_beat_ms"])
+		if lb > _last_beat + 1.0 and lb >= 0.0 and speed <= 5.0 and skip_to < 0.0: GameAudio.body("heart", 1.0)
+		_last_beat = lb
+	if ro.has("volume") and speed <= 5.0 and skip_to < 0.0: GameAudio.body("breath", clampf(float(ro["volume"]), 0.0, 1.0))
 
 ## The engine reports step failures through its error text (or `last_step_ok()` where the extension has it). A task's set_input on a channel the circuit
 ## does not declare is not a failure of the run: unwired sensors are simply never driven.
@@ -284,6 +320,7 @@ func _collect() -> void:
 		if id < 0 or id >= n: continue
 		sp_n.append(id); sp_t.append(t); total_spikes += 1
 		count[id] += 1; flash[id] = 1.0
+		if audio_on: GameAudio.spike(pop_of[id], kinds[id] == "I")
 		if first_t[id] < 0.0: first_t[id] = t
 		if last_t[id] >= 0.0:
 			var isi := t - last_t[id]; isi_sum[id] += isi; isi_sq[id] += isi * isi; isi_n[id] += 1

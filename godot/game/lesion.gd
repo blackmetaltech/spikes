@@ -135,6 +135,8 @@ class Runner extends RefCounted:
 	var failed := ""
 	var _sim = null
 	var _task = null
+	var mode := "standard"     # v0.3: difficulty mode and challenge variant of the task being re-run (set before begin())
+	var variant := ""
 	var _t := -1.0
 	var _spikes := 0
 	var _runs: Array = []   # the finished runs of the current job
@@ -142,7 +144,7 @@ class Runner extends RefCounted:
 	func begin(tid: String, c: Dictionary, js: Array, sds: Array = []) -> void:
 		task_id = tid; circuit = c; jobs = js; results = []; i = 0; si = 0; _t = -1.0; failed = ""; _runs = []
 		seeds = sds if not sds.is_empty() else Lesion.SEEDS.duplicate()
-		seed = int(c.get("seed", 1)); _sim = ClassDB.instantiate("SpikeSim"); _task = Campaign.make(tid)
+		seed = int(c.get("seed", 1)); _sim = ClassDB.instantiate("SpikeSim"); _task = Campaign.make(tid); Telemetry.configure(_task, mode, variant)
 
 	func done() -> bool: return i >= jobs.size() or failed != ""
 	func fraction() -> float:

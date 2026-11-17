@@ -23,14 +23,38 @@ var _r := 20.0
 var _fit_pending := true
 var lesion_mode := false           # lesion lab: clicks cut and silence instead of selecting and dragging
 var lesions := {}                  # the lab's lesion set ("proj:<i>", "pop:<id>", "in:<name>"): drawn cut / silenced
+var hint_target := ""              # v0.3 hint tier 2: the population, channel ("in:<name>" / "out:<name>") or axon ("pre>post") to point at: a pulsing outline
+var verdict_ok := false            # the verdict target is a right answer (diagnosis solved): green, not red
+var verdict_target := ""           # v0.3 verdict highlight: the element the failed score is about glows red
+var trail: Array = []              # v0.3 first-pass celebration: the critical path ["in:<name>", <pop>, ..., "out:<name>"]
+var trail_u := -1.0                # head of the glow trail along it, 0..1 (< 0 = no trail)
+var _push_t := -1.0                # camera push (celebration): seconds into it
+var _push_dur := 1.0
+var _push_k := 0.0
+var _push_scale := 1.0
+var _push_off := Vector2.ZERO
 var inset_bottom := 0.0            # px at the bottom covered by the phone inspector sheet: fit() keeps the neurons above it
 
 func _ready() -> void:
 	clip_contents = true; mouse_filter = Control.MOUSE_FILTER_STOP; focus_mode = Control.FOCUS_CLICK
 	resized.connect(func(): _fit_pending = true)
 
-func _process(_dt: float) -> void:
-	if is_visible_in_tree() and tele != null and (tele.sim != null or tele.running): queue_redraw()
+func _process(dt: float) -> void:
+	if _push_t >= 0.0: _push_step(dt)
+	if is_visible_in_tree() and ((tele != null and (tele.sim != null or tele.running)) or hint_target != "" or verdict_target != "" or trail_u >= 0.0): queue_redraw()
+
+## Camera push: zoom in on the canvas centre by `k` (0.15 = 15%) and back over `dur` seconds, easing out and in.
+func push(k: float, dur: float) -> void:
+	if _push_t >= 0.0 or _fit_pending: return
+	_push_t = 0.0; _push_dur = maxf(dur, 0.1); _push_k = k; _push_scale = view_scale; _push_off = view_off
+
+func _push_step(dt: float) -> void:
+	if _fit_pending: _push_t = -1.0; return
+	_push_t += dt
+	var u := clampf(_push_t / _push_dur, 0.0, 1.0); var kk := 1.0 + _push_k * sin(PI * u)
+	var c := size * 0.5
+	view_scale = _push_scale * kk; view_off = c + (_push_off - c) * kk
+	if u >= 1.0: _push_t = -1.0; view_scale = _push_scale; view_off = _push_off
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 
@@ -289,6 +313,7 @@ func _draw() -> void:
 			var rect := Rect2(mid - Vector2(tw * 0.5, float(fz) * 0.9 + 4.0), Vector2(tw, float(fz) + 8.0))
 			Gfx.rounded_rect(self, rect, Kit.PANEL_HI, _kind_col("I" if w < 0.0 else "E"), 6.0, 1.4)
 			draw_string(font, rect.position + Vector2(8, float(fz) + 2.0), txt, HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.TEXT)
+	_draw_marks(pops, geo, now)
 	# --- labels
 	for p in pops:
 		var c: Vector2 = p["c"]; var rr: float = p["rad"]
@@ -321,6 +346,93 @@ func _draw() -> void:
 			else: hi = minf(hi, rc.position.x - 10.0)
 		var hw := maxf(hi - lo, 160.0)
 		draw_multiline_string(font, Vector2(lo, size.y * 0.16), "An empty bench. Press + EXCITATORY above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 6, Kit.TEXT_SOFT)
+
+## Does the circuit have the element a hint or verdict names (a population, "in:" / "out:" channel, "pop:ID", "proj:i" or "pre>post")?
+func _element_exists(name: String) -> bool:
+	if name == "": return false
+	if name.begins_with("proj:"): return int(name.substr(5)) < circuit.get("projections", []).size()
+	if ">" in name:
+		var pq := name.split(">"); return Circuits.proj_between(circuit, pq[0].strip_edges(), pq[1].strip_edges()) >= 0
+	var key := name.substr(4) if name.begins_with("pop:") else name
+	if Circuits.pop_index(circuit, key) >= 0: return true
+	for ch in circuit.get("inputs", []): if name in [str(ch.get("name", "")), "in:" + str(ch.get("name", ""))]: return true
+	for ch in circuit.get("outputs", []): if name in [str(ch.get("name", "")), "out:" + str(ch.get("name", ""))]: return true
+	return false
+
+## Screen geometry of a named element: {k:"pop", c, rad, box?} | {k:"rect", r} | {k:"proj", pts}; {} when the circuit has no such thing.
+func _element(name: String, pops: Array, geo: Array) -> Dictionary:
+	if name == "": return {}
+	var key := name
+	if name.begins_with("pop:"): key = name.substr(4)
+	if name.begins_with("proj:"):
+		var i := int(name.substr(5))
+		if i >= 0 and i < geo.size() and (geo[i] as PackedVector2Array).size() == 4: var g: PackedVector2Array = geo[i]; return {"k": "proj", "pts": Gfx.bez_points(g[0], g[1], g[2], g[3], 24)}
+		return {}
+	if ">" in name:
+		var pq := name.split(">"); var i2 := Circuits.proj_between(circuit, pq[0].strip_edges(), pq[1].strip_edges())
+		if i2 >= 0 and i2 < geo.size() and (geo[i2] as PackedVector2Array).size() == 4: var g2: PackedVector2Array = geo[i2]; return {"k": "proj", "pts": Gfx.bez_points(g2[0], g2[1], g2[2], g2[3], 24)}
+		return {}
+	var pd := _pop_dict(pops, key)
+	if not pd.is_empty(): return {"k": "pop", "c": pd["c"], "rad": pd["rad"], "box": pd.get("box", Rect2()), "has_box": pd.has("box")}
+	for cand in [name, "in:" + name, "out:" + name]:
+		if _cards.has(cand): return {"k": "rect", "r": _cards[cand]}
+	return {}
+
+func _mark(el: Dictionary, col: Color, pulse: float) -> void:
+	match str(el.get("k", "")):
+		"pop":
+			var c: Vector2 = el["c"]
+			if bool(el["has_box"]):
+				var bx: Rect2 = (el["box"] as Rect2).grow(7.0 + 4.0 * pulse)
+				Gfx.rounded_rect(self, bx, Color(col, 0.10 + 0.08 * pulse), Color(col, 0.7 + 0.3 * pulse), minf(bx.size.x, bx.size.y) * 0.5 if bx.size.x < 90.0 or bx.size.y < 90.0 else 28.0, 3.0)
+			else:
+				var rr := float(el["rad"]) + 9.0 + 5.0 * pulse
+				Gfx.glow(self, c, rr * 2.2, Color(col, 0.25 + 0.2 * pulse)); draw_arc(c, rr, 0, TAU, 48, Color(col, 0.75 + 0.25 * pulse), 3.2, true)
+		"rect":
+			var r: Rect2 = (el["r"] as Rect2).grow(5.0 + 3.0 * pulse)
+			Gfx.rounded_rect(self, r, Color(col, 0.10 + 0.08 * pulse), Color(col, 0.75 + 0.25 * pulse), 10.0, 3.0)
+		"proj":
+			var pts: PackedVector2Array = el["pts"]
+			draw_polyline(pts, Color(col, 0.25 + 0.2 * pulse), 12.0 + 4.0 * pulse, true); draw_polyline(pts, Color(col, 0.95), 3.4, true)
+
+## The v0.3 overlays: hint outline (amber), verdict glow (red), and the celebration trail along the critical path (green).
+func _draw_marks(pops: Array, geo: Array, now: float) -> void:
+	var pulse := 0.5 + 0.5 * sin(now * 5.5) if Kit.motion() else 0.6
+	if verdict_target != "": _mark(_element(verdict_target, pops, geo), Kit.GREEN if verdict_ok else Kit.RED, pulse)
+	if hint_target != "": _mark(_element(hint_target, pops, geo), Kit.exc() if verdict_target != hint_target else Kit.RED, 1.0 - pulse)
+	if trail_u < 0.0 or trail.size() < 2: return
+	var pts := PackedVector2Array()
+	for i in trail.size():
+		var nm := str(trail[i]); var seg := PackedVector2Array()
+		if nm.begins_with("in:") or nm.begins_with("out:"):
+			if not _cards.has(nm): continue
+			var r: Rect2 = _cards[nm]
+			pts.append(Vector2(r.end.x, r.get_center().y) if nm.begins_with("in:") else Vector2(r.position.x, r.get_center().y)); continue
+		var pd := _pop_dict(pops, nm)
+		if pd.is_empty(): continue
+		if i > 0 and not str(trail[i - 1]).begins_with("in:"):
+			var pa := _pop_dict(pops, str(trail[i - 1]))
+			if not pa.is_empty():
+				var cp := _axon(pa, pd); seg = Gfx.bez_points(cp[0], cp[1], cp[2], cp[3], 14)
+				pts.append_array(seg); continue
+		pts.append(pd["c"])
+	if pts.size() < 2: return
+	var lens := PackedFloat32Array(); var tot := 0.0; lens.append(0.0)
+	for i in range(1, pts.size()): tot += pts[i].distance_to(pts[i - 1]); lens.append(tot)
+	draw_polyline(pts, Color(Kit.GREEN, 0.18), 7.0, true)
+	var head := trail_u * tot
+	for i in range(1, pts.size()):
+		if lens[i - 1] > head: break
+		var a := pts[i - 1]; var b := pts[i]
+		if lens[i] > head: b = a.lerp(b, (head - lens[i - 1]) / maxf(lens[i] - lens[i - 1], 0.001))
+		var age := clampf((head - lens[i]) / maxf(tot * 0.45, 1.0), 0.0, 1.0)
+		draw_line(a, b, Color(Kit.GREEN, 0.95 - 0.7 * age), 5.0 - 2.5 * age, true)
+		Gfx.glow(self, b, 16.0 - 8.0 * age, Color(Kit.GREEN, 0.45 * (1.0 - age)))
+	var hp := pts[0]
+	for i in range(1, pts.size()):
+		if lens[i] >= head: hp = pts[i - 1].lerp(pts[i], (head - lens[i - 1]) / maxf(lens[i] - lens[i - 1], 0.001)); break
+		hp = pts[i]
+	Gfx.glow(self, hp, 30.0, Color(1, 1, 1, 0.5)); draw_circle(hp, 4.5, Color(1, 1, 1, 0.95))
 
 func _draw_card(font: Font, fz: int, side: String, ch: Dictionary, task_driven: bool, now: float) -> void:
 	var name := str(ch.get("name", "")); var r: Rect2 = _cards[side + ":" + name]
