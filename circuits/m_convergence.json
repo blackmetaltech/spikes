@@ -1,0 +1,76 @@
+{
+ "schema_version": 1,
+ "name": "Convergence: fire only when all three inputs coincide",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N1",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     160
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "in_a",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N1"
+    }
+   ],
+   "weight": 150.0,
+   "value": 1.0
+  },
+  {
+   "name": "in_b",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N1"
+    }
+   ],
+   "weight": 150.0,
+   "value": 1.0
+  },
+  {
+   "name": "in_c",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N1"
+    }
+   ],
+   "weight": 150.0,
+   "value": 1.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "out",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N1"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_convergence",
+  "notes": "docs/circuits/m_convergence.md"
+ }
+}

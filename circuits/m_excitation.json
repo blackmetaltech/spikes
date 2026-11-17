@@ -1,0 +1,87 @@
+{
+ "schema_version": 1,
+ "name": "Excitation: an echo 8 ms later",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N1",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     260,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "N2",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     460,
+     120
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "N1",
+   "post": "N2",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 4.3
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "tap",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N1"
+    }
+   ],
+   "weight": 300.0,
+   "value": 2.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "source",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N1"
+    }
+   ]
+  },
+  {
+   "name": "echo",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N2"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_excitation",
+  "notes": "docs/circuits/m_excitation.md"
+ }
+}
