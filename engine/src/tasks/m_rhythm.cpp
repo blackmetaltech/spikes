@@ -53,7 +53,7 @@ public:
     i.concepts_new = { "rhythm_gating" };
     i.concepts_used = { "pacemaking", "excitation" };
     i.par_neurons = 1;
-    i.kinds = { { "chemo", dc( kRest ) }, { "phrenic", rate() } };
+    i.kinds = { { "chemo", dc( kRest, 5.0 ) }, { "phrenic", rate() } };
     i.bands = { { "burst_rate_hz", "bursts/s", 5, 14 } };
     i.timeline = { { 2400, 2600, "CO2 rises" } };
     i.concept_hint = "A rhythm generator is a cell that bursts on its own; sensory input does not make the rhythm, it gates and tunes it: more drive, "
