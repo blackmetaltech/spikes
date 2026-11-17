@@ -1,0 +1,157 @@
+{
+ "schema_version": 1,
+ "name": "Law of the intestine",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "SEG0",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     300,
+     40
+    ],
+    [
+     300,
+     70
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SEG1",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     300,
+     160
+    ],
+    [
+     300,
+     190
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SEG2",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     300,
+     280
+    ],
+    [
+     300,
+     310
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "IN",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     160,
+     220
+    ],
+    [
+     160,
+     250
+    ]
+   ],
+   "role": "neuron"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "IN",
+   "post": "SEG2",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -160.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "tone",
+   "kind": "dc",
+   "targets": [
+    "SEG0",
+    "SEG1",
+    "SEG2"
+   ],
+   "weight": 300.0,
+   "value": 1.4
+  },
+  {
+   "name": "dist1",
+   "kind": "dc",
+   "targets": [
+    "SEG0",
+    "IN"
+   ],
+   "weight": 300.0,
+   "value": 0.0
+  },
+  {
+   "name": "dist2",
+   "kind": "dc",
+   "targets": [
+    "SEG1"
+   ],
+   "weight": 300.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "seg0",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SEG0"
+    }
+   ]
+  },
+  {
+   "name": "seg1",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SEG1"
+    }
+   ]
+  },
+  {
+   "name": "seg2",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SEG2"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_wave",
+  "notes": "docs/circuits/m_wave.md"
+ }
+}

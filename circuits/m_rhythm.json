@@ -1,0 +1,57 @@
+{
+ "schema_version": 1,
+ "name": "A burster tuned by CO2",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "PBC",
+   "model": "izhikevich",
+   "n": 1,
+   "params": {
+    "a": 0.02,
+    "b": 0.2,
+    "c": -50.0,
+    "d": 2.0
+   },
+   "pos": [
+    [
+     300,
+     100
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "chemo",
+   "kind": "dc",
+   "targets": [
+    "PBC"
+   ],
+   "weight": 5.0,
+   "value": 1.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "phrenic",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "PBC"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_rhythm",
+  "notes": "docs/circuits/m_rhythm.md"
+ }
+}

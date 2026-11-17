@@ -1,0 +1,153 @@
+{
+ "schema_version": 1,
+ "name": "Three timed bursts",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "G1",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     120,
+     60
+    ],
+    [
+     120,
+     90
+    ],
+    [
+     120,
+     120
+    ],
+    [
+     120,
+     150
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "G2",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     300,
+     60
+    ],
+    [
+     300,
+     90
+    ],
+    [
+     300,
+     120
+    ],
+    [
+     300,
+     150
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "G3",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "pos": [
+    [
+     480,
+     60
+    ],
+    [
+     480,
+     90
+    ],
+    [
+     480,
+     120
+    ],
+    [
+     480,
+     150
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "G1",
+   "post": "G2",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 300.0,
+    "delay": 120.0
+   }
+  },
+  {
+   "pre": "G2",
+   "post": "G3",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 300.0,
+    "delay": 120.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "go",
+   "kind": "dc",
+   "targets": [
+    "G1"
+   ],
+   "weight": 300.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "b1",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "G1"
+    }
+   ]
+  },
+  {
+   "name": "b2",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "G2"
+    }
+   ]
+  },
+  {
+   "name": "b3",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "G3"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_timed_bursts",
+  "notes": "docs/circuits/m_timed_bursts.md"
+ }
+}

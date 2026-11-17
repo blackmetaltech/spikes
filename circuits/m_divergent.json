@@ -1,0 +1,203 @@
+{
+ "schema_version": 1,
+ "name": "Divergent alarm",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "CMD",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     120,
+     120
+    ],
+    [
+     120,
+     150
+    ]
+   ],
+   "role": "neuron"
+  },
+  {
+   "id": "HEART",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "pos": [
+    [
+     320,
+     40
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "PUPIL",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "pos": [
+    [
+     320,
+     120
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "SWEAT",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "pos": [
+    [
+     320,
+     200
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "GUT",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "pos": [
+    [
+     320,
+     280
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "INH",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "pos": [
+    [
+     160,
+     280
+    ],
+    [
+     160,
+     310
+    ]
+   ],
+   "role": "neuron"
+  }
+ ],
+ "projections": [
+  {
+   "pre": "CMD",
+   "post": "HEART",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 600.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "CMD",
+   "post": "PUPIL",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 280.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "CMD",
+   "post": "SWEAT",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 280.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "INH",
+   "post": "GUT",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -160.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "alarm",
+   "kind": "dc",
+   "targets": [
+    "CMD",
+    "INH"
+   ],
+   "weight": 300.0,
+   "value": 3.0
+  },
+  {
+   "name": "tone",
+   "kind": "dc",
+   "targets": [
+    "GUT"
+   ],
+   "weight": 300.0,
+   "value": 1.4
+  }
+ ],
+ "outputs": [
+  {
+   "name": "heart",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "HEART"
+    }
+   ]
+  },
+  {
+   "name": "pupil",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "PUPIL"
+    }
+   ]
+  },
+  {
+   "name": "sweat",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SWEAT"
+    }
+   ]
+  },
+  {
+   "name": "gut",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "GUT"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_divergent",
+  "notes": "docs/circuits/m_divergent.md"
+ }
+}

@@ -1,0 +1,102 @@
+{
+ "schema_version": 1,
+ "name": "Recruitment: three thresholds",
+ "resolution_ms": 0.1,
+ "seed": 11,
+ "populations": [
+  {
+   "id": "MU_S",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {
+    "I_e": 100.0
+   },
+   "pos": [
+    [
+     300,
+     40
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "MU_M",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "pos": [
+    [
+     300,
+     140
+    ]
+   ],
+   "role": "motor"
+  },
+  {
+   "id": "MU_L",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {
+    "I_e": -350.0
+   },
+   "pos": [
+    [
+     300,
+     240
+    ]
+   ],
+   "role": "motor"
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "command",
+   "kind": "dc",
+   "targets": [
+    "MU_S",
+    "MU_M",
+    "MU_L"
+   ],
+   "weight": 300.0,
+   "value": 2.2
+  }
+ ],
+ "outputs": [
+  {
+   "name": "mu_small",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MU_S"
+    }
+   ]
+  },
+  {
+   "name": "mu_mid",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MU_M"
+    }
+   ]
+  },
+  {
+   "name": "mu_large",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MU_L"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_recruitment",
+  "notes": "docs/circuits/m_recruitment.md"
+ }
+}
