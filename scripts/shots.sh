@@ -35,6 +35,13 @@ for size in 1920x1080 844x390; do
   for s in $ONLY; do
     [[ "$PHONE_ONLY" == *" $s "* && "$size" != 844x390 ]] && continue
     case $s in
+      v3-campaign) shot v3-campaign $size SP_SCREEN=tasks SP_CHAPTER=invertebrates SP_PROGRESS=${SP_PROGRESS:-m_threshold:3:97,m_excitation:3:95,m_convergence:2:88,reflex:2:91} ;;
+      v3-micro) shot v3-micro $size SP_SCREEN=lab SP_TASK=m_half_centre SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=2500 SP_SHOT_AT=3 ;;
+      v3-hint) shot v3-hint $size SP_SCREEN=lab SP_TASK=m_inhibition SP_SPEED=1 SP_FAILS=2 SP_HINT=3 SP_VERDICT=1 SP_SHOT_AT=4 ;;
+      v3-histo) shot v3-histo $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=50 SP_SIM_UNTIL=20000 SP_HISTO=1 SP_SHOT_AT=4 ;;
+      v3-dx) shot v3-dx $size SP_SCREEN=lab SP_TASK=dx_horner SP_SPEED=5 SP_SIM_UNTIL=8000 SP_DXPICK=HYP\>EW SP_DXSUBMIT=1 SP_SHOT_AT=4 ;;
+      v3-celeb) shot v3-celeb $size SP_SCREEN=lab SP_TASK=m_threshold SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=3000 SP_CELEB=1 SP_SHOT_AT=2.5 ;;
+      v3-boss) shot v3-boss $size SP_SCREEN=lab SP_TASK=boss_autonomic_exam SP_REF=1 SP_SPEED=10 SP_SIM_UNTIL=70000 SP_LABTAB=world SP_SHOT_AT=4 ;;
       title) shot title $size SP_SCREEN=title ;;
       settings) shot settings $size SP_SCREEN=settings SP_TAB=Display ;;
       tasks) shot tasks $size SP_SCREEN=tasks SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
