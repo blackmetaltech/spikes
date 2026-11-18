@@ -28,6 +28,9 @@ func build() -> void:
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(18 * f) if not phone else 6); margin.add_child(v)
 	var hb := Kit.page_head("Credits", func(): app.back(), phone); var head: HBoxContainer = hb[0]; back_btn = hb[1]; v.add_child(head)
 	if not phone: head.add_child(Kit.running_head("Plate IV  ·  acknowledgements"))
+	var rb := Kit.btn("What is real", func(): app.open_real("credits"), "panel", 22 if not phone else 18); rb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if phone: rb.size_flags_horizontal = Control.SIZE_SHRINK_END | Control.SIZE_EXPAND
+	head.add_child(rb)
 
 	scroll = ScrollContainer.new(); scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; v.add_child(scroll)

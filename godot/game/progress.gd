@@ -21,8 +21,8 @@ const MODES := ["guided", "standard", "researcher"]
 const MODE_NAMES := {"guided": "Guided", "standard": "Standard", "researcher": "Researcher"}
 const MODE_BLURB := {
 	"guided": "The recipe is written out in the brief, hints are free, one seed passes, noise is low and the pass bands are wide.",
-	"standard": "The recipe is behind a SHOW RECIPE button; using it costs the third star. Hints open after two failed runs. One seed passes (five for the second star).",
-	"researcher": "No recipe and no hints. A pass needs TEST x5: all five seeds must pass, with physiological noise and tight bands."}
+	"standard": "The recipe is behind a “Show recipe” button; using it costs the third star. Hints open after two failed runs. One seed passes (five for the second star).",
+	"researcher": "No recipe and no hints. A pass needs “Test x5”: all five seeds must pass, with physiological noise and tight bands."}
 const PATH := "user://progress.cfg"
 ## Neuron budget for the third star, per task (the reference circuits use 15 / 12 / 18; a hand-built reflex arc passes with 9).
 const BUDGET := {"reflex": 10, "worm": 12, "lamprey": 18}
@@ -170,3 +170,13 @@ static func record_result(task: String, score_mean: float, flags: Dictionary) ->
 	if bool(flags.get("recipe_used", false)): st = mini(st, 2)   # the recipe was shown (Standard): no third star
 	record(task, score_mean, passed, st, str(flags.get("mode", "")))
 	return st
+
+## How many levels have been passed (any mode).
+static func passed_count() -> int:
+	_load(); var n := 0
+	for k in _best:
+		if bool((_best[k] as Dictionary).get("passed", false)): n += 1
+	return n
+
+## "1 neuron", "3 neurons".
+static func neurons_text(n: int) -> String: return "%d neuron%s" % [n, "" if n == 1 else "s"]

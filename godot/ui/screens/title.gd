@@ -1,6 +1,6 @@
 class_name TitleScreen
 extends Screen
-## Title: Plate I. The "Spike." wordmark (Fraunces, sienna full stop), the italic motto, the menu as a numbered legend (I.-V.) with leader dots,
+## Title: Plate I. The "Spike." wordmark (Fraunces, sienna full stop), the italic motto, the menu as a numbered legend (I.-VI.) with leader dots,
 ## and, on the right, three procedurally inked Cajal cells: a pyramidal cell in India ink (A), a small excitatory cell in sienna (a) and an
 ## inhibitory basket cell in Prussian blue (b). The figure caption runs along the foot of the plate. Now and then a cell fires and a wash of
 ## stain blooms round its soma (still, when reduced motion is on).
@@ -30,11 +30,11 @@ func build() -> void:
 	col.add_child(Kit.italic("grow a nervous system", int(52 * f) if not phone else 30, Kit.exc()))
 	if not phone:
 		col.add_child(Kit.spacer(16 * f))
-		col.add_child(Kit.label("Wire spiking neurons into circuits that do real jobs: steer a worm up a salt gradient, swim a lamprey, keep a heart beating.", int(24 * f), Kit.TEXT_SOFT, true))
+		col.add_child(Kit.label("Wire spiking neurons, simulated with NEST, into small circuits that drive simplified bodies: steer a worm up a salt gradient, swim a lamprey, pace a heart.", int(24 * f), Kit.TEXT_SOFT, true))
 	col.add_child(Kit.spacer(0, true))
 	var menu := VBoxContainer.new(); menu.add_theme_constant_override("separation", 0); col.add_child(menu)
-	var defs := [["I", "Play", "the campaign", "tasks"], ["II", "Laboratory", "free bench", "lab"], ["III", "Settings", "", "settings"], ["IV", "Credits", "", "credits"], ["V", "Quit", "", "quit"]]
-	if OS.has_feature("web"): defs.pop_back()
+	var defs := [["I", "Play", "the campaign", "tasks"], ["II", "Laboratory", "free bench", "lab"], ["III", "What is real", "models, tuning, sources", "real"], ["IV", "Settings", "", "settings"], ["V", "Credits", "", "credits"], ["VI", "Quit", "", "quit"]]
+	if OS.has_feature("web") or phone: defs.pop_back()   # no Quit on the web; on a phone the system closes apps (and the menu needs the room)
 	var ms := int(40 * f) if not phone else 26
 	for d in defs:
 		var primary: bool = d[3] == "tasks"
@@ -61,6 +61,7 @@ func _press(id: String) -> void:
 		"lab": app.open_lab("")
 		"settings": app.show_screen("settings")
 		"credits": app.show_screen("credits")
+		"real": app.open_real("title")
 		"quit": app.quit_game()
 
 ## "Spike." in heavy Fraunces, tightly set, with the full stop in Golgi sienna.

@@ -192,7 +192,7 @@ func _compute_series() -> void:
 	if not _rec_run.is_empty():
 		panel.message = "Recording... %.0f of %.0f s" % [float(_rec_run["t"]) * 0.001, float(_rec_run["total"]) * 0.001]; panel.queue_redraw(); return
 	if rec.is_empty():
-		panel.message = "Press RECORD: the circuit is run on the task for the length chosen and every spike is kept, then analysed here."
+		panel.message = "Press “Record”: the circuit is run on the task for the length chosen and every spike is kept, then analysed here."
 		panel.queue_redraw(); return
 	var pairs: PackedFloat64Array = rec["pairs"]; var n := int(rec["n"]); var t_ms := float(rec["t_ms"]); var ns := _pop_neurons()
 	var pops: Array = circuit.get("populations", [])
@@ -229,7 +229,7 @@ func _compute_energy() -> void:
 	elif not rec.is_empty():
 		var pairs: PackedFloat64Array = rec["pairs"]; spikes = pairs.size() / 2; n = int(rec["n"]); t_ms = float(rec["t_ms"]); src = "the last recording"
 	if n == 0 or t_ms < 200.0:
-		panel.message = "Run the circuit for a few seconds in the lab (or RECORD in another tab), then come back: the energy bill is measured from the spikes it produced."; panel.queue_redraw(); return
+		panel.message = "Run the circuit for a few seconds in the lab (or press “Record” in another tab), then come back: the energy bill is measured from the spikes it produced."; panel.queue_redraw(); return
 	var hz := Progress.energy_hz(spikes, n, t_ms)
 	panel.data = {"hz": hz, "budget": Progress.energy_budget(task_id), "neurons": n, "par": Progress.budget(task_id), "t_ms": t_ms, "spikes": spikes,
 		"has_task": task_id != "", "per_pop": per_pop, "src": src, "gap": Progress.star3_gap(task_id, n, hz)}

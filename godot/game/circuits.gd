@@ -547,3 +547,63 @@ static func candidate_text(cand: String) -> String:
 	var p := cand.split(">")
 	if p.size() == 2: return "the pathway %s to %s" % [p[0].strip_edges(), p[1].strip_edges()]
 	return cand
+
+# ---------- structural fingerprint (the reference lock) ----------
+## A fingerprint of what a circuit IS, independent of its name, ids, layout, seed and file metadata: every population as model, size and parameters,
+## every projection as (pre population, post population, sign and weight, delay, synapse, rule), every channel with what it is wired to, and the
+## modulation rows. Ids are replaced by the population's own signature, so renaming a group does not change the print; numbers are rounded to three
+## significant figures, so a value copied from the reference matches and a value tuned by hand on a slider almost never does.
+## The lab compares fingerprint(circuit) with fingerprint(reference): equal means "reference-derived" (no stars), wherever the circuit came from (the
+## REFERENCE button, LOAD from disk, a copied file). Nothing about it is stored in the circuit file.
+static func fingerprint(c: Dictionary) -> String:
+	var sig := {}
+	for p in c.get("populations", []):
+		sig[str(p.get("id", ""))] = "%s*%d{%s}" % [str(p.get("model", "")), pop_n(p), _dict_sig(p.get("params", {}))]
+	var parts := PackedStringArray()
+	for id in sig: parts.append("P " + str(sig[id]))
+	for pr in c.get("projections", []):
+		var a := str(sig.get(proj_pop(pr.get("pre", "")), "?")); var b := str(sig.get(proj_pop(pr.get("post", "")), "?"))
+		parts.append("J %s>%s w%s d%s cv%s %s %s %s" % [a, b, _sig3(proj_weight(pr)), _sig3(proj_delay(pr)), _sig3(float(pr.get("weight_cv", 0.0))), proj_model(pr), proj_wiring(pr), str(segment_offset(pr))])
+	for key in ["inputs", "outputs"]:
+		for ch in c.get(key, []):
+			var t := PackedStringArray()
+			for x in ch.get("targets" if key == "inputs" else "neurons", []):
+				var ps := str(sig.get(proj_pop(x), "?"))
+				if x is Dictionary and (x as Dictionary).has("idx"): ps += "#" + str(x["idx"])
+				t.append(ps)
+			t.sort()
+			if key == "inputs": parts.append("I %s %s w%s [%s]" % [str(ch.get("name", "")), str(ch.get("kind", "")), _sig3(float(ch.get("weight", 0.0))), ",".join(t)])
+			else: parts.append("O %s %s %s g%s t%s [%s]" % [str(ch.get("name", "")), str(ch.get("kind", "rate")), str(ch.get("modulator", "")), _sig3(float(ch.get("gain", 0.0))), _sig3(float(ch.get("tau_ms", 0.0))), ",".join(t)])
+	for row in c.get("modulation", []):
+		if row is Dictionary: parts.append("M %s %s %s %s" % [str(sig.get(proj_pop(row.get("pop", "")), "?")), str(row.get("modulator", "")), str(row.get("param", "")), _dict_sig(row)])
+	parts.sort()
+	return "\n".join(parts).md5_text()
+
+## Three significant figures, as text (0 stays "0").
+static func _sig3(x: float) -> String:
+	if is_zero_approx(x): return "0"
+	var e := floori(log(absf(x)) / log(10.0)) - 2
+	return str(snappedf(x, pow(10.0, e)))
+
+static func _dict_sig(d: Variant) -> String:
+	if not d is Dictionary: return ""
+	var keys := (d as Dictionary).keys(); keys.sort()
+	var out := PackedStringArray()
+	for k in keys:
+		var v: Variant = d[k]
+		out.append("%s=%s" % [str(k), _sig3(float(v)) if (v is float or v is int) else str(v)])
+	return ",".join(out)
+
+## True when `c` is the reference circuit of task `tid` (or a copy of it with only cosmetic changes: layout, names, seed, metadata).
+static func is_reference_of(c: Dictionary, tid: String) -> bool:
+	if tid == "" or neuron_count(c) == 0: return false
+	var ref := reference_print(tid)
+	return ref != "" and fingerprint(c) == ref
+
+static var _ref_prints := {}
+## The fingerprint of task `tid`'s reference circuit ("" when it is not installed), cached.
+static func reference_print(tid: String) -> String:
+	if _ref_prints.has(tid): return _ref_prints[tid]
+	var rc := parse(read_reference(Campaign.ref_path(tid)))
+	var fp := fingerprint(rc) if not rc.is_empty() else ""
+	_ref_prints[tid] = fp; return fp

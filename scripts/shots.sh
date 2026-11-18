@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Retake the documentation screenshots -> docs/screenshots/<screen>-<WxH>.png  (sizes: desktop 1920x1080, phone 844x390 landscape)
 # Without a display (CI, containers) or with SP_SHOTS_GL=1 it renders through xvfb-run and the OpenGL renderer.
-# ONLY="title lab" limits the screens; SS=2 renders at double size and downsamples with Lanczos.
+# ONLY="title lab" limits the screens; SS=2 renders at double size and downsamples with Lanczos; SIZES="1920x1080" limits the sizes.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd); cd "$root"
-scripts/build-gd.sh >/dev/null
+[ -n "${SP_NOBUILD:-}" ] || scripts/build-gd.sh >/dev/null   # SP_NOBUILD=1: use the extension as built (another job may be rebuilding it)
 cd godot
 godot --headless --path . --import >/dev/null 2>&1
-out=$root/docs/screenshots; mkdir -p "$out"
+out=${OUT:-$root/docs/screenshots}; mkdir -p "$out"   # OUT=<dir> writes the shots elsewhere
 SS=${SS:-1}
 tmp=$(mktemp -d); trap 'rm -rf "$tmp" override.cfg' EXIT
 export SP_NOAUTOSAVE=1 SP_NODISPLAY=1 SP_NOTHROTTLE=1 SP_BUDGET_US=${SP_BUDGET_US:-200000}
@@ -27,11 +27,11 @@ shot() {   # shot <name> <WxH> <env assignments...>
   run_godot SP_SHOT_AT="${SP_SHOT_AT:-1.5}" "$@" SP_SHOT="$png"
   [ -f "$png" ] || { echo "MISSING $name-$size"; return 1; }
   if [ "$SS" != 1 ] && [ -n "$im" ]; then "$im" "$png" -filter Lanczos -resize "${w}x${h}!" "$out/$name-$size.png"; else cp "$png" "$out/$name-$size.png"; fi
-  echo "wrote docs/screenshots/$name-$size.png"
+  echo "wrote $out/$name-$size.png"
 }
-ONLY=${ONLY:-"title tasks tasks-spinal tasks-heart tasks-autonomic parts lab-lesion lab-sandbox real-heart real-breathing real-stretch view-heart view-dash view-lungs view-eye view-gut view-limb lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings settings-game notebook notebook-concepts credits"}
+ONLY=${ONLY:-"title real tasks tasks-invertebrates tasks-spinal tasks-heart tasks-breathing tasks-autonomic parts lab-first lab-more lab-baro histo lab-lesion lab-sandbox real-heart real-breathing real-stretch view-heart view-dash view-lungs view-eye view-gut view-limb lab-lamprey lab-worm lab-reflex lab-edit lab-world lab-scopes lab-empty lab-overlay lab-adv lab-menu analysis settings settings-game notebook notebook-concepts credits"}
 PHONE_ONLY=" lab-world lab-scopes lab-menu "
-for size in 1920x1080 844x390; do
+for size in ${SIZES:-1920x1080 844x390}; do
   for s in $ONLY; do
     [[ "$PHONE_ONLY" == *" $s "* && "$size" != 844x390 ]] && continue
     case $s in
@@ -43,6 +43,14 @@ for size in 1920x1080 844x390; do
       v3-celeb) shot v3-celeb $size SP_SCREEN=lab SP_TASK=m_threshold SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=3000 SP_CELEB=1 SP_SHOT_AT=2.5 ;;
       v3-boss) shot v3-boss $size SP_SCREEN=lab SP_TASK=boss_autonomic_exam SP_REF=1 SP_SPEED=10 SP_SIM_UNTIL=70000 SP_LABTAB=world SP_SHOT_AT=4 ;;
       title) shot title $size SP_SCREEN=title ;;
+      lab-first) shot lab-first $size SP_SCREEN=lab SP_TASK=m_threshold SP_SPEED=1 SP_SHOT_AT=2 ;;   # level 1 as a new player sees it (progressive disclosure)
+      lab-baro) shot lab-baro $size SP_SCREEN=lab SP_TASK=baroreflex SP_UNLOCK_ALL=1 SP_SPEED=1 SP_SHOT_AT=2 ;;
+      lab-more) shot lab-more $size SP_SCREEN=lab SP_TASK=m_threshold SP_SPEED=1 SP_MENU=1 SP_SHOT_AT=2 ;;
+      histo) shot histo $size SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=50 SP_SIM_UNTIL=20000 SP_HISTO=1 SP_SHOT_AT=4 ;;
+      histo-empty) shot histo-empty $size SP_SCREEN=lab SP_TASK=m_threshold SP_REF=1 SP_SPEED=5 SP_SIM_UNTIL=3000 SP_HISTO=1 SP_SHOT_AT=3 ;;
+      real) shot real $size SP_SCREEN=real ;;
+      tasks-invertebrates) shot tasks-invertebrates $size SP_SCREEN=tasks SP_CHAPTER=invertebrates SP_UNLOCK_ALL=1 ;;
+      tasks-breathing) shot tasks-breathing $size SP_SCREEN=tasks SP_CHAPTER=breathing SP_UNLOCK_ALL=1 ;;
       settings) shot settings $size SP_SCREEN=settings SP_TAB=Display ;;
       tasks) shot tasks $size SP_SCREEN=tasks SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;
       tasks-spinal) shot tasks-spinal $size SP_SCREEN=tasks SP_CHAPTER=spinal SP_PROGRESS=${SP_PROGRESS:-reflex:3:96,worm:2:84,lamprey:1:71} ;;

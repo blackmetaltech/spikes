@@ -26,7 +26,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	pr.add_child(Kit.btn("LEAVE LESION LAB" if lesion_lab_on else "LESION LAB", func(): lesion_lab_pressed.emit(), "amber" if lesion_lab_on else "cyan", 18))
 	pr.add_child(Kit.label("Scopes on the right; click a group to trace it." if Layout.phone else "Probes: every candidate connection is drawn, but one of them is dead. Watch which groups fire and which do not answer; or open the lesion lab and cut a suspected connection: a working one changes the symptoms or the activity downstream, the dead one changes nothing. Then name the lesion.", fs - 1, Kit.TEXT_SOFT, true))
 	# candidates
-	add_child(Kit.label("WHICH CONNECTION IS MISSING OR LESIONED?", fs, Kit.TEXT))
+	add_child(Kit.label("Which connection is missing or lesioned?", fs, Kit.TEXT))
 	var answer := str(dx.get("answer", ""))
 	var labels: Dictionary = dx.get("labels", {}); var explain: Dictionary = dx.get("explain", {})
 	for cand in dx.get("candidates", []):

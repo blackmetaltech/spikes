@@ -12,7 +12,7 @@ extends RefCounted
 ##
 ## Dev hooks:  SP_MOCK=1 adds synthetic tasks (game/mock_task.gd) so the body views can be looked at before the engine has them
 ##             SP_MOCK03=1 adds synthetic v0.3 levels (micro-puzzles, bosses, diagnosis, variants, notebook entries) and v0.3 facts on the real tasks, so the
-##             map and the notebook can be looked at before the content agents have landed theirs (see MOCK03_* below)
+##             map and the notebook can be looked at before the content agents have landed theirs (ORDER03 / DEFS03 / OVER03 in game/mock_task.gd)
 ##             SP_UNLOCK_ALL=1 opens every node and every part.
 
 const CHAPTERS := [
@@ -63,58 +63,27 @@ static var _have_ids := false
 static var _notes := {}
 static var _nodes := {}
 
-## Synthetic v0.3 levels (SP_MOCK03=1): the play order per chapter (real task ids stay where the engine has them) and what each synthetic level says about
-## itself. Real tasks get the v0.3 facts from MOCK03_OVER until the engine supplies them. {kind, concepts_new, concepts_used, spine, parent, variants, note}.
-const MOCK03_ORDER := {
-	"invertebrates": ["m3_threshold", "m3_excitation", "m3_convergence", "reflex", "m3_inhibition", "m3_subtraction", "worm", "m3_adaptation", "m3_half_centre", "lamprey"],
-	"spinal": ["m3_recruitment", "m3_reciprocal", "stretch_reflex", "m3_recurrent", "renshaw", "posture", "m3_timed_bursts", "reach", "m3_sprint", "m3_clonus"],
-	"heart": ["m3_coupling", "m3_pacemaking", "heart_pacemaker", "m3_neuromod", "heart_autonomic", "m3_feedforward", "baroreflex", "m3_orthostatic"],
-	"breathing": ["m3_rhythm_gating", "breathing"],
-	"autonomic": ["m3_waves", "pupil", "peristalsis", "m3_divergent", "fight_or_flight", "m3_exam", "m3_horner"]}
-const MOCK03_DEFS := {
-	"m3_threshold": {"title": "One cell, one step", "kind": "micro", "new": ["threshold"]},
-	"m3_excitation": {"title": "Relay with a delay", "kind": "micro", "new": ["excitation"], "used": ["threshold"]},
-	"m3_convergence": {"title": "Three of five", "kind": "micro", "new": ["convergence"], "used": ["threshold", "excitation"]},
-	"m3_inhibition": {"title": "Silence a neighbour", "kind": "micro", "new": ["inhibition"], "used": ["excitation"]},
-	"m3_subtraction": {"title": "A minus B", "kind": "micro", "new": ["subtraction"], "used": ["excitation", "inhibition"]},
-	"m3_adaptation": {"title": "Burst, then slow", "kind": "micro", "new": ["adaptation"], "used": ["threshold"]},
-	"m3_half_centre": {"title": "Flip-flop", "kind": "micro", "new": ["half_centre"], "used": ["inhibition", "adaptation"]},
-	"m3_recruitment": {"title": "Graded force", "kind": "micro", "new": ["recruitment"], "used": ["threshold", "convergence"]},
-	"m3_reciprocal": {"title": "Antagonist relaxes", "kind": "micro", "new": ["reciprocal_inhibition"], "used": ["inhibition"]},
-	"m3_recurrent": {"title": "Trim the gain", "kind": "micro", "new": ["recurrent_inhibition"], "used": ["inhibition", "recruitment"]},
-	"m3_timed_bursts": {"title": "Three bursts in order", "kind": "micro", "new": ["timed_bursts"], "used": ["excitation", "adaptation"]},
-	"m3_sprint": {"title": "Spinal sprint", "kind": "boss", "used": ["recruitment", "reciprocal_inhibition", "timed_bursts"], "note": ["Why spinal cats can walk", "Cats whose spinal cord was cut from the brain can still walk on a treadmill: the stepping rhythm is made by circuits inside the cord, and sensory feedback only tunes it.", "Brown TG (1911) Proc R Soc Lond B 84:308-319; Grillner S (1985) Science 228:143-149"]},
-	"m3_clonus": {"title": "The jerking ankle", "kind": "diagnosis", "spine": false, "parent": "stretch_reflex", "used": ["recurrent_inhibition"], "sym": "Rhythmic 5 Hz jerks of the ankle when the foot is pushed up and held."},
-	"m3_coupling": {"title": "Two clocks", "kind": "micro", "new": ["coupling"], "used": ["inhibition"]},
-	"m3_pacemaking": {"title": "Who ticks alone?", "kind": "micro", "new": ["pacemaking"], "used": ["threshold"]},
-	"m3_neuromod": {"title": "Slow the clock", "kind": "micro", "new": ["neuromodulation"], "used": ["pacemaking"]},
-	"m3_feedforward": {"title": "See it coming", "kind": "micro", "new": ["feedforward"], "used": ["negative_feedback"]},
-	"m3_orthostatic": {"title": "Dizzy on standing", "kind": "diagnosis", "spine": false, "parent": "baroreflex", "used": ["negative_feedback"], "sym": "Blood pressure falls and the heart rate does not rise when the patient stands up."},
-	"m3_rhythm_gating": {"title": "Breathe faster", "kind": "micro", "new": ["rhythm_gating"], "used": ["adaptation"]},
-	"m3_waves": {"title": "Pass it along", "kind": "micro", "new": ["travelling_waves"], "used": ["excitation", "inhibition"]},
-	"m3_divergent": {"title": "One cue, many targets", "kind": "micro", "new": ["divergent_command"], "used": ["excitation"]},
-	"m3_exam": {"title": "Autonomic exam", "kind": "boss", "used": ["neuromodulation", "negative_feedback", "divergent_command"]},
-	"m3_horner": {"title": "One small pupil", "kind": "diagnosis", "spine": false, "parent": "pupil", "used": ["divergent_command"], "sym": "A drooping lid and a small pupil on the left side only."}}
-const MOCK03_OVER := {
-	"reflex": {"new": ["convergence"], "used": ["threshold", "excitation"], "variants": {"half_neurons": "With half the neurons"},
-		"note": ["The knee-jerk is a two-neuron arc", "The tendon-tap reflex has just one synapse between the muscle spindle afferent and the motor neuron, which is why its delay is so short.", "Sherrington CS (1906) The Integrative Action of the Nervous System"]},
-	"worm": {"new": ["subtraction"], "used": ["inhibition"], "variants": {"noise_x2": "At double the noise"},
-		"note": ["Two salt neurons steer a worm", "In C. elegans the ASEL and ASER neurons respond to salt going up and down, and their difference steers the animal up a gradient.", "Suzuki H et al. (2008) Nature 454:114-117, doi:10.1038/nature06927"]},
-	"lamprey": {"new": ["half_centre"], "used": ["inhibition", "adaptation"], "variants": {"izhikevich_only": "Only Izhikevich cells"},
-		"note": ["A swimming rhythm in a piece of cord", "An isolated lamprey spinal cord bathed in NMDA produces fictive swimming: alternating left-right bursts with a head-to-tail delay.", "Wallen P, Williams TL (1984) J Physiol 347:225-239, doi:10.1113/jphysiol.1984.sp015063"]},
-	"stretch_reflex": {"new": ["reciprocal_inhibition"], "used": ["recruitment"], "variants": {"vagus_cut": "Descending drive cut"}},
-	"renshaw": {"new": ["recurrent_inhibition"], "used": ["inhibition"]},
-	"heart_pacemaker": {"new": ["pacemaking"], "used": ["coupling"]},
-	"baroreflex": {"new": ["negative_feedback"], "used": ["neuromodulation"], "variants": {"vagus_cut": "With the vagus cut"}}}
-
-static func mock03() -> bool: return OS.get_environment("SP_MOCK03") != ""
+## Dev-only synthetic levels (game/mock_task.gd): debug builds only (the editor, `godot --path godot`), and only with SP_MOCK / SP_MOCK03 set.
+## Release exports leave the file out (export_presets.cfg exclude_filter), so production never has them.
+const MOCK_PATH := "res://game/mock_task.gd"
+static var _mock_script: Variant = null
+static func mock_script() -> Variant:
+	if not OS.is_debug_build(): return null
+	if _mock_script == null and ResourceLoader.exists(MOCK_PATH): _mock_script = load(MOCK_PATH)
+	return _mock_script
+static func _mc(name: String) -> Variant: return (mock_script() as GDScript).get_script_constant_map().get(name)
+static func mock_on() -> bool: return OS.get_environment("SP_MOCK") != "" and mock_script() != null
+static func mock03() -> bool: return OS.get_environment("SP_MOCK03") != "" and mock_script() != null
+## The synthetic body-system task ids (SP_MOCK); [] when mocks are off.
+static func mock_ids() -> Array: return (_mc("IDS") as Array).duplicate() if mock_on() else []
+static func mock_has(id: String) -> bool: return mock_on() and (_mc("DEF") as Dictionary).has(id)
 static func ext_ok() -> bool: return ClassDB.class_exists("SpikeTask")
 static func unlock_all() -> bool: return OS.get_environment("SP_UNLOCK_ALL") != ""
 
 ## A task object for `id`: the engine's SpikeTask, or a synthetic one for the SP_MOCK dev ids. null when unknown. The task is put in the player's current
 ## difficulty mode (Task::set_mode), so everything built from it (bands, noise, seeds) follows the mode.
 static func make(id: String) -> Variant:
-	if MockTask.has(id): var m := MockTask.new(); m.make(id); return m
+	if mock_has(id): var m = (mock_script() as GDScript).new(); m.make(id); return m
 	if not ext_ok(): return null
 	var t = ClassDB.instantiate("SpikeTask")
 	if not t.make(id): return null
@@ -122,7 +91,7 @@ static func make(id: String) -> Variant:
 	return t
 
 static func ref_path(id: String) -> String:
-	if MockTask.has(id): return MockTask.REF
+	if mock_has(id): return str(_mc("REF"))
 	if not ext_ok(): return ""
 	return str(ClassDB.instantiate("SpikeTask").call("reference_circuit_of", id))
 
@@ -138,11 +107,11 @@ static func installed() -> Array:
 	if mock03():
 		var real := out.duplicate(); out = []
 		for c in CHAPTERS:
-			for id in MOCK03_ORDER.get(c["id"], []):
+			for id in (_mc("ORDER03") as Dictionary).get(c["id"], []):
 				if str(id).begins_with("m3_") or real.has(id): out.append(id)
 		for id in real:
 			if not out.has(id): out.append(id)
-	if OS.get_environment("SP_MOCK") != "": out.append_array(MockTask.IDS)
+	out.append_array(mock_ids())
 	_ids = out; _have_ids = true; return out
 
 static func is_installed(id: String) -> bool: return installed().has(task_of(id))
@@ -172,13 +141,13 @@ static func info(id: String) -> Dictionary:
 			d["concepts_new"] = Array(t.concepts_new()); d["concepts_used"] = Array(t.concepts_used())
 			d["variants"] = (t.variants() as Dictionary).duplicate()
 			if d["kind"] == "diagnosis": d["symptoms"] = str((t.diagnosis() as Dictionary).get("symptoms", ""))
-	elif id.begins_with("m3_") and MOCK03_DEFS.has(id):
-		var m: Dictionary = MOCK03_DEFS[id]
+	elif id.begins_with("m3_") and mock03() and (_mc("DEFS03") as Dictionary).has(id):
+		var m: Dictionary = _mc("DEFS03")[id]
 		d["title"] = str(m["title"]); d["synthetic"] = true; d["duration_ms"] = 4000.0; d["brief"] = "Synthetic level for looking at the map (SP_MOCK03). Nothing to build."
 		for c in CHAPTERS:
-			if (MOCK03_ORDER[c["id"]] as Array).has(id): d["chapter"] = c["id"]
+			if ((_mc("ORDER03") as Dictionary)[c["id"]] as Array).has(id): d["chapter"] = c["id"]
 	if mock03():
-		var m: Dictionary = MOCK03_DEFS.get(id, MOCK03_OVER.get(id, {}))
+		var m: Dictionary = (_mc("DEFS03") as Dictionary).get(id, (_mc("OVER03") as Dictionary).get(id, {}))
 		if not m.is_empty():
 			if m.has("kind"): d["kind"] = m["kind"]
 			if m.has("spine"): d["spine"] = m["spine"]
@@ -199,7 +168,7 @@ static func notebook(id: String) -> Dictionary:
 		var d: Dictionary = t.notebook()
 		n = {"title": str(d.get("title", "")), "text": str(d.get("text", "")), "citation": str(d.get("citation", ""))}
 	if n["title"] == "" and mock03():
-		var m: Dictionary = MOCK03_DEFS.get(id, MOCK03_OVER.get(id, {}))
+		var m: Dictionary = (_mc("DEFS03") as Dictionary).get(id, (_mc("OVER03") as Dictionary).get(id, {}))
 		if m.has("note"): n = {"title": m["note"][0], "text": m["note"][1], "citation": m["note"][2]}
 	_notes[id] = n; return n
 

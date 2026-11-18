@@ -1,5 +1,6 @@
-class_name MockTask
 extends RefCounted
+## NOT a class_name: release exports exclude this file (export_presets.cfg) and the game reaches it only through Campaign.mock_script(),
+## which loads it in debug builds with SP_MOCK / SP_MOCK03 set.
 ## Synthetic stand-in for the body-system tasks the engine does not have yet (SP_MOCK=1, dev only). It answers the same questions as SpikeTask
 ## (title, chapter, view, par_neurons, timeline, bands, modulators, body().readouts, score) with readouts that are plain functions of time, so
 ## the body views, the perturbation timeline, the dashboard and the lesion lab can be designed and looked at against the contract.
@@ -31,6 +32,50 @@ const DEF := {
 		"events": [[12000.0, 20000.0, "threat cue"], [40000.0, 12000.0, "safe again"]],
 		"bands": [["hr_bpm", "bpm", 60.0, 100.0], ["map_mmhg", "mmHg", 80.0, 110.0], ["pupil_mm", "mm", 2.5, 6.0], ["gut_motility", "%", 40.0, 100.0]]}}
 
+## Synthetic v0.3 levels (SP_MOCK03=1): the play order per chapter (real task ids stay where the engine has them) and what each synthetic level says about
+## itself. Real tasks get the v0.3 facts from MOCK03_OVER until the engine supplies them. {kind, concepts_new, concepts_used, spine, parent, variants, note}.
+const ORDER03 := {
+	"invertebrates": ["m3_threshold", "m3_excitation", "m3_convergence", "reflex", "m3_inhibition", "m3_subtraction", "worm", "m3_adaptation", "m3_half_centre", "lamprey"],
+	"spinal": ["m3_recruitment", "m3_reciprocal", "stretch_reflex", "m3_recurrent", "renshaw", "posture", "m3_timed_bursts", "reach", "m3_sprint", "m3_clonus"],
+	"heart": ["m3_coupling", "m3_pacemaking", "heart_pacemaker", "m3_neuromod", "heart_autonomic", "m3_feedforward", "baroreflex", "m3_orthostatic"],
+	"breathing": ["m3_rhythm_gating", "breathing"],
+	"autonomic": ["m3_waves", "pupil", "peristalsis", "m3_divergent", "fight_or_flight", "m3_exam", "m3_horner"]}
+const DEFS03 := {
+	"m3_threshold": {"title": "One cell, one step", "kind": "micro", "new": ["threshold"]},
+	"m3_excitation": {"title": "Relay with a delay", "kind": "micro", "new": ["excitation"], "used": ["threshold"]},
+	"m3_convergence": {"title": "Three of five", "kind": "micro", "new": ["convergence"], "used": ["threshold", "excitation"]},
+	"m3_inhibition": {"title": "Silence a neighbour", "kind": "micro", "new": ["inhibition"], "used": ["excitation"]},
+	"m3_subtraction": {"title": "A minus B", "kind": "micro", "new": ["subtraction"], "used": ["excitation", "inhibition"]},
+	"m3_adaptation": {"title": "Burst, then slow", "kind": "micro", "new": ["adaptation"], "used": ["threshold"]},
+	"m3_half_centre": {"title": "Flip-flop", "kind": "micro", "new": ["half_centre"], "used": ["inhibition", "adaptation"]},
+	"m3_recruitment": {"title": "Graded force", "kind": "micro", "new": ["recruitment"], "used": ["threshold", "convergence"]},
+	"m3_reciprocal": {"title": "Antagonist relaxes", "kind": "micro", "new": ["reciprocal_inhibition"], "used": ["inhibition"]},
+	"m3_recurrent": {"title": "Trim the gain", "kind": "micro", "new": ["recurrent_inhibition"], "used": ["inhibition", "recruitment"]},
+	"m3_timed_bursts": {"title": "Three bursts in order", "kind": "micro", "new": ["timed_bursts"], "used": ["excitation", "adaptation"]},
+	"m3_sprint": {"title": "Spinal sprint", "kind": "boss", "used": ["recruitment", "reciprocal_inhibition", "timed_bursts"], "note": ["Why spinal cats can walk", "Cats whose spinal cord was cut from the brain can still walk on a treadmill: the stepping rhythm is made by circuits inside the cord, and sensory feedback only tunes it.", "Brown TG (1911) Proc R Soc Lond B 84:308-319; Grillner S (1985) Science 228:143-149"]},
+	"m3_clonus": {"title": "The jerking ankle", "kind": "diagnosis", "spine": false, "parent": "stretch_reflex", "used": ["recurrent_inhibition"], "sym": "Rhythmic 5 Hz jerks of the ankle when the foot is pushed up and held."},
+	"m3_coupling": {"title": "Two clocks", "kind": "micro", "new": ["coupling"], "used": ["inhibition"]},
+	"m3_pacemaking": {"title": "Who ticks alone?", "kind": "micro", "new": ["pacemaking"], "used": ["threshold"]},
+	"m3_neuromod": {"title": "Slow the clock", "kind": "micro", "new": ["neuromodulation"], "used": ["pacemaking"]},
+	"m3_feedforward": {"title": "See it coming", "kind": "micro", "new": ["feedforward"], "used": ["negative_feedback"]},
+	"m3_orthostatic": {"title": "Dizzy on standing", "kind": "diagnosis", "spine": false, "parent": "baroreflex", "used": ["negative_feedback"], "sym": "Blood pressure falls and the heart rate does not rise when the patient stands up."},
+	"m3_rhythm_gating": {"title": "Breathe faster", "kind": "micro", "new": ["rhythm_gating"], "used": ["adaptation"]},
+	"m3_waves": {"title": "Pass it along", "kind": "micro", "new": ["travelling_waves"], "used": ["excitation", "inhibition"]},
+	"m3_divergent": {"title": "One cue, many targets", "kind": "micro", "new": ["divergent_command"], "used": ["excitation"]},
+	"m3_exam": {"title": "Autonomic exam", "kind": "boss", "used": ["neuromodulation", "negative_feedback", "divergent_command"]},
+	"m3_horner": {"title": "One small pupil", "kind": "diagnosis", "spine": false, "parent": "pupil", "used": ["divergent_command"], "sym": "A drooping lid and a small pupil on the left side only."}}
+const OVER03 := {
+	"reflex": {"new": ["convergence"], "used": ["threshold", "excitation"], "variants": {"half_neurons": "With half the neurons"},
+		"note": ["The knee-jerk is a two-neuron arc", "The tendon-tap reflex has just one synapse between the muscle spindle afferent and the motor neuron, which is why its delay is so short.", "Sherrington CS (1906) The Integrative Action of the Nervous System"]},
+	"worm": {"new": ["subtraction"], "used": ["inhibition"], "variants": {"noise_x2": "At double the noise"},
+		"note": ["Two salt neurons steer a worm", "In C. elegans the ASEL and ASER neurons respond to salt going up and down, and their difference steers the animal up a gradient.", "Suzuki H et al. (2008) Nature 454:114-117, doi:10.1038/nature06927"]},
+	"lamprey": {"new": ["half_centre"], "used": ["inhibition", "adaptation"], "variants": {"izhikevich_only": "Only Izhikevich cells"},
+		"note": ["A swimming rhythm in a piece of cord", "An isolated lamprey spinal cord bathed in NMDA produces fictive swimming: alternating left-right bursts with a head-to-tail delay.", "Wallen P, Williams TL (1984) J Physiol 347:225-239, doi:10.1113/jphysiol.1984.sp015063"]},
+	"stretch_reflex": {"new": ["reciprocal_inhibition"], "used": ["recruitment"], "variants": {"vagus_cut": "Descending drive cut"}},
+	"renshaw": {"new": ["recurrent_inhibition"], "used": ["inhibition"]},
+	"heart_pacemaker": {"new": ["pacemaking"], "used": ["coupling"]},
+	"baroreflex": {"new": ["negative_feedback"], "used": ["neuromodulation"], "variants": {"vagus_cut": "With the vagus cut"}}}
+
 var _id := ""
 var _t := 0.0
 var _seed := 1
@@ -39,7 +84,6 @@ var _ok_ms := 0.0     # time spent inside the band, summed over the judged trace
 var _all_ms := 0.0
 var _ro := {}
 
-static func has(id: String) -> bool: return DEF.has(id) and OS.get_environment("SP_MOCK") != ""
 
 func make(id: String) -> bool:
 	if not DEF.has(id): return false

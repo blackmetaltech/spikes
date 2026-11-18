@@ -360,7 +360,7 @@ func _draw() -> void:
 			if rc.get_center().x < size.x * 0.5: lo = maxf(lo, rc.end.x + 10.0)
 			else: hi = minf(hi, rc.position.x - 10.0)
 		var hw := maxf(hi - lo, 160.0)
-		draw_multiline_string(font, Vector2(lo, size.y * 0.16), "An empty bench. Press + EXCITATORY above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 6, Kit.TEXT_SOFT)
+		draw_multiline_string(font, Vector2(lo, size.y * 0.16), "An empty bench. Press “+ Excitatory” above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 6, Kit.TEXT_SOFT)
 
 ## Does the circuit have the element a hint or verdict names (a population, "in:" / "out:" channel, "pop:ID", "proj:i" or "pre>post")?
 func _element_exists(name: String) -> bool:
