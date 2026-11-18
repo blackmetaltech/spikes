@@ -38,6 +38,6 @@ Spike is a puzzle game about wiring small spiking neural circuits that run a sim
 | 0.1 | **First circuit**: NEST embedded, circuit JSON, three tasks (reflex arc, lamprey swimmer, worm chemotaxis), editor and scopes, 3-node motif census, Python package with PyNEST parity | shipped |
 | 0.2 | **Body systems**: five-chapter campaign of eleven tasks, body modules, NESTML cells, neuromodulators, parts bin, lesion lab | shipped |
 | 0.3 | **Learning curve**: micro-puzzles, bosses, diagnosis cases, modes, hints, variants, notebook, sound, instant check | shipped |
-| 0.4 | **Honest puzzles, shippable game** (docs/REQ-0.4.md): every level checks the mechanism it teaches through the circuit structure; verdicts and early hints carry no numbers; a table of cheap circuits that must fail; faster Check; verified citations; the UI honesty and cleanup items above; export and CI | in progress |
+| 0.4 | **Honest puzzles, shippable game** (docs/REQ-0.4.md): every level checks the mechanism it teaches through the circuit structure; verdicts and early hints carry no numbers; a table of cheap circuits that must fail; faster Check; verified citations; the UI honesty and cleanup items above; export and CI | shipped |
 | 0.5 | **Diagnosis as a second core loop**: more cases with varied lesions, scored on probes used; the bodies drawn large | planned |
 | later | Sharing circuits, real-player histograms (opt-in uploads), Windows build, a lighter embedded simulator validated against NEST | ideas |

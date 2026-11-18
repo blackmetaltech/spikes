@@ -1,5 +1,7 @@
 # v0.4 requirements: Honest puzzles, shippable game
 
+**Status: shipped in 0.4.0** except: Windows export, CI/Docker never run, CHECK over target on five levels, novice gaps (see CHANGELOG "Known gaps").
+
 Source: `docs/REVIEW-HARSH.md`. 0.4 fixes the puzzle core and makes the game shippable. 0.5 will make diagnosis the second core loop. NEST stays as the runtime.
 
 ## Rules for every level (the "honesty contract")
