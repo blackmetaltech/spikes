@@ -11,7 +11,7 @@ var dials: ModDials
 func setup(tele_getter: Callable) -> SandboxPanel:
 	tele_get = tele_getter
 	var phone := Layout.phone; var f := Kit.f()
-	add_theme_stylebox_override("panel", Kit.sb(Color("#081019"), Kit.LINE, 1, 12, 14 if not phone else 10, false))
+	add_theme_stylebox_override("panel", Kit.sb(Kit.CARD, Color(Kit.INK, 0.6), 1, 2, 14 if not phone else 10, false))
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(10 * f) if not phone else 5); add_child(v)
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 10); v.add_child(hd)
@@ -46,7 +46,7 @@ class RateBars extends Control:
 		if is_visible_in_tree(): queue_redraw()
 	func _draw() -> void:
 		var fz := Kit.fs(14)
-		draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 8, 0, false), Rect2(Vector2.ZERO, size))
+		draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.5), 1, 2, 0, false), Rect2(Vector2.ZERO, size))
 		draw_string(Fonts.regular, Vector2(8, float(fz) + 2.0), "network spikes per 100 ms", HORIZONTAL_ALIGNMENT_LEFT, size.x - 12, fz, Kit.TEXT_SOFT)
 		var t: Telemetry = tele_get.call()
 		if t == null or t.sim == null: return
@@ -58,7 +58,8 @@ class RateBars extends Control:
 		var inner := Rect2(8, float(fz) + 8.0, size.x - 16.0, size.y - float(fz) - 14.0); var bw := inner.size.x / float(nb)
 		for i in nb:
 			var h := inner.size.y * bins[i] / mx
-			draw_rect(Rect2(inner.position.x + bw * float(i) + 1.0, inner.end.y - h, bw - 2.0, h), Color(Kit.exc(), 0.85))
+			var br := Rect2(inner.position.x + bw * float(i) + 1.0, inner.end.y - h, bw - 2.0, h)
+			if h > 0.5: draw_rect(br, Color(Kit.exc(), 0.35)); draw_rect(br, Kit.exc().darkened(0.2), false, 1.0)
 		draw_string(Fonts.regular, Vector2(size.x - 70.0, float(fz) + 2.0), "max %d" % int(mx), HORIZONTAL_ALIGNMENT_RIGHT, 62, fz, Kit.TEXT_SOFT)
 
 ## Mean firing rate of each population over the last second, one bar per population (Hz per neuron), in the circuit's order.
@@ -85,5 +86,5 @@ class PopRates extends Control:
 			var y := top + rh * float(i); var col := Kit.inh() if str(kd.get(str(pops[i].get("id", "")), "E")) == "I" else Kit.exc()
 			draw_string(Fonts.regular, Vector2(0, y + rh * 0.5 + float(fz) * 0.35), str(pops[i].get("id", "")), HORIZONTAL_ALIGNMENT_LEFT, lw, fz, Kit.TEXT)
 			var bw := (size.x - lw - 70.0) * hz[i] / mx
-			draw_rect(Rect2(lw, y + 3.0, size.x - lw - 70.0, rh - 6.0), Color(Kit.LINE, 0.4)); draw_rect(Rect2(lw, y + 3.0, bw, rh - 6.0), Color(col, 0.9))
+			draw_rect(Rect2(lw, y + 3.0, size.x - lw - 70.0, rh - 6.0), Color("#FBF7EE")); draw_rect(Rect2(lw, y + 3.0, bw, rh - 6.0), Color(col, 0.8)); draw_rect(Rect2(lw, y + 3.0, size.x - lw - 70.0, rh - 6.0), Color(Kit.INK, 0.6), false, 1.0)
 			draw_string(Fonts.regular, Vector2(size.x - 62.0, y + rh * 0.5 + float(fz) * 0.35), "%.1f Hz" % hz[i], HORIZONTAL_ALIGNMENT_RIGHT, 60.0, fz, Kit.TEXT)

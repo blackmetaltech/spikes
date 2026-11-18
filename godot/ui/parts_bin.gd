@@ -68,7 +68,7 @@ func _card_or_row(m: String, f: float, phone: bool) -> Control:
 ## Phone picker row: title, model and family, the f-I sparkline and a USE button; tapping the row opens the full card.
 func _row(m: String) -> Control:
 	var usable := _usable(m)
-	var p := PanelContainer.new(); p.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL if usable else Color("#0b121f"), Kit.exc() if m == selected else Kit.LINE, 2 if m == selected else 1, 10, 8, false))
+	var p := PanelContainer.new(); p.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL if usable else Kit.WELL, Kit.exc() if m == selected else Kit.LINE, 2 if m == selected else 1, 10, 8, false))
 	p.mouse_filter = Control.MOUSE_FILTER_STOP; p.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT: _select(m))
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10); p.add_child(h)
 	var v := VBoxContainer.new(); v.size_flags_horizontal = Control.SIZE_EXPAND_FILL; v.add_theme_constant_override("separation", 0); h.add_child(v)
@@ -106,7 +106,7 @@ func _card(m: String, f: float, phone: bool) -> Control:
 	var w := (360.0 * f) if not phone else 300.0
 	var p := PanelContainer.new(); p.custom_minimum_size = Vector2(w, 0)
 	var edge := Kit.exc() if is_sel else (Kit.LINE if usable else Color(Kit.LINE, 0.6))
-	p.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL if usable else Color("#0b121f"), edge, 2 if is_sel else 1, 12, 14, false))
+	p.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL if usable else Kit.WELL, edge, 2 if is_sel else 1, 12, 14, false))
 	p.mouse_filter = Control.MOUSE_FILTER_STOP; p.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT: _select(m))
 	if mode == "pick" and usable: p.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(7 * f) if not phone else 5); p.add_child(v)
@@ -152,7 +152,7 @@ class Thumb extends Control:
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular
-		draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 8, 0, false), Rect2(Vector2.ZERO, size))
+		draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.5), 1, 2, 0, false), Rect2(Vector2.ZERO, size))
 		var col := (Kit.exc() if kind == "fi" else Kit.inh()); if dim: col = Color(col, 0.45)
 		var title := "f-I" if kind == "fi" else "V_m"
 		draw_string(f, Vector2(8, float(fz) + 2.0), title, HORIZONTAL_ALIGNMENT_LEFT, size.x - 12, fz, Color(Kit.TEXT_SOFT, 0.95))
@@ -167,7 +167,7 @@ class Thumb extends Control:
 		for i in xs.size(): pts.append(Vector2(inner.position.x + inner.size.x * (xs[i] - x0) / maxf(x1 - x0, 1e-6), inner.end.y - inner.size.y * (ys[i] - lo) / maxf(hi - lo, 1e-6)))
 		if kind == "vm" and lo < -60.0 and hi > -60.0: pass
 		draw_line(Vector2(inner.position.x, inner.end.y), Vector2(inner.end.x, inner.end.y), Color(Kit.LINE, 0.8), 1.0)
-		draw_polyline(pts, Color(col, 0.25), 5.0, true); draw_polyline(pts, col, 1.8, true)
+		draw_polyline(pts, col, 1.6, true)
 		if size.x < 200.0: return   # a narrow thumbnail has no room for the range text
 		var rng := ("%d Hz" % int(roundf(hi))) if kind == "fi" else ("%d to %d mV" % [int(roundf(lo + 3.0)), int(roundf(hi - 3.0))])
 		draw_string(f, Vector2(size.x - 8.0 - 120.0, float(fz) + 2.0), rng, HORIZONTAL_ALIGNMENT_RIGHT, 120, fz, Color(Kit.TEXT, 0.9))

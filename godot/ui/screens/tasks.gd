@@ -30,23 +30,22 @@ func build() -> void:
 	for side in ["left", "right"]: margin.add_theme_constant_override("margin_" + side, mx)
 	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my); add_child(margin)
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(14 * f) if not phone else 6); margin.add_child(v)
-	var head := HBoxContainer.new(); head.add_theme_constant_override("separation", 14 if not phone else 8); v.add_child(head)
-	var bs := int(24 * f) if not phone else 18
-	back_btn = Kit.btn("BACK", func(): app.back(), "panel", bs, Vector2(120 if not phone else 70, 0)); head.add_child(back_btn)
-	var tt := Kit.shout("Campaign", int(50 * f) if not phone else 26, Kit.TEXT); tt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tt.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(tt)
+	var hb := Kit.page_head("Campaign", func(): app.back(), phone); var head: HBoxContainer = hb[0]; back_btn = hb[1]; v.add_child(head)
+	var bs := int(22 * f) if not phone else 18
+	(head.get_node("PageTitle") as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mode_step = Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], Progress.mode(), func(id): _on_mode(str(id)), 170.0 if not phone else 112.0, int(24 * f) if not phone else 15, 44.0 if not phone else 32.0)
 	mode_step.tooltip_text = "Difficulty. Switch any time. Guided: recipe in the brief. Standard: SHOW RECIPE costs the third star. Researcher: no recipe, a pass needs TEST x5."
 	head.add_child(mode_step)
-	head.add_child(Kit.btn("NOTEBOOK" if not phone else "NOTES", func(): app.show_screen("notebook"), "panel", bs))
-	head.add_child(Kit.btn("PARTS BIN" if not phone else "PARTS", func(): app.show_screen("parts"), "cyan", bs))
-	head.add_child(Kit.btn("SANDBOX" if not phone else "LAB", func(): app.open_lab(""), "panel", bs))
+	head.add_child(Kit.btn("Notebook" if not phone else "Notes", func(): app.show_screen("notebook"), "panel", bs))
+	head.add_child(Kit.btn("Parts bin" if not phone else "Parts", func(): app.show_screen("parts"), "panel", bs))
+	head.add_child(Kit.btn("Sandbox" if not phone else "Lab", func(): app.open_lab(""), "ghost", bs))
 	if not Campaign.ext_ok():
 		v.add_child(Kit.label("The spike-gd GDExtension is not loaded. Run scripts/build-gd.sh.", 22, Kit.RED, true)); return
 	if chapter == "": chapter = app.campaign_chapter if app != null and app.campaign_chapter != "" else _default_chapter()
 	if sel == "": sel = app.campaign_node if app != null else ""
 	v.add_child(_tabs(f, phone))
 	var body := HBoxContainer.new(); body.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(18 * f) if not phone else 10); v.add_child(body)
-	var mp := Kit.panel(Color("#0a111d"), 0); mp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; mp.size_flags_stretch_ratio = 2.3; mp.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_child(mp)
+	var mp := Kit.ink_card(Kit.PANEL, 0); mp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; mp.size_flags_stretch_ratio = 2.3; mp.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_child(mp)
 	map = MapCanvas.new(); map.screen = self; map.size_flags_vertical = Control.SIZE_EXPAND_FILL; map.size_flags_horizontal = Control.SIZE_EXPAND_FILL; mp.add_child(map)
 	var dp := Kit.panel(Kit.PANEL, int(20 * f) if not phone else 10); dp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; dp.size_flags_stretch_ratio = 1.0; dp.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_child(dp)
 	detail_scroll = ScrollContainer.new(); detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; dp.add_child(detail_scroll)
@@ -70,11 +69,13 @@ func _default_chapter() -> String:
 	return Campaign.CHAPTERS[0]["id"]
 
 func _tabs(f: float, phone: bool) -> Control:
-	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 8 if not phone else 4)
+	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10 if not phone else 6)
+	var ci := 0
 	for c in Campaign.CHAPTERS:
+		ci += 1
 		var id: String = c["id"]; var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id)
 		var st := Campaign.star_total(id)
-		var txt := (str(SHORT[id]) if phone else str(c["title"]).to_upper())
+		var txt := (str(SHORT[id]).capitalize() if phone else "%s. %s" % [["I", "II", "III", "IV", "V", "VI", "VII"][mini(ci - 1, 6)], str(c["title"])])
 		if not open and not phone: txt += "  (locked)"
 		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0))
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -112,7 +113,7 @@ func select_node(id: String) -> void:
 func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, soft := false) -> void:
 	if items.is_empty(): return
 	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 8); row.add_theme_constant_override("v_separation", 6); detail_box.add_child(row)
-	var kl := Kit.label(label, int(15 * f) if not phone else 15, Kit.TEXT_SOFT); kl.custom_minimum_size.x = 112 * f if not phone else 100; kl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; row.add_child(kl)
+	var kl := Kit.small_caps(label, int(15 * f) if not phone else 15, Kit.TEXT_SOFT); kl.custom_minimum_size.x = 112 * f if not phone else 100; kl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; row.add_child(kl)
 	for it in items:
 		var c := Kit.chip(str(it), col, 15)
 		if soft:
@@ -142,12 +143,13 @@ func _fill_detail() -> void:
 		if n["id"] == sel: node = n
 	var small := int(18 * f) if not phone else 15
 	if node.is_empty():
-		detail_box.add_child(Kit.shout(str(cd["title"]), int(34 * f) if not phone else 24, Kit.TEXT))
+		detail_box.add_child(Kit.display(str(cd["title"]), int(34 * f) if not phone else 24, Kit.TEXT))
 		detail_box.add_child(Kit.label(str(cd["blurb"]), small, Kit.TEXT_SOFT, true)); return
 	var tid := str(node["task"]); var kind := str(node["kind"]); var is_var := kind == "variant"
 	var info := Campaign.info(tid) if node["installed"] else {}
-	detail_box.add_child(Kit.label("%s  /  %s" % [str(cd["title"]).to_upper(), str(KIND_NAME.get(kind, "TASK"))], int(16 * f) if not phone else 15, Gfx.VIOLET))
-	detail_box.add_child(Kit.shout(str(node["title"]), int(36 * f) if not phone else 24, Kit.TEXT))
+	var kicker := Kit.small_caps("%s  ·  %s" % [str(cd["title"]), str(KIND_NAME.get(kind, "TASK"))], int(16 * f) if not phone else 15, Kit.MOTOR)
+	kicker.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; kicker.custom_minimum_size.x = 80; detail_box.add_child(kicker)
+	detail_box.add_child(Kit.display(str(node["title"]), int(36 * f) if not phone else 24, Kit.TEXT))
 	if not node["installed"]:
 		detail_box.add_child(Kit.label("Not installed in this build yet. It appears here as soon as the engine has the task; nothing to do on your side.", small, Kit.TEXT_SOFT, true))
 		detail_box.add_child(Kit.label(str(cd["blurb"]), small, Kit.TEXT_SOFT, true)); return
@@ -160,7 +162,7 @@ func _fill_detail() -> void:
 	if done: chips.add_child(Kit.chip("PASSED" if not is_var else "DONE", Kit.GREEN, 15))
 	if not open: chips.add_child(Kit.chip("LOCKED", Kit.RED, 15))
 	if not bool(node["spine"]): chips.add_child(Kit.chip("OPTIONAL", Kit.inh(), 15))
-	if str(info["view"]) != "polyline": chips.add_child(Kit.chip(str(info["view"]).to_upper() + " VIEW", Gfx.VIOLET, 15))
+	if str(info["view"]) != "polyline": chips.add_child(Kit.chip(str(info["view"]).to_upper() + " VIEW", Kit.MOTOR, 15))
 	var bt := HBoxContainer.new(); bt.add_theme_constant_override("separation", 10); detail_box.add_child(bt)
 	var sid := tid; var vid := str(node["variant"]); var synth := bool(info.get("synthetic", false))
 	var go := func(ref: bool):
@@ -168,7 +170,7 @@ func _fill_detail() -> void:
 	var b := Kit.btn("BUILD" if open else "LOCKED", func(): if open and not synth: go.call(false), "amber" if open else "panel", int(24 * f) if not phone else 19); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
 	if not open or synth: b.disabled = true
 	if not is_var:
-		var rb := Kit.btn("REFERENCE", func(): if not synth: go.call(true), "cyan", int(24 * f) if not phone else 19); rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rb.disabled = synth; bt.add_child(rb)
+		var rb := Kit.btn("REFERENCE", func(): if not synth: go.call(true), "panel", int(24 * f) if not phone else 19); rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rb.disabled = synth; bt.add_child(rb)
 	if not open: detail_box.add_child(Kit.label(Campaign.lock_reason(sel) + ".", small, Kit.RED, true))
 	if is_var:
 		detail_box.add_child(Kit.label("A challenge variant of %s. It never gates the spine." % str(info["title"]), small, Kit.TEXT_SOFT, true))
@@ -176,7 +178,7 @@ func _fill_detail() -> void:
 		# stars, worded for the difficulty mode, lit from this mode's best
 		var m := Progress.mode(); var bm := Progress.best_in(tid, m)
 		var sh := HBoxContainer.new(); sh.add_theme_constant_override("separation", 8); detail_box.add_child(sh)
-		sh.add_child(Kit.label("STARS", int(15 * f) if not phone else 15, Kit.TEXT_SOFT))
+		sh.add_child(Kit.small_caps("Stars", int(16 * f) if not phone else 15, Kit.TEXT_SOFT))
 		sh.add_child(Kit.chip(Progress.mode_name(m).to_upper() + " MODE", Kit.exc(), 15))
 		for t in _star_tiers(par, kind == "diagnosis", tid):
 			var r := HBoxContainer.new(); r.add_theme_constant_override("separation", 10); detail_box.add_child(r)
@@ -200,7 +202,7 @@ func _fill_detail() -> void:
 			var dn := Progress.variants_done(tid); var k := 0
 			for vk in vs: k += 1 if dn.has(vk) else 0
 			detail_box.add_child(Kit.label("Challenge variants: %d of %d done" % [k, vs.size()], 15, Kit.TEXT_SOFT, true))
-	for pair in [["SENSORS", info["sensors"], Kit.GREEN], ["MOTORS", info["motors"], Gfx.VIOLET], ["MODULATORS", info["modulators"], Kit.exc()]]:
+	for pair in [["SENSORS", info["sensors"], Kit.SENSOR], ["MOTORS", info["motors"], Kit.MOTOR], ["MODULATORS", info["modulators"], Kit.GAMBOGE]]:
 		_chips_row(pair[0], pair[1], pair[2], f, phone)
 
 ## The first sentences of a brief that fit in `n` characters.
@@ -279,55 +281,63 @@ class NodeCard extends Button:
 	## The pin's footprint in map coordinates (what the overlay keeps clear).
 	func pin_rect() -> Rect2: return Rect2(position, size) if has_plate() else Rect2(position + disc - Vector2(_R(), _R()), Vector2(_R(), _R()) * 2.0)
 	func _draw() -> void:
+		# a lettered call-out on the plate: an inked ring with an italic letter (a, b, c ... in play order), a paper slip with the title and stars
 		var id := str(node["id"]); var inst: bool = node["installed"]; var st := _status(); var best: Dictionary = st[2]
 		var open := inst and Campaign.unlocked(id); var passed := bool(best["passed"]); var selected := screen != null and screen.sel == id
-		var edge := Kit.GREEN if passed else (Kit.exc() if open else Kit.LINE.lightened(0.35))
+		var edge := Kit.GREEN if passed else (Kit.exc() if open else Color(Kit.INK, 0.45))
 		var hov := is_hovered(); var R := _R(); var k := kind()
 		var ft := Kit.fs(16 if not Layout.phone else 15); var fz := Kit.fs(14)
+		var paper := Color("#FBF7EE")
 		if has_plate():
-			draw_style_box(Kit.sb(Color(Kit.BENCH, 0.86 if not hov else 0.95), Color(edge, 0.85 if (selected or hov) else 0.45), 2 if selected else 1, 9, 0, false), _plate)
+			draw_rect(Rect2(_plate.position + Vector2(3, 3), _plate.size), Color(Kit.INK, 0.10 if not (hov or selected) else 0.18))
+			draw_rect(_plate, paper if not hov else Kit.PANEL_HI)
+			draw_rect(_plate, Color(Kit.INK, 0.9 if (selected or hov) else 0.55), false, 2.0 if selected else 1.0)
+			if selected: draw_line(_plate.position + Vector2(6, _plate.size.y - 3.0), _plate.end - Vector2(6, 3.0), Kit.GAMBOGE, 2.4)
 			var tcol := Kit.TEXT if open else Kit.TEXT_SOFT
 			var tx := _plate.position.x + 9.0; var ty := _plate.position.y + 6.0 + float(ft) * 0.86
 			draw_string(Fonts.bold, Vector2(tx, ty), str(node["title"]), HORIZONTAL_ALIGNMENT_LEFT, _plate.size.x - 14.0, ft, tcol)
 			var y2 := ty + 7.0
-			for j in 3: ScoreCard.draw_star_on(self, Vector2(tx + 8.0 + 18.0 * j, y2 + float(fz) * 0.5), 7.0, Kit.AMBER if j < int(best["stars"]) else Color(Kit.LINE, 0.95))
-			if not Layout.phone: draw_string(Fonts.regular, Vector2(tx + 56.0, y2 + float(fz) * 0.86), str(st[0]), HORIZONTAL_ALIGNMENT_LEFT, _plate.size.x - 64.0, fz, st[1])
-			if gap > 0.0:
+			for j in 3: ScoreCard.draw_star_on(self, Vector2(tx + 8.0 + 18.0 * j, y2 + float(fz) * 0.5), 7.0, Kit.GAMBOGE if j < int(best["stars"]) else Color(Kit.LINE, 0.95))
+			if not Layout.phone: draw_string(Gfx.serif_italic(), Vector2(tx + 56.0, y2 + float(fz) * 0.86), str(st[0]).to_lower(), HORIZONTAL_ALIGNMENT_LEFT, _plate.size.x - 64.0, fz, st[1])
+			if gap > 0.0:   # the leader from the ring to the slip
 				var q := Vector2(clampf(disc.x, _plate.position.x, _plate.end.x), clampf(disc.y, _plate.position.y, _plate.end.y))
-				draw_line(disc + (q - disc).normalized() * R, q, Color(edge, 0.7), 1.6, true)
-		if open: Gfx.glow(self, disc, R * (3.4 if hov else 2.6), Color(edge, 0.30 if hov else 0.20))
+				draw_line(disc + (q - disc).normalized() * R, q, Color(Kit.INK, 0.7), 1.0, true)
+		if open and hov: draw_circle(disc, R + 5.0, Color(Kit.GAMBOGE, 0.25))
 		if selected:
 			var pu := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.004) if Kit.motion() else 1.0
-			if k == "variant": draw_polyline(_diamond(disc, R + 6.0 + 2.0 * pu), Color(1, 1, 1, 0.55 + 0.4 * pu), 2.0, true)
-			else: draw_arc(disc, R + 6.0 + 2.0 * pu, 0, TAU, 40, Color(1, 1, 1, 0.55 + 0.4 * pu), 2.0, true)
-		var inner := Color("#0a1424", 0.96); var lw := 3.0 if open or passed else 2.0
+			if k == "variant": draw_polyline(_diamond(disc, R + 5.0 + 2.0 * pu), Kit.GAMBOGE, 2.4, true)
+			else: draw_arc(disc, R + 5.0 + 2.0 * pu, 0, TAU, 40, Kit.GAMBOGE, 2.4, true)
+		var lw := 2.0 if open or passed else 1.2
 		match k:
 			"variant":
 				var dm := _diamond(disc, R)
-				draw_colored_polygon(dm, Kit.GREEN if passed else inner); draw_polyline(dm, Color(edge, 0.95), lw, true)
-				if passed: draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.4, 0), disc + Vector2(-R * 0.08, R * 0.32), disc + Vector2(R * 0.42, -R * 0.3)]), Kit.BENCH, 2.0, true)
+				draw_colored_polygon(dm, Kit.GREEN if passed else paper); draw_polyline(dm, edge, lw, true)
+				if passed: draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.4, 0), disc + Vector2(-R * 0.08, R * 0.32), disc + Vector2(R * 0.42, -R * 0.3)]), paper, 2.0, true)
 			"diagnosis":
 				var rr := Rect2(disc - Vector2(R, R), Vector2(R, R) * 2.0)
-				draw_style_box(Kit.sb(Kit.GREEN if passed else inner, Color(edge, 0.95), int(lw), 4, 0, false), rr)
-				var cc := Kit.BENCH if passed else edge
-				draw_line(disc + Vector2(-R * 0.5, 0), disc + Vector2(R * 0.5, 0), cc, 2.4, true); draw_line(disc + Vector2(0, -R * 0.5), disc + Vector2(0, R * 0.5), cc, 2.4, true)
+				draw_rect(rr, Kit.GREEN if passed else paper); draw_rect(rr, edge, false, lw)
+				var cc := paper if passed else edge
+				draw_line(disc + Vector2(-R * 0.5, 0), disc + Vector2(R * 0.5, 0), cc, 2.0, true); draw_line(disc + Vector2(0, -R * 0.5), disc + Vector2(0, R * 0.5), cc, 2.0, true)
 			_:
-				draw_circle(disc, R, inner)
-				if k == "boss": draw_arc(disc, R + 5.0, 0, TAU, 48, Color(edge, 0.55), 2.0, true)
-				draw_arc(disc, R, 0, TAU, 40, Color(edge, 0.95), lw, true)
+				draw_circle(disc, R, paper)
+				if k == "boss": draw_arc(disc, R + 4.0, 0, TAU, 48, Color(edge, 0.7), 1.0, true)
 				if not inst:
-					Gfx.dashed(self, PackedVector2Array([disc + Vector2(-R * 0.5, 0), disc + Vector2(R * 0.5, 0)]), Color(Kit.TEXT_SOFT, 0.6), 1.6, 3.0, 3.0)
+					Gfx.dashed(self, PackedVector2Array(Array(Gfx.ellipse(disc, R, R, 32)) + [disc + Vector2(R, 0)]), Color(Kit.INK, 0.45), 1.2, 3.0, 3.0)
+				else: draw_arc(disc, R, 0, TAU, 40, edge, lw, true)
+				if not inst: pass
 				elif passed:
-					draw_circle(disc, R - 3.5, Kit.GREEN)
-					if k == "boss": ScoreCard.draw_star_on(self, disc, R * 0.62, Kit.BENCH)
-					else: draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.35, 0), disc + Vector2(-R * 0.08, R * 0.28), disc + Vector2(R * 0.40, -R * 0.26)]), Kit.BENCH, 2.6 if k == "task" else 2.0, true)
+					draw_circle(disc, R - 3.0, Kit.GREEN)
+					if k == "boss": ScoreCard.draw_star_on(self, disc, R * 0.62, paper)
+					else: draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.35, 0), disc + Vector2(-R * 0.08, R * 0.28), disc + Vector2(R * 0.40, -R * 0.26)]), paper, 2.4 if k == "task" else 2.0, true)
 				elif not open:
 					if k == "micro": draw_circle(disc, R * 0.3, Color(Kit.TEXT_SOFT, 0.7))
 					else:
 						draw_rect(Rect2(disc + Vector2(-R * 0.30, -R * 0.02), Vector2(R * 0.60, R * 0.46)), Kit.TEXT_SOFT); draw_arc(disc + Vector2(0, -R * 0.02), R * 0.22, PI, TAU, 10, Kit.TEXT_SOFT, 1.8, true)
 				elif k == "boss": ScoreCard.draw_star_on(self, disc, R * 0.6, Kit.exc())
-				elif k == "micro": draw_circle(disc, R * 0.42, Kit.exc())
-				else: draw_string(Fonts.bold, disc + Vector2(-R, float(fz) * 0.36), str(idx + 1), HORIZONTAL_ALIGNMENT_CENTER, R * 2.0, fz, Kit.exc())
+				elif k == "micro": draw_circle(disc, R * 0.36, Kit.exc())
+				else:
+					var letter := char(97 + idx) if idx < 26 else str(idx + 1); var lz := Kit.fs(18 if not Layout.phone else 16)
+					draw_string(Gfx.serif_italic(), disc + Vector2(-R, float(lz) * 0.32), letter, HORIZONTAL_ALIGNMENT_CENTER, R * 2.0, lz, Kit.INK)
 		if has_focus(): draw_style_box(Kit.ring_sb(), Rect2(Vector2.ZERO, size) if has_plate() else Rect2(disc - Vector2(R, R) - Vector2(5, 5), Vector2(R, R) * 2.0 + Vector2(10, 10)))
 	static func _diamond(c: Vector2, r: float) -> PackedVector2Array:
 		return PackedVector2Array([c + Vector2(0, -r * 1.2), c + Vector2(r * 1.2, 0), c + Vector2(0, r * 1.2), c + Vector2(-r * 1.2, 0), c + Vector2(0, -r * 1.2)])
@@ -371,7 +381,7 @@ class MapOverlay extends Control:
 		var by := pr.end.y + 6.0
 		if by + bh > size.y - 4.0: by = pr.position.y - bh - 6.0
 		by = clampf(by, 4.0, maxf(size.y - bh - 4.0, 4.0))
-		Gfx.rounded_rect(self, Rect2(bx, by, bw + 12.0, bh), Color(Kit.BENCH, 0.94), Color(Kit.LINE, 1.0), 8.0, 1.0)
+		draw_rect(Rect2(bx + 3.0, by + 3.0, bw + 12.0, bh), Color(Kit.INK, 0.12)); draw_rect(Rect2(bx, by, bw + 12.0, bh), Color("#FBF7EE")); draw_rect(Rect2(bx, by, bw + 12.0, bh), Color(Kit.INK, 0.8), false, 1.0)
 		var y := by + 6.0
 		if bare:
 			draw_string(Fonts.bold, Vector2(bx + 6.0, y + float(ft) * 0.86), title, HORIZONTAL_ALIGNMENT_LEFT, bw, ft, Kit.TEXT); y += float(ft) + 6.0
@@ -379,8 +389,8 @@ class MapOverlay extends Control:
 			var x := bx + 6.0
 			for ch in ln:
 				var w: float = ch[2]; var isnew: bool = ch[1]
-				Gfx.rounded_rect(self, Rect2(x, y, w, lh - 2.0), Color(Kit.exc(), 0.9) if isnew else Color(Kit.PANEL_HI, 1.0), Color(Kit.inh(), 0.7) if not isnew else Color(0, 0, 0, 0), 6.0, 1.0)
-				draw_string(Fonts.bold if isnew else Fonts.regular, Vector2(x + 8.0, y + float(fz) * 0.9), str(ch[0]), HORIZONTAL_ALIGNMENT_LEFT, w - 8.0, fz, Kit.BENCH if isnew else Kit.TEXT)
+				draw_rect(Rect2(x, y, w, lh - 2.0), Kit.INK if isnew else Kit.PANEL_HI); draw_rect(Rect2(x, y, w, lh - 2.0), Kit.INK if isnew else Color(Kit.INK, 0.5), false, 1.0)
+				draw_string(Fonts.bold if isnew else Fonts.regular, Vector2(x + 8.0, y + float(fz) * 0.9), str(ch[0]), HORIZONTAL_ALIGNMENT_LEFT, w - 8.0, fz, Kit.PAPER if isnew else Kit.TEXT)
 				x += w + 5.0
 			y += lh
 
@@ -480,7 +490,7 @@ class MapCanvas extends Control:
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		draw_rect(r, Color("#0a1423"))
+		Gfx.plate_frame(self, r.grow(-3.0), Gfx.SHEET)   # the atlas page: an engraved double rule around the specimen drawing
 		var a := 1.0 if Campaign.chapter_open(chapter) else 0.5
 		var anch := _scene(chapter, r.grow(-10.0), a)
 		var sp := cards.filter(func(c): return bool(c.node["spine"]))
@@ -497,9 +507,9 @@ class MapCanvas extends Control:
 			var sg: Array = lay["seg"][i]; var pc = sp[i]; var nc = sp[i + 1]
 			var pts := PackedVector2Array()
 			for k in 11: pts.append(_bez(sg[0], sg[1], sg[2], lerpf(float(sg[3]), float(sg[4]), float(k) / 10.0)))
-			if bool(pc.node["installed"]) and Campaign.passed(str(pc.node["id"])): Gfx.dashed(self, pts, Color(Kit.GREEN, 0.85), 2.6, 9.0, 8.0, _t * 18.0)
-			elif bool(pc.node["installed"]) and Campaign.unlocked(str(pc.node["id"])) and bool(nc.node["installed"]): Gfx.dashed(self, pts, Color(Kit.exc(), 0.55), 2.0, 5.0, 7.0, _t * 10.0)
-			else: draw_polyline(pts, Color(Kit.LINE, 0.8), 1.6, true)
+			if bool(pc.node["installed"]) and Campaign.passed(str(pc.node["id"])): draw_polyline(pts, Color(Kit.GREEN, 0.9), 2.0, true)
+			elif bool(pc.node["installed"]) and Campaign.unlocked(str(pc.node["id"])) and bool(nc.node["installed"]): Gfx.dashed(self, pts, Color(Kit.exc(), 0.85), 1.8, 6.0, 5.0, _t * 10.0)
+			else: Gfx.dashed(self, pts, Color(Kit.INK, 0.35), 1.2, 2.0, 4.0)
 		# branches hang off their spine pin: the free direction with the most room
 		var pins := []
 		for c in sp: pins.append((c as NodeCard).pin_rect())
@@ -533,10 +543,13 @@ class MapCanvas extends Control:
 					if sc > bests: bests = sc; bestp = q
 				c.place(bestp, "r", r)
 				pins.append(c.pin_rect())
-				draw_line(centre, bestp, Color(Kit.GREEN if Campaign.passed(str(c.node["id"])) else Kit.LINE, 0.9), 1.6, true)
+				draw_line(centre, bestp, Color(Kit.GREEN, 0.9) if Campaign.passed(str(c.node["id"])) else Color(Kit.INK, 0.45), 1.0, true)
 		var cd := Campaign.chapter_def(chapter); var st := Campaign.star_total(chapter); var fz := Kit.fs(14)
-		var cap := ("%s   %d of %d stars" % [str(cd["title"]).to_upper(), st.x, st.y]) if st.y > 0 else str(cd["title"]).to_upper()
-		Anatomy.tag(self, cap, Vector2(14, size.y - 12), Kit.TEXT_SOFT, 14, HORIZONTAL_ALIGNMENT_LEFT, true, 0.6)
+		var cap := ("%s.  %d of %d stars" % [str(cd["title"]), st.x, st.y]) if st.y > 0 else str(cd["title"]) + "."
+		var pz := Kit.fs(15); var pl := "Plate %s." % ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][clampi(Campaign.chapter_index(chapter), 0, 9)]
+		draw_rect(Rect2(10, size.y - float(pz) - 18.0, Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x + Gfx.serif_italic().get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x + 26.0, float(pz) + 10.0), Color(Gfx.SHEET, 0.85))
+		draw_string(Fonts.bold, Vector2(16, size.y - 14), pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
+		draw_string(Gfx.serif_italic(), Vector2(22 + Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x, size.y - 14), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
 		if not Campaign.chapter_open(chapter):
 			var g := Campaign.gate_chapter(chapter)
 			Anatomy.tag(self, ("Locked. Pass the %s spine first." % str(Campaign.chapter_def(g)["title"])) if g != "" else "Locked.", Vector2(14, 10.0 + float(fz)), Kit.RED, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.7)
@@ -590,7 +603,7 @@ class MapCanvas extends Control:
 		_lab("aorta", (res["aorta_exit"] as Vector2) + Vector2(-m * 0.02, m * 0.07), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
 		_lab("IVC", (res["ivc_bottom"] as Vector2) + Vector2(-m * 0.045, -m * 0.07), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
 		var sa: Vector2 = res["sa"]; var av: Vector2 = res["av"]
-		_lab("AV node", av + Vector2(m * 0.05, m * 0.075), Color("#ffd27a"))
+		_lab("AV node", av + Vector2(m * 0.05, m * 0.075), Kit.GAMBOGE.darkened(0.25))
 		return {"heart_pacemaker": [sa, "l"], "heart_autonomic": [along_pt(vpath, 0.72), "u", 12.0], "baroreflex": [res["carotid"], "r"]}
 
 	static func along_pt(p: PackedVector2Array, u: float) -> Vector2: return Anatomy.along(p, u)
@@ -685,8 +698,8 @@ class MapCanvas extends Control:
 		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
 		# salt gradient behind the salt-seeking worm
 		var salt := r.position + Vector2(w * 0.80, h * 0.20)
-		for k in 5: Gfx.glow(self, salt, m * (0.55 - 0.09 * float(k)), Color("#5fd9c0", 0.05 * a))
-		_lab("NaCl gradient", salt + Vector2(0, m * 0.07), Color("#5fd9c0"), HORIZONTAL_ALIGNMENT_CENTER)
+		Gfx.stipple_disc(self, salt, m * 0.42, 900, Color(Kit.SENSOR, 0.55 * a), 17, 2.4, 1.8)   # stippled, densest at the source
+		_lab("NaCl gradient", salt + Vector2(0, m * 0.07), Kit.SENSOR, HORIZONTAL_ALIGNMENT_CENTER)
 		# the nematode that is touched (left, lower)
 		var p1 := PackedVector2Array()
 		for i in 40:
@@ -695,7 +708,7 @@ class MapCanvas extends Control:
 		var wr1 := Anatomy.worm(self, Gfx.cr_spline(p1, 3), h * 0.034, {"alpha": a, "t": _t})
 		var probe: Vector2 = wr1["head"]
 		self.draw_line(probe + Vector2(-m * 0.06, -m * 0.10), probe + Vector2(-m * 0.012, -m * 0.012), Color(Kit.TEXT, 0.8 * a), 3.0, true)
-		Gfx.glow(self, probe + Vector2(-m * 0.012, -m * 0.012), m * 0.04, Color(Kit.RED, 0.45 * a))
+		Gfx.wash(self, probe + Vector2(-m * 0.012, -m * 0.012), m * 0.025, Kit.RED, 0.45 * a, 3)
 		# the worm crawling up the salt gradient (centre, top)
 		var p2 := PackedVector2Array()
 		for i in 44:

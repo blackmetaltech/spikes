@@ -5,13 +5,13 @@ extends RefCounted
 ## drawn from polygons, splines and tubes in a unit frame and scaled to the rect it is given, so it stays crisp at any resolution. Each function returns the
 ## pixel positions of its landmarks (SA node, preBötC, dorsal horn ...) so the map can pin tasks to them.
 
-const OXY := Color("#ff6b7a")        # oxygenated blood
-const DEOXY := Color("#6b8cf2")      # deoxygenated blood
-const WALL := Color("#34182a")       # myocardium
-const BONE := Color("#b9c6de")
-const TISSUE := Color("#13242f")
-const GRAY := Color("#8ea3c4")
-const NUC := Color("#d4b4ff")
+const OXY := Color("#B23A2E")        # oxygenated blood
+const DEOXY := Color("#3D5E9E")      # deoxygenated blood
+const WALL := Color("#A2493F")       # myocardium
+const BONE := Color("#5E4E3E")
+const TISSUE := Color("#EEDFCB")
+const GRAY := Color("#6E6458")
+const NUC := Color("#6E4E7E")
 
 static func symp() -> Color: return Kit.exc()
 static func para() -> Color: return Kit.inh()
@@ -68,33 +68,31 @@ static func shape(ci: CanvasItem, poly: PackedVector2Array, fill: Color, rim: Co
 	if fill.a > 0.0 and poly.size() >= 3: ci.draw_colored_polygon(poly, fill)
 	if poly.size() < 2: return
 	var cl := poly.duplicate(); cl.append(poly[0])
-	if halo > 0.0: ci.draw_polyline(cl, Color(rim, rim.a * 0.18), rim_w + halo, true)
 	ci.draw_polyline(cl, rim, rim_w, true)
 
 ## A tube with a rim, constant half width in px.
 static func pipe(ci: CanvasItem, pts: PackedVector2Array, hw: float, fill: Color, rim: Color, rim_w := 1.6) -> void:
 	Gfx.tube_rim(ci, pts, func(_u): return hw, fill, rim, rim_w)
 
-## A nerve or fibre: soft halo, core line, and pulses running along it in proportion to `act` (0..1).
+## A nerve or fibre: an inked line in its stain (heavier when active) with ink beads running along it in proportion to `act` (0..1).
 static func nerve(ci: CanvasItem, pts: PackedVector2Array, col: Color, w: float, act := 0.3, t := 0.0, alpha := 1.0, pulses := 3) -> void:
 	if pts.size() < 2: return
-	ci.draw_polyline(pts, Color(col, 0.10 * alpha * (0.5 + act)), w * 4.5, true)
-	ci.draw_polyline(pts, Color(col, (0.38 + 0.45 * act) * alpha), w, true)
+	ci.draw_polyline(pts, Color(col, (0.55 + 0.4 * act) * alpha), maxf(w * (0.8 + 0.4 * act), 1.0), true)
 	if act > 0.03 and Kit.motion():
 		for k in pulses:
 			var u := fposmod(t * (0.22 + 0.5 * act) + float(k) / float(pulses), 1.0); var p := along(pts, u)
-			Gfx.glow(ci, p, w * 4.0 + 5.0, Color(col, 0.55 * act * alpha)); ci.draw_circle(p, maxf(w * 0.9, 1.6), Color(col.lightened(0.45), 0.95 * alpha))
+			ci.draw_circle(p, maxf(w * 1.3, 2.4) + 1.2, Color(Gfx.SHEET, 0.85 * alpha)); ci.draw_circle(p, maxf(w * 1.3, 2.4), Color(col.darkened(0.35), 0.95 * alpha))
 
 static func text(ci: CanvasItem, s: String, p: Vector2, col: Color, size := 14, align := HORIZONTAL_ALIGNMENT_LEFT, w := -1.0, bold := false) -> void:
-	ci.draw_string(Fonts.bold if bold else Fonts.regular, p, s, align, w, Kit.fs(size), col)
+	ci.draw_string(Fonts.bold if bold else Gfx.serif_italic(), p, s, align, w, Kit.fs(size), col)
 
-## Text on a dark plate, anchored at its left (or centre / right) at baseline p.
+## Text on a small paper slip, anchored at its left (or centre / right) at baseline p.
 static func tag(ci: CanvasItem, s: String, p: Vector2, col: Color, size := 14, align := HORIZONTAL_ALIGNMENT_LEFT, bold := false, plate := 0.78) -> Rect2:
-	var f := Fonts.bold if bold else Fonts.regular; var fz := Kit.fs(size)
+	var f := Fonts.bold if bold else Gfx.serif_italic(); var fz := Kit.fs(size)
 	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x; var h := float(fz)
 	var x := p.x if align == HORIZONTAL_ALIGNMENT_LEFT else (p.x - w * 0.5 if align == HORIZONTAL_ALIGNMENT_CENTER else p.x - w)
 	var r := Rect2(x - 4.0, p.y - h * 0.92, w + 8.0, h * 1.25)
-	if plate > 0.0: Gfx.rounded_rect(ci, r, Color(Kit.BENCH, plate), Color(0, 0, 0, 0), 4.0, 0.0)
+	if plate > 0.0: Gfx.rounded_rect(ci, r, Color(Gfx.SHEET, plate), Color(0, 0, 0, 0), 3.0, 0.0)
 	ci.draw_string(f, Vector2(x, p.y), s, HORIZONTAL_ALIGNMENT_LEFT, w + 4.0, fz, col)
 	return r
 
@@ -142,11 +140,11 @@ static func heart(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	# vessels (behind the chambers)
 	var vox := Color(OXY, 0.85 * al); var vde := Color(DEOXY, 0.85 * al)
 	var ao := smooth(H_AORTA, o, s); var hw_ao := s * 0.035 * (1.0 + 0.10 * v)
-	pipe(ci, ao, hw_ao, Color("#3a1824", al), vox, 1.8)
-	pipe(ci, smooth(H_CAROTID, o, s), s * 0.019, Color("#3a1824", al), vox, 1.4)
-	pipe(ci, smooth(H_PV1, o, s), s * 0.021, Color("#3a1824", al), vox, 1.4); pipe(ci, smooth(H_PV2, o, s), s * 0.021, Color("#3a1824", al), vox, 1.4)
-	pipe(ci, smooth(H_SVC, o, s), s * 0.031, Color("#1a2246", al), vde, 1.8)
-	pipe(ci, smooth(H_IVC, o, s), s * 0.031, Color("#1a2246", al), vde, 1.8)
+	pipe(ci, ao, hw_ao, Color("#EDC9C0", al), vox, 1.8)
+	pipe(ci, smooth(H_CAROTID, o, s), s * 0.019, Color("#EDC9C0", al), vox, 1.4)
+	pipe(ci, smooth(H_PV1, o, s), s * 0.021, Color("#EDC9C0", al), vox, 1.4); pipe(ci, smooth(H_PV2, o, s), s * 0.021, Color("#EDC9C0", al), vox, 1.4)
+	pipe(ci, smooth(H_SVC, o, s), s * 0.031, Color("#CDD5E6", al), vde, 1.8)
+	pipe(ci, smooth(H_IVC, o, s), s * 0.031, Color("#CDD5E6", al), vde, 1.8)
 	# chambers: myocardial wall first (a wide stroke), then the blood pool
 	var chambers := [["RA", H_RA, a, false, 0.022], ["LA", H_LA, a, true, 0.022], ["RV", H_RV, v, false, 0.040], ["LV", H_LV, v, true, 0.055]]
 	var polys := []
@@ -154,12 +152,13 @@ static func heart(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		var k := 1.0 - 0.10 * float(ch[2]); var base := closed_spline(sc(ch[1], o, s), 5)
 		var p := scaled_about(base, centroid(base), k); polys.append(p)
 		var cl := p.duplicate(); cl.append(p[0])
-		var wcol := WALL.lerp(Color("#7a2e49"), 0.45 * float(ch[2]))
+		var wcol := WALL.lerp(Color("#7E2E2A"), 0.45 * float(ch[2]))
 		ci.draw_polyline(cl, Color(wcol, al), s * (float(ch[4]) + 0.012 * float(ch[2])) * 2.0, true)
 	for i in chambers.size():
 		var ch: Array = chambers[i]; var ox: bool = ch[3]; var act := float(ch[2]); var p: PackedVector2Array = polys[i]
-		var base_col := Color("#46182c") if ox else Color("#1b2550"); var hot := Color("#b73856") if ox else Color("#4a63c4")
+		var base_col := Color("#F2D6CE") if ox else Color("#D8DEEC"); var hot := Color("#D9786A") if ox else Color("#8FA4D2")
 		ci.draw_colored_polygon(p, Color(base_col.lerp(hot, 0.55 * act), al))
+		Gfx.hatch(ci, p, PI * 0.25, maxf(s * 0.02, 5.0), Color(Kit.INK, 0.09 * al), 1.0)
 		var cl2 := p.duplicate(); cl2.append(p[0])
 		ci.draw_polyline(cl2, Color(OXY if ox else DEOXY, (0.55 + 0.4 * act) * al), 1.6, true)
 		var cc := centroid(p)
@@ -178,7 +177,7 @@ static func heart(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		ci.draw_polyline(PackedVector2Array([l1, t1]), vcol, maxf(s * 0.008, 1.4), true); ci.draw_polyline(PackedVector2Array([l2, t2]), vcol, maxf(s * 0.008, 1.4), true)
 	# conduction system
 	var inter := smooth(H_INTER, o, s, 5); var bach := smooth(H_BACH, o, s, 5); var his := smooth(H_HIS, o, s, 5); var br := smooth(H_BR, o, s, 5); var bl := smooth(H_BL, o, s, 5)
-	var ccol := Color("#ffd27a")
+	var ccol := Color("#C9971C")
 	for pth in [inter, bach, his, br, bl]: ci.draw_polyline(pth, Color(ccol, 0.30 * al), maxf(s * 0.006, 1.2), true)
 	for k in 3:   # Purkinje twigs
 		var base2 := along(br, 0.45 + 0.25 * float(k)); ci.draw_line(base2, base2 + Vector2(-0.03, 0.045) * s, Color(ccol, 0.22 * al), 1.0, true)
@@ -191,8 +190,8 @@ static func heart(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		if tms >= 140.0 and tms < 175.0: _dot(ci, along(his, (tms - 140.0) / 35.0), s, ccol, al)
 		if tms >= 175.0 and tms < 235.0:
 			_dot(ci, along(br, (tms - 175.0) / 60.0), s, ccol, al); _dot(ci, along(bl, (tms - 175.0) / 60.0), s, ccol, al)
-	ci.draw_circle(sa, s * 0.017, Color(ccol.lerp(Color.WHITE, sa_glow), al)); Gfx.glow(ci, sa, s * (0.05 + 0.10 * sa_glow), Color(ccol, (0.25 + 0.55 * sa_glow) * al))
-	ci.draw_circle(av, s * 0.014, Color(ccol.lerp(Color.WHITE, av_glow), al)); Gfx.glow(ci, av, s * (0.04 + 0.07 * av_glow), Color(ccol, (0.18 + 0.5 * av_glow) * al))
+	ci.draw_circle(sa, s * 0.017, Color(ccol.lerp(Kit.RED, sa_glow), al)); Gfx.glow(ci, sa, s * (0.05 + 0.10 * sa_glow), Color(ccol, (0.25 + 0.55 * sa_glow) * al))
+	ci.draw_circle(av, s * 0.014, Color(ccol.lerp(Kit.RED, av_glow), al)); Gfx.glow(ci, av, s * (0.04 + 0.07 * av_glow), Color(ccol, (0.18 + 0.5 * av_glow) * al))
 	# the autonomic supply of the nodes and the muscle, when asked for
 	var an := {"vagus_in": P.call(0.0, 0.03), "symp_in": P.call(-0.04, 0.20), "symp_in2": P.call(1.04, 0.52)}
 	if st.has("symp") or st.has("vagus"):
@@ -271,7 +270,8 @@ static func lungs(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		var left := side == 1
 		var poly := closed_spline(_px(_lung_pts(L_L if left else L_R, left, vol), o, s), 4)
 		outl[side] = poly
-		ci.draw_colored_polygon(poly, Color("#0e2736", al).lerp(Color("#17526d", al), vol * 0.85))
+		ci.draw_colored_polygon(poly, Color("#F3E2DC", al).lerp(Color("#E2A497", al), vol * 0.85))
+		Gfx.hatch(ci, poly, -PI * 0.3 if left else PI * 0.3, maxf(s * 0.016, 4.5), Color(Kit.INK, 0.10 * al), 1.0)
 		Gfx.glow(ci, centroid(poly), s * 0.42, Color(cy, (0.03 + 0.10 * vol) * al))
 	# fissures: oblique and horizontal on the right, oblique on the left
 	var fis := [[[Vector2(0.056, 0.60), Vector2(0.24, 0.53), Vector2(0.46, 0.70)]], [[Vector2(0.06, 0.45), Vector2(0.25, 0.43), Vector2(0.455, 0.40)]], [[Vector2(0.944, 0.60), Vector2(0.76, 0.53), Vector2(0.575, 0.66)]]]
@@ -284,7 +284,7 @@ static func lungs(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		ci.draw_polyline(cl, Color(cy, 0.16 * al), 7.0, true); ci.draw_polyline(cl, Color(cy, (0.70 + 0.2 * vol) * al), 2.0, true)
 	# trachea with cartilage rings, carina, bronchial tree
 	var tr_top := P.call(Vector2(0.5, 0.0)) as Vector2; var carina := P.call(Vector2(0.5, 0.31)) as Vector2
-	pipe(ci, PackedVector2Array([tr_top, carina]), s * 0.026, Color("#0a1c28", al), Color(cy, 0.85 * al), 1.6)
+	pipe(ci, PackedVector2Array([tr_top, carina]), s * 0.026, Color("#EFE3D3", al), Color(cy, 0.85 * al), 1.6)
 	for k in 9:
 		var y := lerpf(0.02, 0.29, float(k) / 8.0); ci.draw_line(P.call(Vector2(0.488, y)), P.call(Vector2(0.512, y)), Color(cy, 0.35 * al), 1.0, true)
 	var tips := []
@@ -329,15 +329,15 @@ static func medulla(ci: CanvasItem, c: Vector2, w: float, st: Dictionary) -> Dic
 	var P := func(x: float, y: float) -> Vector2: return c + Vector2(x, y) * w
 	var outline := [Vector2(-0.30, -0.62), Vector2(-0.62, -0.50), Vector2(-0.88, -0.14), Vector2(-0.86, 0.26), Vector2(-0.64, 0.58), Vector2(-0.30, 0.66), Vector2(-0.14, 0.78), Vector2(0.0, 0.70), Vector2(0.14, 0.78), Vector2(0.30, 0.66), Vector2(0.64, 0.58), Vector2(0.86, 0.26), Vector2(0.88, -0.14), Vector2(0.62, -0.50), Vector2(0.30, -0.62), Vector2(0.0, -0.54)]
 	var poly := closed_spline(sc(outline, c, w), 5)
-	shape(ci, poly, Color("#161c2e", al), Color(GRAY, 0.75 * al), 2.0, 6.0)
+	shape(ci, poly, Color("#F0E5DC", al), Color(GRAY, 0.75 * al), 2.0, 6.0)
 	# fourth ventricle floor (dorsal) and the central canal
 	ci.draw_circle(P.call(0.0, -0.18), w * 0.045, Color(Kit.BENCH, al)); ci.draw_arc(P.call(0.0, -0.18), w * 0.045, 0, TAU, 12, Color(GRAY, 0.6 * al), 1.2, true)
 	# pyramids (ventral) and inferior olives
 	for sd in [-1.0, 1.0]:
 		var pyr := closed_spline(sc([Vector2(0.04 * sd, 0.30), Vector2(0.17 * sd, 0.28), Vector2(0.22 * sd, 0.50), Vector2(0.14 * sd, 0.66), Vector2(0.04 * sd, 0.62)], c, w), 4)
-		shape(ci, pyr, Color("#1e263c", al), Color(GRAY, 0.35 * al), 1.2)
+		shape(ci, pyr, Color("#E7DCD2", al), Color(GRAY, 0.35 * al), 1.2)
 		var ol := closed_spline(sc([Vector2(0.38 * sd, 0.12), Vector2(0.52 * sd, 0.04), Vector2(0.60 * sd, 0.22), Vector2(0.50 * sd, 0.38), Vector2(0.38 * sd, 0.30)], c, w), 4)
-		shape(ci, ol, Color("#1d2540", al), Color(GRAY, 0.35 * al), 1.2)
+		shape(ci, ol, Color("#ECE1E3", al), Color(GRAY, 0.35 * al), 1.2)
 	var nuclei := {"nts": [Vector2(0.34, -0.20), 0.085, Kit.GREEN], "dmv": [Vector2(0.14, -0.30), 0.06, Kit.GREEN], "amb": [Vector2(0.50, -0.02), 0.07, para()],
 		"prebotc": [Vector2(0.58, 0.14), 0.10, symp()], "rtn": [Vector2(0.34, 0.50), 0.075, para()]}
 	var out := {}
@@ -377,20 +377,20 @@ static func spine(ci: CanvasItem, top: Vector2, h: float, st: Dictionary) -> Dic
 	var canal := PackedVector2Array()
 	for b in bodies: canal.append((b[0] as Vector2) + Vector2(float(b[1]) * 0.62 + pitch * 0.55, 0.0))
 	canal = Gfx.cr_spline(canal, 4)
-	pipe(ci, canal, pitch * 0.34, Color("#101a2a", al), Color(BONE, 0.30 * al), 1.4)
+	pipe(ci, canal, pitch * 0.34, Color("#EFE5D3", al), Color(BONE, 0.30 * al), 1.4)
 	nerve(ci, canal, symp(), pitch * 0.12, float(st.get("act", 0.3)), t, al, 4)
 	for i in n:
 		var b: Array = bodies[i]; var p: Vector2 = b[0]; var bw: float = b[1]; var bh: float = b[2]
 		var sx := p.x + bw * 0.5 + pitch * 0.15
 		var ulen := pitch * (0.8 if i < 7 else (1.35 if i < 19 else 1.0))
 		var spin := PackedVector2Array([Vector2(sx - pitch * 0.1, p.y - bh * 0.30), Vector2(sx + pitch * 0.45, p.y - bh * 0.2), Vector2(sx + ulen * 0.85, p.y + bh * 0.55 + ulen * 0.22), Vector2(sx + ulen * 0.55, p.y + bh * 0.62 + ulen * 0.22), Vector2(sx - pitch * 0.1, p.y + bh * 0.25)])
-		ci.draw_colored_polygon(spin, Color("#18263b", al)); ci.draw_polyline(PackedVector2Array([spin[0], spin[1], spin[2], spin[3], spin[4]]), Color(BONE, 0.6 * al), 1.4, true)
-		Gfx.rounded_rect(ci, Rect2(p.x - bw * 0.5, p.y - bh * 0.5, bw, bh), Color("#1a2a42", al), Color(BONE, 0.75 * al), bh * 0.28, 1.4)
+		ci.draw_colored_polygon(spin, Color("#E9DDC4", al)); ci.draw_polyline(PackedVector2Array([spin[0], spin[1], spin[2], spin[3], spin[4]]), Color(BONE, 0.6 * al), 1.4, true)
+		Gfx.rounded_rect(ci, Rect2(p.x - bw * 0.5, p.y - bh * 0.5, bw, bh), Color("#ECE0C6", al), Color(BONE, 0.75 * al), bh * 0.28, 1.4)
 		if i < n - 1: Gfx.rounded_rect(ci, Rect2(p.x - bw * 0.42, p.y + bh * 0.5 + 1.0, bw * 0.84, pitch * 0.2), Color(Kit.CYAN, 0.28 * al), Color(0, 0, 0, 0), pitch * 0.1, 0.0)
 	var last: Vector2 = bodies[n - 1][0]
 	var sac := PackedVector2Array([last + Vector2(-h * 0.05, pitch * 0.5), last + Vector2(h * 0.045, pitch * 0.5), last + Vector2(h * 0.075, pitch * 2.6), last + Vector2(h * 0.015, pitch * 3.2), last + Vector2(-h * 0.02, pitch * 2.2)])
 	if top.y + pitch * (float(n) + 3.2) <= top.y + h + pitch * 0.6:
-		shape(ci, closed_spline(sac, 4), Color("#1a2a42", al), Color(BONE, 0.7 * al), 1.4)
+		shape(ci, closed_spline(sac, 4), Color("#ECE0C6", al), Color(BONE, 0.7 * al), 1.4)
 	var levels := {}
 	for k in [["C5", 4], ["T6", 12], ["L2", 18], ["L4", 21]]: levels[k[0]] = (bodies[int(k[1])][0] as Vector2)
 	levels["canal"] = canal; levels["pitch"] = pitch
@@ -404,7 +404,7 @@ static func cord_section(ci: CanvasItem, c: Vector2, w: float, st: Dictionary) -
 	var white := [Vector2(-0.90, -0.05), Vector2(-0.80, -0.55), Vector2(-0.40, -0.84), Vector2(0.0, -0.80), Vector2(0.40, -0.84), Vector2(0.80, -0.55), Vector2(0.90, -0.05), Vector2(0.80, 0.50), Vector2(0.42, 0.80), Vector2(0.0, 0.84), Vector2(-0.42, 0.80), Vector2(-0.80, 0.50)]
 	var wp := closed_spline(sc(white, c, w), 6)
 	Gfx.glow(ci, c, w * 1.5, Color(GRAY, 0.06 * al))
-	shape(ci, wp, Color("#1b2438", al), Color(GRAY, 0.8 * al), 2.2, 8.0)
+	shape(ci, wp, Color("#F3EBDF", al), Color(GRAY, 0.8 * al), 2.2, 8.0)
 	for sd in [-1.0, 1.0]:   # tracts hinted as faint arcs in the white matter
 		ci.draw_arc(c + Vector2(sd * w * 0.0, 0.0), w * 0.74, (-0.95 if sd > 0 else PI + 0.45), (-0.45 if sd > 0 else PI + 0.95), 12, Color(GRAY, 0.12 * al), w * 0.10, true)
 	ci.draw_line(P.call(0.0, -0.80), P.call(0.0, -0.40), Color(GRAY, 0.5 * al), 1.4, true)   # posterior median septum
@@ -413,7 +413,8 @@ static func cord_section(ci: CanvasItem, c: Vector2, w: float, st: Dictionary) -
 	var gray := [Vector2(0.0, -0.20), Vector2(-0.08, -0.42), Vector2(-0.20, -0.74), Vector2(-0.34, -0.74), Vector2(-0.38, -0.48), Vector2(-0.50, -0.22), Vector2(-0.64, -0.14), Vector2(-0.64, 0.14), Vector2(-0.60, 0.40), Vector2(-0.44, 0.58), Vector2(-0.24, 0.52), Vector2(-0.16, 0.30), Vector2(-0.08, 0.20),
 		Vector2(0.0, 0.20), Vector2(0.08, 0.20), Vector2(0.16, 0.30), Vector2(0.24, 0.52), Vector2(0.44, 0.58), Vector2(0.60, 0.40), Vector2(0.64, 0.14), Vector2(0.64, -0.14), Vector2(0.50, -0.22), Vector2(0.38, -0.48), Vector2(0.34, -0.74), Vector2(0.20, -0.74), Vector2(0.08, -0.42)]
 	var gp := closed_spline(sc(gray, c, w), 5)
-	shape(ci, gp, Color("#26324c", al), Color(GRAY, 0.55 * al), 1.6)
+	shape(ci, gp, Color("#E4D1CB", al), Color(GRAY, 0.55 * al), 1.6)
+	Gfx.stipple_poly(ci, gp, 220, Color(Kit.INK, 0.28 * al), 3, 1.2)   # grey matter: stippled, as in a Nissl plate
 	ci.draw_circle(P.call(0.0, 0.0), w * 0.035, Color(Kit.BENCH, al)); ci.draw_arc(P.call(0.0, 0.0), w * 0.035, 0, TAU, 12, Color(GRAY, 0.7 * al), 1.2, true)   # central canal
 	# the reflex arc on the right-hand side (image right): dorsal root in, ventral root out
 	var dr := Gfx.cr_spline(PackedVector2Array([P.call(0.28, -0.74), P.call(0.48, -0.98), P.call(0.86, -1.10), P.call(1.25, -1.12)]), 8)
@@ -426,7 +427,7 @@ static func cord_section(ci: CanvasItem, c: Vector2, w: float, st: Dictionary) -
 	nerve(ci, afferent, Kit.GREEN, maxf(w * 0.018, 1.8), 0.6 * act + 0.2, t, al)
 	nerve(ci, efferent, Gfx.VIOLET, maxf(w * 0.022, 2.0), 0.6 * act + 0.2, t * 1.2, al)
 	# dorsal root ganglion on the root
-	var drg := along(dr, 0.55); ci.draw_circle(drg, w * 0.065, Color("#1f3a2c", al)); ci.draw_arc(drg, w * 0.065, 0, TAU, 14, Color(Kit.GREEN, 0.9 * al), 1.6, true)
+	var drg := along(dr, 0.55); ci.draw_circle(drg, w * 0.065, Color("#D3E6E2", al)); ci.draw_arc(drg, w * 0.065, 0, TAU, 14, Color(Kit.GREEN, 0.9 * al), 1.6, true)
 	# motor neuron (large, multipolar) and Renshaw cell
 	var mn_on := hi.has("mn")
 	Gfx.glow(ci, mn_p, w * (0.34 if mn_on else 0.22), Color(Gfx.VIOLET, (0.35 if mn_on else 0.18) * al))
@@ -466,8 +467,8 @@ static func limb(ci: CanvasItem, sh: Vector2, el: Vector2, hd: Vector2, st: Dict
 	Gfx.tube_rim(ci, PackedVector2Array([sh, el]), func(q): return uw * (1.55 - 0.25 * q), Color(TISSUE, 0.85 * al), Color(skin, 0.35), 1.6)
 	Gfx.tube_rim(ci, PackedVector2Array([el, el.lerp(hd, 0.5), hd]), func(q): return uw * (1.35 - 0.50 * q), Color(TISSUE, 0.85 * al), Color(skin, 0.35), 1.6)
 	# bones
-	Gfx.tube_rim(ci, PackedVector2Array([sh, el]), func(q): return uw * (0.34 + 0.06 * absf(q - 0.5)), Color("#1c2a40", al), Color(BONE, 0.85 * al), 1.4)
-	Gfx.tube_rim(ci, PackedVector2Array([el, hd]), func(q): return uw * (0.30 - 0.12 * q), Color("#1c2a40", al), Color(BONE, 0.85 * al), 1.4)
+	Gfx.tube_rim(ci, PackedVector2Array([sh, el]), func(q): return uw * (0.34 + 0.06 * absf(q - 0.5)), Color("#EDE2C8", al), Color(BONE, 0.85 * al), 1.4)
+	Gfx.tube_rim(ci, PackedVector2Array([el, hd]), func(q): return uw * (0.30 - 0.12 * q), Color("#EDE2C8", al), Color(BONE, 0.85 * al), 1.4)
 	var out := {}
 	for k in 2:
 		var ag := k == 0
@@ -487,7 +488,7 @@ static func limb(ci: CanvasItem, sh: Vector2, el: Vector2, hd: Vector2, st: Dict
 			var hw := wmax * (0.10 + 0.90 * pow(sin(PI * clampf(q * 0.86 + 0.07, 0.0, 1.0)), 0.75))
 			left.append(path[i] + nn * hw); right.append(path[i] - nn * hw)
 		right.reverse(); left.append_array(right)
-		var fill := Color("#1d2430").lerp(col.darkened(0.35), 0.35 + 0.65 * act)
+		var fill := Color("#F1DDD2").lerp(col.darkened(0.35), 0.35 + 0.65 * act)
 		Gfx.glow(ci, path[path.size() / 2], u * 0.5, Color(col, 0.28 * act * al))
 		ci.draw_colored_polygon(left, Color(fill, 0.96 * al))
 		var cl := left.duplicate(); cl.append(left[0])
@@ -505,17 +506,17 @@ static func limb(ci: CanvasItem, sh: Vector2, el: Vector2, hd: Vector2, st: Dict
 		var sl := uw * 1.7
 		var sp_a := mid - tgm * sl * 0.5; var sp_b := mid + tgm * sl * 0.5
 		Gfx.glow(ci, mid, uw * (1.6 + 2.2 * ia), Color(Kit.GREEN, (0.10 + 0.55 * ia) * al))
-		ci.draw_line(sp_a, sp_b, Color(Kit.GREEN, 0.95 * al), uw * 0.44, true); ci.draw_line(sp_a, sp_b, Color("#0a2418", al), uw * 0.20, true)
+		ci.draw_line(sp_a, sp_b, Color(Kit.GREEN, 0.95 * al), uw * 0.44, true); ci.draw_line(sp_a, sp_b, Color("#E6F0EC", al), uw * 0.20, true)
 		for ri in 3: var rp := mid + tgm * sl * (float(ri) - 1.0) * 0.28; ci.draw_line(rp + nm * uw * 0.30, rp - nm * uw * 0.30, Color(Kit.GREEN.lightened(0.4), al), 1.2, true)
 		var away := nm * sd
 		var aff := Gfx.cr_spline(PackedVector2Array([mid + nm * uw * 0.25, mid + away * uw * 2.2, mid + away * uw * 3.2 + (-dh) * uw * 1.2, mid + away * uw * 3.8 + (-dh) * uw * 3.2]), 6)
 		nerve(ci, aff, Kit.GREEN, maxf(uw * 0.16, 1.4), ia, t, al, 2)
 		out["ag" if ag else "ant"] = mid; out["ag_aff" if ag else "ant_aff"] = aff[aff.size() - 1]; out["ag_path" if ag else "ant_path"] = path
 	# the joint and the hand
-	ci.draw_circle(sh, uw * 0.85, Color("#1c2a40", al)); ci.draw_arc(sh, uw * 0.85, 0, TAU, 20, Color(BONE, 0.85 * al), 1.6, true)
-	ci.draw_circle(el, uw * 0.78, Color("#1c2a40", al)); ci.draw_arc(el, uw * 0.78, 0, TAU, 20, Color(BONE, 0.9 * al), 1.8, true); ci.draw_circle(el, uw * 0.18, Color(Gfx.BODY, al))
+	ci.draw_circle(sh, uw * 0.85, Color("#EDE2C8", al)); ci.draw_arc(sh, uw * 0.85, 0, TAU, 20, Color(BONE, 0.85 * al), 1.6, true)
+	ci.draw_circle(el, uw * 0.78, Color("#EDE2C8", al)); ci.draw_arc(el, uw * 0.78, 0, TAU, 20, Color(BONE, 0.9 * al), 1.8, true); ci.draw_circle(el, uw * 0.18, Color(Gfx.BODY, al))
 	var hand := PackedVector2Array([hd - nf * uw * 0.7, hd + nf * uw * 0.7, hd + nf * uw * 0.55 + d * uw * 1.5, hd - nf * uw * 0.55 + d * uw * 1.3])
-	shape(ci, closed_spline(hand, 4), Color("#1c2a40", al), Color(BONE, 0.85 * al), 1.4)
+	shape(ci, closed_spline(hand, 4), Color("#EDE2C8", al), Color(BONE, 0.85 * al), 1.4)
 	out["shoulder"] = sh; out["elbow"] = el; out["hand"] = hd; out["uw"] = uw; out["u"] = u; out["d"] = d; out["n"] = nf
 	return out
 
@@ -530,23 +531,23 @@ static func eye(ci: CanvasItem, c: Vector2, ew: float, st: Dictionary) -> Dictio
 		var uu := float(i) / 32.0; lid.append(c + Vector2((uu - 0.5) * 2.0 * ew, -sin(uu * PI) * eh * (1.0 - 0.10 * (uu - 0.5) * 2.0)))
 	for i in 33:
 		var uu := 1.0 - float(i) / 32.0; lid.append(c + Vector2((uu - 0.5) * 2.0 * ew, sin(uu * PI) * eh * 0.85))
-	ci.draw_colored_polygon(lid, Color("#dfe7f2", al))
+	ci.draw_colored_polygon(lid, Color("#FBF7EE", al))
 	Gfx.glow(ci, c, ew * 1.4, Color(Gfx.FISH, 0.05 * al))
 	var ir := eh * 0.86; var pr := ir * clampf(pmm / 12.0, 0.1, 0.85)
 	# iris body
-	ci.draw_circle(c, ir, Color("#2a6a9c", al)); ci.draw_circle(c, ir * 0.9, Color("#3b86bf", al))
+	ci.draw_circle(c, ir, Color("#8AA3BA", al)); ci.draw_circle(c, ir * 0.9, Color("#B4C6D4", al))
 	# radial fibres: the dilator pupillae, drawn from the pupil margin to the iris periphery
 	var dcol := symp()
 	for i in 72:
 		var a := TAU * float(i) / 72.0; var dirv := Vector2(cos(a), sin(a)); var j := 0.5 + 0.5 * sin(float(i) * 7.3)
-		ci.draw_line(c + dirv * pr * 1.12, c + dirv * ir * (0.78 + 0.12 * j), Color(Color("#9fd3ff").lerp(dcol, dil * 0.85), (0.18 + 0.20 * j + 0.40 * dil) * al), 1.0 + 0.9 * dil, true)
-	ci.draw_arc(c, ir * 0.52, 0, TAU, 40, Color(1, 1, 1, 0.16 * al), 1.4, true)   # collarette
+		ci.draw_line(c + dirv * pr * 1.12, c + dirv * ir * (0.78 + 0.12 * j), Color(Color("#3E5E7E").lerp(dcol, dil * 0.85), (0.18 + 0.20 * j + 0.40 * dil) * al), 1.0 + 0.9 * dil, true)
+	ci.draw_arc(c, ir * 0.52, 0, TAU, 40, Color(Kit.INK, 0.25 * al), 1.2, true)   # collarette
 	# sphincter: a ring round the pupil margin
 	var sw := ir * (0.06 + 0.10 * sph)
 	ci.draw_arc(c, pr + sw * 0.5, 0, TAU, 48, Color(para().lerp(Color.WHITE, 0.15), (0.35 + 0.6 * sph) * al), sw, true)
-	ci.draw_circle(c, pr, Color("#04070c", al))
-	ci.draw_arc(c, ir, 0, TAU, 48, Color(Kit.BENCH, 0.85 * al), 2.4, true)
-	ci.draw_circle(c + Vector2(-pr * 0.35, -pr * 0.40), maxf(pr * 0.17, 1.6), Color(1, 1, 1, 0.85 * al))
+	ci.draw_circle(c, pr, Color("#231C17", al))
+	ci.draw_arc(c, ir, 0, TAU, 48, Color(Kit.INK, 0.85 * al), 1.6, true)
+	ci.draw_circle(c + Vector2(-pr * 0.35, -pr * 0.40), maxf(pr * 0.17, 1.6), Color(Gfx.SHEET, 0.9 * al))
 	var lc := lid.duplicate(); lc.append(lid[0])
 	ci.draw_polyline(lc, Color(Gfx.FISH, 0.9 * al), 3.0, true)
 	ci.draw_arc(c + Vector2(0, -eh * 0.55), ew * 1.0, PI * 1.12, PI * 1.88, 24, Color(Gfx.FISH, 0.35 * al), 2.0, true)   # brow line
@@ -578,11 +579,12 @@ static func gut(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	var outer := PackedVector2Array(); var inner := PackedVector2Array()
 	for p in top: outer.append(p + Vector2(0, -R * 0.20))
 	for i in range(bot.size() - 1, -1, -1): outer.append(bot[i] + Vector2(0, R * 0.20))
-	ci.draw_colored_polygon(outer, Color("#2a1b14", al))
+	ci.draw_colored_polygon(outer, Color("#EBCDB7", al))
+	Gfx.hatch(ci, outer, PI * 0.3, maxf(r.size.y * 0.025, 5.0), Color(Kit.INK, 0.10 * al), 1.0)   # engraver's shade on the muscle wall
 	var oc := outer.duplicate(); oc.append(outer[0]); ci.draw_polyline(oc, Color(Kit.exc(), 0.55 * al), 2.0, true)
 	var lumen := top.duplicate()
 	for i in range(bot.size() - 1, -1, -1): lumen.append(bot[i])
-	ci.draw_colored_polygon(lumen, Color("#0c121c", al))
+	ci.draw_colored_polygon(lumen, Color("#F6EEDF", al))
 	var lc := lumen.duplicate(); lc.append(lumen[0]); ci.draw_polyline(lc, Color(Kit.exc(), 0.30 * al), 1.2, true)
 	# circular muscle bands, coloured by ACh (amber) and NO (cyan)
 	for i in n:
@@ -606,7 +608,7 @@ static func gut(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	var el := PackedVector2Array()
 	for i in 28:
 		var a := TAU * float(i) / 28.0; el.append(bp + Vector2(cos(a) * R * 1.05, sin(a) * brad))
-	ci.draw_colored_polygon(el, Color("#e9f3ff", 0.93 * al)); var elc := el.duplicate(); elc.append(el[0]); ci.draw_polyline(elc, Color(1, 1, 1, 0.9 * al), 1.4, true)
+	ci.draw_colored_polygon(el, Color("#E2C48E", 0.93 * al)); var elc := el.duplicate(); elc.append(el[0]); ci.draw_polyline(elc, Color(Kit.INK, 0.9 * al), 1.4, true)
 	return {"mid": mid, "R": R, "bolus": bp, "x0": x0, "x1": x1, "cy": cy}
 
 # ---------------------------------------------------------------- the autonomic body
@@ -621,11 +623,11 @@ static func body(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	# silhouette: head, neck, trunk
 	var head := closed_spline(PackedVector2Array([P.call(0.0, 0.0) as Vector2, P.call(0.062, 0.012), P.call(0.085, 0.07), P.call(0.07, 0.14), P.call(0.04, 0.178), P.call(-0.04, 0.178), P.call(-0.07, 0.14), P.call(-0.085, 0.07), P.call(-0.062, 0.012)]), 5)
 	var trunk := closed_spline(PackedVector2Array([P.call(-0.03, 0.17) as Vector2, P.call(-0.07, 0.19), P.call(-0.20, 0.215), P.call(-0.255, 0.26), P.call(-0.245, 0.40), P.call(-0.20, 0.52), P.call(-0.17, 0.62), P.call(-0.19, 0.70), P.call(-0.12, 0.745), P.call(0.12, 0.745), P.call(0.19, 0.70), P.call(0.17, 0.62), P.call(0.20, 0.52), P.call(0.245, 0.40), P.call(0.255, 0.26), P.call(0.20, 0.215), P.call(0.07, 0.19), P.call(0.03, 0.17)]), 4)
-	shape(ci, trunk, Color("#0f1a2a", 0.9 * al), sk, 2.0, 6.0); shape(ci, head, Color("#0f1a2a", 0.9 * al), sk, 2.0, 6.0)
+	shape(ci, trunk, Color("#F4EBDB", 0.9 * al), sk, 2.0, 6.0); shape(ci, head, Color("#F4EBDB", 0.9 * al), sk, 2.0, 6.0)
 	# the CNS: brainstem and cord
 	var cord := PackedVector2Array([P.call(0.0, 0.12) as Vector2, P.call(0.0, 0.20), P.call(0.0, 0.42), P.call(0.0, 0.56), P.call(0.0, 0.62)])
 	var brain := closed_spline(PackedVector2Array([P.call(-0.045, 0.045) as Vector2, P.call(0.0, 0.025), P.call(0.045, 0.045), P.call(0.04, 0.10), P.call(0.016, 0.145), P.call(-0.016, 0.145), P.call(-0.04, 0.10)]), 5)
-	shape(ci, brain, Color("#1d2540", al), Color(NUC, 0.75 * al), 1.6, 4.0)
+	shape(ci, brain, Color("#ECE1E3", al), Color(NUC, 0.75 * al), 1.6, 4.0)
 	ci.draw_polyline(cord, Color(NUC, 0.20 * al), s * 0.016, true); ci.draw_polyline(cord, Color(NUC, 0.6 * al), s * 0.007, true)
 	var out := {}
 	# lungs and heart (behind the nerves)
@@ -643,18 +645,18 @@ static func body(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	out["eye"] = eyes[0]; out["eye_r"] = eyes[1]
 	# stomach, small bowel, colon
 	var stom := closed_spline(PackedVector2Array([P.call(-0.10, 0.455) as Vector2, P.call(-0.03, 0.44), P.call(0.04, 0.47), P.call(0.03, 0.53), P.call(-0.04, 0.565), P.call(-0.11, 0.545), P.call(-0.135, 0.50)]), 5)
-	shape(ci, stom, Color("#33201a", 0.9 * al), Color(Kit.exc(), 0.5 * al), 1.4, 4.0)
+	shape(ci, stom, Color("#EFD5C2", 0.9 * al), Color(Kit.exc(), 0.5 * al), 1.4, 4.0)
 	var colon := Gfx.cr_spline(PackedVector2Array([P.call(0.15, 0.68) as Vector2, P.call(0.16, 0.58), P.call(0.15, 0.50), P.call(0.0, 0.485), P.call(-0.15, 0.50), P.call(-0.16, 0.58), P.call(-0.15, 0.67), P.call(-0.08, 0.715), P.call(0.0, 0.72)]), 6)
-	pipe(ci, colon, s * 0.011, Color("#2a1b14", 0.9 * al), Color(Kit.exc(), 0.40 * al), 1.2)
+	pipe(ci, colon, s * 0.011, Color("#EBCDB7", 0.9 * al), Color(Kit.exc(), 0.40 * al), 1.2)
 	var bowel := Gfx.cr_spline(PackedVector2Array([P.call(0.02, 0.56) as Vector2, P.call(0.07, 0.575), P.call(-0.07, 0.59), P.call(0.08, 0.61), P.call(-0.08, 0.63), P.call(0.07, 0.65), P.call(-0.06, 0.665), P.call(0.04, 0.68), P.call(0.0, 0.70)]), 6)
-	pipe(ci, bowel, s * 0.0085, Color("#33201a", 0.9 * al), Color(Kit.exc(), 0.55 * al), 1.2)
-	var bp := along(bowel, fposmod(t * 0.07, 1.0)); Gfx.glow(ci, bp, s * 0.04, Color(1, 1, 1, 0.28 * al)); ci.draw_circle(bp, s * 0.009, Color("#e9f3ff", al))
+	pipe(ci, bowel, s * 0.0085, Color("#EFD5C2", 0.9 * al), Color(Kit.exc(), 0.55 * al), 1.2)
+	var bp := along(bowel, fposmod(t * 0.07, 1.0)); Gfx.glow(ci, bp, s * 0.04, Color(1, 1, 1, 0.28 * al)); ci.draw_circle(bp, s * 0.009, Color("#E2C48E", al))
 	out["gut"] = along(bowel, 0.34)
 	# kidneys with adrenal glands
 	for sd in [-1.0, 1.0]:
 		var kc := P.call(0.125 * sd, 0.425) as Vector2
 		var kid := closed_spline(PackedVector2Array([kc + Vector2(-0.018, -0.03) * s, kc + Vector2(0.018, -0.03) * s, kc + Vector2(0.024, 0.0) * s, kc + Vector2(0.018, 0.03) * s, kc + Vector2(-0.018, 0.03) * s, kc + Vector2(-0.024, 0.0) * s]), 4)
-		shape(ci, kid, Color("#2b1a24", al), Color(Color("#d98aa0"), 0.45 * al), 1.2)
+		shape(ci, kid, Color("#E6C4C4", al), Color(Color("#9C4A5A"), 0.45 * al), 1.2)
 		var ad := kc + Vector2(-0.004 * sd, -0.04) * s; ci.draw_circle(ad, s * 0.008, Color(symp(), 0.95 * al)); Gfx.glow(ci, ad, s * 0.035, Color(symp(), 0.25 * al * (0.4 + sy)))
 		if sd < 0: out["adrenal"] = ad
 	# sympathetic chain (both sides), cord outflow T1-L2, postganglionic fibres
@@ -692,9 +694,9 @@ static func body(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 static func worm(ci: CanvasItem, pts: PackedVector2Array, wmax: float, st: Dictionary) -> Dictionary:
 	var al := float(st.get("alpha", 1.0)); var t := float(st.get("t", 0.0)); var col := Gfx.BODY; var n := pts.size()
 	var prof := func(u: float) -> float: return wmax * (0.30 + 0.70 * pow(sin(PI * clampf(0.08 + 0.80 * u, 0.0, 1.0)), 0.55)) * (1.0 - 0.75 * pow(u, 5.0))
-	Gfx.tube_rim(ci, pts, prof, Color("#0c2a2b", 0.95 * al), Color(col, 0.6 * al), 1.8)
+	Gfx.tube_rim(ci, pts, prof, Color("#E6D2B5", 0.95 * al), Color(col, 0.6 * al), 1.8)
 	var gut_l := PackedVector2Array(); for i in range(n / 6, int(float(n) * 0.92)): gut_l.append(pts[i])
-	if gut_l.size() > 1: Gfx.tube(ci, gut_l, func(u): return wmax * 0.26 * (1.0 - 0.6 * u), Color("#1d4a3a", 0.85 * al))
+	if gut_l.size() > 1: Gfx.tube(ci, gut_l, func(u): return wmax * 0.26 * (1.0 - 0.6 * u), Color("#C2A27A", 0.85 * al))
 	var ph := PackedVector2Array(); for i in range(1, n / 6 + 1): ph.append(pts[i])
 	if ph.size() > 1: Gfx.tube(ci, ph, func(u): return wmax * (0.20 + 0.04 * u), Color(col, 0.30 * al))
 	ci.draw_circle(pts[n / 6], wmax * 0.34, Color(col, 0.38 * al)); ci.draw_arc(pts[n / 6], wmax * 0.34, 0, TAU, 14, Color(col, 0.8 * al), 1.2, true)
@@ -715,14 +717,14 @@ static func lamprey(ci: CanvasItem, pts: PackedVector2Array, wmax: float, st: Di
 	# the fin along the back and round the tail
 	var fin := PackedVector2Array(); for i in range(n / 4, n): fin.append(pts[i] + Vector2(0, -float(prof.call(float(i) / float(n - 1))) - wmax * 0.35 * float(i) / float(n)))
 	if fin.size() > 1: ci.draw_polyline(fin, Color(col, 0.30 * al), wmax * 0.2, true)
-	Gfx.tube_rim(ci, pts, prof, Color("#0e2236", 0.95 * al), Color(col, 0.6 * al), 1.8)
+	Gfx.tube_rim(ci, pts, prof, Color("#E4E2DA", 0.95 * al), Color(col, 0.6 * al), 1.8)
 	var cord := PackedVector2Array(); for i in range(2, n - 2): cord.append(pts[i] + Vector2(0, -wmax * 0.22 * (1.0 - float(i) / float(n))))
 	var noto := PackedVector2Array(); for i in range(2, n - 2): noto.append(pts[i] + Vector2(0, wmax * 0.10 * (1.0 - float(i) / float(n))))
 	ci.draw_polyline(noto, Color(BONE, 0.30 * al), wmax * 0.16, true)
 	nerve(ci, cord, Kit.exc(), maxf(wmax * 0.10, 1.6), 0.6, t, al, 4)
 	for i in 7:
 		var gp := pts[mini(n - 1, n / 9 + i * (n / 40 + 1))] + Vector2(0, wmax * 0.12)
-		ci.draw_circle(gp, wmax * 0.09, Color("#050c14", 0.9 * al)); ci.draw_arc(gp, wmax * 0.09, 0, TAU, 8, Color(col, 0.7 * al), 1.0, true)
-	var eye_p := pts[maxi(n / 12, 1)] + Vector2(0, -wmax * 0.22); ci.draw_circle(eye_p, wmax * 0.16, Color("#dfe7f2", al)); ci.draw_circle(eye_p, wmax * 0.085, Color("#04070c", al))
+		ci.draw_circle(gp, wmax * 0.09, Color("#231C17", 0.9 * al)); ci.draw_arc(gp, wmax * 0.09, 0, TAU, 8, Color(col, 0.7 * al), 1.0, true)
+	var eye_p := pts[maxi(n / 12, 1)] + Vector2(0, -wmax * 0.22); ci.draw_circle(eye_p, wmax * 0.16, Color("#FBF7EE", al)); ci.draw_circle(eye_p, wmax * 0.085, Color("#231C17", al))
 	ci.draw_arc(pts[0] + Vector2(wmax * 0.12, 0), wmax * 0.30, PI * 0.5, PI * 1.5, 10, Color(col, 0.85 * al), 2.0, true)   # the oral disc
 	return {"head": pts[1], "mid": pts[n / 2], "tail": pts[n - 2], "cord": cord}

@@ -112,7 +112,7 @@ func build() -> void:
 	_palette_row = _palette(phone); left.add_child(_palette_row)
 	editor = CircuitEditor.new(); editor.size_flags_vertical = Control.SIZE_EXPAND_FILL; editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	editor.custom_minimum_size = Vector2(300, 200)
-	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Color("#080f1a"), Kit.LINE, 1, 12, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
+	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.75), 1, 2, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
 	editor.structure_changed.connect(_on_structure); editor.moved.connect(func(): pass)
 	editor.selection_changed.connect(func(_s): _sel_audio(); _build_inspector())
 	editor.lesion_clicked.connect(_lesion_click)
@@ -841,7 +841,7 @@ func _inspect_brief(small: int) -> void:
 			insp_body.add_child(Kit.label("The recipe gives the numbers. Using it costs the third star.", small, Kit.TEXT_SOFT, true))
 	if task_id != "" and Progress.budget(task_id) > 0: insp_body.add_child(Kit.label("Stars: 1 pass.  2 pass on 5 seeds (TEST x5).  3 the same with %d neurons or fewer." % Progress.budget(task_id), small, Kit.TEXT_SOFT, true))
 	var leg := HBoxContainer.new(); leg.add_theme_constant_override("separation", 8)
-	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.GREEN, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
+	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.SENSOR, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
 	insp_body.add_child(leg)
 
 ## A slider row. `quad` makes the slider square-law (value = hi * s^2 for s in 0..1): fine steps near zero for weights, which run from fractions of a pA (a burster
@@ -976,7 +976,7 @@ func _inspect_channel(key: String, name: String, small: int) -> void:
 	if ch.is_empty(): _inspect_brief(small); return
 	var is_in := key == "inputs"; var driven := false
 	if tele.task != null and is_in: driven = (tele.task.sensor_channels() as PackedStringArray).has(name)
-	insp_body.add_child(_head(name, Kit.GREEN if is_in else Gfx.VIOLET, ("sensor, driven by the task" if driven else "input device") + "  " + str(ch.get("kind", "")) if is_in else "motor output: mean rate of the connected neurons"))
+	insp_body.add_child(_head(name, Kit.SENSOR if is_in else Gfx.VIOLET, ("sensor, driven by the task" if driven else "input device") + "  " + str(ch.get("kind", "")) if is_in else "motor output: mean rate of the connected neurons"))
 	var tg: Array = ch.get("targets" if is_in else "neurons", [])
 	var names := []
 	for x in tg: names.append(Circuits.proj_pop(x))
