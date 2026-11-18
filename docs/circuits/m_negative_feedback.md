@@ -42,3 +42,9 @@ Cannon WB (1929) Organization for physiological homeostasis. Physiol Rev 9:399-4
 * **`recipe()`:** The sensor gives 900 pA per unit of level, so about 3 inhibitory cells and a weight of about -300 pA onto the effort cells is the right size (the default -80 is too weak).
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **4 runs** (gate: at most 8).
+
+## v0.4: the honesty contract (docs/REQ-0.4.md)
+- **Mechanism check.** Before the behaviour, the task reads the circuit structure (`Engine::structure()`, captured when the run starts) and requires a path of net inhibitory sign from the `level` sensor to the effort cells (an inhibitory cell in between). A level that reaches the effort cells with the wrong sign is named as positive feedback. A circuit that lacks it fails with a verdict naming the missing mechanism, and its value is capped at 40.
+- **No numbers in verdicts or hint tiers 1-3.** Failed verdicts and the three hint tiers describe the observed behaviour and the direction to change; the numbers are only in `recipe()`. Pass messages still report observed values.
+- **Negative tests.** `engine/tests/cheap_rows_b.inc` (run by `tasks_cheap_test`): empty bench, one cell with the lab's first-connect weights, one tonic cell with every weight 0, the reference with every weight 0, the reference with every weight at an extreme, and the reference minus the taught mechanism, each must fail with the mechanism named.
+- **Non-circular novice.** Brief and lab defaults only, at most 8 runs: solved in 3 runs (feedback weight 80, 160, 320).

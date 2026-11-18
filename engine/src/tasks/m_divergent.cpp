@@ -70,8 +70,8 @@ public:
                      "target (excitation for some, inhibition for others).";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "The effectors need different strengths and one the opposite sign: a command group with a separate weight to each target does that.", "heart" },
-      { 3, "alarm onto a command group of 2 cells. The command group onto heart at about 600 pA, onto pupil and onto sweat at about 280 pA (1 cell each). "
-           "alarm also onto an inhibitory group of 2 cells that projects onto gut at about -160 pA. tone onto gut only.", "alarm" } };
+      { 3, "alarm goes onto a command group. The command group projects onto heart (a strong link), onto pupil and onto sweat (clearly weaker links). "
+           "alarm also goes onto a small inhibitory group that projects onto gut. tone goes onto gut only.", "alarm" } };
     i.note = { "Fight or flight",
       "Walter Cannon described in 1915 how fear or rage makes the sympathetic nervous system act as a unit: the heart races, the pupils dilate, "
       "sweat appears, blood is diverted from the gut and digestion stops. The unity comes from divergence: a sympathetic "
@@ -97,6 +97,37 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // divergence: one command population (not an effector itself) driven by the alarm and projecting excitatorily to at least two of the excited effectors
+    const std::vector< std::string > exc = { "heart", "pupil", "sweat" };
+    mechb::PopSet eff = g.out_pops( std::vector< std::string >{ "heart", "pupil", "sweat", "gut" } );
+    const auto alarm = g.in_pops( "alarm" );
+    int best = 0;
+    for ( int c = 0; c < g.n_pops(); ++c )
+    {
+      if ( eff.count( c ) || !g.exc( alarm, mechb::PopSet{ c }, 3 ) )
+        continue;
+      int k = 0;
+      for ( const auto& ch : exc )
+      {
+        const auto p = g.out_pops( ch );
+        if ( !p.empty() && g.edge( mechb::PopSet{ c }, p, +1 ) )
+          ++k;
+      }
+      best = std::max( best, k );
+    }
+    out.push_back( mech( "command_group", best >= 2,
+                         "No command group: nothing between the alarm and the effectors fans out to several of them. A divergent command is one group that projects onto the heart, "
+                         "the pupil and the sweat together, each with its own link.",
+                         "Put a command group between 'alarm' and the effectors: the alarm drives it, and it projects onto heart, pupil and sweat.", "alarm",
+                         "Add a command group driven by the alarm, and project it onto heart, pupil and sweat." ) );
+    out.push_back( mech( "inhibitory_route", g.hops( alarm, g.out_pops( "gut" ), -1, 4, eff ) >= 1,
+                         "No inhibitory route to the gut: the alarm does not reach it through an inhibitory cell, so digestion cannot be switched off.",
+                         "The gut: the alarm has to reach it with the opposite sign, through an inhibitory cell.", "gut",
+                         "Send the alarm through a small group set to inhibitory onto the gut group." ) );
+  }
+
   bool on( double t ) const { return t >= 900 + j_ && t < 2100 + j_; }
 
   void drive( Engine& e, double ) override
@@ -146,8 +177,8 @@ protected:
     const bool quiet = rest[ 0 ] <= 3 && rest[ 1 ] <= 3 && rest[ 2 ] <= 3;
     r.ok = quiet && rest[ 3 ] >= 8;
     r.soft = quiet ? ramp( rest[ 3 ], 0, 8 ) : 0.3;
-    r.fail = !quiet ? "At rest the heart, pupil or sweat pool fires (" + fmt( rest[ 0 ] ) + " / " + fmt( rest[ 1 ] ) + " / " + fmt( rest[ 2 ] ) + " spikes/s): they must be silent until the alarm. Tone goes to the gut only."
-                    : "The gut is silent at rest (" + fmt( rest[ 3 ] ) + " spikes/s): digestion needs its tone, or the alarm has nothing to switch off. Wire 'tone' to the gut group.";
+    r.fail = !quiet ? "At rest the heart, pupil or sweat pool fires: they must be silent until the alarm. Tone goes to the gut only."
+                    : "The gut is silent at rest: digestion needs its tone, or the alarm has nothing to switch off. Wire 'tone' to the gut group.";
     r.place = !quiet ? "A pool that fires at rest: it is wired to 'tone' (or has a bias)." : "The gut gets no tone.";
     r.target = !quiet ? "heart" : "gut";
     r.recipe = "tone onto the gut group only; no bias current on the other groups.";
@@ -161,18 +192,18 @@ protected:
     ex.ok = heart_ok && pupil_ok && sweat_ok;
     ex.soft = ( ramp( act[ 0 ], 0, heart_min ) + ( pupil_ok ? 1.0 : 0.3 ) + ( sweat_ok ? 1.0 : 0.3 ) ) / 3.0;
     if ( !heart_ok )
-      ex.fail = "The heart reaches only " + fmt( act[ 0 ] ) + " spikes/s in the alarm (needs " + fmt( heart_min ) + "): it needs a strong synapse from the command. Raise its weight (about 1200 pA in all from the command group: 600 pA from each of 2 cells).";
+      ex.fail = "The heart does not respond strongly enough to the alarm: it needs a strong synapse from the command. Raise its weight (the weight needed falls as more command cells sum onto it).";
     else if ( !pupil_ok )
-      ex.fail = std::string( "The pupil fires " ) + fmt( act[ 1 ] ) + " spikes/s in the alarm, the gentle response is " + fmt( g_lo ) + "-" + fmt( g_hi ) +
-                ( act[ 1 ] > g_hi ? ": too strong. The same weight cannot serve the heart and the pupil; give the pupil its own, weaker synapse from the command group (about 560 pA in all, 280 from each of 2 cells)."
-                                  : ": too weak or silent. Wire the alarm to the pupil group through the command group (about 560 pA in all).");
+      ex.fail = std::string( "The pupil's response to the alarm is " ) + ( act[ 1 ] > g_hi ? "too strong" : "too weak or silent" ) + ": it should be a gentle one" +
+                ( act[ 1 ] > g_hi ? ". The same weight cannot serve the heart and the pupil; give the pupil its own, weaker synapse from the command group."
+                                  : ". Wire the alarm to the pupil group through the command group, with a weight in between silence and the heart's.");
     else
-      ex.fail = std::string( "Sweat fires " ) + fmt( act[ 2 ] ) + " spikes/s in the alarm, the gentle response is " + fmt( g_lo ) + "-" + fmt( g_hi ) +
-                ( act[ 2 ] > g_hi ? ": too strong. Give it its own, weaker synapse from the command group (about 560 pA in all)."
-                                  : ": too weak or silent. Wire the alarm to the sweat group through the command group (about 560 pA in all).");
+      ex.fail = std::string( "The sweat response to the alarm is " ) + ( act[ 2 ] > g_hi ? "too strong" : "too weak or silent" ) + ": it should be a gentle one" +
+                ( act[ 2 ] > g_hi ? ". Give it its own, weaker synapse from the command group."
+                                  : ". Wire the alarm to the sweat group through the command group, with a weight in between silence and the heart's.");
     ex.place = !heart_ok ? "The heart: its synapse from the command must be strong." : ( !pupil_ok ? "The pupil: its synapse must be weaker than the heart's." : "Sweat: its synapse must be weaker than the heart's." );
     ex.target = !heart_ok ? "heart" : ( !pupil_ok ? "pupil" : "sweat" );
-    ex.recipe = "alarm onto a command group (2 cells); command onto heart at about 600 pA, onto pupil and sweat at about 280 pA (1 cell each).";
+    ex.recipe = "alarm onto a command group; the command group onto heart with a strong link, and onto pupil and sweat with clearly weaker ones.";
     crits.push_back( ex );
 
     Crit in;
@@ -180,31 +211,30 @@ protected:
     const double gr = act[ 3 ] / std::max( rest[ 3 ], 1.0 );
     in.ok = gr <= 0.3 * tl;
     in.soft = 1.0 - ramp( gr, 0.3, 1.0 );
-    in.fail = "During the alarm the gut still fires " + fmt( act[ 3 ] ) + " spikes/s (" + fmt( 100 * gr ) + " % of its rest " + fmt( rest[ 3 ] ) + "): the alarm must switch digestion off. "
-              "Send it through an inhibitory cell onto the gut.";
+    in.fail = "During the alarm the gut is still firing: the alarm must switch digestion off. "
+              "Send it through an inhibitory cell onto the gut, strong enough to cancel its tone.";
     in.place = "The gut: the alarm reaches it with the opposite sign.";
     in.target = "gut";
-    in.recipe = "alarm onto an inhibitory group of 2 cells, projecting onto the gut group at about -160 pA.";
+    in.recipe = "alarm onto a small inhibitory group, projecting onto the gut group; strengthen the inhibitory link until the gut falls quiet.";
     crits.push_back( in );
 
     Crit tg;
     tg.key = "together";
     tg.ok = started && spread <= 100 * tl && lo_t - a0 <= 200 * tl;
     tg.soft = started ? 1.0 - ramp( spread, 100, 400 ) : 0.2;
-    tg.fail = started ? "The effectors do not start together: their onsets are " + fmt( spread ) + " ms apart (limit " + fmt( 100 * tl ) + ") or too late. A command should reach all of them at the same moment: "
-                        "use the same kind of route (same weights and delays) to each."
-                      : "One of the three excited effectors never starts in the first 0.6 s of the alarm.";
+    tg.fail = started ? "The effectors do not start together: their onsets are too far apart, or too late. A command should reach all of them at the same moment: "
+                        "use the same kind of route (same delays) to each."
+                      : "One of the three excited effectors never starts early in the alarm.";
     tg.place = "The routes to the effectors differ in delay or strength: they should start together.";
     tg.target = "alarm";
-    tg.recipe = "Use the same weight and the default delay (2 ms) on every route from the alarm to heart, pupil and sweat.";
+    tg.recipe = "Use the same delay on every route from the alarm to heart, pupil and sweat, and the same number of synapses on the way.";
     crits.push_back( tg );
 
     Crit rc;
     rc.key = "recovery";
     rc.ok = rec[ 0 ] <= 5 && rec[ 1 ] <= 5 && rec[ 2 ] <= 5 && rec[ 3 ] >= 0.6 * rest[ 3 ];
     rc.soft = rc.ok ? 1.0 : 0.4;
-    rc.fail = "After the alarm the effectors are at " + fmt( rec[ 0 ] ) + " / " + fmt( rec[ 1 ] ) + " / " + fmt( rec[ 2 ] ) + " spikes/s and the gut at " + fmt( rec[ 3 ] ) +
-              " (rest " + fmt( rest[ 3 ] ) + "): the response must end with the cue. A loop that keeps a group firing, or an inhibition that never lets go, would do this.";
+    rc.fail = "After the alarm the effectors do not return to rest, or the gut does not come back: the response must end with the cue. A loop that keeps a group firing, or an inhibition that never lets go, would do this.";
     rc.place = "A group that does not return to rest: look for a loop or a persistent inhibition.";
     rc.target = "gut";
     rc.recipe = "Links run from the alarm outward only; keep tone onto the gut group.";

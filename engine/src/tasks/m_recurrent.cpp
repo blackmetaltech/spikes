@@ -67,8 +67,8 @@ public:
                      "itself, so extra input from anywhere is held down, like a gain control.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "Close a loop: the motoneuron group should feed a small inhibitory group and that group should project back onto the motoneurons.", "mn" },
-      { 3, "mn group of 4 cells (drive and kick onto it). An inhibitory group of 2 cells (Renshaw) receives the motoneurons at about 600 pA and returns "
-           "-600 pA (for a group of 4 motoneurons; the weight needed scales inversely with the number of cells).", "mn" } };
+      { 3, "Drive and kick go onto the motoneuron group. A small group of cells set to inhibitory listens to the motoneurons and projects back onto them. "
+           "Make both links of the loop strong (or put more cells in it): the weight needed falls as more cells sum onto each other.", "mn" } };
     i.note = { "Renshaw cells",
       "In 1941 Birdsey Renshaw found interneurons in the spinal cord that fire after the motoneurons do, driven by the motoneurons' own "
       "axon collaterals. Later work showed they inhibit the same motoneurons and their neighbours. The loop turns each motoneuron's activity "
@@ -95,6 +95,29 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    const auto mn = g.out_pops( "mn" );
+    bool loop = false, drives = false, inhibits = false;
+    for ( int a : mn )
+    {
+      loop = loop || !g.ei_loop( a ).empty();
+      for ( int x = 0; x < g.n_pops(); ++x )
+        if ( x != a )
+        {
+          drives = drives || g.edge( mechb::PopSet{ a }, mechb::PopSet{ x }, +1 );
+          inhibits = inhibits || g.edge( mechb::PopSet{ x }, mechb::PopSet{ a }, -1 );
+        }
+    }
+    std::string fail = "No Renshaw loop: the motoneurons do not excite an inhibitory cell group that inhibits them back, so nothing turns their own output down.";
+    if ( drives && !inhibits )
+      fail = "The motoneurons drive a group of cells, but that group does not inhibit them back: the link back onto the motoneurons must be inhibitory.";
+    else if ( inhibits && !drives )
+      fail = "A group inhibits the motoneurons, but the motoneurons do not drive it: the brake never hears their output.";
+    out.push_back( mech( "renshaw_loop", loop, fail, "A loop motoneurons -> inhibitory cells -> motoneurons is missing around the group read out on 'mn'.", "mn",
+                         "Add a small group of cells set to inhibitory: the motoneuron group excites it, and it projects back onto the motoneuron group." ) );
+  }
+
   double kick_at( double t ) const
   {
     const double b = kB0 + j_;
@@ -137,38 +160,37 @@ protected:
     base.key = "alive";
     base.ok = ra >= 15;
     base.soft = ramp( ra, 0, 15 );
-    base.fail = "At the base drive the motoneurons fire only " + fmt( ra ) + " spikes/s (needs 15): too much inhibition, or 'drive' does not reach them.";
+    base.fail = "At the base drive the motoneurons barely fire: either their brake is too strong, or 'drive' does not reach them.";
     base.place = "The motoneuron group is silenced at rest: its brake is too strong, or it gets no 'drive'.";
     base.target = "mn";
-    base.recipe = "Wire 'drive' and 'kick' straight onto the motoneurons (weight 300 pA per unit); keep the feedback weights at about 600 pA.";
+    base.recipe = "Wire 'drive' and 'kick' straight onto the motoneurons, and keep the feedback loop gentle enough that the cells still fire at the base drive.";
     crits.push_back( base );
 
     Crit kb;
     kb.key = "kick";
     kb.ok = db <= lim_b;
     kb.soft = 1.0 - ramp( db, lim_b, kUnprotB );
-    kb.fail = "The first kick lifts the rate by " + fmt( db ) + " spikes/s, from " + fmt( ra ) + " to " + fmt( rb ) + " (limit " + fmt( lim_b ) +
-              "; with no brake it is about " + fmt( kUnprotB ) + ( db >= 0.75 * kUnprotB
-                ? "): nothing holds the motoneurons back. Their own output must excite an inhibitory cell that inhibits them in return."
-                : "): something brakes them, but too little. Strengthen the loop: both weights, or more cells in the loop." );
+    kb.fail = std::string( "The first kick lifts the rate much more than a held-back pool would allow" ) + ( db >= 0.75 * kUnprotB
+                ? ": it rises almost as far as it would with no brake at all, so the loop is far too weak to hold them back. Strengthen both of its weights, or add cells to it."
+                : ": something brakes them, but too little. Strengthen the loop: both weights, or more cells in the loop." );
     kb.place = "The loop around the motoneurons: they should drive an inhibitory group that projects back onto them.";
     kb.target = "mn";
-    kb.recipe = "mn (4 cells) onto an inhibitory group of 2 cells at about 600 pA, and that group back onto mn at about -600 pA.";
+    kb.recipe = "Make the loop stronger: raise the weight from the motoneurons onto the inhibitory group and the weight back, or add cells to the group.";
     crits.push_back( kb );
 
     Crit kc;
     kc.key = "double_kick";
     kc.ok = dc <= lim_c;
     kc.soft = 1.0 - ramp( dc, lim_c, kUnprotC );
-    kc.fail = "The double kick lifts the rate by " + fmt( dc ) + " spikes/s, to " + fmt( rc ) + " (limit " + fmt( lim_c ) + ", unbraked about " + fmt( kUnprotC ) + "): the feedback is too weak. "
+    kc.fail = "The double kick still lifts the rate too far: the feedback is too weak for the larger push. "
               "Strengthen the Renshaw loop (both weights, or more Renshaw cells).";
     kc.place = "The strength of the loop: the weights motoneuron -> Renshaw cell and Renshaw cell -> motoneuron.";
     kc.target = "mn";
-    kc.recipe = "Try about 600 pA from the motoneurons onto the Renshaw cells and -600 pA back (2 Renshaw cells).";
+    kc.recipe = "Raise both weights of the Renshaw loop a little further, or add Renshaw cells, until the larger kick is held down as well.";
     crits.push_back( kc );
 
     pass_msg = "The rate went " + fmt( ra ) + " -> " + fmt( rb ) + " -> " + fmt( rc ) + " spikes/s: the kicks added only " + fmt( db ) + " and " + fmt( dc ) +
-               " spikes/s where an unbraked cell adds about " + fmt( kUnprotB ) + " and " + fmt( kUnprotC ) + ": the Renshaw loop is a gain control.";
+               " spikes/s, far less than an unbraked cell would add: the Renshaw loop is a gain control.";
   }
 
 private:

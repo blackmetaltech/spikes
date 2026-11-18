@@ -87,6 +87,9 @@ public:
     return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 320 ) } };
   }
   double duration_ms() const override { return kDuration; }
+  /// Quick check: the taps and the first two stretches (one per muscle, the second with its ringing window): the same rules as the full episode on
+  /// a shorter run. A full run judges all four stretches.
+  double quick_duration_ms() const override { return kLead + kSpacing + kJitter + kQuiet1; }
   int par_neurons() const override { return variant_par( variant_, 52 ); }
 
   // ---- v0.3 ----
@@ -106,35 +109,37 @@ public:
     Score s = score();
     const double rec = s.parts[ "antagonist_suppression" ], res = s.parts[ "resistance" ], osc = s.parts[ "osc_rad" ];
     std::vector< Hint > h;
+    if ( wiring_.ok() && mech_hints( h, "The stretch reflex is built of two things: one excitatory synapse from the muscle's Ia afferent onto its own motoneurons, and a branch of the same afferent that inhibits the opposing muscle through an interneuron." ) )
+      return h;
     if ( s.parts[ "latency_ms" ] <= 0 )
     {
       h.push_back( make_hint( 1, "A tendon tap sends one brief volley down the Ia fibres: one synapse onto the motoneurons has to be strong enough to fire several cells at once.", "" ) );
       h.push_back( make_hint( 2, "The motoneuron pool did not answer the tap.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Ia > relay groups of 6 (tau m 60 ms), relay > motor pool of 20 at about 240 pA (spread 0.3), tonic drive at 320 pA onto both pools.", "" ) );
+      h.push_back( make_hint( 3, "Make the Ia > motoneuron synapse stronger, give the pools tonic drive so they sit near threshold, and let the relay cells fire regularly at the afferent rate (a slower membrane helps).", "" ) );
     }
     else if ( osc > 0.08 )
     {
       h.push_back( make_hint( 1, "Negative feedback with a delay rings when its gain is too high.", "" ) );
       h.push_back( make_hint( 2, "The reflex loop is oscillating: lower the Ia to motoneuron gain.", "ag_Ia" ) );
-      h.push_back( make_hint( 3, "Ia > motoneuron near 240 pA and no more; make the reciprocal inhibition no stronger than the excitation.", "" ) );
+      h.push_back( make_hint( 3, "Lower the Ia > motoneuron gain a little, and make the reciprocal inhibition no stronger than the excitation.", "" ) );
     }
     else if ( rec < tol_min( mode_, 0.20, 1.25, 0.85 ) )
     {
       h.push_back( make_hint( 1, "Reciprocal inhibition: when a muscle is stretched the opposing muscle must be told to relax, or they fight.", "" ) );
       h.push_back( make_hint( 2, "The antagonist pool keeps firing: it needs an inhibitory interneuron from the opposite Ia.", "ant_motor" ) );
-      h.push_back( make_hint( 3, "Ia > inhibitory interneurons (4 cells, 240 pA), and those > the opposite pool at -320 pA.", "" ) );
+      h.push_back( make_hint( 3, "Let each Ia group excite a small inhibitory interneuron group, and let that group project onto the opposite pool; strengthen that inhibitory link until the opposite pool quietens.", "" ) );
     }
     else if ( res < tol_min( mode_, 0.30, 1.25, 0.85 ) )
     {
       h.push_back( make_hint( 1, "Recruitment: the more the pool is driven, the more motor units fire, so a bigger pool gives more force.", "" ) );
       h.push_back( make_hint( 2, "The reflex is too weak to cut the deflection: strengthen the Ia link or enlarge the pool.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Use pools of 20 cells and an Ia > motoneuron link of 240 pA with a weight spread (CV) of 0.3.", "" ) );
+      h.push_back( make_hint( 3, "Use larger motoneuron pools, and make the Ia > motoneuron link stronger with some spread in the weights so the pool is recruited gradually.", "" ) );
     }
     else
     {
-      h.push_back( make_hint( 1, "The reflex should start within 50 ms of the tap, which is only a few synapses long.", "" ) );
+      h.push_back( make_hint( 1, "A spinal reflex starts very soon after the tap, because it is only a few synapses long.", "" ) );
       h.push_back( make_hint( 2, "Check the path from the Ia input to the motor pool for extra relay steps or slow synapses.", "ag_Ia" ) );
-      h.push_back( make_hint( 3, "Ia > relay (tau m 60 ms) > motoneuron pool; no more than one relay.", "" ) );
+      h.push_back( make_hint( 3, "Ia group > motoneuron pool, with no more than one relay on the way; a relay with a slower membrane fires regularly at the afferent rate.", "" ) );
     }
     return h;
   }
@@ -190,7 +195,7 @@ public:
     s.parts[ "deflection_rad" ] = m.dev;
     s.parts[ "deflection_open_loop_rad" ] = m.dev_open;
     s.parts[ "stretches_done" ] = m.done;
-    const bool done = t_ >= kDuration;
+    const bool done = t_ >= quick_duration_ms() - 1e-6;  // the quick check's length: two stretches (a full run has all four)
     const bool tapped = m.lat_f >= 0 && m.lat_e >= 0;
     const double lat_s = tapped ? clampd( ( 80.0 - m.latency ) / 45.0, 0, 1 ) : 0.0;
     s.value = 100.0 * ( 0.35 * std::min( 1.0, m.resistance / 0.5 ) + 0.25 * lat_s + 0.25 * std::min( 1.0, m.recip / 0.5 ) +
@@ -199,12 +204,17 @@ public:
       s.value = std::min( s.value, 49.0 );
     if ( !wiring_.ok() )
       s.value = 0;  // an empty bench scores nothing ("no ringing" is not an achievement when nothing is wired)
-    s.passed = done && m.done >= kN && wiring_.ok() && tapped && m.latency <= tol_max( mode_, 50.0 ) && m.resistance >= tol_min( mode_, 0.30 ) && m.recip >= tol_min( mode_, 0.20 ) && !m.osc_flag;
+    const mechb::Issue* mech = mech_bad();
+    if ( mech )
+      s.value = std::min( s.value, 40.0 );  // behaviour without the mechanism the level teaches is not a solution (docs/REQ-0.4.md rule 1)
+    s.passed = done && m.done >= 2 && !mech && wiring_.ok() && tapped && m.latency <= tol_max( mode_, 50.0 ) && m.resistance >= tol_min( mode_, 0.30 ) && m.recip >= tol_min( mode_, 0.20 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( mech )
+      o << mech->fail;
     else if ( spikes_ag_ < 1 && spikes_ant_ < 1 )
       o << "Both motor pools are silent" << yet << " Give the motoneurons tonic drive and a way to hear the Ia afferents.";
     else if ( t_ < kTapStart + kTapSpacing * kTaps )
@@ -214,7 +224,7 @@ public:
       // Never blame the wiring: the channels are connected (checked above). Say what was measured instead.
       const bool nof = m.lat_f < 0, noe = m.lat_e < 0;
       const char* which = nof && noe ? "either pool" : nof ? "the flexor pool" : "the extensor pool";
-      o << "No reflex to the tendon taps in " << which << ": a brief Ia volley must fire at least a fifth of its motoneurons, and it did not.";
+      o << "No reflex to the tendon taps in " << which << ": a brief Ia volley must recruit a good part of the motoneuron pool at once, and it did not.";
       if ( m.stretch_resp )
         o << " The pool does respond to a sustained stretch, so strengthen the Ia -> motoneuron synapses (or give the pool more Ia fibres) until one volley recruits more cells.";
       else if ( m.done > 0 )
@@ -223,14 +233,13 @@ public:
     else if ( m.done == 0 )
       o << "Waiting for the first push" << yet;
     else if ( m.osc_flag )
-      o << "Reflex rings: the limb oscillates (" << std::setprecision( 2 ) << m.osc << " rad p-p) after the push. Gain is too high (clonus).";
+      o << "Reflex rings: the limb oscillates after the push. Gain is too high (clonus).";
     else if ( m.latency > tol_max( mode_, 50.0 ) )
-      o << "Reflex starts " << m.latency << " ms after a tap: too slow for a spinal reflex (<= " << tol_max( mode_, 50.0 ) << " ms).";
+      o << "The reflex starts too long after a tap to be a spinal reflex: the path from the afferent to the motoneurons is too slow (extra relays, or a link too weak to fire the pool at once).";
     else if ( m.recip < tol_min( mode_, 0.20 ) )
-      o << "Reflex at " << m.latency << " ms, but the opposing muscle keeps firing (suppressed only " << m.recip * 100
-        << "%): co-contraction makes the limb stiff and the reflex weak. Add reciprocal Ia inhibition.";
+      o << "The reflex is fast enough, but the opposing muscle keeps firing: co-contraction makes the limb stiff and the reflex weak. Strengthen the reciprocal Ia inhibition.";
     else if ( m.resistance < tol_min( mode_, 0.30 ) )
-      o << "Reflex at " << m.latency << " ms but it cuts the deflection by only " << m.resistance * 100 << "%: too weak.";
+      o << "The reflex is fast enough but cuts the deflection too little: it is too weak. Strengthen the Ia > motoneuron link or enlarge the pools.";
     else
       o << ( done ? "Stretch reflex at " : "Stretch reflex so far at " ) << m.latency << " ms, deflection cut by " << m.resistance * 100
         << "%, antagonist suppressed " << m.recip * 100 << "%, no ringing.";
@@ -239,6 +248,7 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< mechb::Issue >& out ) const override { mechb::limb_stretch_reflex( g, out ); }
   double torque( double t ) const override
   {
     double tq = 0;

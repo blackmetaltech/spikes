@@ -77,6 +77,8 @@ public:
     return { { "ag_Ia", in_kind( "dc", 10, 3 ) }, { "ant_Ia", in_kind( "dc", 10, 3 ) }, { "ag_II", in_kind( "dc", 10, 3 ) }, { "ant_II", in_kind( "dc", 10, 3 ) }, { "drive", in_kind( "dc", 1, 300 ) } };
   }
   double duration_ms() const override { return kDuration; }
+  /// Quick check: the first three pushes, each with its ringing window (the same rules as the full episode; a full run judges all six).
+  double quick_duration_ms() const override { return kLead + 2 * kSpacing + kJitter + kQuiet1; }
   int par_neurons() const override { return variant_par( variant_, 54 ); }
 
   // ---- v0.3 ----
@@ -95,17 +97,19 @@ public:
   {
     Score s = score();
     std::vector< Hint > h;
+    if ( wiring_.ok() && mech_hints( h, "Posture is a servo: the spindle afferent of a muscle reports its length, the reflex pulls back, and the gamma motoneurons set how sensitive the spindles are." ) )
+      return h;
     if ( s.parts[ "osc_rad" ] > 0.08 )
     {
       h.push_back( make_hint( 1, "Negative feedback with conduction delays rings when its gain is too high.", "" ) );
       h.push_back( make_hint( 2, "The limb oscillates after a push: lower the gain of the stretch-reflex loop.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Relay > pool at about 150 pA, inhibition onto the opposite pool at -320 pA at most.", "" ) );
+      h.push_back( make_hint( 3, "Lower the relay > pool weights a little, and keep the inhibition onto the opposite pool moderate.", "" ) );
     }
     else if ( s.parts[ "gamma" ] < 0.1 )
     {
       h.push_back( make_hint( 1, "The spindles are nearly silent when the gamma motoneurons are quiet: the feedback loop has nothing to listen to.", "" ) );
       h.push_back( make_hint( 2, "The gamma pool is not firing.", "gamma_motor" ) );
-      h.push_back( make_hint( 3, "Tonic group (drive 300 pA, tau m 60 ms) > a gamma group of 4 cells at 960 pA.", "" ) );
+      h.push_back( make_hint( 3, "Let the tonic group excite the gamma group strongly enough that the gamma cells fire steadily.", "" ) );
     }
     else if ( s.parts[ "offset_rad" ] > tol_max( mode_, 0.17, 1.25, 0.92 ) )
     {
@@ -113,13 +117,13 @@ public:
       h.push_back( make_hint( 2, s.parts[ "mean_err_rad" ] > 0 ? "The limb rides above the target between pushes: the flexor pool needs less tonic drive."
                                   : s.parts[ "flexor_rate_hz" ] >= kCeilingHz ? "The limb sags although the flexor pool is already at its ceiling: less tonic drive, not more."
                                                                               : "The limb sags between pushes: the flexor pool needs more tonic drive.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Tonic group > flexor pool at about 70 pA, nothing onto the extensor.", "" ) );
+      h.push_back( make_hint( 3, "Let the tonic group excite the flexor pool (and little or nothing the extensor), raising or lowering that weight until the sag between pushes goes.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Negative feedback: the error (length from the target) is sensed by the spindle and fed back to oppose it.", "" ) );
       h.push_back( make_hint( 2, "The pushes move the limb too far: raise the gain from the spindle secondaries (II) and primaries (Ia) onto the pools.", "ag_II" ) );
-      h.push_back( make_hint( 3, "II and Ia relays > their pool at 150 pA; the II group (3 cells) gives the position signal.", "" ) );
+      h.push_back( make_hint( 3, "Make the II and Ia relay links onto their pool stronger; the II group gives the position signal.", "" ) );
     }
     return h;
   }
@@ -173,35 +177,40 @@ public:
     s.parts[ "gamma" ] = rig_.gam;
     s.parts[ "flexor_rate_hz" ] = m.flexor_rate;
     s.parts[ "pushes_done" ] = m.done;
-    const bool done = t_ >= kDuration;
+    const bool done = t_ >= quick_duration_ms() - 1e-6;  // the quick check's length: three pushes (a full run has six)
+    const mechb::Issue* mech = mech_bad();
     s.value = 100.0 * ( 0.45 * clampd( 1.0 - m.rms / 0.35, 0, 1 ) + 0.30 * clampd( 1.0 - m.mx / 0.6, 0, 1 ) +
                         0.15 * clampd( 1.0 - m.offset / 0.35, 0, 1 ) + 0.10 * ( m.osc_flag ? 0.0 : 1.0 ) );
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 20.0 );
-    s.passed = done && m.done >= kN && wiring_.ok() && m.rms <= tol_max( mode_, 0.17, 1.25, 0.92 ) && m.mx <= tol_max( mode_, 0.30, 1.25, 0.92 ) && m.offset <= tol_max( mode_, 0.17, 1.25, 0.92 ) && !m.osc_flag;
+    if ( mech )
+      s.value = std::min( s.value, 40.0 );  // behaviour without the mechanism the level teaches is not a solution (docs/REQ-0.4.md rule 1)
+    s.passed = done && m.done >= 3 && !mech && wiring_.ok() && m.rms <= tol_max( mode_, 0.17, 1.25, 0.92 ) && m.mx <= tol_max( mode_, 0.30, 1.25, 0.92 ) && m.offset <= tol_max( mode_, 0.17, 1.25, 0.92 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 2 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( mech )
+      o << mech->fail;
     else if ( t_ < kScoreFrom )
       o << "Settling" << yet;
     else if ( m.osc_flag )
-      o << "The limb rings after a push (" << m.osc << " rad p-p): the reflex gain is too high for its delays.";
+      o << "The limb rings after a push: the reflex gain is too high for its delays.";
     else if ( m.offset > tol_max( mode_, 0.17, 1.25, 0.92 ) )
     {
-      o << "The limb " << ( m.signed_offset < 0 ? "sags " : "rides up " ) << std::fabs( m.signed_offset ) << " rad from the target between pushes: ";
+      o << "The limb " << ( m.signed_offset < 0 ? "sags" : "rides up" ) << " away from the target between pushes: ";
       if ( m.signed_offset > 0 )
         o << "less flexor tone (or more extensor tone) is needed.";
       else if ( m.flexor_rate >= kCeilingHz )
-        o << "the flexor pool already fires at " << std::setprecision( 0 ) << m.flexor_rate << " Hz per cell, at its ceiling, so more tone cannot lift the limb: lower the flexor tone (and check the extensor is not co-contracting).";
+        o << "the flexor pool already fires at its ceiling, so more tone cannot lift the limb: lower the flexor tone (and check the extensor is not co-contracting).";
       else
         o << "more flexor tone (or more reflex stiffness) is needed to balance gravity.";
     }
     else if ( m.mx > tol_max( mode_, 0.30, 1.25, 0.92 ) )
-      o << "Pushes move the limb up to " << m.mx << " rad from the target (limit " << tol_max( mode_, 0.30, 1.25, 0.92 ) << "): too compliant. Raise gamma drive or reflex gain.";
+      o << "Pushes move the limb too far from the target: too compliant. Raise gamma drive or reflex gain.";
     else if ( m.rms > tol_max( mode_, 0.17, 1.25, 0.92 ) )
-      o << "RMS angle error " << m.rms << " rad (limit " << tol_max( mode_, 0.17, 1.25, 0.92 ) << ").";
+      o << "The limb wanders too much from the target overall: more reflex stiffness is needed.";
     else
       o << ( done ? "Holding" : "Holding so far" ) << ": rms error " << m.rms << " rad, worst " << m.mx << " rad, sag " << m.offset << " rad.";
     s.verdict = o.str();
@@ -209,6 +218,7 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< mechb::Issue >& out ) const override { mechb::limb_spindle( g, out ); }
   double torque( double t ) const override
   {
     double tq = 0;

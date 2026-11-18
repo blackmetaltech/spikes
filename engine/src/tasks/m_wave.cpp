@@ -62,8 +62,8 @@ public:
                      "stimulus is wired with opposite signs to its two neighbours.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "The segment below the bolus must be relaxed by the stimulus: look at seg2 (it needs an inhibitory route from dist1).", "seg2" },
-      { 3, "tone onto 3 groups (seg0, seg1, seg2). dist1 onto seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -160 pA; "
-           "dist2 onto seg1.", "dist1" } };
+      { 3, "Tone goes onto all three segment groups. dist1 goes onto seg0 and onto a small inhibitory group that projects onto seg2; "
+           "dist2 goes onto seg1. If seg2 does not fall quiet, strengthen that inhibitory link.", "dist1" } };
     i.note = { "The law of the intestine",
       "In 1899 Bayliss and Starling pushed a bolus into a dog's gut and saw that the gut contracted above it and relaxed below it. "
       "They called it the law of the intestine; today we know the circuit: ascending cholinergic excitatory and descending nitrergic inhibitory "
@@ -90,6 +90,20 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // polarity: ascending excitation (dist1 -> seg0) AND descending inhibition (dist1 -> inhibitory interneuron -> seg2)
+    const auto d1 = g.in_pops( "dist1" ), s0 = g.out_pops( "seg0" ), s2 = g.out_pops( "seg2" );
+    mechb::PopSet motors = g.out_pops( std::vector< std::string >{ "seg0", "seg1", "seg2" } );
+    out.push_back( mech( "ascending_excitation", g.exc( d1, s0, 3 ),
+                         "No ascending excitation: the stimulus on the first segment does not excite the segment above it (seg0), so there is no squeeze behind the bolus.",
+                         "The segment above the bolus: seg0 has to be excited by dist1.", "seg0", "Connect dist1 to the group read out on seg0." ) );
+    out.push_back( mech( "descending_inhibition", g.hops( d1, s2, -1, 4, motors ) >= 1,
+                         "No descending inhibition: the stimulus on the first segment does not reach the segment below it (seg2) through an inhibitory interneuron, so the tube ahead of the bolus stays contracted.",
+                         "The segment below the bolus: seg2 needs an inhibitory interneuron on the route from dist1.", "seg2",
+                         "Send dist1 through a small group set to inhibitory onto the group read out on seg2." ) );
+  }
+
   bool at1( double t ) const { return t >= 700 + j_ && t < 1500 + j_; }
   bool at2( double t ) const { return t >= 1700 + j_ && t < 2500 + j_; }
 
@@ -132,31 +146,31 @@ protected:
     tone.ok = b[ 0 ] >= 8 && b[ 1 ] >= 8 && b[ 2 ] >= 8;
     tone.soft = ramp( std::min( b[ 0 ], std::min( b[ 1 ], b[ 2 ] ) ), 0, 8 );
     int silent = b[ 0 ] < 8 ? 0 : ( b[ 1 ] < 8 ? 1 : 2 );
-    tone.fail = "Segment " + std::to_string( silent ) + " is silent at rest (" + fmt( b[ silent ] ) + " spikes/s): a segment with no tone has nothing to relax from. Wire 'tone' to all three segments.";
+    tone.fail = std::string( kSeg[ silent ] ) + " is silent at rest: a segment with no tone has nothing to relax from. Wire 'tone' to all three segments.";
     tone.place = "One of the segments gets no tone.";
     tone.target = kSeg[ silent ];
-    tone.recipe = "Drag 'tone' onto a group for each segment (the first connection sets the weight to 300 pA per unit, which is right).";
+    tone.recipe = "Drag 'tone' onto a group for each segment; the first connection's weight is already about right.";
     crits.push_back( tone );
 
     Crit asc;
     asc.key = "ascending";
     asc.ok = w1[ 0 ] >= b[ 0 ] + 15 / tl;
     asc.soft = ramp( w1[ 0 ] - b[ 0 ], 0, 15 );
-    asc.fail = "With the bolus on segment 1, seg0 (above it) does not contract: " + fmt( b[ 0 ] ) + " to " + fmt( w1[ 0 ] ) + " spikes/s. Excitation must run up the tube: wire dist1 to seg0.";
+    asc.fail = "With the bolus on the first segment, seg0 (above it) does not contract. Excitation must run up the tube: wire dist1 to seg0.";
     asc.place = "The segment above the bolus: seg0 has to be excited by dist1.";
     asc.target = "seg0";
-    asc.recipe = "Drag 'dist1' onto the seg0 group (weight 300 pA per unit adds 600 pA).";
+    asc.recipe = "Drag 'dist1' onto the seg0 group, with its first-connection weight.";
     crits.push_back( asc );
 
     Crit desc;
     desc.key = "descending";
     desc.ok = w1[ 2 ] <= 0.3 * tl * std::max( b[ 2 ], 1.0 );
     desc.soft = 1.0 - ramp( w1[ 2 ] / std::max( b[ 2 ], 1.0 ), 0.3, 1.0 );
-    desc.fail = "With the bolus on segment 1, seg2 (below it) fires " + fmt( w1[ 2 ] ) + " spikes/s against " + fmt( b[ 2 ] ) + " at rest: it must relax. Inhibition must run down the "
-                "tube: dist1 onto an inhibitory cell that projects onto seg2.";
+    desc.fail = "With the bolus on the first segment, seg2 (below it) does not relax enough. Inhibition must run down the "
+                "tube: dist1 onto an inhibitory cell that projects onto seg2, strong enough to cancel its tone.";
     desc.place = "The segment below the bolus: seg2 needs an inhibitory route from dist1.";
     desc.target = "seg2";
-    desc.recipe = "dist1 onto an inhibitory group of 2 cells, projecting onto seg2 at about -160 pA.";
+    desc.recipe = "dist1 onto a small inhibitory group projecting onto seg2; the default inhibitory weight may be too weak, so strengthen it.";
     crits.push_back( desc );
 
     Crit trv;
@@ -164,8 +178,8 @@ protected:
     const bool seg1_up = w2[ 1 ] >= b[ 1 ] + 15 / tl, seg0_off = w2[ 0 ] <= b[ 0 ] + 8 * tl;
     trv.ok = seg1_up && seg0_off;
     trv.soft = ( ramp( w2[ 1 ] - b[ 1 ], 0, 15 ) + ( seg0_off ? 1.0 : 0.0 ) ) / 2.0;
-    trv.fail = !seg1_up ? "With the bolus on segment 2, seg1 (above it) does not contract (" + fmt( b[ 1 ] ) + " to " + fmt( w2[ 1 ] ) + " spikes/s): the wave must move on. Wire dist2 to seg1."
-                        : "With the bolus on segment 2, seg0 still contracts (" + fmt( w2[ 0 ] ) + " spikes/s): the wave has moved on, only the segment above the bolus should squeeze.";
+    trv.fail = !seg1_up ? "With the bolus on the second segment, seg1 (above it) does not contract: the wave must move on. Wire dist2 to seg1."
+                        : "With the bolus on the second segment, seg0 still contracts: the wave has moved on, only the segment above the bolus should squeeze.";
     trv.place = "The next step of the wave: dist2 has to excite the segment above it (seg1), not the earlier one.";
     trv.target = !seg1_up ? "seg1" : "seg0";
     trv.recipe = "dist2 onto the seg1 group only.";
@@ -178,8 +192,7 @@ protected:
       back = back && rc[ i ] >= 0.6 * b[ i ] && rc[ i ] <= 1.35 * b[ i ];
     rec.ok = back;
     rec.soft = back ? 1.0 : 0.5;
-    rec.fail = "After the bolus has passed the segments are at " + fmt( rc[ 0 ] ) + " / " + fmt( rc[ 1 ] ) + " / " + fmt( rc[ 2 ] ) + " spikes/s, their tone was " + fmt( b[ 0 ] ) + " / " + fmt( b[ 1 ] ) + " / " + fmt( b[ 2 ] ) +
-               ": the response must end with the stimulus.";
+    rec.fail = "After the bolus has passed the segments do not all return to their tone: the response must end with the stimulus.";
     rec.place = "A segment that does not return to rest: its inhibition or excitation outlasts the bolus.";
     rec.target = "seg2";
     rec.recipe = "Drive the contraction and the inhibition only from dist1 and dist2, not from tone.";

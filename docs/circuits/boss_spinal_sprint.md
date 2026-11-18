@@ -29,3 +29,10 @@ leave less margin. Modes: guided x1.25, researcher x0.85 on every tolerance.
 Also failing on seed 2 but borderline (not in the test): MN -> RC cut (overshoot 55 %, rms 0.19), RC -> MN cut (overshoot 72 %, rms 0.23), B2 -> MN cut (overshoot 62 %).
 
 Credits: Matthews PBC (1972); Nichols TR, Houk JC (1976) J Neurophysiol 39:119; Hultborn H (2006) Prog Neurobiol 78:215; Hallett M, Shahani BT, Young RR (1975) J Neurol Neurosurg Psychiatry 38:1154; Feldman AG (1986) J Mot Behav 18:17.
+
+## v0.4: the honesty contract (docs/REQ-0.4.md)
+- **Mechanism check.** Before the behaviour, the task reads the circuit structure (`Engine::structure()`, captured when the run starts) and requires all of its component mechanisms: spindle feedback and fusimotor drive (posture), the monosynaptic reflex with reciprocal inhibition, a Renshaw loop, and the agonist and antagonist bursts. A circuit that lacks it fails with a verdict naming the missing mechanism, and its value is capped at 40.
+- **No numbers in verdicts or hint tiers 1-3.** Failed verdicts and the three hint tiers describe the observed behaviour and the direction to change; the numbers are only in `recipe()`. Pass messages still report observed values.
+- **Negative tests.** `engine/tests/cheap_rows_b.inc` (run by `tasks_cheap_test`): empty bench, one cell with the lab's first-connect weights, one tonic cell with every weight 0, the reference with every weight 0, the reference with every weight at an extreme, and the reference minus the taught mechanism, each must fail with the mechanism named.
+- **Non-circular novice.** Brief and lab defaults only, at most 8 runs: not attempted by the scripted novice: it composes the four levels above, two of which the novice does not solve.
+- **Speed.** Quick check (14.25 s instead of 40 s): posture, the first two reaches and the pushes up to the one during the second reach's hold; the same rules (a full run judges three reaches and nine pushes).

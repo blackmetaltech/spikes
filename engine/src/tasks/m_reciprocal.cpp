@@ -64,8 +64,8 @@ public:
                      "inhibits its antagonist, so the pair works as one. An inhibitory neuron turns a sensory excitation into a relaxation.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "The extensor needs a route from 'ia_flexor' that changes sign: a cell set to inhibitory between the sensor and the extensor pool.", "extensor" },
-      { 3, "tone onto a flexor group and an extensor group (2 cells each). ia_flexor onto the flexor group and onto an interneuron group of 2 cells set "
-           "to inhibitory, which projects to the extensor group at the default weight (-80 pA); raise it to about -160 pA if the extensor does not fall silent.",
+      { 3, "Tone goes onto a flexor group and an extensor group. ia_flexor goes onto the flexor group and onto a small interneuron group set to inhibitory, "
+           "which projects onto the extensor group; make that inhibitory link stronger if the extensor does not fall silent.",
         "ia_flexor" } };
     i.note = { "Reciprocal innervation",
       "Charles Sherrington noticed in the 1890s that when a limb's flexors are excited their antagonists relax, as if the two were wired "
@@ -92,6 +92,28 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    const auto flex = g.out_pops( "flexor" ), ext = g.out_pops( "extensor" ), ia = g.in_pops( "ia_flexor" );
+    mechb::PopSet motors = flex;
+    motors.insert( ext.begin(), ext.end() );
+    // the inhibition must go through an interneuron (a cell that is not one of the two motor pools): afferent -> inhibitory interneuron -> antagonist motoneurons
+    const bool inh = g.hops( ia, ext, -1, 4, motors ) >= 1;
+    bool any_ex = false;  // an inhibitory interneuron that the afferent does not drive, or a drive that is not inhibitory, to word the verdict
+    for ( int x = 0; x < g.n_pops(); ++x )
+      if ( !motors.count( x ) && g.edge( mechb::PopSet{ x }, ext, -1 ) )
+        any_ex = true;
+    std::string fail = "No inhibitory route to the antagonist: the afferent of the stretched muscle does not reach the extensor motoneurons through an inhibitory interneuron.";
+    if ( any_ex )
+      fail = "An inhibitory interneuron projects onto the extensor, but 'ia_flexor' does not drive it: the stretched muscle's afferent must excite that interneuron.";
+    out.push_back( mech( "ia_inhibitory_interneuron", inh, fail, "Between 'ia_flexor' and the extensor pool there must be an interneuron set to inhibitory.", "extensor",
+                         "Put a small interneuron group on the path from 'ia_flexor' to the extensor: ia_flexor excites it, and it is set to inhibitory onto the extensor group." ) );
+    out.push_back( mech( "ia_own_motoneurons", g.exc( ia, flex, 3 ),
+                         "The afferent of the stretched muscle does not excite its own motoneurons: reciprocal inhibition is the second branch of the reflex, not the only one.",
+                         "The stretch reflex itself: 'ia_flexor' should excite the flexor pool.", "ia_flexor",
+                         "Drag 'ia_flexor' onto the flexor group as well." ) );
+  }
+
   bool stretching( double t ) const { return t >= kOn + j_ && t < kOff + j_; }
 
   void drive( Engine& e, double ) override
@@ -129,40 +151,40 @@ protected:
     tone.key = "tone";
     tone.ok = bf >= 8 && be >= 8;
     tone.soft = ramp( std::min( bf, be ), 0, 8 );
-    tone.fail = "At rest the flexor fires " + fmt( bf ) + " spikes/s and the extensor " + fmt( be ) + ": a muscle that is silent has nothing to relax from. "
-                "Wire 'tone' to both pools (it gives each cell 420 pA, just above rheobase).";
+    tone.fail = std::string( "At rest the " ) + ( bf < 8 ? "flexor" : "extensor" ) + " is silent: a muscle that is silent has nothing to relax from. "
+                "Wire 'tone' to both pools.";
     tone.place = "One of the pools gets no tone. 'tone' has to reach both the flexor and the extensor group.";
     tone.target = bf < 8 ? "flexor" : "extensor";
-    tone.recipe = "Drag 'tone' onto a flexor group and onto an extensor group (the first connection sets its weight to 300 pA per unit, which is right).";
+    tone.recipe = "Drag 'tone' onto a flexor group and onto an extensor group; the first connection's weight is already about right.";
     crits.push_back( tone );
 
     Crit up;
     up.key = "flexor_up";
     up.ok = sf >= bf + 15 / tl;
     up.soft = ramp( sf - bf, 0, 15 );
-    up.fail = "The stretched flexor did not speed up (" + fmt( bf ) + " to " + fmt( sf ) + " spikes/s): the afferent has to excite its own motoneurons. "
+    up.fail = "The stretched flexor did not speed up: the afferent has to excite its own motoneurons. "
               "Wire 'ia_flexor' to the flexor group.";
     up.place = "The stretch reflex itself: 'ia_flexor' should excite the flexor pool.";
     up.target = "ia_flexor";
-    up.recipe = "Drag 'ia_flexor' onto the flexor group (weight 300 pA per unit: the stretch adds 600 pA).";
+    up.recipe = "Drag 'ia_flexor' onto the flexor group with its first-connection weight.";
     crits.push_back( up );
 
     Crit rel;
     rel.key = "relax";
     rel.ok = ratio <= 0.3 * tl;
     rel.soft = 1.0 - ramp( ratio, 0.3, 1.0 );
-    rel.fail = "During the stretch the extensor still fires " + fmt( se ) + " spikes/s (" + fmt( 100 * ratio ) + " % of its resting " + fmt( be ) +
-               "): the antagonist did not relax. The stretch must reach it through an inhibitory cell, strong enough to cancel its drive.";
+    rel.fail = std::string( "During the stretch the extensor " ) + ( ratio >= 0.8 ? "does not relax at all" : "relaxes only partly" ) +
+               ": the stretch must reach it through an inhibitory cell, strong enough to cancel its drive.";
     rel.place = "The antagonist: the path from 'ia_flexor' to the extensor pool must change sign, so put an inhibitory interneuron on it.";
     rel.target = "extensor";
-    rel.recipe = "ia_flexor onto an interneuron group of 2 cells set to inhibitory, projecting to the extensor group (-80 pA by default, about -160 pA to be safe).";
+    rel.recipe = "ia_flexor onto a small interneuron group set to inhibitory, projecting onto the extensor group; the default inhibitory weight may be too weak, so strengthen it.";
     crits.push_back( rel );
 
     Crit rec;
     rec.key = "recovery";
     rec.ok = re >= 0.6 * be;
     rec.soft = ramp( re, 0, 0.6 * be );
-    rec.fail = "After the stretch the extensor does not come back (" + fmt( re ) + " spikes/s against " + fmt( be ) + " at rest): relaxation should last only as long as the stretch.";
+    rec.fail = "After the stretch the extensor does not come back to its resting rate: relaxation should last only as long as the stretch.";
     rec.place = "The inhibition is too persistent or the extensor lost its tone: it should follow the stretch.";
     rec.target = "extensor";
     rec.recipe = "Keep the inhibition driven only by 'ia_flexor' (not by tone), so that it ends with the stretch.";

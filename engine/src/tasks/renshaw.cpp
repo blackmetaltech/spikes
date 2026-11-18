@@ -108,29 +108,31 @@ public:
   {
     Score s = score();
     std::vector< Hint > h;
+    if ( wiring_.ok() && mech_hints( h, "Recurrent inhibition: each motoneuron's own output excites a Renshaw cell, and that cell inhibits the motoneurons back, so the harder the pool fires, the harder it is held in." ) )
+      return h;
     if ( s.parts[ "pool_rate_hz" ] < 5.0 )
     {
       h.push_back( make_hint( 1, "The motoneuron pools need tonic drive to fire before feedback has anything to hold back.", "" ) );
       h.push_back( make_hint( 2, "The pools are nearly silent.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Drive at about 150 pA onto both pools of 20 cells (the noise adds drive of its own).", "" ) );
+      h.push_back( make_hint( 3, "Give both pools a tonic drive, only as much as it takes to make them fire (the noise adds drive of its own).", "" ) );
     }
     else if ( s.parts[ "volley_excess_hz" ] < 0.57 * kExcessRef )
     {
       h.push_back( make_hint( 1, "Real motor pools receive common synaptic input; that shared wave is what makes the force wobble.", "" ) );
       h.push_back( make_hint( 2, "The noise reaches your pools too weakly: a cell that integrates the Poisson input fires far less often than the input and loses the volleys; cells that repeat each spike (parrot_neuron) pass them on.", "noise" ) );
-      h.push_back( make_hint( 3, "noise (weight 100) > DESC (2 parrot_neuron cells) > both pools at 30 pA.", "" ) );
+      h.push_back( make_hint( 3, "Send noise onto one shared group of parrot_neuron cells, and from that group onto both pools with a modest weight so every cell gets the same wave.", "" ) );
     }
     else if ( s.parts[ "improvement" ] < tol_min( mode_, 0.25 ) )
     {
       h.push_back( make_hint( 1, "Recurrent inhibition: the harder the pool fires, the harder it is held back by its own Renshaw cells.", "" ) );
       h.push_back( make_hint( 2, "Add inhibitory cells that the motoneurons excite and that inhibit the same pool.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "RF, RE (4 cells, inhibitory): MNF > RF and MNE > RE at 80, RF > MNF and RE > MNE at -160.", "" ) );
+      h.push_back( make_hint( 3, "Give each pool a small inhibitory group: the pool excites it, and it projects back onto the pool; make the loop stronger until the tremor drops.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Too much recurrent inhibition smothers the stretch reflex or makes the limb ring.", "" ) );
       h.push_back( make_hint( 2, "Weaken the Renshaw feedback a little.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "RF > MNF and RE > MNE around -160 pA; keep RF > INF at -40 so the reciprocal inhibition survives.", "" ) );
+      h.push_back( make_hint( 3, "Make the Renshaw > motoneuron links a little weaker, and keep the Renshaw > interneuron links gentle so the reciprocal inhibition survives.", "" ) );
     }
     return h;
   }
@@ -193,37 +195,39 @@ public:
     s.parts[ "stretches_done" ] = m.done;
     const bool done = t_ >= kDuration;
     const bool firing = m.rate_mean >= 5.0;
+    const mechb::Issue* mech = mech_bad();
     s.value = 100.0 * ( 0.55 * std::min( 1.0, m.improvement / 0.5 ) + 0.25 * std::min( 1.0, m.resistance / 0.5 ) + 0.2 * ( m.osc_flag ? 0.0 : 1.0 ) );
     if ( !firing || m.osc_flag )
       s.value = std::min( s.value, 49.0 );
     if ( m.have_probe && m.excess < 0.57 * kExcessRef )  // the pools ignore the common input: the tremor figure means nothing
       s.value = std::min( s.value, 49.0 );
-    s.passed = done && m.done >= kN && wiring_.ok() && firing && m.have_probe && m.excess >= 0.57 * kExcessRef && m.improvement >= tol_min( mode_, 0.25 ) && m.resistance >= tol_min( mode_, 0.30 ) && !m.osc_flag;
+    if ( mech )
+      s.value = std::min( s.value, 40.0 );  // behaviour without the mechanism the level teaches is not a solution (docs/REQ-0.4.md rule 1)
+    s.passed = done && m.done >= kN && !mech && wiring_.ok() && firing && m.have_probe && m.excess >= 0.57 * kExcessRef && m.improvement >= tol_min( mode_, 0.25 ) && m.resistance >= tol_min( mode_, 0.30 ) && !m.osc_flag;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( mech )
+      o << mech->fail;
     else if ( t_ < kHold1 )
       o << "Holding" << yet;
     else if ( !firing )
-      o << "The motor pool is nearly silent (" << m.rate_mean << " Hz): give it tonic drive.";
+      o << "The motor pool is nearly silent: give it tonic drive.";
     else if ( m.done == 0 )
       o << "Tremor " << m.tremor << "%, waiting for the pushes" << yet;
     else if ( m.osc_flag )
-      o << "The limb rings after the push (" << std::setprecision( 2 ) << m.osc << " rad p-p): too much loop gain.";
+      o << "The limb rings after the push: too much loop gain.";
     else if ( !m.have_probe )
       o << "Tremor " << m.tremor << "%; the common-input volleys are still to come" << yet;
     else if ( m.excess < 0.57 * kExcessRef )
-      o << "Your motor pools hardly answer the common input (a volley adds only " << std::setprecision( 0 ) << m.excess
-        << " spikes/s; the reference cord shows about " << kExcessRef << "), so there is no common drive for recurrent inhibition to calm. "
+      o << "Your motor pools hardly answer the common input (a volley adds far less than it would in an open cord), so there is no common drive for recurrent inhibition to calm. "
         << "The noise is lost on its way: cells that integrate a Poisson input fire far less often than the input and swallow the volley, and weak links to the pools lose what is left; use cells that repeat every spike (parrot_neuron) and check their weight onto both pools.";
     else if ( m.improvement < tol_min( mode_, 0.25 ) )
-      o << "Force tremor " << m.tremor << "% is only " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit ("
-        << std::setprecision( 1 ) << m.control << "% at this rate and this strength of common input): the recurrent loop is too weak, or missing.";
+      o << "The force tremor is not clearly below what an unbraked cord would show for your circuit at this rate and this strength of common input: the recurrent loop is too weak.";
     else if ( m.resistance < tol_min( mode_, 0.30 ) )
-      o << "The stretch reflex only cuts the deflection by " << std::setprecision( 0 ) << m.resistance * 100
-        << "%: the recurrent inhibition is smothering the reflex.";
+      o << "The stretch reflex cuts the deflection too little: the recurrent inhibition is smothering the reflex.";
     else
       o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit, reflex cuts deflection by "
         << m.resistance * 100 << "%.";
@@ -234,6 +238,7 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< mechb::Issue >& out ) const override { mechb::limb_renshaw( g, out ); }
   double torque( double t ) const override
   {
     double tq = 0;

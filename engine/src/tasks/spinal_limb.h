@@ -23,6 +23,7 @@
 #include <vector>
 #include "spike/body/joint.h"
 #include "spike/task.h"
+#include "mech_b.h"
 #include "task_util.h"
 
 namespace spike::tasks
@@ -190,6 +191,10 @@ public:
   {
     if ( !probed_inputs_ )
     {
+      graph_.capture( e );  // the circuit as the run starts: mechanism criteria are judged on its structure (docs/REQ-0.4.md rule 1)
+      mech_.clear();
+      if ( graph_.valid() )
+        mechanism( graph_, mech_ );
       for ( const auto& c : e.inputs() )
         inputs_.insert( c.name );
       for ( const auto& c : e.outputs() )
@@ -283,6 +288,27 @@ public:
   }
 
 protected:
+  /// Mechanism criteria of the level, listed in the order they speak (see mech_b.h limb_* helpers). Default: none.
+  virtual void mechanism( const mechb::Graph&, std::vector< mechb::Issue >& ) const {}
+  /// The first mechanism criterion that fails (nullptr when the circuit has them all).
+  const mechb::Issue* mech_bad() const
+  {
+    for ( const auto& m : mech_ )
+      if ( !m.ok )
+        return &m;
+    return nullptr;
+  }
+  /// Hint ladder of a missing mechanism: tier 1 names the concept, tier 2 the place, tier 3 the direction (words only). False when nothing is missing.
+  bool mech_hints( std::vector< Task::Hint >& h, const std::string& concept_text ) const
+  {
+    const auto* m = mech_bad();
+    if ( !m )
+      return false;
+    h.push_back( { 1, concept_text, "" } );
+    h.push_back( { 2, m->place, m->target } );
+    h.push_back( { 3, m->direction, m->target } );
+    return true;
+  }
   virtual double torque( double t_ms ) const = 0;
   virtual void cues( Engine&, double /*t_ms*/ ) {}
   virtual void after_tick( double /*h*/ ) {}
@@ -315,12 +341,16 @@ protected:
     probed_inputs_ = false;
     gamma_present_ = false;
     inputs_.clear();
+    mech_.clear();
+    graph_.clear();
   }
 
   LimbRig rig_;
   MotorReader motor_;
   Wiring wiring_;
   std::set< std::string > inputs_;
+  mechb::Graph graph_;
+  std::vector< mechb::Issue > mech_;
   bool probed_inputs_ = false, gamma_present_ = false;
   double t_ = 0, tq_ = 0, spikes_ag_ = 0, spikes_ant_ = 0, pool_ag_ = 1, pool_ant_ = 1;
   std::vector< double > cnt_ag_, cnt_ant_;  // per-tick pool spike counts

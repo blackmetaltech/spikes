@@ -80,6 +80,9 @@ public:
   }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor", "gamma_motor" }; }
   double duration_ms() const override { return kDuration; }
+  /// Quick check: posture, the first two reaches and the pushes up to the one during the second reach's hold (with its ringing window); the same rules
+  /// as the full episode on a shorter run. A full run judges all three reaches and all nine pushes.
+  double quick_duration_ms() const override { return kPushT[ 3 ] + kJitter + kQuiet1; }
   int par_neurons() const override { return 80; }
   std::string level_kind() const override { return "boss"; }
   bool on_spine() const override { return true; }
@@ -129,7 +132,8 @@ public:
   {
     Score s;
     Metrics m = analyse();
-    const bool done = t_ >= kDuration;
+    const bool done = t_ >= quick_duration_ms() - 1e-6;  // the quick check's length: two reaches (a full run has three)
+    const mechb::Issue* mech = mech_bad();
     s.parts[ "hold_rms_rad" ] = m.rms;
     s.parts[ "hold_max_rad" ] = m.mx;
     s.parts[ "reach_ms" ] = m.reach_ms;
@@ -144,36 +148,40 @@ public:
     s.parts[ "push_hold_max_rad" ] = m.push_hold_max;
     s.parts[ "gamma" ] = rig_.gam;
     const double post = 0.6 * clampd( 1.0 - m.rms / 0.35, 0, 1 ) + 0.4 * clampd( 1.0 - m.mx / 0.6, 0, 1 );
-    const double reach = m.done > 0 ? m.reach_value / kNR : 0.0;
+    const double reach = m.done > 0 ? m.reach_value / std::max( m.done, 2 ) : 0.0;
     const double steady = ( m.osc_flag ? 0.0 : 0.6 ) + 0.4 * clampd( 1.0 - m.creep / 0.2, 0, 1 );
     const double resist = clampd( 1.0 - m.push_hold_max / 0.6, 0, 1 );
     s.value = 100.0 * ( 0.30 * post + 0.40 * reach + 0.15 * steady + 0.15 * resist );
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 20.0 );
-    s.passed = done && wiring_.ok() && m.done >= kNR && m.good >= kNR && m.rms <= 0.23 * tol() && m.mx <= 0.40 * tol() && !m.osc_flag && m.creep <= 0.10;
+    if ( mech )
+      s.value = std::min( s.value, 40.0 );  // behaviour without the mechanisms the level teaches is not a solution (docs/REQ-0.4.md rule 1)
+    s.passed = done && wiring_.ok() && !mech && m.done >= 2 && m.good >= m.done && m.rms <= 0.23 * tol() && m.mx <= 0.40 * tol() && !m.osc_flag && m.creep <= 0.10;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 2 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( mech )
+      o << mech->fail;
     else if ( t_ < kScoreFrom )
       o << "Settling" << yet;
     else if ( m.osc_flag )
-      o << "The arm rings after a push (" << m.osc << " rad p-p): the loop gain is too high for its delays (more Renshaw damping, or less reflex gain).";
+      o << "The arm rings after a push: the loop gain is too high for its delays (more Renshaw damping, or less reflex gain).";
     else if ( m.creep > 0.10 )
-      o << "The arm creeps " << m.creep << " rad before the go cue (limit 0.10): the tonic drive or the target input moves it early.";
+      o << "The arm creeps before the go cue: the tonic drive or the target input moves it early.";
     else if ( m.done > 0 && m.good < m.done && m.never > 0 )
-      o << "The arm does not reach the target: " << m.never << " of " << m.done << " reaches never settle within 0.10 rad (the reflex or the hold command fights the burst).";
+      o << "The arm does not reach the target: some reaches never settle close to it (the reflex or the hold command fights the burst).";
     else if ( m.done > 0 && m.good < m.done && m.worst_over > 0.65 * tol() )
-      o << "Worst overshoot " << std::setprecision( 0 ) << m.worst_over * 100 << "% of the distance (limit " << 65 * tol() << "%): the braking (antagonist) burst is too weak or too late.";
+      o << "The arm overshoots the target too far: the braking (antagonist) burst is too weak or too late.";
     else if ( m.done > 0 && m.good < m.done && m.worst_reach_ms > 800 * tol() )
-      o << "The slowest reach takes " << std::setprecision( 0 ) << m.worst_reach_ms << " ms (limit " << 800 * tol() << "): the first burst is too weak, or the stretch reflex resists it.";
+      o << "The slowest reach is too slow: the first burst is too weak, or the stretch reflex resists it.";
     else if ( m.done > 0 && m.good < m.done )
-      o << "The worst reach ends " << m.worst_final << " rad from the target (limit " << 0.20 * tol() << "): the hold command does not match the target under gravity.";
+      o << "The worst reach ends too far from the target: the hold command does not match the target under gravity.";
     else if ( m.mx > 0.40 * tol() )
-      o << "Pushes move the arm up to " << m.mx << " rad from its target (limit " << 0.40 * tol() << "): too compliant. Raise gamma drive or reflex gain.";
+      o << "Pushes move the arm too far from its target: too compliant. Raise gamma drive or reflex gain.";
     else if ( m.rms > 0.23 * tol() )
-      o << "RMS error from the target " << m.rms << " rad (limit " << 0.23 * tol() << "): the arm sags or drifts between pushes.";
+      o << "The arm sags or drifts from its target between pushes.";
     else
       o << ( done ? "Held and reached: " : "Good so far: " ) << "rms " << m.rms << " rad, worst " << m.mx << " rad, reaches " << std::setprecision( 0 )
         << m.reach_ms << " ms.";
@@ -191,23 +199,25 @@ public:
   {
     Metrics m = analyse();
     std::vector< Hint > h;
+    if ( wiring_.ok() && mech_hints( h, "Every part of the spinal system must be there: spindle feedback with fusimotor drive, the reflex with reciprocal inhibition, Renshaw cells on the pools, and a burst generator for the reach." ) )
+      return h;
     if ( m.osc_flag )
     {
       h.push_back( { 1, "A ringing arm: a feedback loop with too much gain for its delays. What damps a motor pool from within?", "" } );
       h.push_back( { 2, "Look at the Renshaw cells of both pools.", "RC_F" } );
-      h.push_back( { 3, "Give each pool a few Renshaw cells: pool > RC excitatory, RC > pool inhibitory, RC > the Ia interneuron of the same side.", "RC_F" } );
+      h.push_back( { 3, "Give each pool a few Renshaw cells: the pool excites them, they inhibit the pool, and they inhibit the Ia interneuron of the same side too.", "RC_F" } );
     }
     else if ( m.done > 0 && m.good < m.done )
     {
       h.push_back( { 1, "A movement needs a burst pattern (accelerate, brake, clamp) AND a hold command that matches the target.", "" } );
       h.push_back( { 2, "Look at the burst generator and the target relay.", "B1" } );
-      h.push_back( { 3, "'go' starts B1 > B2 > B3 with delays; 'target' scales every burst and shifts the tonic balance (flexor up, extensor down).", "TGT" } );
+      h.push_back( { 3, "'go' starts a chain of burst groups with delays between them; 'target' scales the bursts and shifts the tonic balance (flexor up, extensor down).", "TGT" } );
     }
     else
     {
       h.push_back( { 1, "Holding a limb up needs spindles that are tuned (gamma drive) and a tonic drive that balances gravity.", "" } );
       h.push_back( { 2, "Look at the gamma pool and the tonic cells.", "GAM" } );
-      h.push_back( { 3, "Drive TONIC > MN_F stronger than TONIC > MN_E, and TONIC > GAM so the spindles listen.", "TONIC" } );
+      h.push_back( { 3, "Drive the flexor pool from the tonic group more strongly than the extensor pool, and let the tonic group drive the gamma pool so the spindles listen.", "TONIC" } );
     }
     return h;
   }
@@ -222,6 +232,13 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< mechb::Issue >& out ) const override
+  {
+    mechb::limb_spindle( g, out );
+    mechb::limb_stretch_reflex( g, out );
+    mechb::limb_renshaw( g, out );
+    mechb::limb_burst( g, out );
+  }
   double torque( double t ) const override
   {
     double tq = 0;

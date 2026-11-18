@@ -66,8 +66,8 @@ public:
                      "announced. A controller with both is fast and accurate.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "You need two routes into the effort cells: 'level' through an inhibitory cell (feedback) and 'cue' directly (feed-forward).", "cue" },
-      { 3, "tone onto 2 effort cells. level onto 3 inhibitory cells that project onto the effort cells at about -300 pA. cue onto the effort cells "
-           "(the first connection's weight of 300 pA per unit is right).", "cue" } };
+      { 3, "Tone goes onto the effort cells. Level goes onto a group of inhibitory cells that projects onto the effort cells (feedback). Cue goes onto the "
+           "effort cells directly (feed-forward); the first connection's weight is about right.", "cue" } };
     i.note = { "Central command",
       "In 1913 August Krogh and Johannes Lindhard showed that breathing and heart rate rise within the first seconds of exercise, "
       "too fast for blood chemistry to explain: the motor command itself drives the cardiovascular and respiratory centres "
@@ -96,6 +96,20 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // both halves of the controller: the cue reaches the effort cells (feed-forward) AND the level reaches them with the opposite sign (feedback)
+    const auto cue = g.in_pops( "cue" ), lvl = g.in_pops( "level" ), eff = g.out_pops( "effort" );
+    out.push_back( mech( "feedback_path", g.hops( lvl, eff, -1, 4 ) >= 1,
+                         "No feedback path: the level sensor does not reach the effort cells through an inhibitory cell, so a workload nobody announced cannot be corrected.",
+                         "The feedback path: 'level' needs an inhibitory cell between it and the effort cells.", "level",
+                         "Route 'level' through a group set to inhibitory onto the effort cells." ) );
+    out.push_back( mech( "cue_path", g.exc( cue, eff, 4 ),
+                         "No feed-forward path: the cue does not reach the effort cells, so the warning is not used and the effort cannot rise before the workload.",
+                         "The warning: 'cue' has to excite the effort cells.", "cue",
+                         "Connect 'cue' to the effort cells (directly, with an excitatory link)." ) );
+  }
+
   double b() const { return 1100 + j_; }
   bool cue_at( double t ) const { return t >= b() && t < b() + 1300; }
   double work_at( double t ) const
@@ -160,45 +174,44 @@ protected:
     c0.key = "baseline";
     c0.ok = std::fabs( y0 - kSet ) <= band;
     c0.soft = 1.0 - std::fabs( y0 - kSet ) / 0.5;
-    c0.fail = "Before the cue the level sits at " + fmt( y0, 2 ) + " (target 0.50 +- " + fmt( band, 2 ) + "): the base effort is wrong. Feed the level back through "
+    c0.fail = std::string( "Before the cue the level sits " ) + ( y0 > kSet ? "above" : "below" ) + " the target band: the base effort is wrong. Feed the level back through "
               "an inhibitory cell onto the effort cells so that it settles at the target by itself.";
     c0.place = "The feedback path: 'level' needs an inhibitory cell between it and the effort cells.";
     c0.target = "level";
-    c0.recipe = "level onto 3 inhibitory cells, projecting onto the effort cells at about -300 pA; tone onto the effort cells.";
+    c0.recipe = "level onto a group of inhibitory cells projecting onto the effort cells, strong enough to settle the level; tone onto the effort cells.";
     crits.push_back( c0 );
 
     Crit c1;
     c1.key = "warned_dip";
     c1.ok = pk <= peak_lim;
     c1.soft = 1.0 - ramp( pk, peak_lim, 0.6 );
-    c1.fail = "The announced workload still pulls the level " + fmt( pk, 2 ) + " away from 0.5 (limit " + fmt( peak_lim, 2 ) +
-              "): feedback alone reacts too late. Use the cue: wire 'cue' to the effort cells so that effort rises before the workload arrives" +
-              std::string( " (and not so strongly that it overshoots)." );
-    c1.place = "The warning: 'cue' comes 0.4 s before the workload, but nothing in the circuit uses it yet.";
+    c1.fail = "The announced workload still pulls the level too far from its target: feedback alone reacts too late. "
+              "Use the cue: wire 'cue' to the effort cells so that effort rises before the workload arrives (and not so strongly that it overshoots).";
+    c1.place = "The warning: 'cue' comes a moment before the workload, but it is not yet used strongly enough.";
     c1.target = "cue";
-    c1.recipe = "Connect 'cue' to the effort cells; the first connection's weight (300 pA per unit, 120 pA of anticipation) is about right; 150 is too little.";
+    c1.recipe = "Connect 'cue' to the effort cells; the first connection's weight is about right, and a clearly weaker one leaves the dip.";
     crits.push_back( c1 );
 
     Crit c2;
     c2.key = "warned_end";
     c2.ok = std::fabs( y1 - kSet ) <= band;
     c2.soft = 1.0 - std::fabs( y1 - kSet ) / 0.4;
-    c2.fail = "At the end of the announced workload the level is " + fmt( y1, 2 ) + " (target 0.50 +- " + fmt( band, 2 ) + "): the cue's push does not match the workload, "
+    c2.fail = std::string( "At the end of the announced workload the level is " ) + ( y1 > kSet ? "above" : "below" ) + " the target band: the cue's push does not match the workload, "
               "and the feedback is too weak to trim the difference.";
     c2.place = "Feedback has to trim what the anticipation gets wrong: check the inhibitory link from 'level' is strong enough.";
     c2.target = "level";
-    c2.recipe = "Use 3 inhibitory cells at -300 pA for the level feedback.";
+    c2.recipe = "Make the inhibitory level feedback stronger (weight or number of cells).";
     crits.push_back( c2 );
 
     Crit c3;
     c3.key = "unwarned_end";
     c3.ok = std::fabs( y2 - kSet ) <= band;
     c3.soft = 1.0 - std::fabs( y2 - kSet ) / 0.4;
-    c3.fail = "With no cue the second workload leaves the level at " + fmt( y2, 2 ) + " (target 0.50 +- " + fmt( band, 2 ) + "): nothing warned you, so only feedback can "
+    c3.fail = std::string( "With no cue the second workload leaves the level " ) + ( y2 > kSet ? "above" : "below" ) + " the target band: nothing warned you, so only feedback can "
               "correct it. Wire 'level' back onto the effort cells through an inhibitory cell and make it strong enough.";
     c3.place = "The feedback loop: it is the only defence against a surprise.";
     c3.target = "level";
-    c3.recipe = "level onto 3 inhibitory cells projecting onto the effort cells at about -300 pA.";
+    c3.recipe = "level onto a group of inhibitory cells projecting onto the effort cells, with a strong enough weight.";
     crits.push_back( c3 );
 
     pass_msg = "Warned workload: dip " + fmt( pk, 2 ) + ", level " + fmt( y1, 2 ) + " at the end; unwarned workload: level " + fmt( y2, 2 ) +

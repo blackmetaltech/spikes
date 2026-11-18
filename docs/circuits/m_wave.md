@@ -52,3 +52,9 @@ Bayliss WM, Starling EH (1899) The movements and innervation of the small intest
 * **`recipe()`:** tone onto 3 groups (seg0, seg1, seg2; the first connection sets 300 pA per unit, which is right). dist1 onto seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -160 pA; dist2 onto seg1.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_b_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).
+
+## v0.4: the honesty contract (docs/REQ-0.4.md)
+- **Mechanism check.** Before the behaviour, the task reads the circuit structure (`Engine::structure()`, captured when the run starts) and requires ascending excitation (`dist1` excites the group read out on seg0) and descending inhibition (`dist1` reaches seg2 through an inhibitory interneuron). A circuit that lacks it fails with a verdict naming the missing mechanism, and its value is capped at 40.
+- **No numbers in verdicts or hint tiers 1-3.** Failed verdicts and the three hint tiers describe the observed behaviour and the direction to change; the numbers are only in `recipe()`. Pass messages still report observed values.
+- **Negative tests.** `engine/tests/cheap_rows_b.inc` (run by `tasks_cheap_test`): empty bench, one cell with the lab's first-connect weights, one tonic cell with every weight 0, the reference with every weight 0, the reference with every weight at an extreme, and the reference minus the taught mechanism, each must fail with the mechanism named.
+- **Non-circular novice.** Brief and lab defaults only, at most 8 runs: solved in 1 run (the default inhibitory weight is enough).
