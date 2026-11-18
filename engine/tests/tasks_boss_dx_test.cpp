@@ -77,6 +77,7 @@ static RunResult run_one( const std::string& task_id, const json& circuit_in, ui
   }
   auto task = make_task( task_id );
   task->set_mode( mode );
+  task->set_quick( quick );
   task->reset( seed );
   std::map< std::string, long > counts;
   std::map< std::string, int > sizes;

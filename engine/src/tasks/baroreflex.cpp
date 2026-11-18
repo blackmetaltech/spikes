@@ -104,16 +104,11 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "baroreceptor" }; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat", "vagal", "sympathetic" }; }
-  double duration_ms() const override
-  {
-    quick_ = false;
-    return kDuration;
-  }
-  /// Quick check: the same day, shortened (see Sched). The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scripts and
-  /// scores (spike-run and the test harness ask after reset(), before the first step).
+  double duration_ms() const override { return kDuration; }
+  /// Quick check: the same day, shortened (see Sched). The episode is chosen by Task::set_quick() (before reset()); it is the one the task scripts and
+  /// scores (spike-run and the test harness call set_quick() before reset()).
   double quick_duration_ms() const override
   {
-    quick_ = true;
     return kQuick.end;
   }
   std::string chapter() const override { return "heart"; }
@@ -395,7 +390,6 @@ private:
   Wiring wiring_;
   mech::Gate mech_;
   Sched sch_ = kFull;
-  mutable bool quick_ = false;
 };
 
 } // namespace

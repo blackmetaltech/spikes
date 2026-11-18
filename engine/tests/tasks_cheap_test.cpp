@@ -1,6 +1,6 @@
 // Negative tests for the honesty contract (docs/REQ-0.4.md rule 3): cheap or degenerate circuits must FAIL every level.
 //
-//   tasks_cheap_test                         the CTest: every row of cheap_rows_{a,b,c}.inc fails on seeds 1 and 2 (the game's CHECK uses the quick
+//   tasks_cheap_test [a|b|c]                 the CTest (tasks_cheap_test_a/_b/_c in CTest, one per rows file; no argument = all three): every row of cheap_rows_{a,b,c}.inc fails on seeds 1 and 2 (the game's CHECK uses the quick
 //                                            episode, Task::quick_duration_ms(), so the rows run it too); every task that has rows also has its
 //                                            reference circuit pass the same harness once (a control: a broken harness would "fail" everything)
 //   tasks_cheap_test run <task> <circuit.json> [seed=1]    tuning aid: score one circuit, print parts and verdict
@@ -250,7 +250,7 @@ inline void zero_all( json& c )
 {
   for ( auto& p : c[ "projections" ] )
   {
-    if ( p.contains( "synapse" ) ) p[ "synapse" ][ "weight" ] = 0.0;
+    if ( p.contains( "synapse" ) && p[ "synapse" ].contains( "weight" ) ) p[ "synapse" ][ "weight" ] = 0.0;  // `edges` projections carry their weights per edge
     if ( p.contains( "edges" ) ) for ( auto& e : p[ "edges" ] ) e[ 2 ] = 0.0;
   }
   for ( auto& i : c[ "inputs" ] ) i[ "weight" ] = 0.0;
@@ -270,7 +270,7 @@ inline void max_all( json& c )
   {
     const bool cd = cond( post_of( p ) );
     auto big = [ & ]( double w ) { return cd ? 2.0 * w : ( w < 0 ? -4000.0 : 4000.0 ); };
-    if ( p.contains( "synapse" ) ) p[ "synapse" ][ "weight" ] = big( p[ "synapse" ][ "weight" ].get< double >() );
+    if ( p.contains( "synapse" ) && p[ "synapse" ].contains( "weight" ) ) p[ "synapse" ][ "weight" ] = big( p[ "synapse" ][ "weight" ].get< double >() );  // (edges projections: per-edge weights below)
     if ( p.contains( "edges" ) )
       for ( auto& e : p[ "edges" ] ) e[ 2 ] = big( e[ 2 ].get< double >() );
   }
@@ -323,6 +323,7 @@ Result run_circuit( const std::string& id, const json& circuit_in, uint64_t seed
   }
   auto t = make_task( id );
   t->set_mode( mode );
+  t->set_quick( quick );
   t->reset( seed );
   const long steps = static_cast< long >( quick ? t->quick_duration_ms() : t->duration_ms() );
   for ( long s = 0; s < steps; ++s )
@@ -337,26 +338,30 @@ std::string lower( std::string s )
   return s;
 }
 
-void rows( std::vector< Row >& R )
+/// part: "a", "b" or "c" = only that file's rows (a CTest entry each, so none exceeds the timeout); "" = all three.
+void rows( std::vector< Row >& R, const std::string& part )
 {
 #define CHEAP_ROW( TASK, LABEL, ... ) R.push_back( { TASK, LABEL, __VA_ARGS__, "" } )
 #define CHEAP_ROW_V( TASK, LABEL, WORD, ... ) R.push_back( { TASK, LABEL, __VA_ARGS__, WORD } )
   using namespace cheap;
   // each file is its own block (locals of one cannot clash with another's) and its own try: a row builder that throws is reported with its file
-  try
-  {
+  if ( part.empty() || part == "a" )
+    try
+    {
 #include "cheap_rows_a.inc"
-  }
+    }
   catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_a.inc threw: " ) + ex.what() ); }
-  try
-  {
+  if ( part.empty() || part == "b" )
+    try
+    {
 #include "cheap_rows_b.inc"
-  }
+    }
   catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_b.inc threw: " ) + ex.what() ); }
-  try
-  {
+  if ( part.empty() || part == "c" )
+    try
+    {
 #include "cheap_rows_c.inc"
-  }
+    }
   catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_c.inc threw: " ) + ex.what() ); }
 #undef CHEAP_ROW
 #undef CHEAP_ROW_V
@@ -377,8 +382,10 @@ int main( int argc, char** argv )
     return 0;
   }
 
+  std::string part;  // `tasks_cheap_test [a|b|c]`: only that rows file (the CTest entries tasks_cheap_test_a/b/c)
+  if ( argc >= 2 && std::string( argv[ 1 ] ).size() == 1 ) part = argv[ 1 ];
   std::vector< Row > R;
-  rows( R );
+  rows( R, part );
   std::printf( "%zu cheap-circuit rows\n", R.size() );
   std::map< std::string, int > per_task;
   const auto t0 = std::chrono::steady_clock::now();

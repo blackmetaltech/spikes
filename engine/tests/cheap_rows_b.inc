@@ -28,15 +28,8 @@ auto only_ia_to = []( const std::string& sensor, const std::string& pop ) -> che
   };
 };
 
-// zerow / maxw: cheap::zero_all / max_all, made robust for the spinal references, whose `edges` projections carry a `synapse` object without a weight.
-auto zerow = []( json& c ) {
-  for ( auto& p : c[ "projections" ] )
-  {
-    if ( p.contains( "synapse" ) && p[ "synapse" ].contains( "weight" ) ) p[ "synapse" ][ "weight" ] = 0.0;
-    if ( p.contains( "edges" ) ) for ( auto& e : p[ "edges" ] ) e[ 2 ] = 0.0;
-  }
-  for ( auto& i : c[ "inputs" ] ) i[ "weight" ] = 0.0;
-};
+// zerow / maxw: cheap::zero_all / a spinal variant of cheap::max_all (conductance posts by the population id; inputs doubled when any cell is conductance-based).
+auto zerow = cheap::zero_all;
 auto maxw = []( json& c ) {
   auto cond = [ & ]( const std::string& pop ) {
     for ( auto& p : c[ "populations" ] )

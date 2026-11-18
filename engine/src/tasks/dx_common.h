@@ -67,6 +67,11 @@ public:
   // (forwarded, so that the inner task picks its quick schedule), cut at kDxQuickMs. The run only feeds the "run_*" parts and the patient's findings.
   static constexpr double kDxQuickMs = 8000;
   double quick_duration_ms() const override { return std::min( inner_->quick_duration_ms(), kDxQuickMs ); }
+  void set_quick( bool q ) override
+  {
+    Task::set_quick( q );
+    inner_->set_quick( q );
+  }
   void reset( uint64_t seed ) override
   {
     inner_->set_mode( mode() );
