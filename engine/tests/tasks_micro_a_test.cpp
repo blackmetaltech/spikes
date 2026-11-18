@@ -72,6 +72,7 @@ Result run_circuit( const std::string& id, const json& circuit_in, uint64_t seed
   }
   auto t = make_task( id );
   t->set_mode( mode );
+  t->set_quick( quick );
   t->reset( seed );
   const long steps = static_cast< long >( quick ? t->quick_duration_ms() : t->duration_ms() );
   for ( long s = 0; s < steps; ++s )

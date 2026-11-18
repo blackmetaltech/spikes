@@ -43,6 +43,9 @@ public:
   /// Additions (v0.4, add-only): episode length of the "quick check" (spike-run --quick, the game's CHECK). Default = the full episode.
   /// A task that overrides this must score a run of this length by the same rules (its score() is called after quick_duration_ms() of steps).
   virtual double quick_duration_ms() const { return duration_ms(); }
+  /// Additions (v0.4, add-only): choose the quick episode (true) or the full one (false) for the next run. Call BEFORE reset(); tasks whose script differs
+  /// between the two read quick_ when they (re)build their schedule. Wrappers forward it to the task they wrap.
+  virtual void set_quick( bool q ) { quick_ = q; }
 
   virtual void reset( uint64_t seed ) = 0;
   /// One slice: read the world into engine inputs, step the engine `dt_ms`, read motor rates, advance the world.
@@ -149,6 +152,7 @@ public:
 protected:
   std::string mode_ = "standard";
   std::string variant_;
+  bool quick_ = false;  // set_quick(): the quick episode was chosen
 };
 
 std::vector< std::string > task_ids();

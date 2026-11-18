@@ -70,6 +70,7 @@ static Run run( const std::string& task_id, const json& circuit_in, uint64_t see
   }
   auto t0 = std::chrono::steady_clock::now();
   auto task = make_task( task_id );
+  task->set_quick( quick );
   task->reset( seed );
   long steps = static_cast< long >( quick ? task->quick_duration_ms() : task->duration_ms() );
   for ( long s = 0; s < steps; ++s )

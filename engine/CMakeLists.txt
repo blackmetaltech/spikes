@@ -111,6 +111,13 @@ if(SPIKE_BUILD_TESTS)
       add_dependencies(${name} spike-catalog)
       target_compile_definitions(${name} PRIVATE SPIKE_CATALOG_EXE="$<TARGET_FILE:spike-catalog>")
     endif()
+    if(name STREQUAL "tasks_cheap_test")  # one CTest entry per rows file (cheap_rows_{a,b,c}.inc) so none exceeds the timeout
+      foreach(part a b c)
+        add_test(NAME ${name}_${part} COMMAND ${name} ${part} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        set_tests_properties(${name}_${part} PROPERTIES TIMEOUT 1500)
+      endforeach()
+      continue()
+    endif()
     add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     set_tests_properties(${name} PROPERTIES TIMEOUT 1500)
     if(name MATCHES "^test_nestml_")  # skipped (exit 77) when the NESTML models were not generated

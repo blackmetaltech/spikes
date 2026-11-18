@@ -218,6 +218,7 @@ static int run_task_mode( int argc, char** argv )
     auto task = spike::make_task( task_id );
     task->set_mode( mode.empty() ? "standard" : mode );
     task->set_variant( variant );
+    task->set_quick( quick );
     task->reset( seed );
     unsigned long long spikes = 0;
     const double dur = quick ? task->quick_duration_ms() : task->duration_ms();

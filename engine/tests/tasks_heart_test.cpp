@@ -67,6 +67,7 @@ static Run run( const std::string& task_id, const json& circuit_in, uint64_t see
     return r;
   }
   auto t = make_task( task_id );
+  t->set_quick( quick );
   t->reset( seed );
   long steps = static_cast< long >( quick ? t->quick_duration_ms() : t->duration_ms() );
   for ( long s = 0; s < steps; ++s )

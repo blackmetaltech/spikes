@@ -95,17 +95,12 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return {}; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat" }; }
-  double duration_ms() const override
-  {
-    quick_ = false;
-    return kDuration;
-  }
+  double duration_ms() const override { return kDuration; }
   /// Quick check: the first 20 s. The rhythm is stationary after the 6 s the cells need to reach their limit cycle, so the same rules (rate, CV and
   /// synchrony over the analysis window, which now ends at 20 s instead of 30 s: 12 beats are still needed) judge a shorter window of the same run.
-  /// (The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scores: spike-run and the harness ask after reset().)
+  /// (The episode is chosen by Task::set_quick(), called before reset().)
   double quick_duration_ms() const override
   {
-    quick_ = true;
     return kQuickDuration;
   }
   std::string chapter() const override { return "heart"; }
@@ -393,7 +388,6 @@ private:
   MotorReader motor_;
   Wiring wiring_;
   mech::Gate mech_;
-  mutable bool quick_ = false;
   double end_ = kDuration;  // the episode asked for, fixed at the first step
 };
 
