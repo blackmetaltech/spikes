@@ -24,6 +24,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr int kPatterns = 7;
 constexpr double kT0 = 300, kSlot = 500, kLen = 300, kAfter = 330, kDur = 3800;
@@ -87,16 +88,32 @@ public:
   {
     return { { 1, "A neuron sums the inputs that converge on it and fires only when the total crosses threshold. So make each input too weak "
                   "to matter alone, and even two together too weak: it takes all three at once (coincidence).", "" },
-      { 2, "Look at the weights of the three sensors in_a, in_b and in_c: they set how much current each input adds. Two inputs together "
-           "must stay under the cell's rheobase.", "in_a" },
-      { 3, "Wire in_a, in_b and in_c to one neuron and the neuron to 'out'. Set each of the three sensor weights to about 150 pA: one input "
-           "gives 150, two give 300 (under the 375 pA rheobase), three give 450 (over it). The lab starts them at 300, where two already fire.",
+      { 2, "Look at the weights of the three sensors in_a, in_b and in_c: they set how much current each input adds. All three must meet on "
+           "the cell that is read on 'out', and two of them together must stay under its threshold.", "in_a" },
+      { 3, "Wire in_a, in_b and in_c to one neuron and the neuron to 'out'. Set the three weights equal and lower than the lab's start, until two "
+           "inputs together fall short of the cell's rheobase while three still clear it: too high and pairs fire, too low and nothing does.",
         "in_a" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     return { { "latency_ms", { lat_n_ > 0 ? lat_sum_ / lat_n_ : 999.0, "ms", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto out = g_.out_pops( "out" );
+    if ( out.empty() ) return;
+    for ( const char* in : { "in_a", "in_b", "in_c" } )
+    {
+      const auto from = g_.in_pops( in );
+      if ( !from.empty() && !g_.path( from, out, 0, 3, true ) )
+      {
+        mech_ = std::string( "'" ) + in + "' does not reach the cell that is read on 'out': convergence means all the inputs meeting on one cell, and a "
+                "cell can only add up what arrives at it.";
+        return;
+      }
+    }
   }
 
   Score score() const override
@@ -124,22 +141,25 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ), 2 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << static_cast< int >( hits ) << " of 2 target patterns answered so far.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( !a && other == 0 )
-      o << "The cell never fired, not even with all three inputs on. The three together are still under its rheobase: raise the weights.";
+      o << "The cell never fired, not even with all three inputs on. The three together are still under its rheobase: strengthen the inputs.";
     else if ( !b && first_false >= 0 && !a )
-      o << "Wrong way round: the cell fired for '" << kName[ first_false ] << "' but missed " << fmt( 2 - hits ) << " of the 'all three' patterns.";
+      o << "Wrong way round: the cell fired for '" << kName[ first_false ] << "' but missed at least one of the 'all three' patterns.";
     else if ( !b && first_false >= 0 )
-      o << "It answered both 'all three' patterns, but also fired for '" << kName[ first_false ] << "' (" << static_cast< int >( other )
-        << " spikes in all outside the targets). Lower the sensor weights until two inputs together are no longer enough.";
+      o << "It answered both 'all three' patterns, but also fired for '" << kName[ first_false ]
+        << "': that is not all three at once. Weaken the inputs until two together are no longer enough.";
     else if ( !b )
-      o << static_cast< int >( other ) << " stray spikes outside the patterns. Check for a bias current.";
+      o << "Stray spikes outside the patterns. Check for a bias current.";
     else if ( !a )
-      o << "Silent for the wrong patterns, but only " << static_cast< int >( hits ) << " of the 2 'all three' patterns made it fire: raise the weights a little.";
+      o << "Silent for the wrong patterns, but not every 'all three' pattern made it fire: strengthen the inputs a little.";
     else
       o << "Only all three inputs together fire the cell: both targets answered, nothing else.";
     s.verdict = o.str();

@@ -21,6 +21,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr double kDur = 5000, kOn = 1700, kLevel = 2.0, kB0 = 100, kE0 = 3000;
 
@@ -81,15 +82,33 @@ public:
                   "spike to one cell. The vagus releases acetylcholine, and the pacemaker responds to its level, not to a synapse.", "" },
       { 2, "Wire a cell that the vagus drives to the 'vagal' output: that output turns its spikes into ACh. Put the pacemaker cell on 'beat'. "
            "Do not connect the two cells with a synapse.", "vagal" },
-      { 3, "vagus > cell V (an ordinary cell, the default sensor weight is right) > 'vagal'; SA node cell > 'beat'. V fires about 85 times a "
-           "second, the vagal output (gain 0.012, tau 500 ms) turns that into an ACh level near 0.5, and the heart slows from about 103 to 67 "
-           "per minute. More cells on 'vagal' means more ACh: too many stop the node.", "vagal" } };
+      { 3, "vagus > cell V (an ordinary cell) > 'vagal'; SA node cell > 'beat'; no synapse between V and the pacemaker. The ACh level follows how "
+           "much V fires: more cells (or a bigger gain) on 'vagal' means a deeper slowing, and too much stops the node. The verdict says "
+           "whether the slowing is too little or too much.", "vagal" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     Stats st = stats();
     return { { "slowing_ratio", { st.ok ? st.ratio : 0.0, "x", false } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto beat = g_.out_pops( "beat" ), vagal = g_.out_pops( "vagal" ), vagus = g_.in_pops( "vagus" );
+    for ( int p : beat )
+    {
+      const double ie = g_.param( p, "I_e" );
+      if ( !std::isnan( ie ) && std::fabs( ie ) > 1e-9 ) { mech_ = "The cell on 'beat' is pushed by a bias current: it has to be a pacemaker that beats by itself."; return; }
+    }
+    if ( beat.empty() || vagal.empty() ) return;
+    if ( Graph::overlap( beat, vagal ) )
+      mech_ = "The cell on 'beat' is also the cell releasing the ACh: the nerve and the heart are two cells, and the nerve acts on the heart through the chemical.";
+    else if ( g_.path( vagal, beat, 0, 4 ) || g_.path( vagus, beat, 0, 4, true ) )
+      mech_ = "The pacemaker is slowed through a synapse (a connection from the vagus cell or the vagus input onto it), not through the chemical. The vagus acts "
+              "through the 'vagal' output, which releases ACh; leave the pacemaker unconnected.";
+    else if ( !vagus.empty() && !g_.path( vagus, vagal, 0, 3, true ) )
+      mech_ = "The vagus does not reach the cell on 'vagal': nothing releases acetylcholine when the vagus comes on.";
   }
 
   Score score() const override
@@ -107,28 +126,27 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ), 3 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
-      o << "Running: ACh " << fmt( ach_, 2 ) << ", " << static_cast< int >( beats_.size() ) << " beats so far.";
+      o << "Running: " << static_cast< int >( beats_.size() ) << " beats so far.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( !a )
-      o << "The pacemaker is not beating on its own before the vagus comes on (" << static_cast< int >( st.nb ) << " beats). Put a sinoatrial-node cell on 'beat'.";
+      o << "The pacemaker is not beating on its own before the vagus comes on. Put a sinoatrial-node cell on 'beat'.";
     else if ( !b && st.ok && st.ratio >= need )
-      o << "The beat slowed, but the ACh level stayed near 0 (peak " << fmt( ach_peak_, 2 ) << "): you slowed it some other way. The vagus acts through "
-           "the 'vagal' output, which releases ACh; wire your vagus cell to it.";
+      o << "The beat slowed, but no acetylcholine was released: you slowed it some other way. The vagus acts through the 'vagal' output, which "
+           "releases ACh; wire your vagus cell to it.";
     else if ( !b )
-      o << "No acetylcholine was released (peak " << fmt( ach_peak_, 2 ) << "), so the heart is not slowed. Make a cell fire when the vagus comes on and wire it "
-           "to the 'vagal' output.";
+      o << "No acetylcholine was released, so the heart is not slowed. Make a cell fire when the vagus comes on and wire it to the 'vagal' output.";
     else if ( st.ne < 2 || st.ratio > 3.0 )
-      o << "Too much: ACh reached " << fmt( ach_peak_, 2 ) << " and the node nearly stopped (" << static_cast< int >( st.ne ) << " beats at the end, interval x"
-        << fmt( st.ratio, 1 ) << "). Fewer cells on 'vagal', or a smaller gain on the output, for a gentler slowing.";
+      o << "Too much: the node nearly stopped. Fewer cells on 'vagal', or a smaller gain on the output, for a gentler slowing.";
     else if ( st.ratio < need )
-      o << "The beat slowed only from " << fmt( st.base_iv ) << " to " << fmt( st.eff_iv ) << " ms between beats (x" << fmt( st.ratio, 2 ) << ", needs x"
-        << fmt( need, 2 ) << "). ACh peaked at " << fmt( ach_peak_, 2 ) << ": raise the gain of the 'vagal' output or have more cells fire into it.";
+      o << "The beat slowed, but not enough. ACh is released, but too little of it: raise the gain of the 'vagal' output or have more cells fire into it.";
     else
-      o << "The vagus slows the heart: " << fmt( 60000.0 / st.base_iv ) << " to " << fmt( 60000.0 / st.eff_iv ) << " beats per minute, through an ACh level of "
-        << fmt( ach_peak_, 2 ) << ".";
+      o << "The vagus slows the heart, through acetylcholine released by your vagal cell.";
     s.verdict = o.str();
     return s;
   }

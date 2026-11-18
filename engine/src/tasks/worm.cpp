@@ -31,6 +31,12 @@
 //   closest approach was and, when it got there too late, how late.
 //   Reference circuit: 33-37 s. Best one-cell-per-side circuits seen: 42-110 s depending on seed, never within 45 s on all.
 //
+// MECHANISM (Engine::structure(), checked at the first slice): the ON/OFF difference. Both salt cells must reach the turning command with OPPOSITE
+// effects on the turning speed (turn_left minus turn_right): one pushes it (excitation onto turn_left, or onto turn_right through an inhibitory
+// cell...), the other holds it back (inhibition through a cell set inhibitory, or excitation onto the opposite turn pool). A circuit that listens to one
+// salt cell, or to both the same way, fails with a verdict naming the missing difference, however well its weights happen to steer. Verdicts and hint
+// tiers 1-2 carry no numbers; recipe() has them.
+//
 // Biology: ASEL/ASER on/off salt sensing (Suzuki et al. 2008; Thiele, Faumont, Lockery 2009 J Neurosci); klinotaxis
 // and pirouettes (Pierce-Shimomura, Morse, Lockery 1999 J Neurosci; Iino & Yoshida 2009 J Neurosci); AIY promotes
 // runs, turning pathway via AIB/RIA/SMB (Gray, Hill, Bargmann 2005 PNAS; Kunitomo et al. 2013 Nat Commun).
@@ -38,6 +44,7 @@
 #include <deque>
 #include <iomanip>
 #include <sstream>
+#include "micro_a.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -89,6 +96,9 @@ public:
     return { { "ASEL", in_kind( "poisson", 5, 1000 ) }, { "ASER", in_kind( "poisson", 5, 1000 ) } };
   }
   double duration_ms() const override { return kDuration; }
+  /// The pass rule only asks whether the head got within 1 mm of the peak by the bar (45 s standard, 56 s guided, 40.5 s researcher): nothing after
+  /// the bar can change `passed`, so CHECK stops there. (The value and mean_dist_mm of a quick run cover the shorter episode.)
+  double quick_duration_ms() const override { return pass_time(); }
   int par_neurons() const override { return variant_par( variant_, 28 ); }  // A 8 + B 8 + TL 8 + idle 4 of the recipe
 
   // ---- v0.3 ----
@@ -111,13 +121,13 @@ public:
     {
       h.push_back( make_hint( 1, "A sensor that only counts spikes cannot steer: the worm needs a motor pool that turns it.", "" ) );
       h.push_back( make_hint( 2, "Neither turn channel ever fired: connect the sensors through a cell that drives it.", "turn_left" ) );
-      h.push_back( make_hint( 3, "ASER (concentration falling) onto a cell that drives turn_left; ASEL (rising) onto an inhibitory cell that silences it.", "" ) );
+      h.push_back( make_hint( 3, "ASER (concentration falling) onto a group of cells that drives turn_left; ASEL (rising) onto an inhibitory group that silences it, with links strong enough that one sensor spike moves the cell.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Both salt cells fire together in the stirring chatter. Only the difference carries the message: use inhibition to subtract ASEL from ASER.", "" ) );
       h.push_back( make_hint( 2, "The turning command listens to one sensor only. Let the ON cell inhibit it.", "ASEL" ) );
-      h.push_back( make_hint( 3, "ASER > A > turn_left (excitatory), ASEL > B (inhibitory) > the same turn pool. Turn only when ASER exceeds ASEL.", "turn_left" ) );
+      h.push_back( make_hint( 3, "ASER > A > turn_left (excitatory), ASEL > B (inhibitory) > the same turn pool. Turn only when ASER exceeds ASEL: the two links must be about equally strong, so that the chatter they share cancels.", "turn_left" ) );
     }
     return h;
   }
@@ -173,6 +183,8 @@ public:
     motor_.invalidate();
     wiring_.invalidate();
     spikes_l_ = spikes_r_ = 0;
+    inspected_ = false;
+    mech_.clear();
     min_dist_ = start_dist_;
     rate_l_ = rate_r_ = kBase;
   }
@@ -180,6 +192,11 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( !inspected_ )
+    {
+      inspected_ = true;
+      inspect( e );
+    }
     e.set_input( "ASEL", rate_l_ );
     e.set_input( "ASER", rate_r_ );
     e.step( dt );
@@ -245,23 +262,25 @@ public:
     s.parts[ "spikes_turn_left" ] = spikes_l_;
     s.parts[ "spikes_turn_right" ] = spikes_r_;
     s.value = 100.0 * ( 0.6 * ( reached ? 1.0 - t_reach_ / kDuration : 0.0 ) + 0.4 * clampd( 1.0 - mean_d / start_dist_, 0, 1 ) );
-    s.passed = reached && t_reach_ <= pass_time();
+    s.passed = reached && t_reach_ <= pass_time() && mech_.empty();
+    if ( !mech_.empty() ) s.value = std::min( s.value, 40.0 );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( s.passed )
-      o << "Reached the salt peak after " << t_reach_ / 1000.0 << " s (limit " << pass_time() / 1000.0 << " s); mean distance " << mean_d << " mm.";
+      o << "Reached the salt peak in time; the worm turns on ASER minus ASEL and the shared chatter cancels.";
     else if ( reached )
-      o << "Reached the peak after " << t_reach_ / 1000.0 << " s, but the bar is " << pass_time() / 1000.0 << " s: steer faster. Turn on ASER minus ASEL "
-           "so the chatter does not fool you.";
+      o << "Reached the peak, but too late: steer faster. Turn on ASER minus ASEL so the chatter does not fool you, and make the turning command stronger.";
     else if ( t_ < pass_time() )
-      o << "Still searching: " << s.parts[ "final_dist_mm" ] << " mm from the peak (closest " << min_dist_ << " mm).";
+      o << "Still searching.";
     else if ( spikes_l_ < 1 && spikes_r_ < 1 )
-      o << "Neither turn_left nor turn_right ever fired, so the worm walks straight and leaves. Closest approach "
-        << min_dist_ << " mm. Check ASEL/ASER reach a cell that drives a motor pool, and the weights are strong enough.";
+      o << "Neither turn_left nor turn_right ever fired, so the worm walks straight and leaves. "
+           "Check ASEL/ASER reach a cell that drives a motor pool, and that the weights are strong enough.";
     else
-      o << "Not at the peak within " << pass_time() / 1000.0 << " s (closest approach " << min_dist_ << " mm, mean distance " << mean_d << " mm). Turn when "
+      o << "The worm did not get to the peak in time. Turn when "
            "ASER fires and ASEL does not; stay straight when ASEL fires.";
     s.verdict = o.str();
     return s;
@@ -275,6 +294,31 @@ public:
   }
 
 private:
+  /// The ON/OFF difference (docs/REQ-0.4.md rule 1): the two salt cells must act on the turning speed (turn_left - turn_right) in opposite ways.
+  void inspect( Engine& e )
+  {
+    micro::Graph g( e.structure() );
+    const auto left = g.out_pops( "turn_left" ), right = g.out_pops( "turn_right" );
+    const std::vector< int > sa[ 2 ] = { g.in_pops( "ASEL" ), g.in_pops( "ASER" ) };
+    if ( left.empty() && right.empty() ) return;
+    bool pushes[ 2 ] = { false, false }, holds[ 2 ] = { false, false };
+    for ( int k = 0; k < 2; ++k )
+    {
+      if ( sa[ k ].empty() ) continue;
+      // effect on omega = rate_left - rate_right: positive through (left, net +) or (right, net -)
+      pushes[ k ] = g.path( sa[ k ], left, +1, 4, true ) || g.path( sa[ k ], right, -1, 4 );
+      holds[ k ] = g.path( sa[ k ], left, -1, 4 ) || g.path( sa[ k ], right, +1, 4, true );
+    }
+    const bool reaches = pushes[ 0 ] || holds[ 0 ] || pushes[ 1 ] || holds[ 1 ];
+    const bool diff = ( pushes[ 0 ] && holds[ 1 ] ) || ( pushes[ 1 ] && holds[ 0 ] );
+    if ( !reaches )
+      mech_ = "Neither salt cell reaches the turning command: nothing connects ASEL or ASER to the turn pools.";
+    else if ( !diff )
+      mech_ = "The turning command does not take the DIFFERENCE of the two salt cells: only one of them reaches it, or both push it the same way. The chatter "
+              "hits both cells together, so only 'ASER minus ASEL' is a signal: let one salt cell drive the turn and the other hold it back (inhibition "
+              "does the subtraction).";
+  }
+
   double pass_time() const { return tol_max( mode_, kPassTime, 1.25, 0.9 ); }
   double ln_c_head() const
   {
@@ -329,6 +373,8 @@ private:
   long nsteps_ = 0;
   double min_dist_ = 1, spikes_l_ = 0, spikes_r_ = 0;
   Wiring wiring_;
+  bool inspected_ = false;
+  std::string mech_;
   std::deque< std::array< double, 2 > > trail_;
   Lowpass ml_, mr_, sens_;
   Rng noise_rng_, turb_rng_;

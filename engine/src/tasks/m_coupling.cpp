@@ -23,6 +23,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr double kDur = 5000, kW0 = 1500, kCmA = 28.8, kCmB = 35.2;
 
@@ -80,14 +81,34 @@ public:
                   "more the faster one is held back and the slower one speeded up, until they share one rhythm.", "" },
       { 2, "Use two sinoatrial-node cells, one wired to 'a' and one to 'b', and connect them to each other in both directions. Look at the "
            "weight of those two links: the default is only a small nudge.", "a" },
-      { 3, "N1 (SA node cell) > 'a' and N2 (SA node cell) > 'b'. Link N1 > N2 and N2 > N1 (both excitatory) and raise their weight from "
-           "0.2 nS to about 2 nS.", "a" } };
+      { 3, "N1 (SA node cell) > 'a' and N2 (SA node cell) > 'b'. Link N1 > N2 and N2 > N1, both excitatory, and raise the weight well above the "
+           "default until the verdict says they are locked. Too weak and the beats still slip past each other.", "a" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     Stats st = stats();
     return { { "drift_ms", { st.n >= 3 ? st.drift : 999.0, "ms", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto a = g_.out_pops( "a" ), b = g_.out_pops( "b" );
+    if ( a.empty() || b.empty() ) return;
+    for ( int p : a )
+    {
+      const double ie = g_.param( p, "I_e" );
+      if ( !std::isnan( ie ) && std::fabs( ie ) > 1e-9 ) mech_ = "A cell is pushed by a bias current: these must be pacemaker cells that beat by themselves.";
+    }
+    for ( int p : b )
+    {
+      const double ie = g_.param( p, "I_e" );
+      if ( !std::isnan( ie ) && std::fabs( ie ) > 1e-9 ) mech_ = "A cell is pushed by a bias current: these must be pacemaker cells that beat by themselves.";
+    }
+    if ( !mech_.empty() || Graph::overlap( a, b ) ) return;
+    if ( !g_.edge( a, b ) && !g_.edge( b, a ) )
+      mech_ = "The two cells are not coupled: there is no synapse between them, so each beats at its own pace and they drift apart. Coupling is what makes "
+              "separate clocks share one rhythm.";
   }
 
   Score score() const override
@@ -107,6 +128,7 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ), 3 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
@@ -114,24 +136,21 @@ public:
       o << "Running: a has beaten " << static_cast< int >( ta_.size() ) << " times, b " << static_cast< int >( tb_.size() ) << ".";
     else if ( shared_ )
       o << "'a' and 'b' are read from the same cell. Use two different cells, one on each channel.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( st.na < 4 || st.nb < 4 )
-      o << "The " << ( st.na < 4 ? "'a'" : "'b'" ) << " cell does not beat on its own (" << static_cast< int >( std::min( st.na, st.nb ) )
-        << " beats in 3.5 s). Use a sinoatrial-node cell: it is a pacemaker, it needs no input.";
+      o << "The " << ( st.na < 4 ? "'a'" : "'b'" ) << " cell does not beat on its own. Use a sinoatrial-node cell: it is a pacemaker, it needs no input.";
     else if ( std::fabs( st.na - st.nb ) > 1 )
-      o << "Not locked: a beat " << static_cast< int >( st.na ) << " times, b " << static_cast< int >( st.nb ) << " times. Couple the two cells in both "
-           "directions and make the coupling stronger.";
+      o << "Not locked: one cell beats more often than the other. Couple the two cells in both directions and make the coupling stronger.";
     else if ( !b && st.drift > 0.35 * st.T )
       o << "Not locked: the beats slip past each other, the delay between a and b sweeps through a whole beat (the faster cell gains on the slower "
-           "one). Link the two cells in both directions with a stronger weight (the default 0.2 nS is only a small nudge).";
+           "one). Strengthen the coupling between the cells.";
     else if ( !b )
-      o << "Almost locked but still drifting: the delay between a and b changes by " << fmt( st.drift ) << " ms over the window ("
-        << fmt( 100.0 * st.drift / st.T ) << " % of a beat, needs " << fmt( 100.0 * dmax ) << " %). Strengthen the coupling between the cells.";
+      o << "Almost locked but still drifting: the delay between a and b keeps changing. Strengthen the coupling between the cells.";
     else if ( !c )
-      o << "The two beat together but b lags a by " << fmt( st.lag ) << " ms (" << fmt( 100.0 * st.lag / st.T ) << " % of a beat, needs 30 %). Make the "
-           "coupling stronger so the faster cell can pull the slower one in step.";
+      o << "The two beat together but b lags a too far behind. Make the coupling stronger so the faster cell can pull the slower one in step.";
     else
-      o << "Locked: both beat every " << fmt( st.T ) << " ms (" << fmt( 60000.0 / st.T ) << " per minute) and the delay between them stays within "
-        << fmt( st.drift ) << " ms, " << fmt( st.lag ) << " ms behind.";
+      o << "Locked: both cells beat together and the delay between them stays steady.";
     s.verdict = o.str();
     return s;
   }

@@ -45,3 +45,7 @@ Credits: Katz B, Miledi R (1965) Proc R Soc B 161:483 (synaptic delay).
 * **`recipe()`:** tap > cell A (the default weights work) > cell B. A is wired to 'source', B to 'echo'. Raise the A > B weight to about 1500 pA so that one spike fires B, then lengthen the delay to about 4 or 5 ms (it starts at 2) until the echo latency reads 8 ms.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **4 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: an excitatory synapse must carry the source cell's spikes to a different echo cell (a path with net excitation, not both cells fed by the tap, not one cell on both channels).
+Verdicts say "too early / too late / strengthen the link", never how much. Cheap rows: no synapse, inhibitory link, link cut, one cell on both channels, default delay.

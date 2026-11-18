@@ -24,6 +24,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr double kDur = 5000, kOn = 0, kLevel = 2.0, kW0 = 1000, kBin = 25;
 constexpr int kBins = static_cast< int >( ( kDur - kW0 ) / kBin );
@@ -86,15 +87,27 @@ public:
                   "active side to tire (adapt) so that it lets go and the other side takes over. Without the second, one side wins for ever.", "" },
       { 2, "Each side is a cell wired to the other with an inhibitory link (set both cells to inhibitory). Use the adaptive exponential cell "
            "for both, with the Adapting preset: its adaptation is what ends the burst. Both cells get the drive.", "left" },
-      { 3, "drive > L and drive > R (the default sensor weight 300 is right). L and R: one aeif cell each, Adapting preset, both inhibitory. "
-           "L > R and R > L at the default weight (-8 nS), L > 'left' and R > 'right'. Each side then bursts for a few hundred milliseconds "
-           "and gives way to the other.", "left" } };
+      { 3, "drive > L and drive > R. L and R: one adaptive cell each (the Adapting preset), both inhibitory, L > R and R > L at the default "
+           "weight, L > 'left' and R > 'right'. If nothing fires, strengthen the drive; if one side wins for good, the cells are not "
+           "adapting enough; if both fire together, the inhibition is too weak.", "left" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     Stats st = stats();
     return { { "period_ms", { st.switches >= 2 ? ( kDur - kW0 ) / ( st.switches / 2.0 ) : 9999.0, "ms", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto l = g_.out_pops( "left" ), r = g_.out_pops( "right" );
+    if ( l.empty() || r.empty() ) return;
+    if ( Graph::overlap( l, r ) )
+      mech_ = "'left' and 'right' are read from the same cell: a half-centre is two cells.";
+    else if ( !g_.crossed( l, r ) && !g_.crossed( r, l ) )
+      mech_ = "The two sides do not inhibit each other at all: a half-centre is built on mutual inhibition (each side's spikes silencing the other).";
+    else if ( !g_.crossed( l, r ) || !g_.crossed( r, l ) )
+      mech_ = "The inhibition runs one way only (one side silences the other, which cannot answer back): a half-centre needs each side to inhibit the other.";
   }
 
   Score score() const override
@@ -113,29 +126,29 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ), 3 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << static_cast< int >( st.switches ) << " switches so far.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( total_l_ + total_r_ < 1 )
-      o << "Nothing fired. The drive (2 x the sensor weight, in pA) must reach both cells and be over their rheobase: the NEST-default adaptive "
-           "cell needs about 620 pA, which is more than the lab's 300 pA sensor weight gives. Raise the drive weight, or choose the Adapting preset.";
+      o << "Nothing fired. The drive must reach both cells and be over their rheobase: the adaptive cell as it comes needs more current than the "
+           "lab's start gives. Strengthen the drive, or choose the Adapting preset.";
     else if ( total_l_ < 1 || total_r_ < 1 )
       o << "Only the " << ( total_l_ >= 1 ? "left" : "right" ) << " side fires: the other side is silenced for good (or never got the drive). A half-centre "
            "needs the drive on both cells and a way for the active side to let go: use adapting cells.";
     else if ( !c )
-      o << "One side wins and keeps the other silent (" << fmt( 100.0 * st.balance ) << " % of the spikes on the weaker side). Each cell needs adaptation (the "
-           "Adapting preset) so that the active side tires and lets the other go.";
+      o << "One side wins and keeps the other silent. Each cell needs adaptation (the Adapting preset) so that the active side tires and lets the other go.";
     else if ( !b )
-      o << "Both sides fire together " << fmt( 100.0 * st.overlap ) << " % of the time: they are not inhibiting each other enough. Check that both "
-           "cells are inhibitory and connected to each other, and strengthen the links.";
+      o << "Both sides fire together: they are not inhibiting each other enough. Check that both cells are inhibitory and connected to each other, "
+           "and strengthen the links.";
     else if ( !a )
-      o << "Only " << static_cast< int >( st.switches ) << " switches in 4 s (needs " << static_cast< int >( sw_need ) << "). The turns are too long: more adaptation "
-           "makes the sides tire faster, or weaker inhibition lets the other side in sooner.";
+      o << "The sides alternate, but too slowly. More adaptation makes the sides tire faster, or weaker inhibition lets the other side in sooner.";
     else
-      o << "A half-centre: " << static_cast< int >( st.switches ) << " switches in 4 s (a cycle of about " << fmt( ( kDur - kW0 ) / ( st.switches / 2.0 ) )
-        << " ms), " << fmt( 100.0 * st.overlap ) << " % overlap.";
+      o << "A half-centre: the two sides take turns, with almost no overlap.";
     s.verdict = o.str();
     return s;
   }

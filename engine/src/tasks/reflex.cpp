@@ -24,6 +24,10 @@
 //   value      : 100 * hit_fraction * (1 - 0.4*clamp((mean_latency-20)/80, 0, 1)) - 12*false_triggers, floored at 0
 //   pass       : no misses, no false trigger (Guided: at most 1), mean latency <= 60 ms. A lone cell cannot meet this on any seed.
 //
+// MECHANISM (Engine::structure(), checked at the first slice): convergence. The touch input must reach at least two receptor cells, and the cells of
+// the withdraw pool must each receive from at least two cells (indegree >= 2 onto the pool). A circuit without it fails with a verdict that names the
+// missing convergence, whatever its weights; the verdicts and hint tiers 1-2 carry no numbers (recipe() has them).
+//
 // Biology: the withdrawal reflex arc (sensory afferent -> interneuron -> motoneuron), e.g. the Aplysia siphon/gill
 // withdrawal (Castellucci & Kandel 1974) or the vertebrate flexor reflex (Sherrington 1910); the interesting part is noise rejection by
 // convergence. The Ia numbers in the notebook are from the stretch reflex (Mendell & Henneman 1971), used here only for the arithmetic;
@@ -31,6 +35,7 @@
 #include <cmath>
 #include <deque>
 #include <sstream>
+#include "micro_a.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -100,15 +105,16 @@ public:
     std::vector< Hint > h;
     if ( !jumpy )
     {
-      h.push_back( make_hint( 1, "A poke is only 2.7 times the background rate, so one afferent cannot tell it from noise. Convergence: a cell that needs several inputs at once.", "" ) );
-      h.push_back( make_hint( 2, "Look at the link into the motor pool: it is too weak for the pokes to reach threshold.", "withdraw" ) );
-      h.push_back( make_hint( 3, "Touch onto about 10 receptor cells, those onto 6 motor cells with a link near 140 pA, motor cells onto withdraw.", "" ) );
+      h.push_back( make_hint( 1, "A poke is only a little faster than the background chatter, so one afferent cannot tell it from noise. Convergence: a cell that needs several inputs at once.", "" ) );
+      h.push_back( make_hint( 2, "Look at the link into the motor pool: the pokes do not reach threshold through it, or too few cells feed it.", "withdraw" ) );
+      h.push_back( make_hint( 3, "Touch onto a group of receptor cells (several, not one), those onto a few motor cells that each hear all of them, motor cells onto withdraw. "
+                                 "Strengthen the link into the motor cells until pokes get through, and stop before the chatter does too.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Noise spikes bunch up by chance. Raise the threshold by asking for more coincident inputs.", "" ) );
       h.push_back( make_hint( 2, "The motor pool is firing on noise: the links into it are too strong.", "withdraw" ) );
-      h.push_back( make_hint( 3, "Keep the motor link under about 170 pA, or give the touch input more receptor cells so their average is steadier.", "" ) );
+      h.push_back( make_hint( 3, "Weaken the link into the motor cells, or give the touch input more receptor cells so their average is steadier.", "" ) );
     }
     return h;
   }
@@ -146,6 +152,8 @@ public:
     window_.clear();
     window_sum_ = 0;
     last_burst_ = -1e9;
+    inspected_ = false;
+    mech_.clear();
     false_triggers_ = 0;
     bursts_ = 0;
     motor_.invalidate();
@@ -156,6 +164,11 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( !inspected_ )
+    {
+      inspected_ = true;
+      inspect( e );
+    }
     burst_spikes_ = std::max( kMinBurstSpikes, static_cast< int >( std::ceil( 0.5 * motor_.pool_size( e, "withdraw" ) - 1e-9 ) ) );
     touching_ = in_touch( t_ );
     e.set_input( "touch", bg() + ( touching_ ? amp() : 0.0 ) );
@@ -226,35 +239,35 @@ public:
     double v = 100.0 * hf * ( 1.0 - 0.4 * clampd( ( lat - 20.0 ) / 80.0, 0, 1 ) ) - 12.0 * false_triggers_;
     s.value = std::max( 0.0, v );
     bool done = t_ >= kDuration;
-    s.passed = done && misses == 0 && hits == kTouches && false_triggers_ <= false_limit() && lat <= tol_max( mode_, 60.0, 1.25, 0.85 );
+    s.passed = done && misses == 0 && hits == kTouches && false_triggers_ <= false_limit() && lat <= tol_max( mode_, 60.0, 1.25, 0.85 ) && mech_.empty();
+    if ( !mech_.empty() ) s.value = std::min( s.value, 60.0 );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( !done )
-      o << "In progress: " << hits << " of " << kTouches << " pokes answered, " << false_triggers_ << " false withdrawals.";
+      o << "In progress: " << hits << " of " << kTouches << " pokes answered so far.";
     else if ( s.passed )
     {
       if ( false_triggers_ == 0 )
-        o << "Clean reflex: all " << kTouches << " pokes answered in " << static_cast< int >( lat ) << " ms on average, no false withdrawals.";
+        o << "Clean reflex: every poke answered quickly, no false withdrawals.";
       else
-        o << "Reflex works: all " << kTouches << " pokes answered in " << static_cast< int >( lat ) << " ms on average, but " << false_triggers_
-          << " false withdrawal" << ( false_triggers_ > 1 ? "s" : "" ) << " from noise (Guided allows " << false_limit() << ").";
+        o << "Reflex works: every poke answered quickly, but the noise fooled it now and then (Guided allows one false withdrawal).";
     }
     else if ( spikes_ < 1 )
       o << "withdraw never fired: the motor cells got no spikes at all. Check the touch input reaches a neuron, "
-           "that each link to the next cell exists, and increase the weights along the chain.";
+           "that each link to the next cell exists, and strengthen the weights along the chain.";
     else if ( bursts_ == 0 )
-      o << "withdraw fired " << static_cast< int >( spikes_ ) << " stray spikes but never a burst of " << burst_spikes_
-        << " within 25 ms: strengthen the weights into the motor cells, or add more cells feeding them.";
+      o << "withdraw fired only stray spikes, never a burst: strengthen the weights into the motor cells, or add more cells feeding them.";
     else if ( false_triggers_ > false_limit() && misses )
-      o << "Missed " << misses << " of " << kTouches << " pokes and fired " << false_triggers_
-        << " false withdrawals: the circuit reacts to noise but not reliably to pokes.";
+      o << "Missed pokes and fired on noise: the circuit reacts to chatter but not reliably to pokes.";
     else if ( misses )
-      o << "Missed " << misses << " of " << kTouches << " pokes (answered " << hits << "): the response is too weak or too late.";
+      o << "Missed " << ( misses > 1 ? "some" : "a" ) << " poke" << ( misses > 1 ? "s" : "" ) << ": the response is too weak or too late.";
     else if ( false_triggers_ > false_limit() )
-      o << "Too jumpy: " << false_triggers_ << " withdrawals with no poke. Make the motor cells need several touch inputs at once.";
+      o << "Too jumpy: withdrawals with no poke. Make the motor cells need several touch inputs at once.";
     else
-      o << "Too slow: mean latency " << static_cast< int >( lat ) << " ms (needs <= " << static_cast< int >( tol_max( mode_, 60.0, 1.25, 0.85 ) ) << " ms).";
+      o << "Too slow: the withdrawal comes too long after the poke. Strengthen the link into the motor cells, or feed them from more cells.";
     s.verdict = o.str();
     return s;
   }
@@ -262,6 +275,22 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -0.2, -0.5, 1.4, 0.5 }; }
 
 private:
+  /// Convergence (docs/REQ-0.4.md rule 1): a receptor population of at least two cells, and motor cells that each hear at least two of them.
+  void inspect( Engine& e )
+  {
+    micro::Graph g( e.structure() );
+    const auto touch = g.in_pops( "touch" ), motor = g.out_pops( "withdraw" );
+    if ( touch.empty() || motor.empty() ) return;
+    if ( !g.path( touch, motor, 0, 4, true ) )
+      mech_ = "The touch does not reach the withdraw pool: nothing carries the poke to the motor cells.";
+    else if ( g.cells( touch ) < 2 )
+      mech_ = "The touch input reaches only one receptor cell, so there is nothing to average: convergence needs several receptor cells (the "
+              "poke is only a little stronger than the chatter, and one cell cannot tell the two apart).";
+    else if ( g.indegree( motor ) < 2 )
+      mech_ = "No motor cell listens to more than one cell: convergence is missing. The motor cells have to add up the spikes of several receptor "
+              "cells at once, so that chatter, which bunches up only by chance in any one of them, does not get through.";
+  }
+
   // "noise" is the poke's contrast against the chatter: the background stays at 150 Hz, the poke adds 250 Hz / noise factor
   double bg() const { return kBg; }
   double amp() const { return kTouchRate / mode_noise( mode_, variant_, 0.6, 1.25 ); }
@@ -297,6 +326,8 @@ private:
   int false_triggers_ = 0, bursts_ = 0, burst_spikes_ = kMinBurstSpikes;
   double spikes_ = 0;
   Wiring wiring_;
+  bool inspected_ = false;
+  std::string mech_;
   bool touching_ = false;
   MotorReader motor_;
 };

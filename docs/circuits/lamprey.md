@@ -67,3 +67,8 @@ The thrust model is a toy (T = 1/2 m v_tail^2 (1 - U/c)), not Lighthill's large-
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `speed_bl_s`. **Notebook:** Grillner 2003.
 * **Default part:** `aeif_cond_alpha` (the reference's E and CC cells; the Adapting preset is a change the player makes). **Recipe** (`recipe()`, kept out of the brief): two groups of 8 aeif cells (Adapting), each inhibitory onto the other at the default -8 nS, drive at about 600 pA onto both, each group onto its own motor channel. The "both silent" verdict now names the drive weight (about 550 pA or more) instead of saying only "check the weights".
+
+## Honesty contract (v0.4)
+Mechanism check (crossed inhibition): each side must inhibit the other, directly or through a commissural interneuron (`Graph::crossed`, <= 3 projections). One-way crossing is named in the verdict.
+The task now breaks the left/right symmetry itself (cells that drive the left motor pool start at V_m -50 mV, the right ones at -75 mV, as in m_half_centre): without it a novice's identical pools start in step and never alternate.
+Cheap rows: commissural links cut, one-way, weakly excitatory, plain pools, one pool on both channels.

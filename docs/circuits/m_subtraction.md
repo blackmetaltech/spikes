@@ -40,3 +40,6 @@ Credits: Suzuki H et al. (2008) Nature 454:114 (ASEL / ASER, C. elegans).
 * **`recipe()`:** plus > out cell > diff. minus > cell B (inhibitory) > out cell, with the B > out weight at about -1100 pA. Too weak and equal inputs still fire; too strong and plus 3 against minus 2 goes quiet.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: `plus` excites the output cell (net +), `minus` reaches the same cell with net inhibition. Cheap rows: minus excites, minus cut, both inputs on one cell, inhibition x3, plus cut.

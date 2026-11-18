@@ -46,3 +46,9 @@ Credits: Lapicque L (1907) J Physiol Pathol Gen 9:620; Brunel N, van Rossum MCW 
 * **`recipe()`:** Wire pulse to one integrate-and-fire cell and the cell to 'spike'. The cell's rheobase is 375 pA, so set the pulse weight between about 400 and 600 pA: at the lab's start of 300 even the step (level 1.0) stays under it, and above 625 the blip (level 0.6) crosses it too.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: the pulse must reach the cell that is read, and the cell must carry no bias current of its own (a tonic cell is not a threshold device).
+No number is printed anywhere but the recipe. The stimulus is drawn from the seed (standard: blip 0.68 +- 0.05, step 1.00 +- 0.10; guided 0.55 +- 0.03 / 1.00 +- 0.05; researcher 0.78 +- 0.05 / 1.00 +- 0.08),
+so the pass band of the weight is the intersection over seeds (about 430-500 pA for standard), not a number to type in. The older text above (375 < W < 625, blip 0.6) describes 0.3.
+Cheap rows that fail (`cheap_rows_a.inc`): empty bench, single cell, tonic cell (I_e 380-900), weights 0 / extreme, pulse weight 300 / 640 / 800 / 1000 / 1500, reference + bias current, pulse cut.

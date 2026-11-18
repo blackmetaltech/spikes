@@ -58,3 +58,8 @@ Inhibition is current based (no reversal potential), so strongly inhibited AIB c
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `mean_dist_mm`. **Notebook:** Suzuki et al. 2008 *Nature* 454:114 (the earlier entry cited it as *Neuron* 57:1, which is wrong; `m_subtraction` always had it right); Thiele, Faumont & Lockery 2009 *J Neurosci* 29:11904.
 * **Default part:** `iaf_psc_alpha`. **Recipe** (`recipe()`, kept out of the brief): 8 cells in every group; ASER onto A and ASEL onto B at a sensor weight of about 1000 pA; A onto turn_left at +1000, B inhibitory onto turn_left at -1000; turn_right wired to an idle group.
+
+## Honesty contract (v0.4)
+Mechanism check (ON minus OFF): both salt cells must reach the turn pools with opposite effects on the turning speed (turn_left - turn_right). A circuit that listens to ASER alone, or to both cells the same way, fails with a verdict that
+names the missing difference. CHECK runs only the pass-bar episode (`quick_duration_ms()` = the bar: 45 s standard, 56 s guided, 40.5 s researcher; the pass decision cannot change after it). Cheap rows: ASER alone, ASEL > AIY cut,
+both cells excite the same pool, ASER > AIB cut, a tonic turn pool. ("Max every weight" is still a valid solution here, an ON-minus-OFF difference at saturating gain, so it is not a row.)

@@ -40,3 +40,7 @@ Credits: DiFrancesco D (1993) Annu Rev Physiol 55:455; Jose AD, Collison D (1970
 * **`recipe()`:** One SA node cell wired to 'beat', nothing else: it beats about 100 times a minute on its own. No sensor, no input weight, no bias current.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **1 run** (gate: at most 8).
+
+## Honesty contract (v0.4)
+v0.4: the lab now opens on a plain integrate-and-fire cell (`default_model`), which stays silent: finding the SA node card in the parts bin is the puzzle. Mechanism check: no bias current (I_e) on the cell and no projection onto it
+(a driven cell is not a pacemaker). Cheap rows: plain cell, plain cell + I_e 380, SA cell pushed by another cell, adaptive cell + bias, an SA cell with a bias current. (The reference has no weights, so "weights 0 / extreme" is the reference itself and is not a row.)
