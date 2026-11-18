@@ -235,6 +235,56 @@ static void test_empty_channels_and_vm()
   CHECK( e.last_step_ok() );
 }
 
+// A huge conductance weight makes the aeif_cond_alpha GSL integrator fail; NEST then asserts (inconsistent_state) on the next simulate() in a build without NDEBUG.
+static json cond_pair( const char* model, double w, double cm = 0 )
+{
+  json c = golden_circuit( "iaf_dc" );
+  c[ "populations" ] = json::array( { { { "id", "A" }, { "model", model }, { "n", 1 } }, { { "id", "B" }, { "model", model }, { "n", 1 } } } );
+  if ( cm > 0 )
+    for ( auto& p : c[ "populations" ] )
+      p[ "params" ] = { { "C_m", cm } };
+  c[ "inputs" ][ 0 ][ "targets" ] = json::array( { "A" } );
+  c[ "inputs" ][ 0 ][ "value" ] = 2000.0;
+  c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "B" }, { "idx", { 0 } } } } );
+  c[ "record" ][ "voltage" ] = json::array( { { { "pop", "B" }, { "idx", { 0 } } } } );
+  c[ "projections" ] = json::array( { { { "pre", "A" }, { "post", "B" }, { "edges", { { 0, 0, w, 1.0 } } } } } );
+  return c;
+}
+
+static void test_conductance_weight_limits()
+{
+  Engine e;
+  // sane weights run
+  CHECK_MSG( e.load( cond_pair( "aeif_cond_alpha", 5.0 ).dump() ), e.error() );
+  for ( int i = 0; i < 100; ++i )
+    e.step( 1.0 );
+  CHECK_MSG( e.error().empty(), e.error() );
+  // absurd weights are rejected at load with a clear message
+  for ( const char* m : { "aeif_cond_alpha", "iaf_cond_alpha", "iaf_cond_exp" } )
+  {
+    bool ok = e.load( cond_pair( m, 1.0e7 ).dump() );
+    CHECK_MSG( not ok and has( e.error(), "projections[0].edges[0]" ) and has( e.error(), "nS" ), std::string( m ) + ": got '" + e.error() + "'" );
+  }
+  // current-based: pA limit
+  CHECK( not e.load( cond_pair( "iaf_psc_alpha", 1.0e9 ).dump() ) and has( e.error(), "pA" ) );
+  // a divergence inside the allowed range (500 nS onto a tiny C_m: GSL "numerical instability") is an error, never an abort
+  CHECK_MSG( e.load( cond_pair( "aeif_cond_alpha", 500.0, 1.0 ).dump() ), e.error() );
+  for ( int i = 0; i < 300 and e.error().empty(); ++i )
+    e.step( 1.0 );
+  CHECK( has( e.error(), "numerical instability" ) );
+  e.step( 1.0 );  // after a failure further steps are refused, not forwarded to NEST (which would assert)
+  CHECK( has( e.error(), "reload the circuit" ) and not e.last_step_ok() );
+  e.step( 1.0 );
+  // set_weight beyond the ceiling is rejected
+  CHECK_MSG( e.load( cond_pair( "aeif_cond_alpha", 5.0 ).dump() ), e.error() );
+  CHECK( not e.set_weight( 0, 0, 1.0e6 ) and has( e.error(), "nS" ) );
+  CHECK( e.set_weight( 0, 0, 20.0 ) );
+  // the engine recovers after a reload
+  CHECK_MSG( e.load( golden_circuit( "iaf_dc" ).dump() ), e.error() );
+  e.step( 1.0 );
+  CHECK_MSG( e.error().empty(), e.error() );
+}
+
 int main()
 {
   test_single_instance();
@@ -244,5 +294,6 @@ int main()
   test_reload();
   test_live_edits();
   test_empty_channels_and_vm();
+  test_conductance_weight_limits();
   return chk::finish( "test_engine" );
 }

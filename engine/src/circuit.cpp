@@ -171,6 +171,32 @@ bool opt_number( const json& o, const char* key, const std::string& path, double
   return true;
 }
 
+
+}  // namespace
+
+// Documented physiological weight ceilings (docs/CIRCUIT-FORMAT.md "Weight limits"); mirrored in python/spike/circuit.py (weight_limit).
+double weight_limit( const std::string& neuron_model, const char** unit )
+{
+  const char* u = nullptr;
+  double lim = 0;
+  if ( neuron_model.find( "_cond_" ) != std::string::npos )
+  {
+    u = "nS";
+    lim = kMaxConductanceNs;
+  }
+  else if ( neuron_model.find( "_psc_" ) != std::string::npos or neuron_model.find( "_curr_" ) != std::string::npos )
+  {
+    u = "pA";
+    lim = kMaxCurrentPa;
+  }
+  if ( unit )
+    *unit = u;
+  return lim;
+}
+
+namespace
+{
+
 bool is_gap_model( const std::string& m ) { return m == "hh_psc_alpha_gap" or m == "hh_cond_beta_gap_traub"; }
 
 // Synapse-model specific validation and defaults (docs/CIRCUIT-FORMAT.md "Synapse models"). `path` is "projections[i]".
@@ -194,6 +220,26 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
       w.push_back( 1.0 );  // NEST default
     return w;
   };
+
+  // weight ceiling of the postsynaptic model (a huge conductance makes the GSL integrator of aeif_cond_* diverge, and NEST then aborts)
+  if ( model != "gap_junction" )
+  {
+    const char* unit = nullptr;
+    const double lim = weight_limit( b.model, &unit );
+    if ( lim > 0 )
+    {
+      auto check_w = [ & ]( double w, const std::string& where ) {
+        if ( not std::isfinite( w ) or std::fabs( w ) > lim )
+          fail( where, "weight " + std::to_string( w ) + " is outside the allowed range |w| <= " + std::to_string( static_cast< long >( lim ) ) + " " + unit + " for " +
+                         b.model + " (reference circuits use at most 60 nS / 1500 pA)" );
+      };
+      if ( pr.has_edges )
+        for ( size_t k = 0; k < pr.edge_wd.size(); ++k )
+          check_w( pr.edge_wd[ k ][ 0 ], at( sub( path, "edges" ), k ) );
+      else if ( pr.synapse.contains( "weight" ) and pr.synapse[ "weight" ].is_number() )
+        check_w( pr.synapse[ "weight" ].get< double >(), sub( spath, "weight" ) );
+    }
+  }
 
   if ( model == "gap_junction" )
   {

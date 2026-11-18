@@ -81,6 +81,13 @@ bool vm_init_range( const std::string& model, double e_l, double v_th, double& l
 /// Spread weight of the edge with index `edge` (projection `proj`): w + sd*z (kind 1) or w*(1+cv*z) (kind 2), sign kept, |w'| >= 1e-3 |w|.
 double spread_weight( double w, int kind, double amount, unsigned long long seed, size_t proj, size_t edge );
 
+/// Weight ceilings (add-only): |weight| of a synapse onto a conductance-based cell ("_cond_" in the model name) is limited to kMaxConductanceNs (nS), onto a
+/// current-based cell ("_psc_" / "_curr_") to kMaxCurrentPa (pA). Larger values make the GSL integrator diverge and NEST abort (docs/CIRCUIT-FORMAT.md).
+constexpr double kMaxConductanceNs = 500.0;
+constexpr double kMaxCurrentPa = 10000.0;
+/// The limit for synapses onto `neuron_model` and its unit ("nS" / "pA"); 0 (unit null) when the model has no limit.
+double weight_limit( const std::string& neuron_model, const char** unit = nullptr );
+
 /// Modulator names the engine knows (Engine::set_modulator).
 bool is_modulator_name( const std::string& s );
 
