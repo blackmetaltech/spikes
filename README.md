@@ -1,6 +1,8 @@
 # Spike
 
-Spike is a game about building small spiking neural circuits and watching them behave. You wire neurons together in an editor, drive them from sensors, read motor outputs, and a task scores what the circuit does. Version 0.2 has eleven tasks in five chapters, from a reflex arc and a swimming lamprey to a heartbeat, breathing and the fight-or-flight response. The simulation is real: the [NEST](https://www.nest-simulator.org/) kernel runs inside the game (C++ API, no Python at runtime), with NEST model and parameter names throughout (mV, ms, pA, nS, Hz).
+Spike is a puzzle game about building small spiking neural circuits and watching them run a simplified body. You wire neurons together on a bench, connect them to the task's sensors and motors, and the level scores what the circuit does. Version 0.3 has 41 levels in five chapters (Invertebrates, Spinal cord, Heart, Breathing, Autonomic): 19 micro-puzzles that each teach one idea, 14 tasks that combine them, 2 boss levels and 6 diagnosis cases where you find the lesion in a patient's circuit.
+
+The neurons are [NEST](https://www.nest-simulator.org/) models: the NEST kernel runs inside the game (C++ API, no Python at runtime), with NEST model and parameter names throughout (mV, ms, pA, nS, Hz). Everything around them is simplified: circuit weights and pass bands were tuned until the levels passed, the bodies use illustrative coefficients, a few cells are NESTML re-fits, and the post-solve histograms are generated variants of the reference circuits, not other players. [docs/WHAT-IS-REAL.md](docs/WHAT-IS-REAL.md) says which is which, layer by layer and level by level; the game shows the same page under "What is real".
 
 A circuit is one JSON file ([docs/CIRCUIT-FORMAT.md](docs/CIRCUIT-FORMAT.md)). The game, the C++ engine and the Python package read the same file, so a circuit built in the game runs unchanged in PyNEST, with identical spikes (the parity test checks this).
 
@@ -13,7 +15,7 @@ A circuit is one JSON file ([docs/CIRCUIT-FORMAT.md](docs/CIRCUIT-FORMAT.md)). T
 | `godot/` | The game (Godot 4.7; the extension builds against godot-cpp 4.5 and declares compatibility from 4.5) |
 | `python/` | `spike` package: build circuits in PyNEST, motif census, spike statistics ([python/README.md](python/README.md)) |
 | `godot/circuits/`, `godot/catalog/` | The reference circuits and the parts catalogue: the single source, inside the Godot project so exports carry them (`circuits/` and `catalog/` at the repo root are symlinks for tools and tests) |
-| `docs/` | Format spec, plan, requirements |
+| `docs/` | Format spec, plan, requirements, identity, what is real |
 | `scripts/` | `build-all.sh`, `build-nest.sh`, `build-nestml.sh`, `build-gd.sh`, `package.sh`, `smoke.sh`, `shots.sh` |
 | `Dockerfile`, `.github/workflows/ci.yml` | Reproducible build and CI |
 
@@ -57,7 +59,9 @@ Not built yet. The export preset ("Windows x86_64") and the `.gdextension` entri
 ```
 godot --path godot
 ```
-(or open `godot/` in the Godot editor). Pick a task, press BUILD, add neurons, wire the sensors and motors, and watch the score ring.
+(or open `godot/` in the Godot editor). Choose Play, pick a level on the campaign map and press Build: you get an empty bench with the level's sensor and motor cards. Add a neuron, drag from a sensor card to it and from it to a motor card, set the weights, and press Run or Check. The lab starts with only the essentials (Run / Pause, Reset, Check, Brief, the add-neuron palette and Connect); the speed, difficulty, Test x5, lesions, analysis and files are in the More menu, and some tools appear only once the campaign reaches a level that needs them. The reference circuit opens after you pass a level, or at any time in Guided mode.
+
+The look is the "Cajal Plate" identity ([docs/IDENTITY.md](docs/IDENTITY.md)): ink and Golgi stain on paper. Screenshots: `scripts/shots.sh` writes them to `docs/screenshots/`.
 
 ## Tests
 
@@ -87,26 +91,21 @@ See [python/README.md](python/README.md).
 
 `build/engine/spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k] [--require any|all]` scores a circuit on a task headless, with the same loop and seeding as the game (a seed also reseeds the circuit), and prints the score JSON. Without `--circuit` it uses the task's reference circuit (found through `$SPIKE_CIRCUITS_DIR`, or a `circuits/` or `godot/circuits/` folder above the working directory or the executable). `--lesion` scales every projection `pre`->`post` by `k` (0 deletes it). `spike-run --list-tasks` prints the task ids. The exit status is 3 when `--require` fails, which is how CI and `scripts/smoke.sh` check that every reference circuit passes.
 
-## The campaign (0.2)
+## The campaign
 
-| Chapter | Task | The circuit and what scores it |
-|---|---|---|
-| Invertebrates | `reflex` | touch reflex: detect a poke through noise |
-| | `worm` | salt-seeking worm: steer by the difference between two sensory neurons |
-| | `lamprey` | swimming central pattern generator |
-| Spinal cord | `stretch_reflex` | Ia afferent to motor neuron, resist an imposed stretch |
-| | `renshaw` | recurrent inhibition steadies the motor output |
-| | `posture` | hold a joint upright under gravity and pushes |
-| | `reach` | triphasic agonist/antagonist burst to a target angle |
-| Heart | `heart_pacemaker` | SA-node cells: a stable 60-80/min and synchrony |
-| | `heart_autonomic` | vagal (ACh) and sympathetic (NE) release track a target heart rate |
-| | `baroreflex` | hold arterial pressure through standing up and a haemorrhage |
-| Breathing | `breathing` | Butera burster network drives the lungs, CO2 raises ventilation |
-| Autonomic | `pupil` | light reflex with the right latency, both directions |
-| | `peristalsis` | an enteric circuit moves a bolus along the gut |
-| | `fight_or_flight` | a threat cue steers heart, pressure and pupil, then recovery |
+Each chapter is a main path of levels in play order (micro-puzzles, tasks, a boss), with optional branches: challenge variants of a task and diagnosis cases. `spike-run --list-tasks` prints every level id.
 
-Chapters open when half of the previous one is passed. Stars: 1 pass; 2 pass on all five TEST seeds (the lab reseeds world and circuit and records the mean); 3 the same within the task's neuron par and energy budget (spikes per second per neuron). An edited copy of a reference circuit earns no stars.
+| Chapter | Tasks on the main path (with the micro-puzzles before them) |
+|---|---|
+| Invertebrates | `reflex` (touch reflex through noise), `worm` (salt-seeking by the difference of two sensory neurons), `lamprey` (swimming half-centre) |
+| Spinal cord | `stretch_reflex`, `renshaw` (recurrent inhibition), `posture`, `reach` (triphasic burst), boss `boss_spinal_sprint` |
+| Heart | `heart_pacemaker` (coupled SA-node cells), `heart_autonomic` (vagal ACh and sympathetic NE), `baroreflex` |
+| Breathing | `breathing` (Butera burster network, CO2 raises ventilation) |
+| Autonomic | `pupil`, `peristalsis`, `fight_or_flight`, boss `boss_autonomic_exam` |
+
+Diagnosis cases: `dx_clonus`, `dx_vagal`, `dx_orthostatic`, `dx_apnoea`, `dx_horner`, `dx_achalasia` (fictional patients, model circuits).
+
+The first two chapters are open from the start; a later chapter opens when the main path of the chapter before it (or the one two before) is passed. Difficulty modes: Guided (the recipe is in the brief, hints free), Standard (the recipe costs the third star, hints after two missed runs), Researcher (no recipe, no hints, a pass needs Test x5). Stars: 1 pass; 2 pass on all five Test x5 seeds (the lab reseeds world and circuit and records the mean); 3 the same within the level's neuron par and energy budget. The reference circuit, or any copy of it, earns no stars: the game compares a structural fingerprint of your circuit (populations, models, projections, weights to three significant figures) with the reference's, so loading the reference file from disk does not count either.
 
 **Body modules** (`docs/body/`): Hill-type muscle, single-joint limb, heart with Windkessel circulation and baroreceptors, lungs with chemoreception, eye and pupil, gut chain.
 
@@ -114,7 +113,7 @@ Chapters open when half of the previous one is passed. Stars: 1 pass; 2 pass on 
 
 **Analysis in the game:** 3- and 4-node motif census, spike statistics, HRV, phase-response curves, bursts and energy. The same analyses are in the Python package.
 
-## Custom cells and the parts bin (0.2)
+## Custom cells and the parts bin
 - `scripts/build-nestml.sh [--pynest]` generates the NESTML cells (`models/nestml/*.nestml`: SA-node pacemaker, Butera burster, ICC slow wave) into `third_party/nestml-gen/`, which CMake compiles into libspike. Without it those models are unavailable and their tests skip; a circuit that uses them then fails to load. See `docs/models/`. For PyNEST, build with `--pynest` too.
 - `build/engine/spike-catalog` probes every parts-bin model and writes `catalog/thumbs.json` (f–I points and V_m traces) for the game's model cards.
 - Body physics (muscle, joint, heart, lungs, eye, gut) is documented in `docs/body/`.

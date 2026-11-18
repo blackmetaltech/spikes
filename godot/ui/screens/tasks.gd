@@ -2,11 +2,11 @@ class_name TasksScreen
 extends Screen
 ## The campaign map. Five chapters (Invertebrates, Spinal cord, Heart, Breathing, Autonomic), each drawn as its organ with the chapter's levels as pins on it:
 ## a SPINE of micro-puzzles (small pins), tasks and a boss (large pin) strung along the anatomy in play order, and optional BRANCHES (challenge variants,
-## diagnosis cases) hanging off their task. Hover or select a pin to see its concepts. Pick a level to read its brief and press BUILD (an empty bench with the
-## task's sensors and motors) or REFERENCE (the reference circuit already wired). Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
+## diagnosis cases) hanging off their task. Hover or select a pin to see its concepts. Pick a level to read its brief and press Build (an empty bench with the
+## task's sensors and motors); Reference (the reference circuit already wired) appears only once the level is passed, or in Guided mode. Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
-const SHORT := {"invertebrates": "INVERT.", "spinal": "SPINE", "heart": "HEART", "breathing": "LUNGS", "autonomic": "AUTONOMIC"}
+const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
 var first: Control
@@ -17,6 +17,7 @@ var detail_box: VBoxContainer
 var detail_scroll: ScrollContainer
 var tab_btns := {}
 var mode_step: Kit.Stepper
+var _brief_full := false   # the brief's More expander on the detail card
 
 func default_focus() -> Control: return first if first != null else back_btn
 
@@ -34,7 +35,7 @@ func build() -> void:
 	var bs := int(22 * f) if not phone else 18
 	(head.get_node("PageTitle") as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mode_step = Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], Progress.mode(), func(id): _on_mode(str(id)), 170.0 if not phone else 112.0, int(24 * f) if not phone else 15, 44.0 if not phone else 32.0)
-	mode_step.tooltip_text = "Difficulty. Switch any time. Guided: recipe in the brief. Standard: SHOW RECIPE costs the third star. Researcher: no recipe, a pass needs TEST x5."
+	mode_step.tooltip_text = "Difficulty. Switch any time. Guided: recipe in the brief. Standard: “Show recipe” costs the third star. Researcher: no recipe, a pass needs “Test x5”."
 	head.add_child(mode_step)
 	head.add_child(Kit.btn("Notebook" if not phone else "Notes", func(): app.show_screen("notebook"), "panel", bs))
 	head.add_child(Kit.btn("Parts bin" if not phone else "Parts", func(): app.show_screen("parts"), "panel", bs))
@@ -75,7 +76,7 @@ func _tabs(f: float, phone: bool) -> Control:
 		ci += 1
 		var id: String = c["id"]; var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id)
 		var st := Campaign.star_total(id)
-		var txt := (str(SHORT[id]).capitalize() if phone else "%s. %s" % [["I", "II", "III", "IV", "V", "VI", "VII"][mini(ci - 1, 6)], str(c["title"])])
+		var txt := (str(SHORT[id]) if phone else "%s. %s" % [["I", "II", "III", "IV", "V", "VI", "VII"][mini(ci - 1, 6)], str(c["title"])])
 		if not open and not phone: txt += "  (locked)"
 		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0))
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -103,6 +104,7 @@ func _show_chapter(id: String) -> void:
 	if Kit.pad_mode and app != null: app.pad.ensure_focus(true)
 
 func select_node(id: String) -> void:
+	if id != sel: _brief_full = false
 	sel = id
 	if app != null: app.campaign_node = id
 	map.queue_redraw()
@@ -125,12 +127,12 @@ func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, 
 func _star_tiers(par: int, diagnosis := false, tid := "") -> Array:
 	var m := Progress.mode()
 	if diagnosis:   # a diagnosis case is a pass by naming the cause: the second star is a right first answer
-		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try, with %d neurons or fewer" % par if par > 0 else "First try, with a small circuit", 3]]
-	var t1 := "Pass the task"; var t2 := "Pass on 5 random seeds (TEST x5)"
-	var t3 := "Pass with %d neurons or fewer" % par if par > 0 else "Pass on 5 seeds, small circuit"
+		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try, with %s or fewer" % Progress.neurons_text(par) if par > 0 else "First try, with a small circuit", 3]]
+	var t1 := "Pass the task"; var t2 := "Pass on 5 random seeds (“Test x5”)"
+	var t3 := "Pass with %s or fewer" % Progress.neurons_text(par) if par > 0 else "Pass on 5 seeds, small circuit"
 	if m == "guided": t1 = "Pass the task (wide bands, hints free)"
-	elif m == "standard": t3 += " and never open SHOW RECIPE" + (" (used)" if tid != "" and Progress.recipe_used(tid) else "")
-	elif m == "researcher": t1 = "Pass on all 5 seeds (TEST x5, required)"; t2 = "Pass on 5 seeds (physiological noise)"
+	elif m == "standard": t3 += " and never open “Show recipe”" + (" (used)" if tid != "" and Progress.recipe_used(tid) else "")
+	elif m == "researcher": t1 = "Pass on all 5 seeds (“Test x5”, required)"; t2 = "Pass on 5 seeds (physiological noise)"
 	return [[t1, 1], [t2, 2], [t3, 3]]
 
 func _fill_detail() -> void:
@@ -167,10 +169,11 @@ func _fill_detail() -> void:
 	var sid := tid; var vid := str(node["variant"]); var synth := bool(info.get("synthetic", false))
 	var go := func(ref: bool):
 		Campaign.pending_variant = vid; app.open_lab(sid, ref)   # the lab logs the visit (Playlog.level_start), once
-	var b := Kit.btn("BUILD" if open else "LOCKED", func(): if open and not synth: go.call(false), "amber" if open else "panel", int(24 * f) if not phone else 19); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
+	var b := Kit.btn("Build" if open else "Locked", func(): if open and not synth: go.call(false), "amber" if open else "panel", int(24 * f) if not phone else 19); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
 	if not open or synth: b.disabled = true
-	if not is_var:
-		var rb := Kit.btn("REFERENCE", func(): if not synth: go.call(true), "panel", int(24 * f) if not phone else 19); rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rb.disabled = synth; bt.add_child(rb)
+	if not is_var and (done or Progress.mode() == "guided"):   # the reference circuit is the solution: only after a pass, or in Guided mode
+		var rb := Kit.btn("Reference", func(): if not synth: go.call(true), "panel", int(24 * f) if not phone else 19); rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rb.disabled = synth; bt.add_child(rb)
+		rb.tooltip_text = "Open the reference circuit, already wired. It earns no stars."
 	if not open: detail_box.add_child(Kit.label(Campaign.lock_reason(sel) + ".", small, Kit.RED, true))
 	if is_var:
 		detail_box.add_child(Kit.label("A challenge variant of %s. It never gates the spine." % str(info["title"]), small, Kit.TEXT_SOFT, true))
@@ -189,8 +192,10 @@ func _fill_detail() -> void:
 			var br := Progress.best_in(tid, mm)
 			per.append("%s: %s" % [Progress.mode_name(mm), ("%d of 3 stars" % int(br["stars"])) if bool(br["passed"]) else "not yet"])
 		detail_box.add_child(Kit.label("   ".join(per), 15, Kit.TEXT_SOFT, true))
-	var brief := str(info["brief"])
-	detail_box.add_child(Kit.label(_lead(brief, 420) if not phone else _lead(brief, 220), small, Kit.TEXT_SOFT, true))
+	var brief := str(info["brief"]); var ld := LabInspector.lead(brief, 230 if not phone else 170)
+	detail_box.add_child(Kit.label(brief if _brief_full or not bool(ld[1]) else str(ld[0]), small, Kit.TEXT_SOFT, true))
+	if bool(ld[1]):
+		var mb := Kit.btn("Less" if _brief_full else "More…", func(): _brief_full = not _brief_full; _fill_detail(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; detail_box.add_child(mb)
 	if str(info.get("symptoms", "")) != "": detail_box.add_child(Kit.label("Patient: " + str(info["symptoms"]), small, Kit.TEXT, true))
 	_chips_row("NEW IDEA", (node["concepts_new"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.exc(), f, phone)
 	_chips_row("USES", (node["concepts_used"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.inh(), f, phone, true)
@@ -204,15 +209,6 @@ func _fill_detail() -> void:
 			detail_box.add_child(Kit.label("Challenge variants: %d of %d done" % [k, vs.size()], 15, Kit.TEXT_SOFT, true))
 	for pair in [["SENSORS", info["sensors"], Kit.SENSOR], ["MOTORS", info["motors"], Kit.MOTOR], ["MODULATORS", info["modulators"], Kit.GAMBOGE]]:
 		_chips_row(pair[0], pair[1], pair[2], f, phone)
-
-## The first sentences of a brief that fit in `n` characters.
-static func _lead(t: String, n: int) -> String:
-	var out := ""
-	for sent in t.split(". "):
-		var nxt := (out + (" " if out != "" else "") + sent + ("" if sent.ends_with(".") else "."))
-		if out != "" and nxt.length() > n: break
-		out = nxt
-	return out
 
 class _Star extends Control:
 	var lit := false
@@ -229,6 +225,7 @@ class NodeCard extends Button:
 	var gap := 0.0
 	var disc := Vector2.ZERO      # centre of the pin disc in local coordinates
 	var _plate := Rect2()
+	var _leader := false          # the plate sits away from its pin: a leader line joins them
 	func _init() -> void:
 		flat = true; focus_mode = Kit.focus_mode()
 		for n in ["normal", "hover", "pressed", "disabled", "focus"]: add_theme_stylebox_override(n, StyleBoxEmpty.new())
@@ -273,13 +270,33 @@ class NodeCard extends Button:
 		var cl := Vector2(clampf(pos.x, bounds.position.x + 4.0, maxf(bounds.end.x - W - 4.0, bounds.position.x + 4.0)), clampf(pos.y, bounds.position.y + 4.0, maxf(bounds.end.y - H - 4.0, bounds.position.y + 4.0)))
 		position = cl; disc = anchor - cl
 		custom_minimum_size = Vector2.ZERO
+	## Phase 1 of the map layout: the pin alone, its disc on `anchor` (map coordinates).
+	func place_disc(anchor: Vector2) -> void:
+		var e := 2.0 * _R() + 6.0; size = Vector2(e, e); disc = Vector2(e, e) * 0.5; _plate = Rect2(); _leader = false
+		position = anchor - disc; custom_minimum_size = Vector2.ZERO
+	## The size of the label plate (title and stars) of a task or boss pin.
+	func plate_size() -> Vector2:
+		var ft := Kit.fs(16 if not Layout.phone else 15); var fz := Kit.fs(14)
+		var tw := Fonts.bold.get_string_size(str(node["title"]), HORIZONTAL_ALIGNMENT_LEFT, -1, ft).x
+		var sw := 56.0 + (0.0 if Layout.phone else Fonts.regular.get_string_size(str(_status()[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x)
+		return Vector2(maxf(tw, sw) + 18.0, float(ft) + float(fz) + 16.0)
+	## Phase 2: the plate at `pr` (map coordinates) with the disc where place_disc put it. The button covers both; a leader joins them when they do not touch.
+	func place_plate(pr: Rect2) -> void:
+		var anchor := position + disc; var R := _R()
+		var dr := Rect2(anchor - Vector2(R + 3.0, R + 3.0), Vector2(2.0 * R + 6.0, 2.0 * R + 6.0))
+		var u := dr.merge(pr)
+		position = u.position; size = u.size; disc = anchor - u.position; _plate = Rect2(pr.position - u.position, pr.size)
+		_leader = not dr.grow(3.0).intersects(pr)
 	## The part that is clickable: the plate and the pin, with a touch-sized pad around a bare pin.
 	func _has_point(p: Vector2) -> bool:
-		if not has_plate():
-			var r := maxf(_R() + 4.0, Layout.tap() * 0.5); return p.distance_to(disc) <= r
-		return Rect2(Vector2.ZERO, size).grow(4.0).has_point(p)
-	## The pin's footprint in map coordinates (what the overlay keeps clear).
-	func pin_rect() -> Rect2: return Rect2(position, size) if has_plate() else Rect2(position + disc - Vector2(_R(), _R()), Vector2(_R(), _R()) * 2.0)
+		var r := maxf(_R() + 4.0, Layout.tap() * 0.5)
+		if p.distance_to(disc) <= r: return true
+		return has_plate() and _plate.size.x > 0.0 and _plate.grow(4.0).has_point(p)
+	## The pin's footprint in map coordinates (what the overlay keeps clear): the disc, and the plate when it touches the disc.
+	func pin_rect() -> Rect2:
+		var dr := Rect2(position + disc - Vector2(_R(), _R()), Vector2(_R(), _R()) * 2.0)
+		return dr.merge(plate_rect()) if has_plate() and _plate.size.x > 0.0 and not _leader else dr
+	func plate_rect() -> Rect2: return Rect2(position + _plate.position, _plate.size)
 	func _draw() -> void:
 		# a lettered call-out on the plate: an inked ring with an italic letter (a, b, c ... in play order), a paper slip with the title and stars
 		var id := str(node["id"]); var inst: bool = node["installed"]; var st := _status(); var best: Dictionary = st[2]
@@ -299,7 +316,7 @@ class NodeCard extends Button:
 			var y2 := ty + 7.0
 			for j in 3: ScoreCard.draw_star_on(self, Vector2(tx + 8.0 + 18.0 * j, y2 + float(fz) * 0.5), 7.0, Kit.GAMBOGE if j < int(best["stars"]) else Color(Kit.LINE, 0.95))
 			if not Layout.phone: draw_string(Gfx.serif_italic(), Vector2(tx + 56.0, y2 + float(fz) * 0.86), str(st[0]).to_lower(), HORIZONTAL_ALIGNMENT_LEFT, _plate.size.x - 64.0, fz, st[1])
-			if gap > 0.0:   # the leader from the ring to the slip
+			if gap > 0.0 or _leader:   # the leader from the ring to the slip
 				var q := Vector2(clampf(disc.x, _plate.position.x, _plate.end.x), clampf(disc.y, _plate.position.y, _plate.end.y))
 				draw_line(disc + (q - disc).normalized() * R, q, Color(Kit.INK, 0.7), 1.0, true)
 		if open and hov: draw_circle(disc, R + 5.0, Color(Kit.GAMBOGE, 0.25))
@@ -377,10 +394,21 @@ class MapOverlay extends Control:
 			bw = maxf(bw, lw)
 		var lh := float(fz) + 8.0
 		var bh := (float(ft) + 6.0 if bare else 0.0) + lh * lines.size() + 10.0
-		var pr := card.pin_rect(); var bx := clampf(pr.get_center().x - (bw + 12.0) * 0.5, 4.0, maxf(size.x - bw - 16.0, 4.0))
-		var by := pr.end.y + 6.0
-		if by + bh > size.y - 4.0: by = pr.position.y - bh - 6.0
-		by = clampf(by, 4.0, maxf(size.y - bh - 4.0, 4.0))
+		# below, above, right or left of the pin: whichever covers the fewest other plates and pins (and stays on the page)
+		var pr := card.pin_rect(); var cw := bw + 12.0
+		var cands := [Vector2(pr.get_center().x - cw * 0.5, pr.end.y + 6.0), Vector2(pr.get_center().x - cw * 0.5, pr.position.y - bh - 6.0),
+			Vector2(pr.end.x + 8.0, pr.get_center().y - bh * 0.5), Vector2(pr.position.x - cw - 8.0, pr.get_center().y - bh * 0.5)]
+		var bx := 0.0; var by := 0.0; var bc := INF
+		for k in cands.size():
+			var q: Vector2 = cands[k]
+			q = Vector2(clampf(q.x, 4.0, maxf(size.x - cw - 4.0, 4.0)), clampf(q.y, 4.0, maxf(size.y - bh - 4.0, 4.0)))
+			var rc := Rect2(q, Vector2(cw, bh)); var cost := float(k) * 0.01
+			for c in map.cards:
+				if c == card or not c.visible: continue
+				if c.has_plate() and c._plate.size.x > 0.0: cost += MapCanvas._frac(c.plate_rect().grow(4.0), rc) + (1.0 if c.plate_rect().intersects(rc) else 0.0)
+				if c.pin_rect().intersects(rc): cost += 0.5
+			if rc.end.y > size.y - 40.0 and rc.position.x < 520.0: cost += 1.0   # the plate caption at the foot
+			if cost < bc: bc = cost; bx = q.x; by = q.y
 		draw_rect(Rect2(bx + 3.0, by + 3.0, bw + 12.0, bh), Color(Kit.INK, 0.12)); draw_rect(Rect2(bx, by, bw + 12.0, bh), Color("#FBF7EE")); draw_rect(Rect2(bx, by, bw + 12.0, bh), Color(Kit.INK, 0.8), false, 1.0)
 		var y := by + 6.0
 		if bare:
@@ -460,7 +488,7 @@ class MapCanvas extends Control:
 			elif np.x >= 0.0: p = Vector2(np.x * size.x, np.y * size.y)
 			pts.append(p)
 			if p != null: A.append(i)
-		var inner := r.grow(-52.0)
+		var inner := r.grow(-52.0); inner.size.y -= 34.0   # and clear of the plate caption at the foot
 		var pos := []; pos.resize(n); var seg := []; seg.resize(maxi(n - 1, 0))
 		var runs := []   # [first idx, last idx, P0, C, P1]
 		if A.is_empty():
@@ -492,21 +520,20 @@ class MapCanvas extends Control:
 		var r := Rect2(Vector2.ZERO, size)
 		Gfx.plate_frame(self, r.grow(-3.0), Gfx.SHEET)   # the atlas page: an engraved double rule around the specimen drawing
 		var a := 1.0 if Campaign.chapter_open(chapter) else 0.5
+		keep = []
 		var anch := _scene(chapter, r.grow(-10.0), a)
 		var sp := cards.filter(func(c): return bool(c.node["spine"]))
 		var lay := _spine_layout(sp, anch, r)
 		var placed := {}
+		# 1. every pin's disc first (spine pins on the anatomy, in play order), so the label plates can be laid out around all of them
 		for i in sp.size():
-			var c = sp[i]; var id := str(c.node["id"]); var side := "r"; var gp := 0.0
-			if anch.has(id): side = str((anch[id] as Array)[1]); gp = float((anch[id] as Array)[2]) if (anch[id] as Array).size() > 2 else 0.0
-			var ps: Vector2 = lay["pos"][i]
-			if not anch.has(id): side = "l" if ps.x > size.x * 0.55 else "r"
-			c.place(ps, side, r, gp); placed[id] = c
+			var c = sp[i]; c.place_disc(lay["pos"][i]); placed[str(c.node["id"])] = c
 		# the spine: a line from pin to pin along the anatomy, green once the level before it is passed, amber for the way ahead, faint beyond
 		for i in range(sp.size() - 1):
 			var sg: Array = lay["seg"][i]; var pc = sp[i]; var nc = sp[i + 1]
 			var pts := PackedVector2Array()
 			for k in 11: pts.append(_bez(sg[0], sg[1], sg[2], lerpf(float(sg[3]), float(sg[4]), float(k) / 10.0)))
+			keep_path(pts, 30.0)
 			if bool(pc.node["installed"]) and Campaign.passed(str(pc.node["id"])): draw_polyline(pts, Color(Kit.GREEN, 0.9), 2.0, true)
 			elif bool(pc.node["installed"]) and Campaign.unlocked(str(pc.node["id"])) and bool(nc.node["installed"]): Gfx.dashed(self, pts, Color(Kit.exc(), 0.85), 1.8, 6.0, 5.0, _t * 10.0)
 			else: Gfx.dashed(self, pts, Color(Kit.INK, 0.35), 1.2, 2.0, 4.0)
@@ -522,7 +549,7 @@ class MapCanvas extends Control:
 		var dist := (40.0 if Layout.phone else 56.0)
 		for pid in by_parent:
 			if not placed.has(pid):
-				for c in by_parent[pid]: c.place(Vector2(size.x * 0.5, size.y * 0.5), "r", r); c.visible = false
+				for c in by_parent[pid]: c.place_disc(Vector2(size.x * 0.5, size.y * 0.5)); c.visible = false
 				continue
 			var pc: NodeCard = placed[pid]; var centre := pc.position + pc.disc
 			for c in by_parent[pid]:
@@ -537,13 +564,25 @@ class MapCanvas extends Control:
 					for pr in pins: clear = minf(clear, (pr as Rect2).grow(10.0).get_center().distance_to(q) - maxf((pr as Rect2).size.x, (pr as Rect2).size.y) * 0.5)
 					for pr in pins:
 						if (pr as Rect2).grow(14.0).has_point(q): sc -= 1000.0
-					if pc.has_plate() and Rect2(pc.position + pc._plate.position, pc._plate.size).grow(16.0).has_point(q): sc -= 1000.0
 					if not r.grow(-18.0).has_point(q): sc -= 500.0
-					sc += clear
+					sc += clear - 0.4 * _keep_cost(Rect2(q - Vector2(10, 10), Vector2(20, 20)))
 					if sc > bests: bests = sc; bestp = q
-				c.place(bestp, "r", r)
+				c.place_disc(bestp)
 				pins.append(c.pin_rect())
+				keep_path(PackedVector2Array([centre, centre.lerp(bestp, 0.5), bestp]), 20.0)
 				draw_line(centre, bestp, Color(Kit.GREEN, 0.9) if Campaign.passed(str(c.node["id"])) else Color(Kit.INK, 0.45), 1.0, true)
+		# 2. the label plates of tasks and bosses: each takes the free spot nearest its pin that covers no other pin or plate, as little anatomy and
+		# lettering as it can, and stays on the page; a leader line joins a plate that had to move away from its pin
+		keep.append([Rect2(0, size.y - float(Kit.fs(15)) - 26.0, minf(size.x * 0.5, 520.0), float(Kit.fs(15)) + 26.0), 400.0])   # the plate caption
+		if not Campaign.chapter_open(chapter): keep.append([Rect2(0, 0, minf(size.x * 0.7, 640.0), 44.0), 400.0])   # the lock notice
+		var plates := []
+		for c in sp:
+			var nc := c as NodeCard
+			if not nc.has_plate(): continue
+			var want := ""
+			if anch.has(str(nc.node["id"])): want = str((anch[str(nc.node["id"])] as Array)[1])
+			var pr := _best_plate(nc, pins, plates, r, want)
+			nc.place_plate(pr); plates.append(pr)
 		var cd := Campaign.chapter_def(chapter); var st := Campaign.star_total(chapter); var fz := Kit.fs(14)
 		var cap := ("%s.  %d of %d stars" % [str(cd["title"]), st.x, st.y]) if st.y > 0 else str(cd["title"]) + "."
 		var pz := Kit.fs(15); var pl := "Plate %s." % ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][clampi(Campaign.chapter_index(chapter), 0, 9)]
@@ -553,6 +592,43 @@ class MapCanvas extends Control:
 		if not Campaign.chapter_open(chapter):
 			var g := Campaign.gate_chapter(chapter)
 			Anatomy.tag(self, ("Locked. Pass the %s spine first." % str(Campaign.chapter_def(g)["title"])) if g != "" else "Locked.", Vector2(14, 10.0 + float(fz)), Kit.RED, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.7)
+
+	## Keep-out areas of the current scene for the label plates: [Rect2, weight] (anatomy, its lettering, the spine path). Filled while _draw runs.
+	var keep: Array = []
+	func keep_rect(rc: Rect2, w: float) -> void: keep.append([rc, w])
+	func keep_path(pts: PackedVector2Array, w: float, half := 7.0) -> void:
+		for i in pts.size():
+			if i % 2 == 0 or i == pts.size() - 1: keep.append([Rect2(pts[i] - Vector2(half, half), Vector2(half, half) * 2.0), w])
+	static func _frac(a: Rect2, b: Rect2) -> float:
+		var i := a.intersection(b)
+		return (i.size.x * i.size.y) / maxf(a.size.x * a.size.y, 1.0) if i.size.x > 0.0 and i.size.y > 0.0 else 0.0
+	func _keep_cost(rc: Rect2) -> float:
+		var c := 0.0
+		for k in keep: c += float(k[1]) * _frac(rc, k[0]) * 10.0
+		return c
+	## Where a pin's label plate goes: candidates in 16 directions at growing distances from the disc; the cheapest wins. Covering another pin or plate,
+	## or leaving the page, is ruled out; anatomy, lettering and the spine path cost by the area covered; distance costs a little; the side the scene
+	## suggests (`want`: l r u d) gets a small bonus.
+	func _best_plate(c: NodeCard, pins: Array, plates: Array, r: Rect2, want: String) -> Rect2:
+		var sz := c.plate_size(); var ctr := c.position + c.disc; var R := c._R()
+		var inner := r.grow(-8.0)
+		var wdir := {"l": Vector2(-1, 0), "r": Vector2(1, 0), "u": Vector2(0, -1), "d": Vector2(0, 1)}.get(want, Vector2.ZERO) as Vector2
+		var best := Rect2(ctr + Vector2(R + 6.0, -sz.y * 0.5), sz); var bc := INF
+		for di in [4.0, 22.0, 46.0, 80.0, 120.0, 170.0, 230.0]:
+			for k in 16:
+				var d := Vector2.from_angle(TAU * float(k) / 16.0)
+				var ext := absf(d.x) * sz.x * 0.5 + absf(d.y) * sz.y * 0.5
+				var cen: Vector2 = ctr + d * (R + float(di) + ext)
+				var rc := Rect2(cen - sz * 0.5, sz)
+				if not inner.encloses(rc): continue
+				var cost := 0.0
+				for pr in pins:
+					if (pr as Rect2).grow(5.0).intersects(rc) and not (pr as Rect2).is_equal_approx(Rect2(ctr - Vector2(R, R), Vector2(R, R) * 2.0)): cost += 1e5 * (0.2 + _frac(rc, (pr as Rect2).grow(5.0)))
+				for pl in plates:
+					if (pl as Rect2).grow(6.0).intersects(rc): cost += 1e5
+				cost += _keep_cost(rc) + di * 0.6 - 25.0 * maxf(d.dot(wdir), 0.0)
+				if cost < bc: bc = cost; best = rc
+		return best
 
 	func _scene(id: String, r: Rect2, a: float) -> Dictionary:
 		match str(Campaign.chapter_def(id)["organ"]):
@@ -565,39 +641,42 @@ class MapCanvas extends Control:
 
 	func _lab(s: String, p: Vector2, col := Kit.TEXT_SOFT, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
 		if Layout.phone: return
-		Anatomy.tag(self, s, p, Color(col, 0.95), 14, align, false, 0.55)
+		keep_rect(Anatomy.tag(self, s, p, Color(col, 0.95), 14, align, false, 0.55), 120.0)
 
 	# ------------------------------------------------------------ heart
 	func _sc_heart(r: Rect2, a: float) -> Dictionary:
 		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
 		var hr := Rect2(r.position.x + w * 0.31, r.position.y + h * 0.05, w * 0.50, h * 0.88)
+		keep_rect(Rect2(hr.position + hr.size * Vector2(0.05, 0.0), hr.size * Vector2(0.9, 1.0)), 40.0)
 		var res := Anatomy.heart(self, hr, {"tms": fposmod(_t, 0.95) * 1000.0, "alpha": a, "labels": not Layout.phone, "vagus": 0.55, "symp": 0.45, "t": _t})
 		var M := r.position + Vector2(w * 0.135, h * 0.24); var wm := m * 0.105
 		var med := Anatomy.medulla(self, M, wm, {"hi": ["nts", "dmv", "amb"], "alpha": a, "t": _t, "act": 0.4})
+		keep_rect(Rect2(M - Vector2(wm * 1.15, wm * 1.05), Vector2(wm * 2.3, wm * 2.0)), 60.0)
 		_lab("MEDULLA", M + Vector2(0, -wm * 0.95), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_CENTER)
-		# vagus: medulla -> heart (cyan)
+		# vagus: medulla -> heart
 		var vpath := Gfx.cr_spline(PackedVector2Array([med["amb_r"], M + Vector2(wm * 0.98, wm * 0.05), M + Vector2(wm * 1.9, wm * 0.5), (M + res["vagus_in"] as Vector2) * 0.5 + Vector2(0, wm * 0.2), res["vagus_in"]]), 8)
-		Anatomy.nerve(self, vpath, Anatomy.para(), maxf(m * 0.006, 2.0), 0.55, _t, a)
-		# spinal cord with the sympathetic chain, and the cardiac nerves (amber)
+		Anatomy.nerve(self, vpath, Anatomy.para(), maxf(m * 0.006, 2.0), 0.55, _t, a); keep_path(vpath, 25.0)
+		# spinal cord with the sympathetic chain, and the cardiac nerves
 		var cx0 := M.x - wm * 0.15; var cy0 := M.y + wm * 0.72; var cy1 := r.position.y + h * 0.90
 		var cord := PackedVector2Array([Vector2(cx0, cy0), Vector2(cx0, cy1)])
 		Anatomy.nerve(self, cord, Anatomy.NUC, maxf(m * 0.012, 3.0), 0.0, _t, a * 0.7)
+		keep_rect(Rect2(cx0 - 12.0, cy0, wm * 0.36 + 26.0, cy1 - cy0), 30.0)
 		var chain_x := cx0 + wm * 0.36
 		var chain := PackedVector2Array([Vector2(chain_x, cy0 + wm * 0.2), Vector2(chain_x, cy0 + h * 0.46)])
 		self.draw_polyline(chain, Color(Anatomy.symp(), 0.35 * a), 1.8, true)
 		for i in 9: self.draw_circle(Vector2(chain_x, lerpf(chain[0].y, chain[1].y, float(i) / 8.0)), 3.6, Color(Anatomy.symp(), 0.9 * a))
 		var sym_y := cy0 + h * 0.22
 		var spath := Gfx.cr_spline(PackedVector2Array([Vector2(chain_x, sym_y), Vector2(chain_x + (res["symp_in"].x - chain_x) * 0.5, sym_y - h * 0.01), res["symp_in"]]), 8)
-		Anatomy.nerve(self, spath, Anatomy.symp(), maxf(m * 0.006, 2.0), 0.45, _t, a)
-		# baroreceptor afferents (green): carotid sinus and aortic arch -> NTS
+		Anatomy.nerve(self, spath, Anatomy.symp(), maxf(m * 0.006, 2.0), 0.45, _t, a); keep_path(spath, 25.0)
+		# baroreceptor afferents: carotid sinus and aortic arch -> NTS
 		var ct: Vector2 = res["carotid_top"]; var nts: Vector2 = med["nts_r"]
 		var bpath := Gfx.cr_spline(PackedVector2Array([res["carotid"], ct + Vector2(0, -1.0), Vector2(lerpf(ct.x, M.x, 0.6), r.position.y + h * 0.04), M + Vector2(wm * 0.7, -wm * 0.85), nts]), 8)
-		Anatomy.nerve(self, bpath, Kit.GREEN, maxf(m * 0.005, 1.8), 0.5, _t, a)
+		Anatomy.nerve(self, bpath, Kit.GREEN, maxf(m * 0.005, 1.8), 0.5, _t, a); keep_path(bpath, 25.0)
 		self.draw_circle(res["carotid"], m * 0.014, Color(Kit.GREEN, 0.25 * a)); self.draw_arc(res["carotid"], m * 0.014, 0, TAU, 14, Color(Kit.GREEN, 0.9 * a), 1.6, true)
 		var cp: Vector2 = res["carotid"]
 		_lab("carotid sinus", cp + Vector2(m * 0.04, -m * 0.045), Kit.GREEN)
 		_lab("aortic arch", (res["arch"] as Vector2) + Vector2(m * 0.03, -m * 0.045))
-		_lab("vagus (cyan)", along_pt(vpath, 0.28) + Vector2(wm * 0.1, -wm * 0.28), Anatomy.para())
+		_lab("vagus", along_pt(vpath, 0.5) + Vector2(wm * 0.1, wm * 0.42), Anatomy.para())
 		_lab("sympathetic", Vector2(chain_x + 10.0, sym_y + wm * 0.8), Anatomy.symp())
 		_lab("SVC", (res["svc_top"] as Vector2) + Vector2(-m * 0.045, m * 0.11), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
 		_lab("aorta", (res["aorta_exit"] as Vector2) + Vector2(-m * 0.02, m * 0.07), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -615,14 +694,16 @@ class MapCanvas extends Control:
 		var burst := clampf(sin(TAU * phase) * 1.6 + 0.2, 0.0, 1.0) if cos(TAU * phase) < 0.99 else 0.0   # the phrenic burst while the volume rises
 		var lr := Rect2(r.position.x + w * 0.17, r.position.y + h * 0.045, w * 0.50, h * 0.93)
 		var res := Anatomy.lungs(self, lr, {"vol": vol, "alpha": a, "t": _t})
+		keep_rect(lr, 40.0)
 		var M := r.position + Vector2(w * 0.805, h * 0.30); var wm := m * 0.165
 		var med := Anatomy.medulla(self, M, wm, {"hi": ["prebotc", "rtn"], "alpha": a, "t": _t, "act": burst, "labels": not Layout.phone})
+		keep_rect(Rect2(M - Vector2(wm * 1.15, wm * 1.05), Vector2(wm * 2.3, wm * 2.0)), 60.0)
 		_lab("MEDULLA, transverse section", M + Vector2(0, -wm * 0.98), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_CENTER)
 		var s: float = res["scale"]; var o: Vector2 = res["origin"]
 		var c4: Vector2 = o + Vector2(0.545, 0.035) * s
 		# bulbospinal axons (preBötC -> phrenic motor nucleus in C3-C5), then the phrenic nerves to the diaphragm
 		var bs := Gfx.cr_spline(PackedVector2Array([med["prebotc"], M + Vector2(-wm * 0.5, wm * 0.45), M + Vector2(-wm * 1.4, wm * 1.0), (M + c4) * 0.5 + Vector2(0, wm * 0.6), c4]), 8)
-		Anatomy.nerve(self, bs, Anatomy.symp(), maxf(m * 0.005, 2.0), burst, _t, a)
+		Anatomy.nerve(self, bs, Anatomy.symp(), maxf(m * 0.005, 2.0), burst, _t, a); keep_path(bs, 25.0)
 		self.draw_circle(c4, m * 0.011, Color(Anatomy.NUC, 0.95 * a)); Gfx.glow(self, c4, m * 0.04, Color(Anatomy.NUC, 0.3 * a))
 		for sd in [-1.0, 1.0]:
 			var pn := Gfx.cr_spline(PackedVector2Array([c4, o + Vector2(0.5 + 0.045 * sd, 0.18) * s, o + Vector2(0.5 + 0.052 * sd, 0.45) * s, o + Vector2(0.5 + 0.075 * sd, 0.72) * s, res["dome_left" if sd > 0 else "dome_right"]]), 8)
@@ -639,9 +720,11 @@ class MapCanvas extends Control:
 		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
 		var top := Vector2(r.position.x + w * 0.075, r.position.y + h * 0.045)
 		var sp := Anatomy.spine(self, top, h * 0.90, {"alpha": a, "t": _t, "act": 0.4})
+		keep_rect(Rect2(top.x - m * 0.07, top.y, m * 0.14, h * 0.9), 40.0)
 		_lab("cervical", top + Vector2(m * 0.07, h * 0.03), Kit.TEXT_SOFT); _lab("thoracic", top + Vector2(m * 0.09, h * 0.30), Kit.TEXT_SOFT); _lab("lumbar", top + Vector2(m * 0.09, h * 0.66), Kit.TEXT_SOFT)
 		var C := r.position + Vector2(w * 0.40, h * 0.54); var wc := minf(w * 0.165, h * 0.30)
 		var cs := Anatomy.cord_section(self, C, wc, {"alpha": a, "t": _t, "act": 0.55, "hi": ["mn", "renshaw"], "labels": not Layout.phone})
+		keep_rect(Rect2(C - Vector2(wc * 1.05, wc * 0.85), Vector2(wc * 2.1, wc * 1.7)), 50.0)
 		# zoom lines from the C5 level to the section
 		var lv: Vector2 = sp["C5"] + Vector2(h * 0.07, 0)
 		for sd in [-1.0, 1.0]:
@@ -653,15 +736,16 @@ class MapCanvas extends Control:
 		var el := sh + Vector2(w * 0.035, h * 0.30)
 		var ang := deg_to_rad(-38.0) + swing * 0.18
 		var hd := el + Vector2(cos(ang), sin(ang)) * L
+		keep_rect(Rect2(sh, Vector2.ZERO).expand(el).expand(hd).grow(m * 0.05), 40.0)
 		var limb := Anatomy.limb(self, sh, el, hd, {"alpha": a, "t": _t, "ag": 0.40 + 0.3 * swing, "ant": 0.25 - 0.15 * swing, "ia_ag": 0.5 + 0.4 * swing, "ia_ant": 0.15})
 		# the reflex arc closes through the arm: Ia afferent from the spindle to the dorsal root, motor axon from the ventral root to the muscle
 		var aend: Vector2 = limb["ag_aff"]; var dre: Vector2 = cs["dorsal_root_end"]
 		var aff := Anatomy.bez2(aend, aend.lerp(dre, 0.5) + Vector2(0, -h * 0.07), dre, 24)
-		Anatomy.nerve(self, aff, Kit.GREEN, maxf(m * 0.004, 1.8), 0.6, _t, a)
+		Anatomy.nerve(self, aff, Kit.GREEN, maxf(m * 0.004, 1.8), 0.6, _t, a); keep_path(aff, 25.0)
 		var ag_path: PackedVector2Array = limb["ag_path"]
 		var tgt: Vector2 = Anatomy.along(ag_path, 0.30); var vre: Vector2 = cs["ventral_root_end"]
 		var eff := Anatomy.bez2(vre, vre.lerp(tgt, 0.5) + Vector2(w * 0.04, h * 0.05), tgt, 24)
-		Anatomy.nerve(self, eff, Gfx.VIOLET, maxf(m * 0.005, 2.0), 0.6, _t, a)
+		Anatomy.nerve(self, eff, Gfx.VIOLET, maxf(m * 0.005, 2.0), 0.6, _t, a); keep_path(eff, 25.0)
 		_lab("biceps (agonist)", (limb["ag"] as Vector2) + Vector2(-m * 0.02, -m * 0.10), Kit.exc(), HORIZONTAL_ALIGNMENT_CENTER)
 		_lab("triceps", (limb["ant"] as Vector2) + Vector2(m * 0.13, m * 0.05), Kit.inh(), HORIZONTAL_ALIGNMENT_CENTER)
 		_lab("muscle spindle", aend + Vector2(0, -m * 0.02), Kit.GREEN, HORIZONTAL_ALIGNMENT_CENTER)
@@ -672,11 +756,13 @@ class MapCanvas extends Control:
 		var w := r.size.x; var h := r.size.y; var m := minf(w, h)
 		var sy := 0.5 + 0.35 * sin(_t * 0.5); var pa := 0.5 - 0.35 * sin(_t * 0.5)
 		var bs := h * 0.955 / 0.765; var br := Rect2(r.position.x + w * 0.5 - bs * 0.45, r.position.y + h * 0.015, bs * 0.9, bs)
+		keep_rect(Rect2(br.position.x + br.size.x * 0.18, br.position.y, br.size.x * 0.64, br.size.y), 30.0)
 		var res := Anatomy.body(self, br, {"alpha": a, "t": _t, "sy": sy, "pa": pa, "pupil": 0.5 + 0.4 * sin(_t * 0.5), "tms": fposmod(_t, 0.95) * 1000.0})
 		var s: float = res["scale"]; var o: Vector2 = res["origin"]
 		# the legend: two divisions, one body
 		var lx := r.position.x + 18.0; var ly := r.position.y + h * 0.04
 		if not Layout.phone:
+			keep_rect(Rect2(lx - 4.0, ly - 16.0, 360.0, 102.0), 150.0)
 			self.draw_line(Vector2(lx, ly), Vector2(lx + 34, ly), Anatomy.symp(), 3.0, true)
 			Anatomy.text(self, "Sympathetic", Vector2(lx + 44, ly + 5), Anatomy.symp(), 15, HORIZONTAL_ALIGNMENT_LEFT, -1.0, true)
 			Anatomy.text(self, "thoracolumbar outflow T1 to L2", Vector2(lx + 44, ly + 25), Kit.TEXT_SOFT, 14)
@@ -689,7 +775,7 @@ class MapCanvas extends Control:
 			var ap: Vector2 = P.call((q[1] as Vector2).x, (q[1] as Vector2).y) if (q[1] as Vector2).x < 0.5 and (q[1] as Vector2).y < 1.0 and not (q[0] in ["vagus (X)", "heart", "sacral outflow"]) else q[1]
 			if Layout.phone: continue
 			self.draw_line(ap, Vector2(rx - 6.0, ap.y), Color(q[2], 0.45), 1.2, true); self.draw_circle(ap, 2.6, q[2])
-			Anatomy.tag(self, str(q[0]), Vector2(rx, ap.y + 5.0), q[2], 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.55)
+			keep_rect(Anatomy.tag(self, str(q[0]), Vector2(rx, ap.y + 5.0), q[2], 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.55), 120.0)
 		_lab("sympathetic chain", P.call(-0.075, 0.54), Anatomy.symp(), HORIZONTAL_ALIGNMENT_RIGHT)
 		return {"pupil": [(res["eye"] as Vector2) + Vector2(-s * 0.045, -s * 0.012), "l", 6.0], "peristalsis": [res["gut"], "r", 6.0], "fight_or_flight": [res["adrenal"], "l", 6.0]}
 
@@ -699,13 +785,14 @@ class MapCanvas extends Control:
 		# salt gradient behind the salt-seeking worm
 		var salt := r.position + Vector2(w * 0.80, h * 0.20)
 		Gfx.stipple_disc(self, salt, m * 0.42, 900, Color(Kit.SENSOR, 0.55 * a), 17, 2.4, 1.8)   # stippled, densest at the source
+		keep_rect(Rect2(salt - Vector2(m * 0.2, m * 0.2), Vector2(m * 0.4, m * 0.4)), 8.0)
 		_lab("NaCl gradient", salt + Vector2(0, m * 0.07), Kit.SENSOR, HORIZONTAL_ALIGNMENT_CENTER)
 		# the nematode that is touched (left, lower)
 		var p1 := PackedVector2Array()
 		for i in 40:
 			var u := float(i) / 39.0; var th := 3.0 * PI * u
-			p1.append(r.position + Vector2(w * (0.07 + 0.26 * u), h * (0.70 + 0.055 * sin(th + _t * 0.5))))
-		var wr1 := Anatomy.worm(self, Gfx.cr_spline(p1, 3), h * 0.034, {"alpha": a, "t": _t})
+			p1.append(r.position + Vector2(w * (0.07 + 0.26 * u), h * (0.55 + 0.055 * sin(th + _t * 0.5))))
+		var wr1 := Anatomy.worm(self, Gfx.cr_spline(p1, 3), h * 0.034, {"alpha": a, "t": _t}); keep_path(p1, 50.0, h * 0.04)
 		var probe: Vector2 = wr1["head"]
 		self.draw_line(probe + Vector2(-m * 0.06, -m * 0.10), probe + Vector2(-m * 0.012, -m * 0.012), Color(Kit.TEXT, 0.8 * a), 3.0, true)
 		Gfx.wash(self, probe + Vector2(-m * 0.012, -m * 0.012), m * 0.025, Kit.RED, 0.45 * a, 3)
@@ -714,13 +801,13 @@ class MapCanvas extends Control:
 		for i in 44:
 			var u := float(i) / 43.0
 			p2.append(r.position + Vector2(w * (0.36 + 0.34 * u), h * (0.46 - 0.18 * u + 0.05 * sin(u * 9.0 + _t * 0.7))))
-		var wr2 := Anatomy.worm(self, Gfx.cr_spline(p2, 3), h * 0.034, {"alpha": a, "t": _t + 1.0})
+		var wr2 := Anatomy.worm(self, Gfx.cr_spline(p2, 3), h * 0.034, {"alpha": a, "t": _t + 1.0}); keep_path(p2, 50.0, h * 0.04)
 		_lab("ASE salt neurons", (wr2["tail"] as Vector2) + Vector2(m * 0.02, m * 0.07), Kit.exc())
 		# the lamprey (right, lower)
 		var p3 := PackedVector2Array()
 		for i in 48:
 			var u := float(i) / 47.0; var wv := 0.045 * sin(u * 7.0 - _t * 3.0) * u
 			p3.append(r.position + Vector2(w * (0.52 + 0.43 * u), h * (0.82 + wv * 2.2)))
-		var lm := Anatomy.lamprey(self, p3, h * 0.040, {"alpha": a, "t": _t})
+		var lm := Anatomy.lamprey(self, p3, h * 0.040, {"alpha": a, "t": _t}); keep_path(p3, 50.0, h * 0.05)
 		_lab("spinal cord CPG", (lm["mid"] as Vector2) + Vector2(0, -m * 0.09), Kit.exc(), HORIZONTAL_ALIGNMENT_CENTER)
 		return {"reflex": [wr1["ring"], "u", 20.0], "worm": [wr2["head"], "u", 8.0], "lamprey": [lm["mid"], "d", 6.0]}

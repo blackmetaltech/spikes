@@ -117,7 +117,7 @@ func _draw() -> void:
 	var vt := tele.view_t; var t_left := vt - window_ms
 	var lanes := _lanes()
 	if lanes.is_empty():
-		draw_string(f, Vector2(0, size.y * 0.55), "Select a neuron and press TRACE to watch its voltage.", HORIZONTAL_ALIGNMENT_CENTER, size.x, fz, Kit.TEXT_SOFT); return
+		draw_string(f, Vector2(0, size.y * 0.55), "Select a neuron and press “Trace” to watch its voltage.", HORIZONTAL_ALIGNMENT_CENTER, size.x, fz, Kit.TEXT_SOFT); return
 	for ln in lanes:
 		var r: Rect2 = ln["rect"]; var nid: int = ln["n"]
 		var col: Color = Kit.inh() if _kind(nid) == "I" else Kit.exc()

@@ -29,6 +29,8 @@ func build() -> void:
 	else:
 		head_count = Kit.italic("", 22, Kit.TEXT_SOFT); head_count.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; head_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(head_count)
 		tab_row = Kit.tabs(TABS, tab, func(t): set_tab(t)); v.add_child(tab_row)
+	var rb := Kit.btn("What is real", func(): app.open_real("notebook"), "panel", 20 if not phone else 16); rb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rb.tooltip_text = "What in Spike is NEST, what is tuned, what is illustrative"; head.add_child(rb)
 	scroll = ScrollContainer.new(); scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; v.add_child(scroll)
 	var pad := MarginContainer.new(); pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL

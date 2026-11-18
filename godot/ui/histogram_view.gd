@@ -1,10 +1,11 @@
 class_name HistogramView
 extends VBoxContainer
-## One post-solve histogram (docs/DESIGN-0.3.md section 6, Zachtronics style): the distribution of an axis over other solutions of the same task, your point marked,
+## One post-solve histogram (docs/DESIGN-0.3.md section 6, Zachtronics style): the distribution of an axis over GENERATED variants of the level's reference
+## circuit (tools/histograms/gen_histograms.py, docs/HISTOGRAMS.md; not other players, and every label on screen says so), your point marked,
 ## the median drawn, and a "pin a target" row for personal goals. Three of these make the post-solve card: neurons, energy (spikes/s, the ATP bill) and the
 ## task's own quality metric.
 ##
-## Distributions come from catalog/histograms/<task>.json (written offline by the solution sweeps; later joined by opt-in uploads). Shape:
+## Distributions come from catalog/histograms/<task>.json (written offline by the variant generator; real players only once opt-in uploads exist). Shape:
 ##   {"task": "reflex", "metrics": {"<name>": {"unit": "spikes/s", "lower_is_better": true,
 ##                                              "values": [3, 4, 4, 5, ...]}            raw samples, or
 ##                                              "lo": 0, "hi": 100, "counts": [..]}}    pre-binned (equal-width bins from lo to hi)
@@ -122,7 +123,7 @@ func _step() -> float:
 func _build_pin() -> void:
 	for c in _pin_row.get_children(): _pin_row.remove_child(c); c.queue_free()
 	if is_nan(goal):
-		_pin_row.add_child(Kit.btn("PIN A TARGET", func():
+		_pin_row.add_child(Kit.btn("Pin a target", func():
 			var st := _step()
 			goal = value - st if lower_better else value + st   # one step better than you are
 			if not dist.is_empty() and not is_nan(float(dist["median"])) and not beats_median(dist, value, lower_better): goal = float(dist["median"]) - (st if lower_better else -st)
@@ -148,13 +149,13 @@ class _Plot extends Control:
 		draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.5), 1, 2, 0, false), Rect2(Vector2.ZERO, size))
 		var d := hv.dist; var v := hv.value
 		var head := hv.label.to_upper()
-		var yours := "you: %s %s" % [HistogramView.fmt(v), hv.unit]
+		var yours := "you: %s %s" % [HistogramView.fmt(v), "neuron" if hv.unit == "neurons" and is_equal_approx(v, 1.0) else hv.unit]
 		var yw := minf(fb.get_string_size(yours, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x, size.x * 0.68)
 		draw_string(Gfx.serif_italic(), Vector2(10, float(fz) + 4.0), hv.label, HORIZONTAL_ALIGNMENT_LEFT, size.x - yw - 28.0, Kit.fs(15), Kit.TEXT)
 		draw_string(fb, Vector2(size.x - 10.0 - yw, float(fz) + 4.0), yours, HORIZONTAL_ALIGNMENT_RIGHT, yw, fz, Kit.INK)
 		var pl := Rect2(14, float(fz) * 2.0 + 10.0, size.x - 28.0, size.y - float(fz) * 3.6 - 16.0)
 		if d.is_empty():
-			draw_multiline_string(f, Vector2(14, pl.position.y + float(fz) + 4.0), "No distribution for this task yet: the offline solution sweep has not been run. Your point and your own targets still count.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28.0, fz, 4, Kit.TEXT_SOFT)
+			draw_multiline_string(f, Vector2(14, pl.position.y + float(fz) + 4.0), "No generated variants for this level yet (generated variants of the reference circuit, not other players). Your point and your own targets still count.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28.0, fz, 4, Kit.TEXT_SOFT)
 			return
 		var counts: Array = d["counts"]; var lo := float(d["lo"]); var hi := float(d["hi"]); var nb := counts.size(); var mx := 1
 		for c in counts: mx = maxi(mx, int(c))
@@ -189,6 +190,6 @@ class _Plot extends Control:
 		draw_line(Vector2(px, pl.position.y), Vector2(px, pl.end.y), Kit.INK, 2.2, true)   # you: an inked pointer
 		draw_colored_polygon(PackedVector2Array([Vector2(px - 7.0, pl.end.y + 9.0), Vector2(px + 7.0, pl.end.y + 9.0), Vector2(px, pl.end.y)]), Kit.INK)
 		var b := HistogramView.beats(d, v, hv.lower_better)
-		var txt := "beats %d%%" % int(roundf(b * 100.0)) if size.x < 330.0 else "better than %d%% of %d solutions" % [int(roundf(b * 100.0)), int(d["n"])]
+		var txt := "beats %d%%" % int(roundf(b * 100.0)) if size.x < 330.0 else "better than %d%% of %d generated variants" % [int(roundf(b * 100.0)), int(d["n"])]
 		if HistogramView.beats_median(d, v, hv.lower_better): txt += "  ·  beats median" if size.x < 330.0 else "  ·  beats the median"
 		draw_string(f, Vector2(10, size.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, size.x - 20.0, fz, Kit.GREEN if HistogramView.beats_median(d, v, hv.lower_better) else Kit.TEXT_SOFT)

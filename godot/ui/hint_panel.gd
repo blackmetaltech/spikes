@@ -21,8 +21,8 @@ static func available(mode: String, fails: int) -> bool:
 ## One line for the button that opens the card: what the player can do about hints right now.
 static func button_text(mode: String, fails: int, shown: int) -> String:
 	if mode == "researcher": return ""
-	if not available(mode, fails): return "HINT %d/%d" % [fails, UNLOCK_FAILS]
-	return "HINT" if shown == 0 else "HINT %d" % shown
+	if not available(mode, fails): return "Hint %d/%d" % [fails, UNLOCK_FAILS]
+	return "Hint" if shown == 0 else "Hint %d" % shown
 
 ## `hints`: [{tier, text, target}] from Task::hints(); `shown`: highest tier revealed (0 = none).
 func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel:
@@ -35,7 +35,7 @@ func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel
 	hd.add_child(Kit.btn("X", func(): close_pressed.emit(), "panel", 16))
 	var fs := 17 if not Layout.phone else 15
 	if mode == "researcher":
-		v.add_child(Kit.label("Researcher mode has no hints. Switch to Standard or Guided in the header to get them.", fs, Kit.TEXT_SOFT, true)); return self
+		v.add_child(Kit.label("Researcher mode has no hints. Switch to Standard or Guided (the More menu, or the campaign header) to get them.", fs, Kit.TEXT_SOFT, true)); return self
 	if not available(mode, fails):
 		v.add_child(Kit.label("Hints open after %d failed runs in Standard mode (%d so far). Guided mode has them free from the start." % [UNLOCK_FAILS, fails], fs, Kit.TEXT_SOFT, true)); return self
 	var by := {}
@@ -59,6 +59,6 @@ func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel
 		var l := Kit.label(txt, fs, Kit.TEXT, true); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(l)
 	var nxt := shown + 1
 	while nxt <= 3 and not by.has(nxt): nxt += 1
-	if nxt <= 3: v.add_child(Kit.btn("SHOW HINT %d: %s" % [nxt, str(TIER_NAMES[nxt]).to_lower()], func(): next_pressed.emit(), "amber", 18))
+	if nxt <= 3: v.add_child(Kit.btn("Show hint %d: %s" % [nxt, str(TIER_NAMES[nxt]).to_lower()], func(): next_pressed.emit(), "amber", 18))
 	else: v.add_child(Kit.label("That is every hint. Hint use is recorded, never punished.", fs - 1, Kit.TEXT_SOFT, true))
 	return self

@@ -4,11 +4,11 @@ extends Node
 ##
 ## Env hooks:  SP_TASK=reflex|lamprey|worm + SP_REF=1 (lab opens that task with its reference circuit)   SP_SPEED=<x> (lab run speed)   SP_SEL=pop:<id>|proj:<i>|in:<name>|out:<name> (lab selection)
 ##             SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
-##             SP_SCREEN=title|tasks|parts|lab|analysis|settings|credits   SP_CHAPTER=<chapter id> + SP_NODE=<task id> (campaign map)   SP_MOCK=1 (synthetic body-system tasks)
+##             SP_SCREEN=title|tasks|parts|lab|analysis|settings|credits|notebook|real   SP_CHAPTER=<chapter id> + SP_NODE=<task id> (campaign map)   SP_MOCK=1 (synthetic body-system tasks; debug builds only)
 ##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
 ##             SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
-const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd", "notebook": "res://ui/screens/notebook.gd"}
+const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd", "notebook": "res://ui/screens/notebook.gd", "real": "res://ui/screens/real.gd"}
 const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title", "parts": "tasks", "notebook": "tasks"}
 
 ## Hand-over between screens: which task the lab opens, whether it starts from the reference circuit, circuits kept between lab visits, and what the analysis shows.
@@ -20,6 +20,7 @@ var analysis_tele: Telemetry = null
 var analysis_task := ""
 var campaign_chapter := ""    # the campaign map remembers its chapter and node between visits
 var campaign_node := ""
+var real_back := "title"      # where Back on the "What is real" page goes (it opens from the title, the credits and the notebook)
 
 var ui: CanvasLayer
 var root: Control
@@ -161,6 +162,7 @@ func hint_refresh() -> void:
 func back() -> void:
 	if screen != null and screen.on_back(): return
 	if cur == "analysis": open_lab(analysis_task, false, true); return
+	if cur == "real": show_screen(real_back if SCREENS.has(real_back) else "title", true); return
 	if BACK_TO.has(cur): show_screen(BACK_TO[cur], true)
 
 ## Open the lab on a task ("" = free run), empty bench or with the reference circuit.
@@ -172,6 +174,10 @@ func open_lab(task: String, reference := false, back_nav := false) -> void:
 func open_analysis(c: Dictionary, t: Telemetry, task: String) -> void:
 	analysis_circuit = c.duplicate(true); analysis_tele = t; analysis_task = task
 	show_screen("analysis")
+
+## The "What is real" page (docs/WHAT-IS-REAL.md), opened from `from` (title, credits, notebook), where Back returns.
+func open_real(from: String) -> void:
+	real_back = from; show_screen("real")
 
 func quit_game() -> void: get_tree().quit()
 
@@ -313,7 +319,7 @@ func _v02_checks() -> void:
 		_check(Lesion.csv(runner.results).begins_with("lesion,score"), "lesion csv export"); _check(Lesion.markdown("t", "c", 1, runner.results).contains("| Lesion |"), "lesion markdown export")
 	# the lab with lesion mode, sandbox, and the synthetic body-system tasks (every view kind)
 	OS.set_environment("SP_MOCK", "1"); Campaign.refresh()
-	for id in MockTask.IDS:
+	for id in Campaign.mock_ids():
 		cur = ""; open_lab(id, true); await _frames(40)
 		var lab := screen as LabScreen
 		_check(lab != null and lab.tele.sim != null, "mock %s did not load in the lab" % id)
