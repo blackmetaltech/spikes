@@ -12,6 +12,11 @@
 // PERTURBATION  (timeline): 5 % CO2 added to the inspired air (inspired PCO2 kInspired = 30 mmHg) from 50 s to 110 s, ramped over 5 s.
 //   Without a chemoreflex, PaCO2 climbs toward PI + 863 VCO2 / VA = 30 + 41 = 71 mmHg.
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): a rhythm population, that is a group on a cycle of excitatory projections
+//   (recurrent coupling among >= 2 cells) that drives the cells 'phrenic' reads (or is read by it), and the 'chemo' input must reach that rhythm
+//   group (an excitatory path from the chemoreceptor input to it): the CO2 reflex acts on the rhythm generator itself, not only on the motoneurons.
+//   Missing either caps the score below the pass bar, and the verdict names it.
+//
 // SCORING (windows are game time)
 //   rest      12-48 s : breaths per minute from breath completions in the window, VE, mean PaCO2
 //   challenge 85-110 s: VE (sum of tidal volumes / time), peak PaCO2 over 50-110 s
@@ -29,6 +34,7 @@
 #include <map>
 #include <sstream>
 #include "spike/body/lungs.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -39,9 +45,17 @@ namespace
 
 constexpr double kDuration = 150000;
 constexpr double kDriveHz = 200, kChemoPA = 4, kPhrenicRef = 225;
-constexpr double kTimeScale = 5;
-constexpr double kCo2On = 50000, kCo2Off = 110000, kRamp = 5000, kInspired = 30;
-constexpr double kRestA = 12, kRestB = 48, kChA = 85, kChB = 110, kPeakA = 50, kRecA = 135, kRecB = 150;  // s
+constexpr double kInspired = 30;
+// The scripted run: the CO2 breath (ms; on, off, ramp), the end, the gas exchange clock (x faster than physiology) and the scoring windows (s). The quick
+// check runs the same test with a shorter rest, a 30 s CO2 breath (the 5 s ramps become 2.5 s) and the gas exchange clock twice as fast to match, scored
+// by the same rules. The rest window cannot shrink below the time that holds the 5 breaths the rule asks for at 12 per minute, so this level cannot be
+// made much shorter than this.
+struct Sched
+{
+  double co2_on, co2_off, ramp, end, ts, rest_a, rest_b, ch_a, ch_b, peak_a, rec_a, rec_b;
+};
+constexpr Sched kFull{ 50000, 110000, 5000, kDuration, 5, 12, 48, 85, 110, 50, 135, 150 };
+constexpr Sched kQuick{ 36000, 66000, 2500, 88000, 10, 8, 36, 54, 66, 36, 76, 88 };
 
 class BreathingTask : public Task
 {
@@ -86,7 +100,18 @@ public:
     c.weight = 1;
     return { { "drive", d }, { "chemo", c }, { "phrenic", ChannelKind{ "rate" } } };
   }
-  double duration_ms() const override { return kDuration; }
+  double duration_ms() const override
+  {
+    quick_ = false;
+    return kDuration;
+  }
+  /// Quick check: the same test, compressed (see Sched). The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scripts and
+  /// scores (spike-run and the test harness ask after reset(), before the first step).
+  double quick_duration_ms() const override
+  {
+    quick_ = true;
+    return kQuick.end;
+  }
   std::string chapter() const override { return "breathing"; }
   std::string view() const override { return "lungs"; }
   int par_neurons() const override { return variant_par( variant_, 26 ); }
@@ -108,23 +133,29 @@ public:
     Score s = score();
     const double rate = s.parts[ "rest_rate_bpm" ];
     std::vector< Hint > h;
-    if ( s.parts[ "phrenic_spikes" ] < 1 || s.parts[ "rest_breaths" ] < 5 )
+    if ( !mech_.ok() )
+    {
+      h.push_back( make_hint( 1, "Rhythm: breathing comes from a network whose cells excite one another into a shared burst, and CO2 must act on that network, not only on the motoneurons.", "" ) );
+      h.push_back( make_hint( 2, "Either the rhythm group is not coupled to itself, or the chemo input does not reach it.", "chemo" ) );
+      h.push_back( make_hint( 3, "Connect a group of several bursting cells to itself with weak excitatory synapses, drive the phrenic pool from it, and route the chemo input (through a relay if you like) onto that group.", "" ) );
+    }
+    else if ( s.parts[ "phrenic_spikes" ] < 1 || s.parts[ "rest_breaths" ] < 5 )
     {
       h.push_back( make_hint( 1, "Rhythm: bursting pacemaker cells fire a burst, rest, and burst again by themselves. A network of coupled bursters shares one burst.", "" ) );
       h.push_back( make_hint( 2, "No regular breaths reach the phrenic pool.", "phrenic" ) );
-      h.push_back( make_hint( 3, "About 10 butera_burster cells (g_NaP 2.8, g_tonic 0.29 nS) coupled at 0.03 nS, drive onto them, then 8 iaf cells with I_e 380 pA as phrenic.", "" ) );
+      h.push_back( make_hint( 3, "Use burster cells in the rhythm group, give the phrenic cells a standing drive and a link from the rhythm group strong enough to fire them, and drive the bursters.", "" ) );
     }
     else if ( rate < rlo() || rate > rhi() )
     {
       h.push_back( make_hint( 1, "The burst rate is set by the drive to the bursters, not by the coupling.", "" ) );
       h.push_back( make_hint( 2, rate > rhi() ? "Too fast: lower the drive onto the bursters." : "Too slow: raise the drive onto the bursters.", "drive" ) );
-      h.push_back( make_hint( 3, "g_tonic 0.30 nS gives a burst every 4.9 s, 0.35 nS every 2.6 s; keep the coupling near 0.03 nS.", "" ) );
+      h.push_back( make_hint( 3, rate > rhi() ? "Lower the burster drive or weaken the coupling; strong coupling makes the rhythm run away." : "Raise the burster drive a little; keep the coupling weak.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Sensory gating: CO2 must make breathing faster and deeper. The chemosensor reports PaCO2.", "" ) );
       h.push_back( make_hint( 2, "Ventilation does not rise enough with CO2: the chemo input is not reaching the rhythm and the motor cells.", "chemo" ) );
-      h.push_back( make_hint( 3, "chemo (weight 1) > relay cells (bias 335) > bursters at 0.09 nS (rate) and > phrenic cells at 8 pA (depth).", "" ) );
+      h.push_back( make_hint( 3, "Relay the chemo input onto the bursters (faster breaths) and onto the phrenic cells (deeper breaths), and make those links strong enough to change the ventilation.", "" ) );
     }
     return h;
   }
@@ -139,13 +170,14 @@ public:
              "raises the frequency and the drive to the motoneurons.",
              "Smith JC et al. (1991) Science 254:726; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232 (review of both hypotheses)" };
   }
-  std::vector< Event > timeline() const override { return { { kCo2On, kCo2Off - kCo2On, "5% CO2 inhaled" } }; }
+  std::vector< Event > timeline() const override { return { { kFull.co2_on, kFull.co2_off - kFull.co2_on, "5% CO2 inhaled" } }; }
   std::vector< Band > bands() const override { return { { "rr_per_min", "/min", rlo(), rhi() }, { "co2_mmhg", "mmHg", palo(), pahi() } }; }
 
   void reset( uint64_t ) override
   {
     t_ = 0;
-    lungs_ = body::Lungs( params() );
+    sch_ = kFull;
+    lungs_ = body::Lungs( params( sch_.ts ) );
     lungs_.reset();
     u_ = 0;
     drive_lp_.tau_ms = 30;
@@ -157,11 +189,19 @@ public:
     spikes_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
+    if ( t_ == 0 && ( quick_ ? kQuick.end : kFull.end ) != sch_.end )  // the schedule follows the episode asked for
+    {
+      sch_ = quick_ ? kQuick : kFull;
+      lungs_ = body::Lungs( params( sch_.ts ) );
+      lungs_.reset();
+    }
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    mech_.refresh( e, t_, []( const Structure& st ) { return rhythm_missing( st ); } );
     e.set_input( "drive", kDriveHz );
     e.set_input( "chemo", kChemoPA * ( lungs_.peripheral_hz + lungs_.central_hz ) );
     e.step( dt );
@@ -170,7 +210,7 @@ public:
     u_ = clampd( drive_lp_.step( hz / kPhrenicRef, dt ), 0, 1 );
     body::LungInput in;
     in.drive = u_;
-    in.inspired_pco2 = inspired() * clampd( ( t_ - kCo2On ) / kRamp, 0, 1 ) * clampd( ( kCo2Off + kRamp - t_ ) / kRamp, 0, 1 );
+    in.inspired_pco2 = inspired() * clampd( ( t_ - sch_.co2_on ) / sch_.ramp, 0, 1 ) * clampd( ( sch_.co2_off + sch_.ramp - t_ ) / sch_.ramp, 0, 1 );
     lungs_.step( dt, in );
     t_ += dt;
     if ( lungs_.breaths != last_breaths_ )
@@ -212,8 +252,8 @@ public:
   Score score() const override
   {
     Score s;
-    Win rest = window( kRestA, kRestB ), ch = window( kChA, kChB );
-    double pa_rest = mean_pa( kRestA, kRestB ), pa_peak = max_pa( kPeakA, kChB ), pa_rec = mean_pa( kRecA, kRecB );
+    Win rest = window( sch_.rest_a, sch_.rest_b ), ch = window( sch_.ch_a, sch_.ch_b );
+    double pa_rest = mean_pa( sch_.rest_a, sch_.rest_b ), pa_peak = max_pa( sch_.peak_a, sch_.ch_b ), pa_rec = mean_pa( sch_.rec_a, sch_.rec_b );
     double ratio = rest.ve > 0.05 ? ch.ve / rest.ve : ( ch.ve > 0.05 ? 99.0 : 0.0 );
     s.parts[ "rest_rate_bpm" ] = rest.rate;
     s.parts[ "rest_breaths" ] = rest.n;
@@ -229,28 +269,32 @@ public:
     double ctrl = ( ( pa_rest >= palo() && pa_rest <= pahi() ) ? 0.4 : 0.0 ) + 0.6 * clampd( ( 70.0 - pa_peak ) / 18.0, 0, 1 );
     double rec = soft_band( pa_rec, 33, 46, 8 );
     s.value = 100.0 * ( 0.25 * rate_ok + 0.30 * resp + 0.30 * ctrl + 0.15 * rec );
-    bool done = t_ >= kDuration;
+    bool done = t_ >= sch_.end;
     bool pass = done && rest.n >= 5 && rest.rate >= rlo() && rest.rate <= rhi() && ratio >= rmin() && pa_rest >= palo() && pa_rest <= pahi() &&
                 pa_peak <= pmax() && pa_rec <= recmax();
-    s.passed = pass;
+    s.passed = pass && mech_.ok();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: " << rest.rate << " /min at rest, ventilation x" << ratio << " under CO2, PaCO2 peak " << pa_peak << " mmHg.)";
     else if ( spikes_ < 1 )
-      o << "The phrenic pool never fired" << yet << " Do the bursters burst (g_tonic about 0.3 nS)? Iaf phrenic cells need a standing current (I_e about 380 pA) and a PBC -> PHR weight of about 2.";
+      o << "The phrenic pool never fired" << yet << " Do the bursters burst? The phrenic cells need a standing drive, and the link from the rhythm group must be strong enough to fire them.";
     else if ( rest.n < 5 )
-      o << "Only " << static_cast< int >( rest.n ) << " breaths in the 36 s of rest" << yet << " Need a regular rhythm of 12-20 per minute: raise the burster drive "
-        << "(g_tonic 0.30 nS = a burst every 4.9 s, 0.35 = 2.6 s) and make sure the bursters are coupled so they burst together; if the phrenic pool is "
+      o << "Only " << static_cast< int >( rest.n ) << " breaths in the " << static_cast< int >( sch_.rest_b - sch_.rest_a ) << " s of rest" << yet << " Need a regular rhythm: raise the burster drive "
+        << "and make sure the bursters are coupled so they burst together; if the phrenic pool is "
         << "held silent, check the expiratory inhibition.";
     else if ( rest.rate < rlo() || rest.rate > rhi() )
       o << "Resting rate " << rest.rate << " /min is outside " << rlo() << "-" << rhi() << ": "
-        << ( rest.rate > rhi() ? "too fast. Weaken the burster coupling (about 0.03 nS) or lower g_tonic / the chemo weight to the bursters (a burster bursts every 4.9 s at g_tonic 0.30)."
-                            : "too slow. Raise the drive to the bursters (g_tonic about 0.3-0.35 nS, or more chemo weight) or strengthen the coupling a little." );
+        << ( rest.rate > rhi() ? "too fast. Weaken the burster coupling, or lower the drive (the cells' own drive or the chemo weight to the bursters)."
+                            : "too slow. Raise the drive to the bursters (their own drive or more chemo weight) or strengthen the coupling a little." );
     else if ( pa_rest < palo() || pa_rest > pahi() )
       o << "Resting PaCO2 " << pa_rest << " mmHg is outside " << palo() << "-" << pahi() << ": the breaths are too " << ( pa_rest > pahi() ? "shallow" : "deep" ) << ".";
-    else if ( !done && t_ < kChB * 1000.0 )
+    else if ( !done && t_ < sch_.ch_b * 1000.0 )
       o << "Breathing at " << rest.rate << " /min at rest, PaCO2 " << pa_rest << " mmHg; the CO2 test is still running.";
     else if ( ratio < rmin() )
       o << "Ventilation rose only " << ratio << "x under the CO2 challenge (need " << rmin() << "x): no chemoreflex. PaCO2 peaked at " << pa_peak << " mmHg.";
@@ -268,6 +312,23 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  // the mechanism: a recurrently excitatory rhythm group that drives 'phrenic' and is reached by the 'chemo' input
+  static std::string rhythm_missing( const Structure& st )
+  {
+    const auto phr = mech::out_pops( st, "phrenic" ), chemo = mech::in_pops( st, "chemo" );
+    mech::PopSet rhythm;
+    for ( int p = 0; p < static_cast< int >( st.populations.size() ); ++p )
+      if ( mech::excitatory_loop( st, { p } ) && mech::path( st, { p }, phr, +1 ) )
+        rhythm.insert( p );
+    if ( rhythm.empty() )
+      return "No rhythm generator: nothing here is a group of cells that excite one another (recurrent coupling) and drive the phrenic pool. "
+             "Breathing needs a coupled burst network, not a tonic cell.";
+    if ( !mech::path( st, chemo, rhythm, +1 ) )
+      return "The chemoreceptor input does not reach the rhythm group: CO2 must speed up the rhythm generator itself, not only drive the motoneurons. "
+             "Route the chemo input onto the coupled burst network.";
+    return "";
+  }
+
   double rlo() const { return mode_ == "guided" ? 10 : ( mode_ == "researcher" ? 13 : 12 ); }
   double rhi() const { return mode_ == "guided" ? 22 : ( mode_ == "researcher" ? 19 : 20 ); }
   double palo() const { return mode_ == "guided" ? 33 : ( mode_ == "researcher" ? 36 : 35 ); }
@@ -279,10 +340,10 @@ private:
   struct Breath { double t, vt; };
   struct Win { double rate = 0, ve = 0, n = 0; };
 
-  static body::LungParams params()
+  static body::LungParams params( double time_scale )
   {
     body::LungParams p;
-    p.time_scale = kTimeScale;
+    p.time_scale = time_scale;
     return p;
   }
   static double soft_band( double v, double lo, double hi, double width )
@@ -334,6 +395,9 @@ private:
   std::vector< double > pa_;
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
+  Sched sch_ = kFull;
+  mutable bool quick_ = false;
 };
 
 } // namespace

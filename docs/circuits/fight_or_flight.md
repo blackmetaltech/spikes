@@ -59,3 +59,10 @@ Credits: Cannon WB (1915) *Bodily Changes in Pain, Hunger, Fear and Rage*; Hilto
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 23); faint_threat (125 Hz).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `recovery_error`. **Notebook:** Cannon 1915; Dampney 1994.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** One command fanning out: the threat must reach (by net excitation) the cells behind each of `sympathetic`, `sym_vascular`, `dilator` and `vent`; those four effectors must have a relay pool each (no two outputs read the same cells); and some command group, reached by the threat, must reach all four through at least two different excitatory output projections (a serial chain from one organ to the next is not a command). The verdict names the organ that is not reached; the value is capped at 49.
+
+**Quick check.** `quick_duration_ms()` = 50 s: the same story compressed (threat 12-28 s, windows rest 6-12 s, threat 23-28 s, recovery 42-50 s, gas exchange clock 1.5 times faster), same 12 conditions. Reference: 6.6 s -> 2.9 s wall.
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

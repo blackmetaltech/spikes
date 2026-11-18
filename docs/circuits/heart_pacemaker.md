@@ -17,8 +17,8 @@ only for a motor pool of 2 or more cells).
 
 * **Pass**: 60 <= hr <= 80 bpm **and** beat-interval CV < 5 %, at the end of the episode (30 s).
 * **Value**: `100 (0.5 rate_term + 0.5 cv_term) (0.75 + 0.25 sync_term)`. `rate_term` is 1 inside 60-80 and falls linearly to 0 at 20 bpm
-  outside; `cv_term` is 1 up to 2 % and 0 at 15 %; `sync_term = clamp((chi - 0.3)/0.6, 0, 1)` for a cluster, 0 for one cell. So a single
-  working cell scores at most 75 and a tightly coupled cluster about 98: synchrony is the bonus, and several uncoupled cells (identical clones included) fail.
+  outside; `cv_term` is 1 up to 2 % and 0 at 15 %; `sync_term = clamp((chi - 0.3)/0.6, 0, 1)` for a cluster, 0 for one cell. A single
+  cell is not a node (see the mechanism check below: no pass, value capped at 49), a tightly coupled cluster scores about 98, and several uncoupled cells (identical clones included) fail.
 * **Verdict** names the failure: not wired, no beats, too few beats (pauses or arrest), bradycardia, tachycardia (and whether the cells
   are out of step), irregular rhythm.
 
@@ -70,3 +70,12 @@ Circulation 93:1043 (HRV).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 4); noise_x2 (24 % spread in C_m).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `synchrony`. **Notebook:** Jose & Collison 1970; Michaels 1987.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** The cells `sa_beat` reads must be coupled to each other by excitatory projections: a group projecting to itself (at least 2 cells, not a one-to-one self-projection, which is only autapses) or one group projecting to another. A lone cell, cells with no coupling, coupling at weight 0 and coupling by inhibition are "no cluster": `passed` is false, the value is capped at 49 and the verdict says there is no cluster and what to add. (Before: one default cell passed 5/5 with 75 points; REVIEW-HARSH S1.) Cutting one direction of the coupling keeps the cluster (one group still drives the other).
+
+**Quick check.** `quick_duration_ms()` = 20 s: the same rate / CV / synchrony rules over the window 6-20 s of the same run (the rhythm is stationary after the settling; 12 beats are still needed). Reference: 1.8 s -> 1.3 s wall for one seed on the dev machine.
+
+**Not a cheap circuit here:** "every weight at the maximum" (the coupling at its extreme) still passes: a cluster coupled as strongly as possible is a correct answer to a coupling level. The negative table (`engine/tests/cheap_rows_c.inc`) holds the lone default cell (the appendix row), the reference's own cell alone, one cell wired to itself, five uncoupled clones, inhibitory coupling and the reference minus its coupling.
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

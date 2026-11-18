@@ -31,10 +31,28 @@ tasks=$("$run" --list-tasks) || { echo "FAIL: spike-run --list-tasks"; fail=1; t
 for id in $tasks; do
   ok=0
   extra=()
-  # diagnosis cases: the patient circuit fails by design; submitting the right answer (as the lab does via set_variant) must pass
+  # diagnosis cases are decided by the submitted answer (set_variant), not by the circuit. The answer is NOT read from the C++ source: the case's
+  # own output is used, as a player sees it. Nothing submitted must fail; the tier-3 hint ("It is either A or B.") names two candidates; each is
+  # submitted: exactly one must pass (the right answer) and the other must fail (a wrong one).
   if [[ "$id" == dx_* ]]; then
-    ans=$(grep -oE 'answer = "[^"]+"' "$root/engine/src/tasks/$id.cpp" | head -1 | sed -E 's/answer = "(.*)"/\1/')
-    extra=(--variant "$ans")
+    if SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed 1 --quick --require any > /dev/null 2>&1; then
+      echo "FAIL: $id passes with nothing submitted"; fail=1; continue
+    fi
+    pair=$(SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed 1 --quick 2>/dev/null | python3 -c '
+import json, re, sys
+d = json.load(sys.stdin)
+t = [h["text"] for h in d["runs"][0]["hints"] if h["tier"] == 3][0]
+m = re.search(r"It is either (\S+) or (\S+)\. ", t)
+print(m.group(1), m.group(2))' 2>/dev/null)
+    read -r c1 c2 <<< "$pair"
+    if [ -z "${c1:-}" ] || [ -z "${c2:-}" ]; then echo "FAIL: $id: the tier-3 hint does not name two candidates"; fail=1; continue
+    fi
+    npass=0
+    for c in "$c1" "$c2"; do
+      SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed 1 --quick --variant "$c" --require any > /dev/null 2>&1 && npass=$((npass + 1))
+    done
+    if [ "$npass" = 1 ]; then echo "REFERENCE $id: exactly one of '$c1', '$c2' passes; nothing submitted fails"; else echo "FAIL: $id: $npass of the two named candidates pass (exactly one must)"; fail=1; fi
+    continue
   fi
   for seed in 1 2 3; do
     out=$(SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed "$seed" "${extra[@]}" --require any 2>&1) && { ok=1; break; }

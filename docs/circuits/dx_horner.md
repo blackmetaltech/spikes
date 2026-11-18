@@ -22,3 +22,6 @@ The sympathetic supply to the eye is a three-neuron chain (hypothalamus to spina
 
 ## How it is built
 The patient circuit is the reference circuit of the underlying task with the answer's projection(s) kept in the file at weight 0: every candidate is drawn and can be cut or probed in the lesion lab, and the dead wire is found from activity (a source that fires into a target that does not answer), not from a missing arrow. Cutting a working candidate changes the symptoms or the downstream rates; cutting the dead one (or anything after a silent group) changes nothing.
+
+## v0.4: the CHECK
+The diagnosis is decided by the submitted answer (`set_variant`), never by the run, so its quick episode is the underlying task's quick episode, forwarded (`DxTask::quick_duration_ms()`), cut at 8 s: the run only feeds the patient's findings (`run_*` parts). Nothing submitted never passes, every wrong candidate fails (`tasks_boss_dx_test`), and `scripts/smoke.sh` no longer reads the answer from the C++ source: it takes the two candidates the tier-3 hint names from the case's own output and checks that exactly one of them passes.

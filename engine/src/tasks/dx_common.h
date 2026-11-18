@@ -63,6 +63,10 @@ public:
   std::vector< std::string > sensor_channels() const override { return inner_->sensor_channels(); }
   std::vector< std::string > motor_channels() const override { return inner_->motor_channels(); }
   double duration_ms() const override { return inner_->duration_ms(); }
+  // The diagnosis is decided by the submitted answer, never by the run, so a long run adds nothing to the CHECK: it is the inner task's quick episode
+  // (forwarded, so that the inner task picks its quick schedule), cut at kDxQuickMs. The run only feeds the "run_*" parts and the patient's findings.
+  static constexpr double kDxQuickMs = 8000;
+  double quick_duration_ms() const override { return std::min( inner_->quick_duration_ms(), kDxQuickMs ); }
   void reset( uint64_t seed ) override
   {
     inner_->set_mode( mode() );

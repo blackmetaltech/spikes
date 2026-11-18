@@ -12,7 +12,9 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cctype>
 #include <map>
+#include <regex>
 #include <set>
 #include <sstream>
 #include "check.h"
@@ -58,10 +60,10 @@ static std::vector< Lesion > parse_lesion( const std::string& id )
   return v;
 }
 
-struct RunResult { Score score; std::map< std::string, double > rate_hz; double wall_s = 0; bool loaded = false; std::string error; };
+struct RunResult { Score score; std::vector< Task::Hint > hints; std::map< std::string, double > rate_hz; double wall_s = 0; bool loaded = false; std::string error; };
 
 /// Runs `task` on `circuit`; `after` (optional) is called with the task after the episode (e.g. to submit an answer).
-static RunResult run_one( const std::string& task_id, const json& circuit_in, uint64_t seed, const std::string& mode = "standard" )
+static RunResult run_one( const std::string& task_id, const json& circuit_in, uint64_t seed, const std::string& mode = "standard", bool quick = false )
 {
   RunResult r;
   Engine e;
@@ -81,7 +83,8 @@ static RunResult run_one( const std::string& task_id, const json& circuit_in, ui
   for ( int i = 0; i < e.neuron_count(); ++i )
     ++sizes[ e.neuron_population( i ) ];
   auto t0 = std::chrono::steady_clock::now();
-  const long steps = static_cast< long >( task->duration_ms() );
+  const long steps = static_cast< long >( quick ? task->quick_duration_ms() : task->duration_ms() );
+  const double episode_ms = static_cast< double >( steps );
   for ( long s = 0; s < steps; ++s )
   {
     task->step( e, 1.0 );
@@ -93,10 +96,32 @@ static RunResult run_one( const std::string& task_id, const json& circuit_in, ui
     ++counts[ e.neuron_population( sp.neuron ) ];
   r.wall_s = std::chrono::duration< double >( std::chrono::steady_clock::now() - t0 ).count();
   for ( auto& [ pop, n ] : sizes )
-    r.rate_hz[ pop ] = counts[ pop ] / ( double )n / ( task->duration_ms() / 1000.0 );
+    r.rate_hz[ pop ] = counts[ pop ] / ( double )n / ( episode_ms / 1000.0 );
   r.score = task->score();
+  r.hints = task->hints();
   r.error = e.error();
   return r;
+}
+
+// Honesty contract rule 2: verdicts and tier 1-3 hints carry no parameter numbers (a weight, a bias, a gain, a unit of current or conductance); only recipe() does.
+static bool has_parameter_number( const std::string& t )
+{
+  static const std::regex re( R"((-?[0-9]+(\.[0-9]+)?\s*(pA|nS|pF|ms delay))|((bias|weight|gain|I_e|g_[A-Za-z]+|tau)\s*(of|at|=)?\s*-?[0-9]))", std::regex::icase );
+  return std::regex_search( t, re );
+}
+static void no_numbers( const std::string& what, const std::string& verdict, const std::vector< Task::Hint >& hints )
+{
+  CHECK_MSG( !has_parameter_number( verdict ), what + ": the verdict carries a parameter number: " + verdict );
+  CHECK_MSG( !hints.empty(), what + ": no hints" );
+  for ( const auto& h : hints )
+    CHECK_MSG( !has_parameter_number( h.text ), what + ": tier " + std::to_string( h.tier ) + " hint carries a parameter number: " + h.text );
+}
+static bool contains( const std::string& hay, const std::string& needle )
+{
+  std::string a = hay, b = needle;
+  for ( auto& c : a ) c = static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) );
+  for ( auto& c : b ) c = static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) );
+  return a.find( b ) != std::string::npos;
 }
 
 static void print( const std::string& what, uint64_t seed, const RunResult& r )
@@ -272,6 +297,40 @@ int main( int argc, char** argv )
       print( bc.what, seed, r );
       CHECK_MSG( r.loaded, r.error );
       CHECK_MSG( !r.score.passed, std::string( "lesion must fail: " ) + bc.what );
+    }
+  }
+
+  // the quick check of the autonomic exam (the game's CHECK) is a compressed day, scored by the same 19 conditions: the reference passes it, every degenerate
+  // circuit fails it, and a circuit missing one component of the chapter fails with a verdict that names the component (no parameter numbers anywhere)
+  {
+    std::printf( "boss_autonomic_exam quick check\n" );
+    json c = load_circuit( circuits_dir() + reference_circuit( "boss_autonomic_exam" ) );
+    auto t = make_task( "boss_autonomic_exam" );
+    CHECK( t->quick_duration_ms() < t->duration_ms() );
+    for ( uint64_t seed : { 1, 2, 3 } )
+    {
+      RunResult r = run_one( "boss_autonomic_exam", c, seed, "standard", true );
+      print( "reference, quick", seed, r );
+      CHECK_MSG( r.score.passed, "quick check: " + r.score.verdict );
+      no_numbers( "boss reference", r.score.verdict, r.hints );
+    }
+    struct Part { const char* what; std::vector< Lesion > cuts; const char* word; };
+    const std::vector< Part > parts = {
+      { "baroreflex: no inhibitory relay", { { "CVLM", "RVLM", 0.0 } }, "baroreflex" },
+      { "baroreflex: no vagal limb", { { "NTS", "NA", 0.0 } }, "vagal limb" },
+      { "chemoreflex missing", { { "CHEMO", "VRG", 0.0 } }, "chemoreflex" },
+      { "central command missing", { { "CC", "RVLM", 0.0 }, { "CC", "CVLM", 0.0 } }, "central command" },
+      { "defence reaction does not reach the pupil", { { "HYP", "SCG", 0.0 } }, "pupil" },
+    };
+    for ( const auto& p : parts )
+    {
+      json d = c;
+      for ( auto& l : p.cuts ) CHECK( apply_lesion( d, l ) > 0 );
+      RunResult r = run_one( "boss_autonomic_exam", d, 1, "standard", true );
+      print( p.what, 1, r );
+      CHECK_MSG( !r.score.passed && r.score.value < 50.0, std::string( p.what ) + ": must fail below the pass bar" );
+      CHECK_MSG( contains( r.score.verdict, p.word ), std::string( p.what ) + ": the verdict should name '" + p.word + "': " + r.score.verdict );
+      no_numbers( p.what, r.score.verdict, r.hints );
     }
   }
 

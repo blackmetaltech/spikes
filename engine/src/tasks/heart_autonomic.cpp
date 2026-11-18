@@ -24,6 +24,12 @@
 //   Heart effects of NE beyond the rate (the rate comes from the SA cells): contractility drive sym_cardiac =
 //   0.2 + 0.25 (NE - 0.2); vessels: sym_vascular = 0.2 - 0.1 w (active muscle vasodilates).
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): the 'vagal' (ACh) and 'sympathetic' (NE) outputs must be MODULATOR outputs
+//   read from two different populations of release cells (two branches, not one pool serving both), and each branch must be driven by the
+//   circuit's inputs: some path from exercise_cue / hr_too_low / hr_too_high reaches the vagal pool and some path reaches the sympathetic
+//   pool. A branch no input can reach is a fixed tone, not a controller. A missing branch caps the score below the pass bar and the verdict
+//   names it.
+//
 // SCORING (HR sampled every 100 ms, HR = 60000 / max(last beat interval, time since the last beat); asystole counts as a miss)
 //   mae       : mean |HR - T| over [8 s, 85 s]
 //   rest_hr   : mean HR over [12 s, 20 s];  plateau_hr: mean over [40 s, 55 s];  rec_hr: mean over [75 s, 85 s]
@@ -43,6 +49,7 @@
 #include <sstream>
 #include "spike/analysis.h"
 #include "spike/body/heart.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -53,14 +60,22 @@ namespace
 
 constexpr double kDuration = 85000;
 constexpr double kRest = 65, kPeak = 120;
-constexpr double kT1 = 20000, kT2 = 30000, kT3 = 55000, kT4 = 70000;  // ramp up start/end, ramp down start/end
 
-double target_bpm( double t )
+// The scripted day: ramp up start/end, ramp down start/end, episode end and the scoring windows (ms). The quick check runs the same script with
+// shorter rest, exercise and recovery stretches (ramps of 5 s instead of 10 s, windows of 3-5 s instead of 8-15 s), scored by the same rules.
+struct Sched
 {
-  if ( t < kT1 ) return kRest;
-  if ( t < kT2 ) return kRest + ( kPeak - kRest ) * ( t - kT1 ) / ( kT2 - kT1 );
-  if ( t < kT3 ) return kPeak;
-  if ( t < kT4 ) return kPeak - ( kPeak - kRest ) * ( t - kT3 ) / ( kT4 - kT3 );
+  double t1, t2, t3, t4, end, mae_a, rest_a, plat_a, rec_a;
+};
+constexpr Sched kFull{ 20000, 30000, 55000, 70000, kDuration, 8000, 12000, 40000, 75000 };
+constexpr Sched kQuick{ 13000, 18000, 26000, 30000, 40000, 6000, 8000, 22000, 35000 };
+
+double target_bpm( const Sched& s, double t )
+{
+  if ( t < s.t1 ) return kRest;
+  if ( t < s.t2 ) return kRest + ( kPeak - kRest ) * ( t - s.t1 ) / ( s.t2 - s.t1 );
+  if ( t < s.t3 ) return kPeak;
+  if ( t < s.t4 ) return kPeak - ( kPeak - kRest ) * ( t - s.t3 ) / ( s.t4 - s.t3 );
   return kRest;
 }
 
@@ -105,7 +120,18 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "exercise_cue", "hr_too_low", "hr_too_high" }; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat", "vagal", "sympathetic" }; }
-  double duration_ms() const override { return kDuration; }
+  double duration_ms() const override
+  {
+    quick_ = false;
+    return kDuration;
+  }
+  /// Quick check: the same day, compressed (see Sched). The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scripts
+  /// and scores (spike-run and the test harness ask after reset(), before the first step).
+  double quick_duration_ms() const override
+  {
+    quick_ = true;
+    return kQuick.end;
+  }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "heart"; }
   int par_neurons() const override { return variant_par( variant_, 45 ); }
@@ -127,29 +153,35 @@ public:
     Score s = score();
     const double rest = s.parts[ "rest_hr" ], plat = s.parts[ "exercise_hr" ];
     std::vector< Hint > h;
-    if ( rest > kRest + lim_rest() )
+    if ( !mech_.ok() )
+    {
+      h.push_back( make_hint( 1, "Neuromodulation: the heart has two transmitters, ACh from the vagus and NE from the sympathetic chain, each released by its own group of cells.", "" ) );
+      h.push_back( make_hint( 2, "One of the two release outputs is not set up as its own driven branch.", "vagal" ) );
+      h.push_back( make_hint( 3, "Build two separate chains, one ending in the vagal output and one in the sympathetic output, and connect the cue and the error inputs onto both chains.", "" ) );
+    }
+    else if ( rest > kRest + lim_rest() )
     {
       h.push_back( make_hint( 1, "Neuromodulation: the heart is held at its resting rate by acetylcholine released continuously by the vagus. Without it the node runs at about 100.", "" ) );
       h.push_back( make_hint( 2, "The vagal output is not releasing enough ACh at rest.", "vagal" ) );
-      h.push_back( make_hint( 3, "NA (6 cells, bias 380) > VG (6, segment, 1500) > vagal, ACh, gain 0.009, tau 500 ms.", "" ) );
+      h.push_back( make_hint( 3, "Give the vagal cells a standing drive so they fire at rest, and raise the vagal release a little.", "" ) );
     }
     else if ( rest < kRest - lim_rest() )
     {
       h.push_back( make_hint( 1, "Too much ACh slows the node too far. Keep the vagal tone moderate.", "" ) );
       h.push_back( make_hint( 2, "Lower the vagal release.", "vagal" ) );
-      h.push_back( make_hint( 3, "Vagal gain about 0.009; bias on the NA group a few pA lower.", "" ) );
+      h.push_back( make_hint( 3, "Lower the vagal release per spike, or lower the standing drive on the vagal cells a little.", "" ) );
     }
     else if ( plat < kPeak - lim_plat() )
     {
       h.push_back( make_hint( 1, "Feed-forward: exercise_cue announces the effort before the heart rate has changed; the sympathetic branch should answer it and the vagus should withdraw.", "" ) );
       h.push_back( make_hint( 2, "The sympathetic output is too weak.", "sympathetic" ) );
-      h.push_back( make_hint( 3, "exercise_cue > CC > IML at +12; IML (6, bias 370) > SG > sympathetic, NE gain 0.003, tau 1500 ms; CC > NA at -24.", "" ) );
+      h.push_back( make_hint( 3, "Let the cue excite the sympathetic chain and inhibit the vagal chain; strengthen those links until the rate reaches the plateau.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Feedback corrects what feed-forward misses: the sign of the error (hr_too_low / hr_too_high) trims both branches.", "" ) );
       h.push_back( make_hint( 2, "The error inputs are not trimming the rate: check their links onto both autonomic branches.", "hr_too_low" ) );
-      h.push_back( make_hint( 3, "Onto NA: HIGH +10, LOW -6; onto IML: LOW +10, HIGH -25.", "" ) );
+      h.push_back( make_hint( 3, "Too low should speed the heart (more sympathetic, less vagal), too high the reverse. Make the sympathetic link from the 'too high' error the stronger of the pair.", "" ) );
     }
     return h;
   }
@@ -164,8 +196,8 @@ public:
   }
   std::vector< Event > timeline() const override
   {
-    return { { 0, kT1, "rest" }, { kT1, kT2 - kT1, "exercise starts" }, { kT2, kT3 - kT2, "exercise" },
-      { kT3, kT4 - kT3, "recovery" }, { kT4, kDuration - kT4, "rest" } };
+    return { { 0, kFull.t1, "rest" }, { kFull.t1, kFull.t2 - kFull.t1, "exercise starts" }, { kFull.t2, kFull.t3 - kFull.t2, "exercise" },
+      { kFull.t3, kFull.t4 - kFull.t3, "recovery" }, { kFull.t4, kDuration - kFull.t4, "rest" } };
   }
   std::vector< Band > bands() const override { return { { "hr_error_bpm", "bpm", -lim_mae(), lim_mae() } }; }
   std::vector< std::string > modulators() const override { return { "NE", "ACh" }; }
@@ -173,6 +205,7 @@ public:
   void reset( uint64_t ) override
   {
     heart_.reset();
+    sch_ = kFull;
     t_ = 0;
     beats_.clear();
     last_beat_ = -1;
@@ -191,12 +224,16 @@ public:
     ach_rest_n_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
+    if ( t_ == 0 )
+      sch_ = quick_ ? kQuick : kFull;
     wiring_.probe( e, sensor_channels(), motor_channels() );
-    double T = target_bpm( t_ );
+    mech_.refresh( e, t_, []( const Structure& st ) { return branches_missing( st ); } );
+    double T = target_bpm( sch_, t_ );
     double w = ( T - kRest ) / ( kPeak - kRest );
     e.set_input( "exercise_cue", 100.0 * w );
     double err = T - hr_s_.y;
@@ -243,7 +280,7 @@ public:
     b.points = { { 0, 0 } };
     b.readouts = heart_.readouts();
     auto v = heart_.view();
-    double T = target_bpm( t_ );
+    double T = target_bpm( sch_, t_ );
     b.readouts[ "hr_bpm" ] = hr_inst_;
     b.readouts[ "hr_target" ] = T;
     b.readouts[ "hr_error_bpm" ] = hr_inst_ - T;
@@ -275,10 +312,12 @@ public:
     s.parts[ "map_peak_mmHg" ] = map_peak_;
     s.parts[ "spikes" ] = spikes_;
     s.value = 100.0 * clampd( 1.0 - mae / 15.0, 0, 1 );
-    bool done = t_ >= kDuration;
+    bool done = t_ >= sch_.end;
     bool rest_ok = rest_.n > 0 && std::fabs( rest - kRest ) <= lim_rest(), plat_ok = plat_.n > 0 && std::fabs( plat - kPeak ) <= lim_plat(),
          rec_ok = rec_.n > 0 && std::fabs( rec - kRest ) <= lim_rest();
-    s.passed = done && mae <= lim_mae() && rest_ok && plat_ok && rec_ok;
+    s.passed = done && mae <= lim_mae() && rest_ok && plat_ok && rec_ok && mech_.ok();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -286,10 +325,12 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_ < 1 )
       o << "No beats: sa_beat has not fired" << yet << " Check the SA-node cells and the sa_beat output.";
-    else if ( !done && t_ < 12000 )
-      o << "Warming up (" << heart_.hr_bpm << " beats/min now, target " << target_bpm( t_ ) << ").";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: " << hr_inst_ << " beats/min now, " << mae << " bpm mean error.)";
+    else if ( !done && t_ < sch_.rest_a )
+      o << "Warming up (" << heart_.hr_bpm << " beats/min now, target " << target_bpm( sch_, t_ ) << ").";
     else if ( !done )
-      o << "Tracking so far: error " << mae << " bpm on average, " << hr_inst_ << " beats/min now (target " << target_bpm( t_ ) << ").";
+      o << "Tracking so far: error " << mae << " bpm on average, " << hr_inst_ << " beats/min now (target " << target_bpm( sch_, t_ ) << ").";
     else if ( !rest_ok )
       o << ( rest > kRest ? "Resting tachycardia: " : "Resting bradycardia: " ) << rest << " beats/min at rest, target " << kRest
         << ( rest > kRest ? ". The resting heart is held down by vagal tone; is the vagal branch working?" : ". Too much vagal drive at rest." );
@@ -310,6 +351,33 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -1, -1, 1, 1 }; }
 
 private:
+  // the mechanism: two release branches (ACh / NE), each driven by the cue or the error
+  static std::string branches_missing( const Structure& st )
+  {
+    auto kind = [ & ]( const char* ch ) {
+      for ( const auto& o : st.outputs )
+        if ( o.name == ch )
+          return o.kind;
+      return std::string();
+    };
+    const auto vag = mech::out_pops( st, "vagal" ), sym = mech::out_pops( st, "sympathetic" );
+    if ( vag.empty() || sym.empty() )
+      return std::string( "No " ) + ( vag.empty() && sym.empty() ? "autonomic" : ( vag.empty() ? "vagal (ACh)" : "sympathetic (NE)" ) ) +
+             " release cells: the heart's two transmitters each need their own group of cells reading out to the matching output.";
+    if ( kind( "vagal" ) != "modulator" || kind( "sympathetic" ) != "modulator" )
+      return "The vagal and sympathetic outputs must be modulator outputs (ACh and NE release): the heart reads the transmitters, not spike rates.";
+    if ( mech::overlap( vag, sym ) )
+      return "The vagal and the sympathetic output read the same cells: one pool cannot release both ACh and NE. Build two separate branches.";
+    mech::PopSet drive;
+    for ( const char* ch : { "exercise_cue", "hr_too_low", "hr_too_high" } )
+      drive = mech::unite( drive, mech::in_pops( st, ch ) );
+    if ( !mech::path( st, drive, vag ) )
+      return "The vagal branch is not driven by the cue or the error: a fixed vagal tone cannot follow the schedule. Connect the inputs onto the vagal chain.";
+    if ( !mech::path( st, drive, sym ) )
+      return "The sympathetic branch is not driven by the cue or the error: nothing can make the heart speed up. Connect the inputs onto the sympathetic chain.";
+    return "";
+  }
+
   bool tight() const { return variant_ == "tight_tracking"; }
   double lim_mae() const { return tight() ? 4.0 : tol_max( mode_, 6.0 ); }
   double lim_rest() const { return tight() ? 3.0 : tol_max( mode_, 4.0 ); }
@@ -324,24 +392,24 @@ private:
 
   void sample()
   {
-    double T = target_bpm( t_ );
+    double T = target_bpm( sch_, t_ );
     peak_hr_ = std::max( peak_hr_, hr_inst_ );
     ne_peak_ = std::max( ne_peak_, ne_ );
     map_peak_ = std::max( map_peak_, static_cast< double >( heart_.map_smooth ) );
-    if ( t_ < 8000 )
+    if ( t_ < sch_.mae_a )
       return;
     mae_sum_ += std::fabs( hr_inst_ - T );
     n_ += 1;
     max_err_ = std::max( max_err_, std::fabs( hr_inst_ - T ) );
-    if ( t_ >= 12000 && t_ < kT1 )
+    if ( t_ >= sch_.rest_a && t_ < sch_.t1 )
     {
       rest_.add( hr_inst_ );
       ach_rest_ += ach_;
       ach_rest_n_ += 1;
     }
-    if ( t_ >= 40000 && t_ < kT3 )
+    if ( t_ >= sch_.plat_a && t_ < sch_.t3 )
       plat_.add( hr_inst_ );
-    if ( t_ >= 75000 )
+    if ( t_ >= sch_.rec_a )
       rec_.add( hr_inst_ );
   }
 
@@ -349,7 +417,7 @@ private:
   {
     std::vector< double > bt;
     for ( double t : beats_ )
-      if ( t >= 8000 && t < kT1 )
+      if ( t >= sch_.mae_a && t < sch_.t1 )
         bt.push_back( t );
     if ( bt.size() < 4 )
       return 0;
@@ -365,6 +433,9 @@ private:
   std::vector< double > beats_;
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
+  Sched sch_ = kFull;
+  mutable bool quick_ = false;
 };
 
 } // namespace

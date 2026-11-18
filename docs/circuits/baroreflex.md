@@ -76,3 +76,10 @@ real haemorrhage add to the response.
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 24); severe_haemorrhage (x1.15).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `worst_settle_s`. **Notebook:** Kirchheim 1976; Guyenet 2006.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** A relay population that the baroreceptor input reaches (the NTS) must feed both limbs: the vagal limb (an excitatory path to the cells `vagal` reads) and the sympathetic limb (a net-inhibitory path to the cells `sympathetic` reads: relay -> CVLM, CVLM -| RVLM, RVLM -> ..., so that high pressure turns sympathetic output down). The verdict names the missing limb ("the vagal limb is missing", "the sympathetic limb is missing", "neither limb is wired", "the limbs start from different relays"); the value is capped at 49. The vagal limb does not matter for holding pressure (the run can be fine), but it is half of the reflex.
+
+**Quick check.** `quick_duration_ms()` = 94 s: the same day shortened (stand up at 10 s, lie down at 32 s, the same 300 ml haemorrhage at the same rate from 52 s to 82 s, end 94 s, first scored sample 8 s); every stretch stays longer than the 15 s settling limit, same rules. Reference: 4.8 s -> 2.9 s wall.
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

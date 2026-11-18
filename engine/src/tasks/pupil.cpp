@@ -9,6 +9,10 @@
 //   Motor "dilator":   superior-cervical-ganglion pool, mean Hz per neuron / kDilRef (40 Hz) = dilator drive 0..1 (sympathetic).
 //   Pupil diameter D = 2 + 6 clamp(0.5 + 0.5 (dilator - sphincter)) mm with first-order muscle kinetics (sphincter 130/500 ms, dilator 800/300 ms).
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): two pathways onto two separate pools, the parasympathetic reflex arc (an
+//   excitatory path from 'retina' to the cells 'sphincter' reads) and the sympathetic arm (an excitatory path from 'threat' to the cells 'dilator'
+//   reads). One pool read by both outputs is one muscle, not two. Missing a pathway caps the score below the pass bar; the verdict names it.
+//
 // SCORING
 //   dim     = mean D over 3-4 s (adapted to the dark), bright = mean D over 9.5-11 s, dim2 = mean D over 18.5-20 s,
 //   medium  = mean D over 24.5-26 s, fright = mean D over 32.5-34 s.
@@ -29,6 +33,7 @@
 #include <map>
 #include <sstream>
 #include "spike/body/eye.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -101,23 +106,29 @@ public:
   {
     Score s = score();
     std::vector< Hint > h;
-    if ( s.parts[ "sphincter_spikes" ] < 1 || s.parts[ "constriction_mm" ] < amp_min() )
+    if ( !mech_.ok() )
+    {
+      h.push_back( make_hint( 1, "The pupil is a two-muscle servo: a parasympathetic pathway closes it (retina to sphincter) and a sympathetic pathway opens it (threat to dilator). Each needs its own chain of cells.", "" ) );
+      h.push_back( make_hint( 2, "One of the two pathways is missing, or both end on the same cells.", "dilator" ) );
+      h.push_back( make_hint( 3, "Build a relay chain from retina to the sphincter output, and a separate chain from threat to the dilator output.", "" ) );
+    }
+    else if ( s.parts[ "sphincter_spikes" ] < 1 || s.parts[ "constriction_mm" ] < amp_min() )
     {
       h.push_back( make_hint( 1, "The light reflex is excitation along a chain: retina, pretectum, Edinger-Westphal, ciliary ganglion, sphincter. Light must also switch the dilator off.", "" ) );
       h.push_back( make_hint( 2, "The sphincter pool is not squeezing the pupil enough.", "sphincter" ) );
-      h.push_back( make_hint( 3, "retina > RGC (bias 100) > PON (bias 225) > EW (bias 340) > CG (bias 340) > sphincter, all links at the default weight; PON inhibits IML.", "" ) );
+      h.push_back( make_hint( 3, "Give the relay cells a standing drive so they fire, strengthen the chain, and let the light signal inhibit the sympathetic side.", "" ) );
     }
     else if ( s.parts[ "fright_dilation_mm" ] < fright_min() )
     {
       h.push_back( make_hint( 1, "Fright dilates the pupil by the sympathetic arm and by inhibiting the parasympathetic Edinger-Westphal cells.", "" ) );
       h.push_back( make_hint( 2, "The threat input does not reach the sympathetic arm.", "threat" ) );
-      h.push_back( make_hint( 3, "threat > HYP > IML (bias 410) > SCG (bias 340) > dilator, and HYP inhibits EW.", "" ) );
+      h.push_back( make_hint( 3, "Make the threat chain strong enough to raise the dilator output, and let it also inhibit the parasympathetic relay.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "A reflex arc has a latency made of synaptic and conduction delays; a human pupil answers in 200-250 ms.", "" ) );
       h.push_back( make_hint( 2, "The constriction latency is outside the window: look at the delays along the parasympathetic chain.", "sphincter" ) );
-      h.push_back( make_hint( 3, "Delay 15 ms on the links of the reflex arm gives about 170-195 ms; the default 2 ms gives under 150 ms.", "" ) );
+      h.push_back( make_hint( 3, "Lengthen the synaptic delay along the reflex arm if the pupil answers too fast, shorten it if too slow.", "" ) );
     }
     return h;
   }
@@ -149,11 +160,13 @@ public:
     spikes_s_ = spikes_d_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    mech_.refresh( e, t_, []( const Structure& st ) { return pathways_missing( st ); } );
     lum_ = luminance( t_ );
     bool threat = t_ >= kThreatOn && t_ < kThreatOff;
     e.set_input( "retina", fibres() * eye_.retinal_hz );
@@ -219,12 +232,16 @@ public:
     double fr_s = clampd( fright / 0.8, 0, 1 );
     s.value = 100.0 * ( c_amp + r_amp + c_lat + r_lat + fr_s ) / 5.0;
     bool done = t_ >= kDuration;
-    s.passed = done && con >= amp_min() && bright <= bright_max() && red >= amp_min() && dim2 >= dark_min() && lat_c >= lat_lo() && lat_c <= lat_hi() && fright >= fright_min();
+    s.passed = mech_.ok() && done && con >= amp_min() && bright <= bright_max() && red >= amp_min() && dim2 >= dark_min() && lat_c >= lat_lo() && lat_c <= lat_hi() && fright >= fright_min();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: constriction " << con << " mm, dark pupil " << dim2 << " mm, fright " << fright << " mm.)";
     else if ( spikes_s_ < 1 && spikes_d_ < 1 )
       o << "Both motor pools are silent" << yet << " Check the reflex arc from 'retina' and the sympathetic arm.";
     else if ( t_ < kBrightOff )
@@ -254,6 +271,25 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  // the mechanism: retina -> ... -> sphincter pool, threat -> ... -> dilator pool, on separate pools
+  static std::string pathways_missing( const Structure& st )
+  {
+    const auto sph = mech::out_pops( st, "sphincter" ), dil = mech::out_pops( st, "dilator" ), ret = mech::in_pops( st, "retina" ),
+               thr = mech::in_pops( st, "threat" );
+    if ( sph.empty() || dil.empty() )
+      return "The pupil needs two muscles' worth of output: cells read by 'sphincter' and, separately, cells read by 'dilator'.";
+    if ( mech::overlap( sph, dil ) )
+      return "The sphincter and the dilator outputs read the same cells: one pool cannot both squeeze and open the pupil. Build the two pathways separately.";
+    const bool para = mech::path( st, ret, sph, +1 ), sym = mech::path( st, thr, dil, +1 );
+    if ( !para && !sym )
+      return "Neither pathway is wired: light must reach the sphincter through the parasympathetic chain, and the threat cue must reach the dilator through the sympathetic chain.";
+    if ( !para )
+      return "The parasympathetic pathway is missing: nothing carries the retinal signal, by excitation, to the cells behind the sphincter output, so light cannot close the pupil.";
+    if ( !sym )
+      return "The sympathetic pathway is missing: nothing carries the threat cue, by excitation, to the cells behind the dilator output, so fright cannot open the pupil.";
+    return "";
+  }
+
   double amp_min() const { return mode_ == "guided" ? 2.0 : ( mode_ == "researcher" ? 2.94 : 2.5 ); }
   double bright_max() const { return mode_ == "guided" ? 5.0 : ( mode_ == "researcher" ? 4.2 : 4.5 ); }
   double dark_min() const { return mode_ == "guided" ? 5.5 : ( mode_ == "researcher" ? 6.3 : 6.0 ); }
@@ -321,6 +357,7 @@ private:
   std::vector< double > d_;
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
 };
 
 } // namespace

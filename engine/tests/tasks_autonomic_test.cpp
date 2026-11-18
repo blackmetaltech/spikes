@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <functional>
 #include <map>
+#include <regex>
 #include <string>
 #include <vector>
 #include "check.h"
@@ -48,13 +49,14 @@ static void scale( json& c, const std::string& pre, const std::string& post, dou
 struct Run
 {
   Score score;
+  std::vector< Task::Hint > hints;
   BodyState body;
   bool loaded = false;
   std::string error;
   double wall_s = 0;
 };
 
-static Run run( const std::string& task_id, const json& circuit_in, uint64_t seed )
+static Run run( const std::string& task_id, const json& circuit_in, uint64_t seed, bool quick = false )
 {
   Run r;
   json c = circuit_in;
@@ -69,11 +71,12 @@ static Run run( const std::string& task_id, const json& circuit_in, uint64_t see
   auto t0 = std::chrono::steady_clock::now();
   auto task = make_task( task_id );
   task->reset( seed );
-  long steps = static_cast< long >( task->duration_ms() );
+  long steps = static_cast< long >( quick ? task->quick_duration_ms() : task->duration_ms() );
   for ( long s = 0; s < steps; ++s )
     task->step( e, 1.0 );
   r.wall_s = std::chrono::duration< double >( std::chrono::steady_clock::now() - t0 ).count();
   r.score = task->score();
+  r.hints = task->hints();
   r.body = task->body();
   r.error = e.error();
   return r;
@@ -84,6 +87,28 @@ static double part( const Run& r, const std::string& k )
   auto it = r.score.parts.find( k );
   CHECK_MSG( it != r.score.parts.end(), "missing score part " + k );
   return it == r.score.parts.end() ? 0.0 : it->second;
+}
+
+// Honesty contract rule 2: verdicts and tier 1-3 hints carry no parameter numbers (a weight, a bias, a gain, a unit of current or conductance); only recipe() does.
+// (Observed behaviour such as "62 /min" and the pass band the brief states are not parameters.)
+static bool has_parameter_number( const std::string& t )
+{
+  static const std::regex re( R"((-?[0-9]+(\.[0-9]+)?\s*(pA|nS|pF|ms delay))|((bias|weight|gain|I_e|g_[A-Za-z]+|tau)\s*(of|at|=)?\s*-?[0-9]))", std::regex::icase );
+  return std::regex_search( t, re );
+}
+static void no_numbers( const std::string& what, const Run& r )
+{
+  CHECK_MSG( !has_parameter_number( r.score.verdict ), what + ": the verdict carries a parameter number: " + r.score.verdict );
+  CHECK_MSG( !r.hints.empty(), what + ": no hints" );
+  for ( const auto& h : r.hints )
+    CHECK_MSG( !has_parameter_number( h.text ), what + ": tier " + std::to_string( h.tier ) + " hint carries a parameter number: " + h.text );
+}
+static bool contains( const std::string& hay, const std::string& needle )
+{
+  std::string a = hay, b = needle;
+  for ( auto& c : a ) c = static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) );
+  for ( auto& c : b ) c = static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) );
+  return a.find( b ) != std::string::npos;
 }
 
 static void show( const char* what, uint64_t seed, const Run& r )
@@ -158,6 +183,16 @@ static void reference( const std::string& id, const std::function< void( const R
   // determinism: the same seed again gives the same numbers
   Run again = run( id, c, 1 );
   CHECK_MSG( again.score.parts == parts[ 0 ], id + " is not deterministic" );
+  // the quick check (the game's CHECK) is a shorter episode, scored by the same rules: the reference passes it too
+  auto qt = make_task( id );
+  CHECK_MSG( qt->quick_duration_ms() <= qt->duration_ms(), id + " quick episode longer than the full one" );
+  for ( uint64_t seed : { uint64_t( 1 ), uint64_t( 2 ), uint64_t( 3 ) } )
+  {
+    Run q = run( id, c, seed, true );
+    show( "reference quick", seed, q );
+    CHECK_MSG( q.score.passed, id + " quick check, seed " + std::to_string( seed ) + ": " + q.score.verdict );
+    no_numbers( id + " quick reference", q );
+  }
 }
 
 static void lesions( const std::string& id, const std::vector< Lesion >& list )
@@ -175,6 +210,7 @@ static void lesions( const std::string& id, const std::vector< Lesion >& list )
       CHECK_MSG( r.loaded, r.error );
       if ( l.must_fail )
         CHECK_MSG( !r.score.passed, id + " still passes with lesion: " + what );
+      no_numbers( id + " lesion: " + what, r );
       l.expect( r );
     }
   }
@@ -192,6 +228,18 @@ static void unwired( const std::string& id, const std::string& input )
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------
+// a degenerate or cut circuit: not passed, below the pass bar, the verdict names the missing mechanism (a word), and no numbers in verdict or hints
+static void mechanism( const std::string& id, const char* what, const json& c, const char* word, bool quick = true )
+{
+  Run r = run( id, c, 1, quick );
+  show( what, 1, r );
+  CHECK_MSG( r.loaded, r.error );
+  CHECK_MSG( !r.score.passed, id + " passes: " + what );
+  CHECK_MSG( r.score.value < 50.0, id + " " + what + ": value " + std::to_string( r.score.value ) );
+  CHECK_MSG( contains( r.score.verdict, word ), id + " " + what + ": the verdict should name '" + word + "': " + r.score.verdict );
+  no_numbers( id + ": " + what, r );
+}
+
 static void test_breathing()
 {
   std::printf( "breathing\n" );
@@ -233,6 +281,16 @@ static void test_breathing()
           { { "EXP", "PHR" } }, 1,
           []( const Run& r ) { CHECK( part( r, "rest_rate_bpm" ) > 20 || part( r, "rest_breaths" ) < 5 ); } } } );
   unwired( "breathing", "chemo" );
+  { json d = c; scale( d, "PBC", "PBC", 0 ); mechanism( "breathing", "no recurrent coupling", d, "rhythm" ); }
+  { json d = c; scale( d, "RTN", "PBC", 0 ); mechanism( "breathing", "chemo does not reach the rhythm group", d, "chemoreceptor" ); }
+  {  // one tonic cell as phrenic pool (a lone cell is not a rhythm generator)
+    json d = c;
+    d[ "populations" ] = json::array( { json{ { "id", "T" }, { "model", "iaf_psc_alpha" }, { "n", 1 }, { "params", { { "I_e", 450.0 } } }, { "role", "neuron" } } } );
+    d[ "projections" ] = json::array();
+    for ( auto& i : d[ "inputs" ] ) { i[ "targets" ] = json::array( { { { "pop", "T" } } } ); i[ "weight" ] = 0.0; }
+    d[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "T" } } } );
+    mechanism( "breathing", "one tonic cell", d, "rhythm generator" );
+  }
 }
 
 static void test_pupil()
@@ -274,6 +332,13 @@ static void test_pupil()
           { { "RGC", "PON" } }, 1, []( const Run& r ) { CHECK( part( r, "constriction_mm" ) < 0.5 ); } } } );
   unwired( "pupil", "retina" );
   unwired( "pupil", "threat" );
+  { json d = c; scale( d, "PON", "EW", 0 ); mechanism( "pupil", "no parasympathetic pathway", d, "parasympathetic" ); }
+  { json d = c; scale( d, "HYP", "IML", 0 ); mechanism( "pupil", "no sympathetic pathway", d, "sympathetic" ); }
+  {  // both outputs read the ciliary ganglion: one pool is not two muscles
+    json d = c;
+    for ( auto& o : d[ "outputs" ] ) if ( o[ "name" ] == "dilator" ) o[ "neurons" ] = json::array( { { { "pop", "CG" } } } );
+    mechanism( "pupil", "one pool for both muscles", d, "same cells" );
+  }
 }
 
 static void test_peristalsis()
@@ -332,10 +397,14 @@ static void test_peristalsis()
     CHECK( part( a, "progress" ) >= 0.99 );                                   // it works, the bolus gets there ...
     CHECK( !a.score.passed );                                                 // ... but too late without the inhibitory arm
     CHECK_MSG( a.score.verdict.find( "no0..7" ) != std::string::npos, a.score.verdict );
+    CHECK( a.score.value < 50.0 && contains( a.score.verdict, "descending" ) );   // the simple build is the start of the level, not the law of the intestine
     Run b = run( "peristalsis", strip( { "icc" } ), 1 );
     show( "ach + no", 1, b );
     CHECK_MSG( b.score.passed, b.score.verdict );
+    no_numbers( "peristalsis simple build", a );
   }
+  { json d = c; scale( d, "S", "DIN", 0 ); mechanism( "peristalsis", "descending chain loses its stretch input", d, "descending" ); }
+  { json d = c; scale( d, "AIN", "EMN", 0 ); mechanism( "peristalsis", "no ascending chain", d, "ascending" ); }
 }
 
 static void test_fight_or_flight()
@@ -383,6 +452,8 @@ static void test_fight_or_flight()
             CHECK( part( r, "hr_threat" ) - part( r, "hr_rest" ) >= 40 );
           } } } );
   unwired( "fight_or_flight", "threat" );
+  { json d = c; scale( d, "RVLM", "SCG", 0 ); mechanism( "fight_or_flight", "the command does not reach the pupil", d, "pupil" ); }
+  { json d = c; scale( d, "HYP", "VRG", 0 ); mechanism( "fight_or_flight", "the command does not reach the breathing group", d, "breathing" ); }
   // a novice's 'sympathetic' / 'vagal' declared as plain rate outputs: the verdict says to make them modulators
   {
     json d = load( "fight_or_flight" );

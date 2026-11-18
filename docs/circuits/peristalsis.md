@@ -48,3 +48,12 @@ Credits: Bayliss WM, Starling EH (1899) J Physiol 24:99; Costa M, Brookes SJH, H
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 25); fast_transit (15 s).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `arrival_s`. **Notebook:** Bayliss & Starling 1899; Furness 2012.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** The law of the intestine needs both chains: an ascending excitatory one (an excitatory path from the `dist` sensors to the cells `ach0..7` read) and a descending inhibitory one (an excitatory path from the `dist` sensors to cells `no0..7` read, which relax the gut ahead of the bolus), on separate cells. `no0..7` used to be optional (it only made the bolus faster); it is now part of the mechanism: the simple build with `ach0..7` alone is how the level starts, scores below the pass bar (value capped at 49) and the verdict names the missing descending chain. `icc0..7` stays optional.
+
+**Quick check.** `quick_duration_ms()` = the deadline of the mode plus 1 s (26 s in Standard). The pass rule is "the bolus arrived by the deadline", so a circuit that arrives in time gets the same arrival time and score in both episodes; one that does not is judged on its progress at the deadline (it has already failed). Reference: 6.3 s -> 4.0 s wall: this level is not under 3 s, the cost is the gut's 8 slow-wave cells and 49 neurons per millisecond, not the length.
+
+**Not a cheap circuit here:** "every weight at the maximum" still passes (the bolus arrives in 9 s): the solution is the segment-shifted topology, and saturating its weights keeps it. The negative table has the missing-chain rows instead.
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

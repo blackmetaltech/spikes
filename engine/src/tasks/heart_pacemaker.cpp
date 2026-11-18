@@ -13,7 +13,11 @@
 //   The beat times are the heart's beat events (Heart::beat_now), so a cluster that does not agree on one rhythm gives
 //   extra, irregular beats exactly as it would for the ventricle.
 //
-// SCORING over the analysis window t in [6000 ms, 30000 ms] (the first 6 s let the cells reach their limit cycle)
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): the cells sa_beat reads must be coupled to one another by excitatory
+//   projections (a self-projection of a group of >= 2 cells, or a projection between two groups). A lone cell, or cells with no (or all-zero)
+//   coupling, are "no cluster": passed = false and the score is capped below the pass bar, with a verdict that names the missing coupling.
+//
+// SCORING over the analysis window t in [6000 ms, 30000 ms] (the quick check, Task::quick_duration_ms(): [6000 ms, 20000 ms]) (the first 6 s let the cells reach their limit cycle)
 //   rr      : successive beat intervals; need >= 12 beats, else "too few beats"
 //   hr_bpm  : 60000 / mean rr
 //   cv      : sd(rr) / mean(rr), sample sd
@@ -39,6 +43,7 @@
 #include <sstream>
 #include "spike/analysis.h"
 #include "spike/body/heart.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -47,7 +52,7 @@ namespace spike::tasks
 namespace
 {
 
-constexpr double kDuration = 30000, kSkip = 6000, kBinMs = 40;
+constexpr double kDuration = 30000, kQuickDuration = 20000, kSkip = 6000, kBinMs = 40;
 constexpr int kMinBeats = 12;
 constexpr double kTonicAch = 0.5;       // resting vagal tone (concentration units of the ACh channel)
 constexpr double kCmNominal = 32.0;     // pF, the cell's default; scaled per cell
@@ -78,8 +83,8 @@ public:
            "A cell on its own runs at about 100 per minute; the resting vagal tone (ACh) that the task supplies slows it to the "
            "resting range. Real node cells are not identical (here every cell gets its own size, so its own rate), so a cluster "
            "has to agree on one rhythm: couple the cells with excitatory synapses (the stand-in for gap junctions) so the fastest "
-           "does not run away with the beat. Uncoupled copies of a cell drift apart and fail; one cell alone passes but scores "
-           "no higher than 75. The more tightly the coupled cluster fires together (synchrony), the higher the score. ";
+           "does not run away with the beat. Uncoupled copies of a cell drift apart and fail, and one cell alone is not a node: the level "
+           "needs a coupled cluster. The more tightly the cluster fires together (synchrony), the higher the score. ";
   }
   /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
   std::string default_model() const override { return "sa_node_pacemaker"; }
@@ -90,7 +95,19 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return {}; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat" }; }
-  double duration_ms() const override { return kDuration; }
+  double duration_ms() const override
+  {
+    quick_ = false;
+    return kDuration;
+  }
+  /// Quick check: the first 20 s. The rhythm is stationary after the 6 s the cells need to reach their limit cycle, so the same rules (rate, CV and
+  /// synchrony over the analysis window, which now ends at 20 s instead of 30 s: 12 beats are still needed) judge a shorter window of the same run.
+  /// (The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scores: spike-run and the harness ask after reset().)
+  double quick_duration_ms() const override
+  {
+    quick_ = true;
+    return kQuickDuration;
+  }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "heart"; }
   int par_neurons() const override { return variant_par( variant_, 7 ); }
@@ -117,11 +134,17 @@ public:
       h.push_back( make_hint( 2, "sa_beat reads cells that never fire.", "sa_beat" ) );
       h.push_back( make_hint( 3, "Use sa_node_pacemaker cells from the parts bin.", "" ) );
     }
+    else if ( !mech_.ok() )
+    {
+      h.push_back( make_hint( 1, "Coupling: a node is a cluster of cells that pull one another into step. One cell, or cells that do not talk to each other, is not a node.", "" ) );
+      h.push_back( make_hint( 2, "The cells that sa_beat reads are not excitatory-coupled to each other.", "sa_beat" ) );
+      h.push_back( make_hint( 3, "Use several pacemaker cells and connect the group to itself (or two groups to each other) with excitatory synapses, then keep the coupling modest.", "" ) );
+    }
     else if ( s.parts[ "cells" ] >= 2 && s.parts[ "synchrony" ] < 0.6 )
     {
       h.push_back( make_hint( 1, "Coupling: cells with slightly different rates drift apart unless they excite each other and pull one another into step.", "" ) );
       h.push_back( make_hint( 2, "The cells fire out of step; connect the cluster to itself.", "sa_beat" ) );
-      h.push_back( make_hint( 3, "One group of 4 sa_node_pacemaker cells projecting onto itself with the default 0.2 nS weight.", "" ) );
+      h.push_back( make_hint( 3, "Make the coupling stronger, up to the level where the whole cluster fires together.", "" ) );
     }
     else
     {
@@ -146,6 +169,7 @@ public:
   void reset( uint64_t seed ) override
   {
     seed_ = seed;
+    end_ = kDuration;
     prepared_ = false;
     heart_.reset();
     t_ = 0;
@@ -159,11 +183,15 @@ public:
     pool_ = 1;
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( t_ == 0 )
+      end_ = quick_ ? kQuickDuration : kDuration;
+    mech_.refresh( e, t_, []( const Structure& st ) { return coupling_missing( st ); } );
     if ( !prepared_ )
     {
       prepared_ = true;
@@ -253,9 +281,11 @@ public:
         sync_term = clampd( ( a.chi - 0.3 ) / 0.6, 0, 1 );
     }
     s.value = 100.0 * ( 0.5 * rate_term + 0.5 * cv_term ) * ( 0.75 + 0.25 * sync_term );
-    bool done = t_ >= kDuration;
+    bool done = t_ >= end_;
     bool rate_ok = enough && a.hr >= rate_lo() && a.hr <= rate_hi(), cv_ok = enough && a.cv < cv_max();
-    s.passed = done && rate_ok && cv_ok;
+    s.passed = done && rate_ok && cv_ok && mech_.ok();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
@@ -263,6 +293,8 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_ < 1 )
       o << "No beats: sa_beat has not fired" << yet << " Check that the cells are SA-node pacemaker cells and that sa_beat reads them.";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: " << ( pool_ >= 2 ? "several cells" : "one cell" ) << ", " << a.hr << " beats/min, variation " << 100 * a.cv << " %.)";
     else if ( !enough )
       o << "Too few beats (" << static_cast< int >( a.n ) << " in the scored window, 12 needed): the node is pausing or has stopped"
         << yet;
@@ -276,7 +308,7 @@ public:
         << " % (needs under " << 100 * cv_max() << " %)" << ( pool_ >= 2 && a.chi < 0.6 ? "; the cells fire out of step." : "." );
     else
       o << ( done ? "Sinus rhythm" : "Sinus rhythm so far" ) << ": " << a.hr << " beats/min, variation " << 100 * a.cv << " %, "
-        << ( pool_ >= 2 ? "cluster synchrony " : "single cell, no cluster bonus; synchrony " ) << a.chi << ".";
+        << "cluster synchrony " << a.chi << ".";
     s.verdict = o.str();
     return s;
   }
@@ -284,6 +316,23 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -1, -1, 1, 1 }; }
 
 private:
+  // the mechanism: the cells sa_beat reads are coupled by excitatory projections
+  static std::string coupling_missing( const Structure& st )
+  {
+    const auto sa = mech::out_pops( st, "sa_beat" );
+    int cells = 0;
+    for ( int p : sa )
+      cells += st.populations[ p ].n;
+    if ( cells < 2 )
+      return "No cluster: a single pacemaker cell is not a node. The beat comes from several cells that hold one rhythm together, so use more than one cell and couple them.";
+    for ( const auto& pr : st.projections )
+      if ( pr.n_edges > 0 && pr.sign > 0 && sa.count( pr.pre_index ) && sa.count( pr.post_index ) &&
+           ( pr.pre_index != pr.post_index || ( st.populations[ pr.pre_index ].n >= 2 && pr.rule != "one_to_one" ) ) )
+        return "";
+    return "No cluster: the pacemaker cells are not coupled to each other (no excitatory connection among them, or its weight is zero), so there is no node, only separate cells. "
+           "Couple the cells with excitatory synapses, the stand-in for gap junctions.";
+  }
+
   double rate_lo() const { return mode_ == "guided" ? 55 : ( mode_ == "researcher" ? 62 : 60 ); }
   double rate_hi() const { return mode_ == "guided" ? 85 : ( mode_ == "researcher" ? 78 : 80 ); }
   double cv_max() const { return mode_ == "guided" ? 0.07 : ( mode_ == "researcher" ? 0.04 : 0.05 ); }
@@ -343,6 +392,9 @@ private:
   std::vector< double > beats_, bins_;
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
+  mutable bool quick_ = false;
+  double end_ = kDuration;  // the episode asked for, fixed at the first step
 };
 
 } // namespace
