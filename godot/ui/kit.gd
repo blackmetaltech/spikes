@@ -1,21 +1,37 @@
 class_name Kit
-## Shared UI toolkit: the dark lab-bench visual language and the builders every screen uses.
-## Deep navy bench, slightly lighter instrument panels with thin rules, warm amber = excitatory, cool cyan = inhibitory, Atkinson Hyperlegible type.
+## Shared UI toolkit: the "Cajal Plate" visual language (docs/IDENTITY.md) and the builders every screen uses.
+## A 19th-century anatomical plate: aged paper, India-ink outlines and type, Golgi-stain sienna = excitatory, Prussian blue = inhibitory,
+## verdigris sensors, madder-plum motors; Fraunces display serif, Atkinson Hyperlegible body, IBM Plex Mono readouts.
+## Token NAMES are kept from 0.1-0.3 so every screen keeps compiling; their VALUES are the new identity. Prefer the semantic aliases below.
 ## Palette values are constants; sizes are logical px at 1080p (the window stretch scales them).
 
-const BENCH := Color("#070b13")        # the bench: near-black navy
-const PANEL := Color("#0e1726")        # instrument panel
-const PANEL_HI := Color("#16233a")     # raised / hovered panel
-const WELL := Color("#0a111d")         # recessed scope background
-const LINE := Color("#27395a")         # hairlines and borders
-const TEXT := Color("#e6edf7")
-const TEXT_SOFT := Color("#98a8c2")    # muted body text (7:1 on PANEL)
-const AMBER := Color("#ffb347")        # excitatory
-const CYAN := Color("#4fd1ff")         # inhibitory
-const GREEN := Color("#6be3a0")
-const RED := Color("#ff6b6b")
-const AMBER_CB := Color("#e69f00")     # Okabe-Ito orange
-const CYAN_CB := Color("#56b4e9")      # Okabe-Ito sky blue
+const BENCH := Color("#EFE6D4")        # the page: aged paper
+const PANEL := Color("#F8F2E6")        # a card / plate on the page
+const PANEL_HI := Color("#FFFBF2")     # raised / hovered card
+const WELL := Color("#F4EDE0")         # recessed area (scopes sit on graph paper drawn over this)
+const LINE := Color("#CDBFA3")         # rules and hairlines
+const TEXT := Color("#231C17")         # India ink
+const TEXT_SOFT := Color("#5E5246")    # soft ink (7:1 on PANEL)
+const AMBER := Color("#B8461B")        # excitatory: Golgi sienna (name kept for compatibility)
+const CYAN := Color("#1E4F8F")         # inhibitory: Prussian blue (name kept for compatibility)
+const GREEN := Color("#2E7D4F")        # success: viridian
+const RED := Color("#A3261C")          # error: vermilion ink
+const AMBER_CB := Color("#B8461B")     # E/I already colour-blind safe (Machado 2009 sim, dE2000 > 40); kept for the setting
+const CYAN_CB := Color("#1E4F8F")
+# semantic aliases (new code should use these)
+const PAPER := BENCH
+const CARD := PANEL
+const INK := TEXT
+const INK_SOFT := TEXT_SOFT
+const RULE := LINE
+const GRID := Color("#D3DCE0")         # engineering graph-paper grid for the bench and scopes
+const EXC := AMBER
+const INH := CYAN
+const SENSOR := Color("#12808F")       # verdigris
+const MOTOR := Color("#6E2A4E")        # madder plum
+const GAMBOGE := Color("#C9971C")      # highlight / selection
+const OCHRE := Color("#B7791F")        # warning
+const SUCCESS := GREEN
 
 ## Excitatory / inhibitory colours, honouring the colour-blind setting.
 static func exc() -> Color: return AMBER_CB if Settings.colorblind else AMBER
