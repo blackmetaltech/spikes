@@ -13,28 +13,25 @@ func default_focus() -> Control: return _first if _first != null and is_instance
 func on_back() -> bool: return false
 
 func build() -> void:
-	var f := f()
+	var f := f(); var phone := Layout.phone
 	add_child(Kit.bench())
 	var margin := MarginContainer.new(); margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var mx := int((Kit.f() * 150) if not Layout.phone else 40); var my := int(36 * f) if not Layout.phone else 14
+	var mx := int((Kit.f() * 150) if not phone else 28); var my := int(34 * f) if not phone else 10
 	margin.add_theme_constant_override("margin_left", mx); margin.add_theme_constant_override("margin_right", mx)
-	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my + 6); add_child(margin)
-	var sheet := Kit.panel(Kit.PANEL, int(24 * f) if not Layout.phone else 14); margin.add_child(sheet)
-	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(14 * f)); sheet.add_child(v)
-
-	var head := HBoxContainer.new(); head.add_theme_constant_override("separation", 20); v.add_child(head)
-	var title := Kit.shout("Settings", int(56 * f) if not Layout.phone else 40, Kit.TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(title)
-	back_btn = Kit.btn("BACK", func(): app.back(), "panel", int(30 * f) if not Layout.phone else 24, Vector2(150 if not Layout.phone else 110, 0))
-	if Layout.phone:   # one slim header row: title, tabs, back
-		title.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		tab_row = Kit.tabs(TABS, tab, func(t): set_tab(t)); tab_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(tab_row)
-	head.add_child(back_btn)
-	if not Layout.phone:
+	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my); add_child(margin)
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(18 * f) if not phone else 6); margin.add_child(v)
+	var hb := Kit.page_head("Settings", func(): app.back(), phone); var head: HBoxContainer = hb[0]; back_btn = hb[1]; v.add_child(head)
+	if phone:   # one slim header row: back, title, tabs
+		tab_row = Kit.tabs(TABS, tab, func(t): set_tab(t)); tab_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tab_row.alignment = BoxContainer.ALIGNMENT_END; head.add_child(tab_row)
+	else:
+		head.add_child(Kit.running_head("Plate III  ·  the instrument"))
 		tab_row = Kit.tabs(TABS, tab, func(t): set_tab(t)); v.add_child(tab_row)
 	scroll = ScrollContainer.new(); scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; v.add_child(scroll)
-	body = VBoxContainer.new(); body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(14 * f)); scroll.add_child(body)
+	var pad := MarginContainer.new(); pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for side in ["right", "bottom"]: pad.add_theme_constant_override("margin_" + side, int(Kit.SHADOW) + 14)   # room for the plates' offset shadows and the scroll bar
+	scroll.add_child(pad)
+	body = VBoxContainer.new(); body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(22 * f) if not phone else 12); pad.add_child(body)
 	_fill()
 
 func set_tab(t: String) -> void:
@@ -42,14 +39,14 @@ func set_tab(t: String) -> void:
 	var old := tab_row; var idx := old.get_index(); var par := old.get_parent()
 	par.remove_child(old); old.queue_free()
 	tab_row = Kit.tabs(TABS, tab, func(x): set_tab(x)); par.add_child(tab_row); par.move_child(tab_row, idx)
-	if Layout.phone: tab_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if Layout.phone: tab_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tab_row.alignment = BoxContainer.ALIGNMENT_END
 	_fill(); scroll.scroll_vertical = 0
 	if Kit.pad_mode: app.pad.ensure_focus(true)
 
 func _fill() -> void:
 	for c in body.get_children():
 		body.remove_child(c); c.queue_free()
-	_first = null
+	_first = null; _fig = 0
 	match tab:
 		"Display": _display()
 		"Audio": _audio()
@@ -71,8 +68,11 @@ func _focus_of(c: Control) -> Control:
 		if k is HSlider: return k
 	return null
 
-func _section(title: String, accent := Kit.AMBER) -> VBoxContainer:
-	var c := Kit.card(title, Kit.PANEL_HI, accent); body.add_child(c[0]); return c[1]
+var _fig := 0
+## A numbered plate (Fig. N) for one group of settings; `accent` is kept for callers, the plates are ink.
+func _section(title: String, _accent := Kit.AMBER, note := "") -> VBoxContainer:
+	_fig += 1
+	var c := Kit.fig_card(_fig, title, note, Kit.PANEL, 22 if not Layout.phone else 14); body.add_child(c[0]); return c[1]
 
 func _display() -> void:
 	var s := _section("Window")
@@ -88,9 +88,9 @@ func _display() -> void:
 	_add_row(u, "Text size", Kit.stepper([["1", "Normal"], ["1.15", "Large"], ["1.3", "Larger"], ["1.5", "Huge"]], _boost_id(), func(id): Settings.text_boost = float(id); _commit(true)))
 	var a := _section("Accessibility", Kit.GREEN)
 	_add_row(a, "Reduced motion", Kit.toggle(Settings.reduced_motion, func(v): Settings.reduced_motion = v; _commit()), "No sliding or drifting. Menus fade instead.")
-	_add_row(a, "Colour-blind safe colours", Kit.toggle(Settings.colorblind, func(v): Settings.colorblind = v; _commit(true)), "Excitatory and inhibitory switch to an Okabe-Ito orange and blue.")
+	_add_row(a, "Colour-blind safe colours", Kit.toggle(Settings.colorblind, func(v): Settings.colorblind = v; _commit(true)), "Sienna and Prussian blue already stay apart for every common colour vision type; this also pulls them apart in lightness.")
 	var cc := _section("About", Kit.TEXT_SOFT)
-	_add_row(cc, "Credits and licences", Kit.btn("CREDITS", func(): app.show_screen("credits"), "panel", 24, Vector2(170, 0)), "Engine, fonts and sources.")
+	_add_row(cc, "Credits and licences", Kit.btn("Credits", func(): app.show_screen("credits"), "panel", 24, Vector2(170, 0)), "Engine, fonts and sources.")
 
 func _game() -> void:
 	var d := _section("Difficulty", Kit.exc())
@@ -137,9 +137,10 @@ func _controls() -> void:
 	var intro := Kit.label("Spike is mouse and touch first. Keyboard and gamepad can drive every menu.", 18, Kit.TEXT, true)
 	body.add_child(intro)
 	for def in [["Keyboard", Kit.AMBER, [["Move focus", "Arrow keys"], ["Press", "Enter"], ["Back", "Esc"]]], ["Gamepad", Kit.inh(), [["Move focus", "D-pad"], ["Press", "A"], ["Back", "B"]]], ["Touch and mouse", Kit.GREEN, [["Press", "Tap or click"], ["Scroll lists", "Drag"]]]]:
-		var c := Kit.card(def[0], Kit.PANEL_HI, def[1]); body.add_child(c[0])
+		_fig += 1
+		var c := Kit.fig_card(_fig, def[0], "", Kit.PANEL, 22 if not Layout.phone else 14); body.add_child(c[0])
 		for r in def[2]:
 			var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 8)
 			var l := Kit.label(r[0], 18, Kit.TEXT); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; h.add_child(l)
-			h.add_child(Kit.label(r[1], 18, Kit.TEXT_SOFT)); c[1].add_child(h)
+			h.add_child(Kit.mono(r[1], 18, Kit.TEXT_SOFT)); c[1].add_child(h)
 	_first = null

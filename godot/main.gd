@@ -50,6 +50,7 @@ func _ready() -> void:
 	pad = Pad.new(); pad.app = self; add_child(pad)
 	_update_metrics()
 	if OS.get_environment("SP_PAD") != "": pad.set_active(true)
+	if OS.get_environment("SP_CHECK_EXPORT") != "": Settings.no_save = true; await CheckExport.run(self); return   # scripts/package.sh: CHECK from the exported zip
 	if OS.get_environment("SP_SMOKE") != "": Kit.instant = true; Settings.no_save = true; await _smoke(); return
 	if OS.get_environment("SP_SHOT") != "": Kit.instant = true   # screenshots show the settled frame, not a transition
 	if OS.get_environment("SP_CHAPTER") != "": campaign_chapter = OS.get_environment("SP_CHAPTER")
@@ -137,16 +138,17 @@ func show_screen(id: String, back := false, snap := false) -> void:
 	holder.add_child(s); s.build()
 	screen = s; cur = id
 	hint_refresh()
+	# Plates are laid on the desk, not slid like app panes: the old page lifts and fades where it lies, the new one settles in from a few px
+	# below (from above when going back). Reduced motion: a short cross-fade only.
 	if old != null and is_instance_valid(old):
 		if snap or Kit.instant: old.queue_free()
 		else:
 			old.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var dir := -1.0 if not back else 1.0
 			var tw := create_tween().set_parallel(true)
-			tw.tween_property(old, "modulate:a", 0.0, 0.16)
-			if not Settings.reduced_motion: tw.tween_property(old, "position:x", dir * get_viewport().get_visible_rect().size.x * 0.06, 0.18)
+			tw.tween_property(old, "modulate:a", 0.0, 0.14)
+			if not Settings.reduced_motion: tw.tween_property(old, "position:y", -10.0 if not back else 10.0, 0.14).set_ease(Tween.EASE_IN)
 			tw.chain().tween_callback(old.queue_free)
-	if not snap: Kit.appear(s, Vector2(0 if Settings.reduced_motion else (60.0 if not back else -60.0), 0))
+	if not snap: Kit.appear(s, Vector2(0, 0 if Settings.reduced_motion else (22.0 if not back else -22.0)), 0.26)
 	if Kit.pad_mode: call_deferred("_focus_new")
 
 func _focus_new() -> void:
