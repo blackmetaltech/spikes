@@ -18,7 +18,13 @@ var _saved_speed := 1.0
 var _slowed := false
 var _note := {}
 var _note_shown := false
-var _banner: Label = null
+var _banner: StampMark = null
+
+## The first-pass banner: a vermilion rubber stamp ("FIRST PASS", the score, "of 100") that lands on the lab.
+class StampMark extends Control:
+	var k := 1.0
+	var score := 100
+	func _draw() -> void: Gfx.stamp(self, size * 0.5, minf(size.x, size.y) * 0.5 - 6.0, "FIRST PASS", "%d" % score, "of 100", Kit.RED, -0.2, k)
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -47,8 +53,9 @@ func first_pass(editor: CircuitEditor, tele: Telemetry, path: Array, note: Dicti
 	_editor = editor; _tele = tele; _note = note; _note_shown = false; _t = 0.0
 	GameAudio.event("celebrate")
 	if _banner == null:
-		_banner = Kit.shout("FIRST PASS!", 64 if not Layout.phone else 40, Kit.GREEN); _banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; add_child(_banner)
+		_banner = StampMark.new(); _banner.mouse_filter = Control.MOUSE_FILTER_IGNORE; add_child(_banner)
+	var side := 260.0 if not Layout.phone else 170.0
+	_banner.size = Vector2(side, side); _banner.score = int(roundf(float(tele.score.get("value", 100.0))))
 	_banner.visible = true; _banner.modulate.a = 0.0
 	if Kit.motion() or OS.get_environment("SP_CELEB") != "":   # the dev hook shows the motion even where screenshots turn it off
 		_saved_speed = tele.speed; tele.speed = SLOW_SPEED; _slowed = true
@@ -68,8 +75,7 @@ func _process(dt: float) -> void:
 	_t += dt
 	# banner: pops in over 0.25 s, holds, fades from 2.2 s
 	if _banner != null:
-		var a := clampf(_t / 0.25, 0.0, 1.0) * (1.0 - clampf((_t - 2.2) / 0.6, 0.0, 1.0))
-		_banner.modulate.a = a; _banner.pivot_offset = _banner.size * 0.5; _banner.scale = Vector2.ONE * (0.7 + 0.3 * clampf(_t / 0.25, 0.0, 1.0))
+		_banner.modulate.a = 1.0 - clampf((_t - 2.2) / 0.6, 0.0, 1.0); _banner.k = clampf(_t / 0.25, 0.0, 1.0); _banner.queue_redraw()
 		_banner.position = (size - _banner.size) * 0.5
 	if _editor != null and is_instance_valid(_editor) and _editor.trail_u >= 0.0:
 		var loop := _t / TRAIL_LOOP_S

@@ -1,6 +1,6 @@
 class_name GaugeView
 extends Control
-## Output-rate gauges: one LED bar graph per motor channel (Hz), plus the run read-out (simulated time, spikes, delivered speed).
+## Output-rate gauges: one engraved rail per motor channel, filled with madder-plum hatching up to its rate (Hz), the number in mono at its end.
 var tele: Telemetry = null
 var _max := {}
 
@@ -14,17 +14,20 @@ func rows() -> int: return maxi(1, tele.rates.size() if tele != null else 1)
 
 func _draw() -> void:
 	var fz := Kit.fs(14); var f := Fonts.regular
-	draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 12, 0, false), Rect2(Vector2.ZERO, size))
+	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
 	if tele == null or tele.sim == null: return
-	draw_string(f, Vector2(14, 20), "OUTPUT RATES", HORIZONTAL_ALIGNMENT_LEFT, 200, fz, Kit.TEXT_SOFT)
+	draw_string(Gfx.serif_italic(), Vector2(14, 20), "Motor output", HORIZONTAL_ALIGNMENT_LEFT, 200, Kit.fs(16), Kit.TEXT)
+	draw_string(Gfx.mono(), Vector2(size.x - 80, 20), "Hz", HORIZONTAL_ALIGNMENT_RIGHT, 66, fz, Kit.TEXT_SOFT)
 	var r := 0; var lab_w := float(fz) * 9.0; var bh := minf(18.0, (size.y - 34.0) / float(rows()) - 6.0)
 	for name in tele.rates:
 		var v := float(tele.rates[name]); var mx := maxf(float(_max.get(name, 40.0)) * 0.995, maxf(40.0, v * 1.25)); _max[name] = mx
 		var y := 32.0 + r * (bh + 8.0); r += 1
-		draw_string(f, Vector2(14, y + bh * 0.5 + float(fz) * 0.35), str(name), HORIZONTAL_ALIGNMENT_LEFT, lab_w, fz, Kit.TEXT)
-		var x0 := 14.0 + lab_w; var x1 := size.x - 90.0; var segs := 28; var sw := (x1 - x0) / segs
-		for k in segs:
-			var u := float(k + 1) / segs; var lit := v / mx >= u - 0.5 / segs
-			var col := Gfx.VIOLET if u < 0.75 else (Kit.exc() if u < 0.92 else Kit.RED)
-			draw_rect(Rect2(x0 + k * sw + 1.0, y, sw - 2.0, bh), Color(col, 0.95 if lit else 0.13))
-		draw_string(f, Vector2(x1 + 8, y + bh * 0.5 + float(fz) * 0.35), "%d Hz" % int(roundf(v)), HORIZONTAL_ALIGNMENT_LEFT, 80, fz, Kit.TEXT)
+		draw_string(Gfx.serif_italic(), Vector2(14, y + bh * 0.5 + float(fz) * 0.35), str(name), HORIZONTAL_ALIGNMENT_LEFT, lab_w, fz, Kit.TEXT)
+		var x0 := 14.0 + lab_w; var x1 := size.x - 70.0
+		var rail := Rect2(x0, y + 2.0, x1 - x0, bh - 4.0); var fw := rail.size.x * clampf(v / mx, 0.0, 1.0)
+		draw_rect(rail, Color("#FBF7EE"))
+		if fw > 0.5:
+			var fr := Rect2(rail.position, Vector2(fw, rail.size.y)); draw_rect(fr, Color(Kit.MOTOR, 0.12))
+			Gfx.hatch(self, PackedVector2Array([fr.position, Vector2(fr.end.x, fr.position.y), fr.end, Vector2(fr.position.x, fr.end.y)]), -PI * 0.3, 4.0, Kit.MOTOR, 1.6)
+		draw_rect(rail, Color(Kit.INK, 0.8), false, 1.0)
+		draw_string(Gfx.mono(), Vector2(x1 + 8, y + bh * 0.5 + float(fz) * 0.35), "%d" % int(roundf(v)), HORIZONTAL_ALIGNMENT_RIGHT, 52, fz, Kit.TEXT)

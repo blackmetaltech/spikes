@@ -22,15 +22,15 @@ func _info() -> Dictionary: return Campaign.info(str(tele.task.id())) if tele !=
 
 func _draw() -> void:
 	var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
-	draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 12, 0, false), Rect2(Vector2.ZERO, size))
+	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
 	var info := _info()
 	if info.is_empty(): return
 	var dur := maxf(float(info["duration_ms"]), 1.0); var events: Array = info["timeline"]; var bands: Array = info["bands"]
 	var x0 := float(fz) * GUTTER_PX; var x1 := size.x - 12.0; var w := x1 - x0
 	var tnow := tele.t_ms if tele != null else 0.0
 	var strip := Rect2(x0, 6.0, w, float(fz) + 8.0)
-	draw_string(f, Vector2(10, strip.position.y + float(fz) + 2.0), "EVENTS", HORIZONTAL_ALIGNMENT_LEFT, x0 - 12.0, fz, Kit.TEXT_SOFT)
-	draw_rect(strip, Color(Kit.BENCH, 0.55)); draw_rect(strip, Color(Kit.LINE, 0.8), false, 1.0)
+	draw_string(Gfx.serif_italic(), Vector2(10, strip.position.y + float(fz) + 2.0), "events", HORIZONTAL_ALIGNMENT_LEFT, x0 - 12.0, fz, Kit.TEXT_SOFT)
+	draw_rect(strip, Gfx.SHEET); draw_rect(strip, Color(Kit.INK, 0.6), false, 1.0)
 	var nb := mini(bands.size(), max_bands if not Layout.phone else 1)
 	var axis_h := float(fz) + 10.0
 	var plots_top := strip.end.y + 4.0; var plots_h := size.y - plots_top - axis_h - 2.0
@@ -42,7 +42,7 @@ func _draw() -> void:
 	for e in sorted_ev:
 		var ex0 := x0 + w * clampf(float(e["t_ms"]) / dur, 0.0, 1.0); var ex1 := x0 + w * clampf((float(e["t_ms"]) + float(e["dur_ms"])) / dur, 0.0, 1.0)
 		var er := Rect2(ex0, strip.position.y, maxf(ex1 - ex0, 3.0), strip.size.y)
-		draw_rect(er, Color(Kit.exc(), 0.40 if tnow >= float(e["t_ms"]) else 0.22)); draw_rect(er, Color(Kit.exc(), 0.9), false, 1.0)
+		draw_rect(er, Color(Kit.exc(), 0.30 if tnow >= float(e["t_ms"]) else 0.14)); draw_rect(er, Color(Kit.exc(), 0.9), false, 1.0)
 		if nb > 0: draw_rect(Rect2(ex0, plots_top, maxf(ex1 - ex0, 2.0), plots_h), Color(Kit.exc(), 0.07))
 		# the label sits at the start of its span and may use the room up to the next event's start (or the end of the strip); it is shortened to fit, and left
 		# out when there is no room, so two labels never print over each other
@@ -61,7 +61,7 @@ func _draw() -> void:
 	for k in nb:
 		var b: Dictionary = bands[k]; var name := str(b["name"]); var lo := float(b["lo"]); var hi := float(b["hi"])
 		var r := Rect2(x0, plots_top + ph * k + 2.0, w, ph - 4.0)
-		draw_rect(r, Color(Kit.BENCH, 0.55))
+		Gfx.chart_strip(self, r, 10.0)
 		var arr: PackedFloat32Array = tele.hist.get(name, PackedFloat32Array()) if tele != null else PackedFloat32Array()
 		var ylo := lo - (hi - lo) * 0.7; var yhi := hi + (hi - lo) * 0.7
 		for q in arr: ylo = minf(ylo, q - (hi - lo) * 0.1); yhi = maxf(yhi, q + (hi - lo) * 0.1)
@@ -69,10 +69,9 @@ func _draw() -> void:
 		var band := Rect2(r.position.x, yy.call(hi), r.size.x, yy.call(lo) - yy.call(hi))
 		draw_rect(band, Color(Kit.GREEN, 0.14))
 		for yv in [lo, hi]: Gfx.dashed(self, PackedVector2Array([Vector2(r.position.x, yy.call(yv)), Vector2(r.end.x, yy.call(yv))]), Color(Kit.GREEN, 0.75), 1.2, 6.0, 5.0)
-		draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
 		var pn := BodyViews.pretty(name); var unit := str(b["unit"]) if str(b["unit"]) != "" else str(pn[1])
 		var title := str(pn[0]); var tl := _fit(f, title, x0 - 14.0, fz)
-		draw_string(f, Vector2(10, r.position.y + float(fz) + 1.0), tl, HORIZONTAL_ALIGNMENT_LEFT, x0 - 14.0, fz, Kit.TEXT)
+		draw_string(Gfx.serif_italic(), Vector2(10, r.position.y + float(fz) + 1.0), tl, HORIZONTAL_ALIGNMENT_LEFT, x0 - 14.0, fz, Kit.TEXT)
 		if unit != "" and not title.contains(unit): draw_string(f, Vector2(10, r.position.y + float(fz) * 2.1 + 3.0), unit, HORIZONTAL_ALIGNMENT_LEFT, x0 - 14.0, fz, Kit.TEXT_SOFT)
 		if arr.size() > 1 and hist_t.size() == arr.size():
 			var step := maxi(1, arr.size() / maxi(int(w), 1)); var run := PackedVector2Array(); var run_out := false
@@ -85,7 +84,7 @@ func _draw() -> void:
 			_flush(run, run_out)
 			var cur := arr[arr.size() - 1]
 			var tw := f.get_string_size(_num(cur), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 10.0
-			draw_rect(Rect2(Vector2(r.end.x - tw - 2.0, r.position.y + 2.0), Vector2(tw, float(fz) + 6.0)), Color(Kit.BENCH, 0.8))
+			draw_rect(Rect2(Vector2(r.end.x - tw - 2.0, r.position.y + 2.0), Vector2(tw, float(fz) + 6.0)), Color(Gfx.SHEET, 0.9))
 			draw_string(fb, Vector2(r.end.x - tw + 3.0, r.position.y + float(fz) + 2.0), _num(cur), HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.RED if (cur < lo or cur > hi) else Kit.TEXT)
 		if ph > float(fz) * 3.2: draw_string(f, Vector2(r.position.x + 6.0, r.end.y - 5.0), "%s to %s" % [_num(lo), _num(hi)], HORIZONTAL_ALIGNMENT_LEFT, r.size.x * 0.5, fz, Color(Kit.GREEN, 0.8))
 	# the time axis and the cursor
@@ -97,14 +96,13 @@ func _draw() -> void:
 		draw_string(f, Vector2(minf(x - 24.0, size.x - 50.0), size.y - 6.0), "%ds" % int(roundf(tt)), HORIZONTAL_ALIGNMENT_CENTER, 48.0, fz, Kit.TEXT_SOFT)
 		tt += tick
 	var cx := x0 + w * clampf(tnow / dur, 0.0, 1.0)
-	Gfx.glow(self, Vector2(cx, (strip.position.y + span_bottom) * 0.5), maxf(span_bottom - strip.position.y, 20.0) * 0.5, Color(Kit.exc(), 0.10))
 	draw_line(Vector2(cx, strip.position.y - 2.0), Vector2(cx, span_bottom), Color(Kit.exc(), 0.95), 2.0, true)
 	draw_circle(Vector2(cx, strip.position.y - 1.0), 3.5, Kit.exc())
 
 func _flush(run: PackedVector2Array, out: bool) -> void:
 	if run.size() < 2: return
 	var col := Kit.RED if out else Kit.TEXT
-	draw_polyline(run, Color(col, 0.18), 5.0, true); draw_polyline(run, col, 1.8, true)
+	draw_polyline(run, col, 1.6, true)
 
 ## `s` shortened with "..." until it is at most `w` px wide; "" when not even three characters fit.
 static func _fit(font: Font, s: String, w: float, fz: int) -> String:

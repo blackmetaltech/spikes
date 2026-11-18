@@ -1,7 +1,7 @@
 class_name RasterView
 extends Control
-## Scrolling spike raster: one row per neuron grouped by population, ticks coloured amber (excitatory) / cyan (inhibitory), drawn additively so
-## dense firing glows. Scrolls smoothly on `Telemetry.view_t` (continuous), with a 100 ms grid and a bright "now" edge.
+## Scrolling spike raster, drawn as a chart-paper strip: one row per neuron grouped by population, each spike a pen tick in sienna (excitatory) or Prussian blue
+## (inhibitory). Scrolls smoothly on `Telemetry.view_t` (continuous), with a ruled time grid and an inked "now" edge.
 var tele: Telemetry = null
 var window_ms := 500.0           # the window drawn now (eases toward window_target)
 var auto_window := true          # follow the timescale of the cells; a click on the "window" caption steps through fixed windows
@@ -17,7 +17,7 @@ class Layer extends Control:
 func _ready() -> void:
 	clip_contents = true; custom_minimum_size = Vector2(300, 150)
 	_layer = Layer.new(); _layer.owner_view = self; _layer.set_anchors_preset(Control.PRESET_FULL_RECT); _layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var m := CanvasItemMaterial.new(); m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD; _layer.material = m; add_child(_layer)
+	add_child(_layer)
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 func attach(t: Telemetry) -> void: tele = t; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
@@ -61,38 +61,38 @@ func step_window() -> void:
 		else: window_target = seq[i + 1]
 
 func _plot() -> Rect2:
-	var fz := float(Kit.fs(14)); return Rect2(Vector2(fz * 3.4, 26.0), Vector2(size.x - fz * 3.4 - 12.0, size.y - 26.0 - fz - 12.0))
+	var fz := float(Kit.fs(14)); return Rect2(Vector2(fz * 4.0, 26.0), Vector2(size.x - fz * 4.0 - 12.0, size.y - 26.0 - fz - 12.0))
 
 func _draw() -> void:
 	var fz := Kit.fs(14); var f := Fonts.regular; var pl := _plot()
-	draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 12, 0, false), Rect2(Vector2.ZERO, size))
-	draw_string(f, Vector2(14, 20), "SPIKE RASTER", HORIZONTAL_ALIGNMENT_LEFT, 200, fz, Kit.TEXT_SOFT)
+	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
+	Gfx.chart_strip(self, pl, 12.0)
+	draw_string(Gfx.serif_italic(), Vector2(14, 20), "Spike raster", HORIZONTAL_ALIGNMENT_LEFT, 200, Kit.fs(16), Kit.TEXT)
 	var vt := tele.view_t if tele != null else 0.0
 	# 100 ms grid, scrolling with time
 	var gs := TraceView.grid_step(window_ms); var lab_every := maxi(1, int(ceilf(64.0 / maxf(pl.size.x * gs / window_ms, 1.0))))
 	var t_left := vt - window_ms; var g0 := ceilf(t_left / gs) * gs; var t := g0
 	while t <= vt:
 		var x := pl.position.x + pl.size.x * (t - t_left) / window_ms
-		draw_line(Vector2(x, pl.position.y), Vector2(x, pl.end.y), Color(Kit.LINE, 0.55 if int(roundf(t / gs)) % 5 != 0 else 0.9), 1.0)
-		if int(roundf(t / gs)) % lab_every == 0: draw_string(f, Vector2(x - 30, pl.end.y + float(fz) + 3.0), TraceView.tick_text(t, gs), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
+		draw_line(Vector2(x, pl.end.y), Vector2(x, pl.end.y + 4.0), Color(Kit.INK, 0.7), 1.0)
+		if int(roundf(t / gs)) % lab_every == 0: draw_string(Gfx.mono(), Vector2(x - 30, pl.end.y + float(fz) + 3.0), TraceView.tick_text(t, gs), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
 		t += gs
 	var wt := TraceView.window_text(window_ms, auto_window)
-	draw_string(f, Vector2(size.x - 260, 20), wt + (", model time" if size.x > 520 else ""), HORIZONTAL_ALIGNMENT_RIGHT, 246, fz, Kit.TEXT_SOFT)
+	draw_string(Gfx.mono(), Vector2(size.x - 300, 20), wt + (", model time" if size.x > 560 else ""), HORIZONTAL_ALIGNMENT_RIGHT, 286, fz, Kit.TEXT_SOFT)
 	if tele == null or tele.n == 0: return
 	# population groups
 	var n := tele.n; var row := pl.size.y / float(n); var c := tele.circuit; var first := 0
 	var pops: Array = c.get("populations", [])
 	for pi in pops.size():
 		var cnt := Circuits.pop_n(pops[pi]); var yc := pl.position.y + row * (float(first) + float(cnt) * 0.5)
-		if pi > 0: draw_line(Vector2(pl.position.x - 6, pl.position.y + row * first), Vector2(pl.end.x, pl.position.y + row * first), Color(Kit.LINE, 0.9), 1.0)
-		if cnt * row >= float(fz) * 0.9 or n <= 16: draw_string(f, Vector2(6, yc + float(fz) * 0.35), str(pops[pi].get("id", "")), HORIZONTAL_ALIGNMENT_LEFT, pl.position.x - 10, fz, Kit.TEXT_SOFT)
+		if pi > 0: draw_line(Vector2(pl.position.x - 6, pl.position.y + row * first), Vector2(pl.end.x, pl.position.y + row * first), Color(Kit.INK, 0.28), 1.0)
+		if cnt * row >= float(fz) * 0.9 or n <= 16: draw_string(Gfx.serif_italic(), Vector2(8, yc + float(fz) * 0.35), str(pops[pi].get("id", "")), HORIZONTAL_ALIGNMENT_LEFT, pl.position.x - 12, fz, Kit.TEXT)
 		first += cnt
-	draw_rect(pl, Color(Kit.LINE, 0.8), false, 1.0)
 
 func _draw_spikes(layer: Control) -> void:
 	if tele == null or tele.n == 0: return
 	var pl := _plot(); var n := tele.n; var row := pl.size.y / float(n); var vt := tele.view_t; var t_left := vt - window_ms
-	var th := minf(row * 0.78, 20.0); var w := 2.2
+	var th := minf(row * 0.78, 20.0); var w := 1.7 if window_ms / maxf(pl.size.x, 1.0) < 2.5 else 1.1
 	var ec := Kit.exc(); var ic := Kit.inh()
 	var lines_e := PackedVector2Array(); var lines_i := PackedVector2Array(); var hot := []
 	for j in tele.sp_t.size():
@@ -102,8 +102,8 @@ func _draw_spikes(layer: Control) -> void:
 		var inh: bool = tele.kinds[id] == "I"
 		(lines_i if inh else lines_e).append(Vector2(x, y - th * 0.5)); (lines_i if inh else lines_e).append(Vector2(x, y + th * 0.5))
 		if vt - t < 90.0: hot.append([Vector2(x, y), inh, 1.0 - (vt - t) / 90.0])
-	if lines_e.size() > 0: layer.draw_multiline(lines_e, Color(ec, 0.80), w, true)
-	if lines_i.size() > 0: layer.draw_multiline(lines_i, Color(ic, 0.80), w, true)
-	for h in hot: Gfx.glow(layer, h[0], 10.0 + 5.0 * h[2], Color(ic if h[1] else ec, 0.32 * h[2]))
-	# the "now" edge
-	for k in 10: layer.draw_line(Vector2(pl.end.x - k * 2.0, pl.position.y), Vector2(pl.end.x - k * 2.0, pl.end.y), Color(1, 1, 1, 0.07 * (1.0 - float(k) / 10.0)), 2.0)
+	if lines_e.size() > 0: layer.draw_multiline(lines_e, Color(ec, 0.95), w, true)
+	if lines_i.size() > 0: layer.draw_multiline(lines_i, Color(ic, 0.95), w, true)
+	for h in hot: layer.draw_line(h[0] - Vector2(0, th * 0.5), h[0] + Vector2(0, th * 0.5), Color(Kit.INK, 0.5 * h[2]), w + 0.6, true)   # wet ink: the newest ticks are darker
+	# the "now" edge: the pen's ruled line
+	layer.draw_line(Vector2(pl.end.x - 1.0, pl.position.y), Vector2(pl.end.x - 1.0, pl.end.y), Color(Kit.INK, 0.55), 1.2)

@@ -1,7 +1,7 @@
 class_name TraceView
 extends Control
-## Oscilloscope: 1 to 4 membrane-potential traces (1 ms samples of V_m from NEST), each in its own lane with a graticule, a glowing phosphor line,
-## and a bright spike marker at every recorded spike (NEST models reset V_m at the threshold, so the marker shows the action potential).
+## Membrane-potential chart recorder: 1 to 4 traces (1 ms samples of V_m from NEST), each a pen line in its cell's stain on its own chart-paper strip,
+## with an inked stroke at every recorded spike (NEST models reset V_m at the threshold, so the stroke shows the action potential).
 var tele: Telemetry = null
 var window_ms := 500.0           # the window drawn now (eases toward window_target)
 var auto_window := true          # follow the timescale of the watched cells; a click on the "window" caption steps through fixed windows
@@ -19,7 +19,7 @@ class Layer extends Control:
 func _ready() -> void:
 	clip_contents = true; custom_minimum_size = Vector2(300, 120)
 	_layer = Layer.new(); _layer.owner_view = self; _layer.set_anchors_preset(Control.PRESET_FULL_RECT); _layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var m := CanvasItemMaterial.new(); m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD; _layer.material = m; add_child(_layer)
+	add_child(_layer)
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 func attach(t: Telemetry) -> void: tele = t; _range = {}; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
@@ -111,8 +111,8 @@ func _kind(i: int) -> String: return str(tele.kinds[i]) if tele != null and i < 
 
 func _draw() -> void:
 	var fz := Kit.fs(14); var f := Fonts.regular
-	draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 12, 0, false), Rect2(Vector2.ZERO, size))
-	draw_string(f, Vector2(14, 20), "MEMBRANE POTENTIAL", HORIZONTAL_ALIGNMENT_LEFT, 240, fz, Kit.TEXT_SOFT)
+	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
+	draw_string(Gfx.serif_italic(), Vector2(14, 20), "Membrane potential", HORIZONTAL_ALIGNMENT_LEFT, 240, Kit.fs(16), Kit.TEXT)
 	if tele == null or tele.sim == null: return
 	var vt := tele.view_t; var t_left := vt - window_ms
 	var lanes := _lanes()
@@ -121,37 +121,26 @@ func _draw() -> void:
 	for ln in lanes:
 		var r: Rect2 = ln["rect"]; var nid: int = ln["n"]
 		var col: Color = Kit.inh() if _kind(nid) == "I" else Kit.exc()
-		draw_rect(r, Color(Kit.BENCH, 0.55)); 
+		Gfx.chart_strip(self, r, 10.0)
 		var rg := _lane_range(nid); var lo := rg.x; var hi := rg.y
 		# graticule: horizontal every 10/20 mV, vertical every 100 ms
 		var step := 10.0 if hi - lo <= 60.0 else 20.0; var mv := ceilf(lo / step) * step; var last_lab_y := -1000.0
 		while mv <= hi:
 			var y := r.end.y - r.size.y * (mv - lo) / (hi - lo)
-			draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(Kit.LINE, 0.55 if int(roundf(mv / step)) % 2 == 0 else 0.3), 1.0)
-			if absf(y - last_lab_y) >= float(fz) * 1.25 and y > r.position.y + float(fz) * 0.5 and y < r.end.y - float(fz) * 0.4: last_lab_y = y; draw_string(f, Vector2(4, y + float(fz) * 0.35), "%d" % int(mv), HORIZONTAL_ALIGNMENT_LEFT, r.position.x - 8, fz, Kit.TEXT_SOFT)
+			draw_line(Vector2(r.position.x - 4.0, y), Vector2(r.position.x, y), Color(Kit.INK, 0.6), 1.0)
+			if absf(y - last_lab_y) >= float(fz) * 1.25 and y > r.position.y + float(fz) * 0.5 and y < r.end.y - float(fz) * 0.4: last_lab_y = y; draw_string(Gfx.mono(), Vector2(4, y + float(fz) * 0.35), "%d" % int(mv), HORIZONTAL_ALIGNMENT_LEFT, r.position.x - 8, fz, Kit.TEXT_SOFT)
 			mv += step
 		var gs := grid_step(window_ms); var g0 := ceilf(t_left / gs) * gs; var tt := g0
 		while tt <= vt:
-			var x := r.position.x + r.size.x * (tt - t_left) / window_ms; draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), Color(Kit.LINE, 0.40), 1.0); tt += gs
-		draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
-		var pop_i: int = tele.pop_of[nid] if nid < tele.pop_of.size() else 0
-		var label := "%s  %s" % [str(tele.circuit["populations"][pop_i].get("id", "")), str(tele.circuit["populations"][pop_i].get("model", ""))]
-		if tele.circuit["populations"][pop_i].get("n", 1) > 1: label += "  [%d]" % (nid - Circuits.pop_first(tele.circuit, pop_i))
-		var lw := minf(f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 12.0, r.size.x * 0.7)
-		draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(lw, float(fz) + 6.0)), Color(Kit.BENCH, 0.78))
-		draw_string(f, r.position + Vector2(8, float(fz) + 3.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x * 0.7, fz, col)
-		var a: PackedFloat32Array = tele.volt.get(nid, PackedFloat32Array())
-		if a.size() > 0:
-			draw_rect(Rect2(Vector2(r.end.x - 96, r.position.y + 2), Vector2(94, float(fz) + 6.0)), Color(Kit.BENCH, 0.78))
-			draw_string(f, Vector2(r.end.x - 120, r.position.y + float(fz) + 3.0), ("%.1f mV" % a[a.size() - 1]) if is_finite(a[a.size() - 1]) else "no membrane", HORIZONTAL_ALIGNMENT_RIGHT, 112, fz, Kit.TEXT)
+			var x := r.position.x + r.size.x * (tt - t_left) / window_ms; draw_line(Vector2(x, r.end.y), Vector2(x, r.end.y - 4.0), Color(Kit.INK, 0.5), 1.0); tt += gs
 	var gs2 := grid_step(window_ms); var lab_every := maxi(1, int(ceilf(64.0 / maxf(lanes[0]["rect"].size.x * gs2 / window_ms, 1.0)))); var tt2 := ceilf(t_left / gs2) * gs2
 	var bot: Rect2 = lanes[lanes.size() - 1]["rect"]
 	while tt2 <= vt:
 		var xx := bot.position.x + bot.size.x * (tt2 - t_left) / window_ms
-		if int(roundf(tt2 / gs2)) % lab_every == 0: draw_string(f, Vector2(xx - 30, bot.end.y + float(fz) + 3.0), tick_text(tt2, gs2), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
+		if int(roundf(tt2 / gs2)) % lab_every == 0: draw_string(Gfx.mono(), Vector2(xx - 30, bot.end.y + float(fz) + 3.0), tick_text(tt2, gs2), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
 		tt2 += gs2
 	# axes caption
-	draw_string(f, Vector2(size.x - 190, 20), window_text(window_ms, auto_window), HORIZONTAL_ALIGNMENT_RIGHT, 176, fz, Kit.TEXT_SOFT)
+	draw_string(Gfx.mono(), Vector2(size.x - 230, 20), window_text(window_ms, auto_window), HORIZONTAL_ALIGNMENT_RIGHT, 216, fz, Kit.TEXT_SOFT)
 
 func _lane_range(nid: int) -> Vector2:
 	var a: PackedFloat32Array = tele.volt.get(nid, PackedFloat32Array())
@@ -184,19 +173,33 @@ func _draw_traces(layer: Control) -> void:
 			px = x; pts.append(Vector2(x, r.end.y - r.size.y * (clampf(a[j], lo, hi) - lo) / (hi - lo)))
 		pts = _clip_x(pts, r)
 		if pts.size() > 1:
-			layer.draw_polyline(pts, Color(col, 0.12), 7.0, true); layer.draw_polyline(pts, Color(col, 0.28), 3.4, true); layer.draw_polyline(pts, Color(col.lightened(0.35), 0.95), 1.6, true)
+			layer.draw_polyline(pts, Color(col, 0.95), 1.5, true)
 		# spike markers: a vertical needle from the trace to the top of the lane
 		for s in tele.sp_t.size():
 			if tele.sp_n[s] != nid: continue
 			var t := tele.sp_t[s]; if t < t_left or t > vt: continue
 			var x := r.position.x + r.size.x * (t - t_left) / window_ms
-			layer.draw_line(Vector2(x, r.end.y - r.size.y * (clampf(a[maxi(a.size() - 1 - int(tl - t), 0)] if int(tl - t) < a.size() else lo, lo, hi) - lo) / (hi - lo)), Vector2(x, r.position.y + 3.0), Color(col.lightened(0.5), 0.9), 1.8, true)
-			Gfx.glow(layer, Vector2(x, r.position.y + 4.0), 9.0, Color(col, 0.35 * (1.0 - clampf((vt - t) / 160.0, 0.0, 0.8))))
-		# the beam head
-		if pts.size() > 0: Gfx.glow(layer, pts[pts.size() - 1], 11.0, Color(col, 0.55)); layer.draw_circle(pts[pts.size() - 1], 2.4, Color(1, 1, 1, 0.9))
+			layer.draw_line(Vector2(x, r.end.y - r.size.y * (clampf(a[maxi(a.size() - 1 - int(tl - t), 0)] if int(tl - t) < a.size() else lo, lo, hi) - lo) / (hi - lo)), Vector2(x, r.position.y + 3.0), Color(col, 0.95), 1.5, true)
+		_lane_label(layer, r, nid, col)
+		# the pen: a small nib of ink where the trace is being written
+		if pts.size() > 0: layer.draw_circle(pts[pts.size() - 1], 3.0, Color(Gfx.SHEET, 0.9)); layer.draw_circle(pts[pts.size() - 1], 2.0, Kit.INK)
 
 func _clip_x(pts: PackedVector2Array, r: Rect2) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	for p in pts:
 		if p.x >= r.position.x - 0.5 and p.x <= r.end.x + 0.5: out.append(p)
 	return out
+
+## The lane's name (population, model, index) and its present voltage, on paper chips over the chart (drawn after the trace so the pen never covers them).
+func _lane_label(ci: CanvasItem, r: Rect2, nid: int, col: Color) -> void:
+	var fz := Kit.fs(14); var fi := Gfx.serif_italic()
+	var pop_i: int = tele.pop_of[nid] if nid < tele.pop_of.size() else 0
+	var label := "%s  %s" % [str(tele.circuit["populations"][pop_i].get("id", "")), str(tele.circuit["populations"][pop_i].get("model", ""))]
+	if tele.circuit["populations"][pop_i].get("n", 1) > 1: label += "  [%d]" % (nid - Circuits.pop_first(tele.circuit, pop_i))
+	var lw := minf(fi.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 12.0, r.size.x * 0.7)
+	ci.draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(lw, float(fz) + 6.0)), Color(Gfx.SHEET, 0.92))
+	ci.draw_string(fi, r.position + Vector2(8, float(fz) + 3.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x * 0.7, fz, col.darkened(0.1))
+	var a: PackedFloat32Array = tele.volt.get(nid, PackedFloat32Array())
+	if a.size() > 0:
+		ci.draw_rect(Rect2(Vector2(r.end.x - 96, r.position.y + 2), Vector2(94, float(fz) + 6.0)), Color(Gfx.SHEET, 0.92))
+		ci.draw_string(Gfx.mono(), Vector2(r.end.x - 120, r.position.y + float(fz) + 3.0), ("%.1f mV" % a[a.size() - 1]) if is_finite(a[a.size() - 1]) else "no membrane", HORIZONTAL_ALIGNMENT_RIGHT, 112, fz, Kit.TEXT)

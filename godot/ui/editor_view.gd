@@ -1,7 +1,8 @@
 class_name CircuitEditor
 extends Control
-## The circuit editor and the live circuit view in one: neurons are glowing discs (amber excitatory, cyan inhibitory) that flash on a spike,
-## projections are curved axons with pulses that travel at (a slowed-down) synaptic delay, sensors sit on the left and motors on the right.
+## The circuit editor and the live circuit view in one, drawn as a Cajal plate on engineering graph paper: neurons are Golgi-stained somata with inked
+## dendrites (sienna excitatory, Prussian blue inhibitory) that spread a watercolour stain on a spike, projections are inked axons ending in an arrowhead
+## (excitatory) or a bar (inhibitory) with ink beads that travel at (a slowed-down) synaptic delay, sensors and motors are index-card tabs left and right.
 ## Drag a disc to move it, drag from its rim to another disc to connect, click an axon to edit it. Everything is drawn here, so it is crisp at any scale.
 signal structure_changed          # populations / projections / channels added or removed: the lab must reload the engine
 signal selection_changed(sel: Dictionary)
@@ -165,9 +166,11 @@ func _kind_col(kind: String) -> Color: return Kit.inh() if kind == "I" else Kit.
 
 # ---------- draw ----------
 func _draw() -> void:
+	Gfx.graph_paper(self, Rect2(Vector2.ZERO, size), clampf(22.0 * view_scale, 12.0, 40.0), Gfx.SHEET, view_off)
 	if circuit.is_empty(): return
 	var ns := _neurons()
 	if _fit_pending: _do_fit(ns)
+	_draw_scale_bar()
 	_r = _calc_radius(ns)
 	var pops := _pops(ns); var kd := Circuits.kinds(circuit)
 	var now := tele.now() if tele != null else 0.0
@@ -206,9 +209,9 @@ func _draw() -> void:
 			var dir := (b - a).normalized(); var b2: Vector2 = _edge_pt(pd, -dir) - dir * 4.0
 			var mid := (a + b2) * 0.5; var nrm := (b2 - a).orthogonal().normalized() * 20.0
 			var pts := Gfx.bez_points(a, a + (b2 - a) * 0.4 + nrm, a + (b2 - a) * 0.7 + nrm, b2, 20)
-			var col := Color(Kit.GREEN, 0.34 + 0.4 * act + (0.3 if selected else 0.0))
-			Gfx.dashed(self, pts, col, 1.8, 8.0, 6.0, now * 26.0 * act)
-			Gfx.arrow_head(self, b2, pts[pts.size() - 1] - pts[pts.size() - 2], Color(Kit.GREEN, 0.8), 9.0)
+			var col := Color(Kit.SENSOR, 0.55 + 0.3 * act + (0.15 if selected else 0.0))
+			Gfx.dashed(self, pts, col, 1.6 + (0.6 if selected else 0.0), 6.0, 5.0, now * 26.0 * act if Kit.motion() else 0.0)
+			Gfx.arrow_head(self, b2, pts[pts.size() - 1] - pts[pts.size() - 2], Color(Kit.SENSOR, 0.9), 8.0)
 	# --- motor edges
 	for ch in outs:
 		var key := "out:" + str(ch.get("name", "")); var r: Rect2 = _cards[key]
@@ -220,8 +223,8 @@ func _draw() -> void:
 			var dir := (b - a).normalized(); var a2: Vector2 = _edge_pt(pd, dir) + dir * 4.0
 			var nrm := (b - a2).orthogonal().normalized() * 20.0
 			var pts := Gfx.bez_points(a2, a2 + (b - a2) * 0.35 + nrm, a2 + (b - a2) * 0.65 + nrm, b, 20)
-			Gfx.dashed(self, pts, Color(Gfx.VIOLET, 0.30 + clampf(rate / 80.0, 0.0, 0.5)), 1.8, 8.0, 6.0, -now * 26.0 * clampf(rate / 40.0, 0.0, 1.0))
-			Gfx.arrow_head(self, b, pts[pts.size() - 1] - pts[pts.size() - 2], Color(Gfx.VIOLET, 0.8), 9.0)
+			Gfx.dashed(self, pts, Color(Kit.MOTOR, 0.55 + clampf(rate / 80.0, 0.0, 0.4)), 1.6, 6.0, 5.0, -now * 26.0 * clampf(rate / 40.0, 0.0, 1.0) if Kit.motion() else 0.0)
+			Gfx.arrow_head(self, b, pts[pts.size() - 1] - pts[pts.size() - 2], Color(Kit.MOTOR, 0.9), 8.0)
 	# --- projections
 	var projs: Array = circuit.get("projections", [])
 	var geo := []
@@ -235,16 +238,15 @@ func _draw() -> void:
 		var ihov: bool = _hover.get("t", "") == "proj" and int(_hover.get("i", -1)) == pj
 		var width := (1.6 + clampf(sqrt(absf(w) / Circuits.weight_of(str(circuit["populations"][Circuits.pop_index(circuit, str(pb["id"]))].get("model", "")))), 0.0, 2.0) * 1.2) * clampf(view_scale, 0.85, 1.2)
 		var pts := Gfx.bez_points(cp[0], cp[1], cp[2], cp[3], 28)
-		if isel or ihov: draw_polyline(pts, Color(col, 0.34 if isel else 0.2), width + 9.0, true)
-		draw_polyline(pts, Color(col, 0.30), width + 3.0, true)
-		draw_polyline(pts, Color(col.lightened(0.25 if isel else 0.0), 0.95 if isel else (0.78 if ihov else 0.58)), width + (1.0 if isel else 0.0), true)
+		if isel or ihov: draw_polyline(pts, Color(Kit.GAMBOGE, 0.42 if isel else 0.24), width + 8.0, true)   # a highlighter stroke under the ink
+		draw_polyline(pts, Color(col.darkened(0.15 if isel else 0.0), 0.95 if (isel or ihov) else 0.86), width + (0.8 if isel else 0.0), true)
 		var tan := cp[3] - cp[2]
 		var tip := cp[3]
 		if w < 0.0: Gfx.bar_head(self, tip, tan, Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
 		else: Gfx.arrow_head(self, tip, tan, Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
 		if lesions.has("proj:%d" % pj):   # a cut axon: dashed red with an X at its middle
-			draw_polyline(pts, Color(Kit.BENCH, 0.75), width + 6.0, true); Gfx.dashed(self, pts, Color(Kit.RED, 0.95), 2.2, 5.0, 7.0)
-			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); draw_circle(cm, 13.0, Kit.BENCH); draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
+			draw_polyline(pts, Color(Gfx.SHEET, 0.85), width + 6.0, true); Gfx.dashed(self, pts, Color(Kit.RED, 0.95), 2.2, 5.0, 7.0)
+			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); draw_circle(cm, 13.0, Gfx.SHEET); draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
 			draw_line(cm + Vector2(-6, -6), cm + Vector2(6, 6), Kit.RED, 3.0, true); draw_line(cm + Vector2(-6, 6), cm + Vector2(6, -6), Kit.RED, 3.0, true)
 	# --- pulses
 	if tele != null and tele.sim != null:
@@ -257,21 +259,33 @@ func _draw() -> void:
 				var u := (now - birth) / trav
 				if u < 0.0 or u > 1.25: continue
 				var uu := clampf(u, 0.0, 1.0)
-				if u <= 1.0:
-					for k in 5:   # comet tail
-						var ut := maxf(uu - 0.035 * k, 0.0); var q := Gfx.bez(cp[0], cp[1], cp[2], cp[3], ut)
-						Gfx.glow(self, q, (11.0 - k * 1.4), Color(col, 0.55 * (1.0 - k * 0.2)))
-					var q0 := Gfx.bez(cp[0], cp[1], cp[2], cp[3], uu)
-					Gfx.glow(self, q0, 17.0, Color(col, 0.55)); draw_circle(q0, 3.4, Color(1, 1, 1, 0.95)); draw_circle(q0, 2.2, col.lightened(0.35))
-				else:   # arrival: a ring blooms on the postsynaptic disc
+				if u <= 1.0:   # an ink bead travelling down the axon, with two fading droplets behind it
+					for k in range(2, 0, -1):
+						var q := Gfx.bez(cp[0], cp[1], cp[2], cp[3], maxf(uu - 0.045 * k, 0.0)); draw_circle(q, 2.4 - 0.5 * k, Color(col.darkened(0.3), 0.55 - 0.18 * k))
+					Gfx.bead(self, Gfx.bez(cp[0], cp[1], cp[2], cp[3], uu), 3.4 * clampf(view_scale, 0.85, 1.2), col.darkened(0.45))
+				else:   # arrival: a small blot of stain soaks in at the synapse
 					var k2 := (u - 1.0) / 0.25
-					draw_arc(cp[3], 6.0 + 12.0 * k2, 0, TAU, 24, Color(col, 0.7 * (1.0 - k2)), 2.0, true)
-	# --- population outlines (n > 1): a rounded box around the group
+					Gfx.wash(self, cp[3], 5.0 + (9.0 * k2 if Kit.motion() else 6.0), col, 0.55 * (1.0 - k2), pj)
+	# --- population groups (n > 1): a pale wash of the group's stain soaked into the paper behind its cells
 	for p in pops:
 		if p["n"] > 1 and p.has("box"):
-			var bx: Rect2 = p["box"]
-			Gfx.rounded_rect(self, bx, Color(Kit.PANEL, 0.35), Color(Kit.LINE, 0.95), minf(bx.size.x, bx.size.y) * 0.5 if bx.size.x < 90.0 or bx.size.y < 90.0 else 26.0, 1.4)
-	# --- neurons
+			var bx: Rect2 = p["box"]; var gcol := _kind_col(str(kd.get(p["id"], "E")))
+			var gpts := PackedVector2Array(); var cnr := minf(minf(bx.size.x, bx.size.y) * 0.5, 30.0)
+			for k in 32:   # a rounded-rect outline as a polygon
+				var q := k / 8; var a := PI + float(q) * PI * 0.5 + (float(k % 8) / 7.0) * PI * 0.5
+				var cc := [bx.position + Vector2(cnr, cnr), Vector2(bx.end.x - cnr, bx.position.y + cnr), bx.end - Vector2(cnr, cnr), Vector2(bx.position.x + cnr, bx.end.y - cnr)][q] as Vector2
+				gpts.append(cc + Vector2(cos(a), sin(a)) * cnr)
+			var gl := gpts.duplicate(); gl.append(gpts[0]); Gfx.dashed(self, gl, Color(gcol, 0.3), 1.0, 2.0, 5.0)
+	# --- neurons: first every cell's stain (resting tint plus the spreading wash of a spike), then the inked somata over them
+	var n_s := 0
+	for n in ns:
+		var gs := n_s; n_s += 1
+		var pid0: String = str(circuit["populations"][n["pi"]].get("id", ""))
+		if lesions.has("pop:" + pid0): continue
+		var col0 := _kind_col(str(kd.get(pid0, "E"))); var p0 := to_screen(n["pos"])
+		var f0 := tele.flash[gs] if tele != null and gs < tele.flash.size() else 0.0
+		Gfx.wash(self, p0, _r * 1.5, col0, 0.09, gs * 3 + 1)
+		Gfx.spike_stain(self, p0, _r, col0, f0, gs * 3 + 2)
 	var n_i := 0
 	for n in ns:
 		var gi := n_i; n_i += 1
@@ -282,26 +296,24 @@ func _draw() -> void:
 		if tele != null and gi < tele.flash.size(): f = tele.flash[gi]
 		var isel: bool = sel.get("t", "") == "pop" and sel.get("id", "") == pid
 		var ihov: bool = _hover.get("t", "") == "pop" and _hover.get("id", "") == pid
-		var rr := _r * (1.0 + 0.16 * f)
-		Gfx.glow(self, p, rr * (2.2 + 2.0 * f), Color(col, 0.24 + 0.76 * f + (0.1 if (isel or ihov) else 0.0)))
-		draw_circle(p, rr + 1.5, Color(Kit.BENCH, 0.9))
-		draw_circle(p, rr, Color(Kit.PANEL_HI, 1.0).lerp(col, 0.16 + 0.80 * f))
-		draw_arc(p, rr - 1.0, 0, TAU, 40, Color(col, 0.55 + 0.45 * f), maxf(2.0, rr * 0.11), true)
-		draw_circle(p, rr * 0.34, Color(col.lightened(0.5), 0.30 + 0.7 * f))
-		if f > 0.05: Gfx.glow(self, p, rr * 1.1, Color(1, 1, 1, 0.5 * f))
+		var rr := _r * (1.0 + (0.08 * f if Kit.motion() else 0.0))
+		var silenced := lesions.has("pop:" + pid)
+		if ihov and not isel: draw_circle(p, rr + 5.0, Color(Kit.GAMBOGE, 0.25))
+		Gfx.soma(self, p, rr, col, gi * 7 + 3, f, 0.65 if silenced else 0.0, rr >= 9.0)
 		# membrane potential as a thin arc of the traced neurons
 		if tele != null and tele.volt.has(gi):
 			var a: PackedFloat32Array = tele.volt[gi]
 			if a.size() > 0 and is_finite(a[a.size() - 1]):   # a model without a membrane (relay, generator) reports NaN
 				var u := clampf((float(a[a.size() - 1]) + 80.0) / 50.0, 0.0, 1.0)
-				draw_arc(p, rr + 5.0, -PI * 0.5, -PI * 0.5 + TAU * u, 40, Color(col.lightened(0.3), 0.85), 2.0, true)
-		if isel: draw_arc(p, rr + 10.0, 0, TAU, 48, Color(1, 1, 1, 0.85), 1.6, true)
-		if lesions.has("pop:" + pid):   # a silenced population: greyed out and struck through
-			draw_circle(p, rr + 1.0, Color(Kit.BENCH, 0.7)); draw_arc(p, rr + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
+				draw_arc(p, rr + 4.5, -PI * 0.5, -PI * 0.5 + TAU * u, 40, Color(Gfx.INK, 0.7), 1.6, true)
+		if isel:   # selected: a gamboge ring inked around the cell
+			draw_arc(p, rr + 8.0, 0, TAU, 48, Color(Kit.GAMBOGE, 0.95), 2.4, true); draw_arc(p, rr + 10.5, 0, TAU, 48, Color(Gfx.INK, 0.5), 1.0, true)
+		if silenced:   # a silenced population: faded out and struck through in vermilion
+			draw_arc(p, rr + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
 			draw_line(p + Vector2(-rr, rr) * 0.75, p + Vector2(rr, -rr) * 0.75, Kit.RED, 3.0, true)
-		if tele != null and tele.watched.has(gi):
-			var idx := tele.watched.find(gi)
-			draw_circle(p + Vector2(rr * 0.9, -rr * 0.9), 7.0, Color(Kit.BENCH, 0.9)); draw_circle(p + Vector2(rr * 0.9, -rr * 0.9), 5.0, col)
+		if tele != null and tele.watched.has(gi):   # traced on the scope: a small inked pin
+			var wp := p + Vector2(rr * 0.9, -rr * 0.9)
+			draw_circle(wp, 6.5, Gfx.SHEET); draw_arc(wp, 6.5, 0, TAU, 20, Gfx.INK, 1.4, true); draw_circle(wp, 3.2, col)
 	# --- the selected axon names its weight and delay
 	if sel.get("t", "") == "proj" and int(sel.get("i", -1)) < projs.size() and int(sel.get("i", -1)) >= 0:
 		var cp: PackedVector2Array = geo[int(sel["i"])]
@@ -311,7 +323,7 @@ func _draw() -> void:
 			var txt := "%s%s %s   %s ms" % ["+" if w >= 0.0 else "-", str(snappedf(absf(w), 0.1)), unit, str(snappedf(Circuits.proj_delay(pr), 0.1))]
 			var mid := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
 			var rect := Rect2(mid - Vector2(tw * 0.5, float(fz) * 0.9 + 4.0), Vector2(tw, float(fz) + 8.0))
-			Gfx.rounded_rect(self, rect, Kit.PANEL_HI, _kind_col("I" if w < 0.0 else "E"), 6.0, 1.4)
+			draw_rect(Rect2(rect.position + Vector2(3, 3), rect.size), Color(Gfx.INK, 0.12)); draw_rect(rect, Color("#FBF7EE")); draw_rect(rect, _kind_col("I" if w < 0.0 else "E"), false, 1.4)
 			draw_string(font, rect.position + Vector2(8, float(fz) + 2.0), txt, HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.TEXT)
 	_draw_marks(pops, geo, now)
 	# --- labels
@@ -319,10 +331,13 @@ func _draw() -> void:
 		var c: Vector2 = p["c"]; var rr: float = p["rad"]
 		if p.has("box"): rr = (p["box"] as Rect2).end.y - c.y
 		var pi := Circuits.pop_index(circuit, p["id"]); var pm: Dictionary = circuit["populations"][pi]
-		var txt := str(p["id"]) + ("  ×%d" % p["n"] if p["n"] > 1 else "")
 		var isel: bool = sel.get("t", "") == "pop" and sel.get("id", "") == p["id"]
-		draw_string(font, c + Vector2(-80, rr + float(fz) + 4.0), txt, HORIZONTAL_ALIGNMENT_CENTER, 160, fz, Kit.TEXT if isel else Kit.TEXT_SOFT)
-		if isel: draw_string(font, c + Vector2(-90, rr + float(fz) * 2.1 + 6.0), str(pm.get("model", "")), HORIZONTAL_ALIGNMENT_CENTER, 180, fz, Kit.TEXT_SOFT)
+		var lz := Kit.fs(16); var fi := Gfx.serif_italic(); var nm := str(p["id"]); var mult := (" ×%d" % p["n"]) if p["n"] > 1 else ""
+		var nw := fi.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, lz).x; var mw := fi.get_string_size(mult, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x
+		var lp := c + Vector2(-(nw + mw) * 0.5, rr + float(lz) + 6.0)
+		draw_string(fi, lp, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, lz, Kit.TEXT if isel else Color(Kit.TEXT, 0.88))
+		if mult != "": draw_string(fi, lp + Vector2(nw, 0), mult, HORIZONTAL_ALIGNMENT_LEFT, -1, fz, Kit.TEXT_SOFT)
+		if isel: draw_string(Gfx.mono(), c + Vector2(-90, rr + float(lz) + float(fz) * 1.2 + 10.0), str(pm.get("model", "")), HORIZONTAL_ALIGNMENT_CENTER, 180, fz, Kit.TEXT_SOFT)
 	# --- cards
 	for ch in ins: _draw_card(font, fz, "in", ch, in_sensor.has(str(ch.get("name", ""))), now)
 	for ch in outs: _draw_card(font, fz, "out", ch, true, now)
@@ -332,12 +347,12 @@ func _draw() -> void:
 		var tgt := _hit(b)
 		var ok: bool = not tgt.is_empty() and ((tgt["t"] == "pop") or (tgt["t"] == "out" and _drag["src"]["t"] == "pop"))
 		var pts := Gfx.bez_points(a, a + (b - a) * 0.4 + (b - a).orthogonal().normalized() * 14.0, a + (b - a) * 0.7 + (b - a).orthogonal().normalized() * 14.0, b, 20)
-		var kc := Color(1, 1, 1, 0.9) if ok else Color(1, 1, 1, 0.45)
-		Gfx.dashed(self, pts, kc, 2.4, 8.0, 6.0, now * 40.0); draw_circle(b, 5.0, kc)
-		if ok: Gfx.glow(self, b, 26.0, Color(1, 1, 1, 0.25))
+		var kc := Color(Gfx.INK, 0.9) if ok else Color(Gfx.INK, 0.45)
+		Gfx.dashed(self, pts, kc, 2.0, 7.0, 5.0, now * 40.0 if Kit.motion() else 0.0); draw_circle(b, 4.0, kc)
+		if ok: draw_arc(b, 14.0, 0, TAU, 32, Color(Kit.GAMBOGE, 0.95), 2.4, true)
 	elif tool == "connect" and not _connect_from.is_empty():
 		var pd := _pop_dict(pops, str(_connect_from.get("id", "")))
-		if not pd.is_empty(): draw_arc(pd["c"], float(pd["rad"]) + 12.0, 0, TAU, 48, Color(1, 1, 1, 0.8), 2.0, true)
+		if not pd.is_empty(): draw_arc(pd["c"], float(pd["rad"]) + 12.0, 0, TAU, 48, Color(Kit.GAMBOGE, 0.95), 2.4, true)
 	if circuit.get("populations", []).is_empty():
 		var lo := 8.0; var hi := size.x - 8.0   # the hint sits between the card columns, not over them
 		for k in _cards:
@@ -419,7 +434,7 @@ func _draw_marks(pops: Array, geo: Array, now: float) -> void:
 	if pts.size() < 2: return
 	var lens := PackedFloat32Array(); var tot := 0.0; lens.append(0.0)
 	for i in range(1, pts.size()): tot += pts[i].distance_to(pts[i - 1]); lens.append(tot)
-	draw_polyline(pts, Color(Kit.GREEN, 0.18), 7.0, true)
+	draw_polyline(pts, Color(Kit.GAMBOGE, 0.22), 9.0, true)
 	var head := trail_u * tot
 	for i in range(1, pts.size()):
 		if lens[i - 1] > head: break
@@ -432,7 +447,7 @@ func _draw_marks(pops: Array, geo: Array, now: float) -> void:
 	for i in range(1, pts.size()):
 		if lens[i] >= head: hp = pts[i - 1].lerp(pts[i], (head - lens[i - 1]) / maxf(lens[i] - lens[i - 1], 0.001)); break
 		hp = pts[i]
-	Gfx.glow(self, hp, 30.0, Color(1, 1, 1, 0.5)); draw_circle(hp, 4.5, Color(1, 1, 1, 0.95))
+	Gfx.wash(self, hp, 16.0, Kit.GAMBOGE, 0.6, 5); Gfx.bead(self, hp, 4.5, Kit.GREEN.darkened(0.3))
 
 func _draw_card(font: Font, fz: int, side: String, ch: Dictionary, task_driven: bool, now: float) -> void:
 	var name := str(ch.get("name", "")); var r: Rect2 = _cards[side + ":" + name]
@@ -448,18 +463,11 @@ func _draw_card(font: Font, fz: int, side: String, ch: Dictionary, task_driven: 
 					var f0 := Circuits.pop_first(circuit, pi)
 					for k in Circuits.pop_n(circuit["populations"][pi]): act = maxf(act, tele.flash[f0 + k] if f0 + k < tele.flash.size() else 0.0)
 	elif tele != null: act = clampf(float(tele.rates.get(name, 0.0)) / 60.0, 0.0, 1.0)
-	Gfx.glow(self, r.get_center(), r.size.x * 0.75, Color(col, 0.05 + 0.28 * act))
-	Gfx.rounded_rect(self, r, Kit.PANEL, Color(col, 0.9 if isel else 0.65), 9.0, 1.6)
 	var kicker := ("SENSOR" if task_driven else "INPUT") if side == "in" else "MOTOR"
-	draw_string(font, r.position + Vector2(10, float(fz) + 3.0), kicker, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14.0, fz, Color(col, 0.9))
-	draw_string(font, r.position + Vector2(10, r.size.y - 9.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14.0, fz, Kit.TEXT)
-	# activity: a row of LEDs along the top edge's right side
-	for k in 5:
-		var lit := float(k) < act * 5.0
-		draw_circle(Vector2(r.end.x - 12.0 - k * 9.0, r.position.y + 12.0), 3.0, Color(col, 0.95 if lit else 0.16))
-	if isel: draw_rect(r.grow(5.0), Color(1, 1, 1, 0.6), false, 1.4)
+	Gfx.index_card(self, r, col, kicker, name, act, Gfx.serif(), Fonts.bold, fz, isel)
+	if isel: draw_rect(r.grow(6.0), Color(Kit.GAMBOGE, 0.95), false, 2.0)
 	if lesions.has(side + ":" + name):   # a cut sensor
-		draw_rect(r, Color(Kit.BENCH, 0.55)); draw_rect(r.grow(2.0), Kit.RED, false, 2.2)
+		draw_rect(r, Color(Gfx.SHEET, 0.6)); draw_rect(r.grow(2.0), Kit.RED, false, 2.2)
 		draw_string(font, r.position + Vector2(r.size.x - 52.0, float(fz) + 3.0), "CUT", HORIZONTAL_ALIGNMENT_RIGHT, 46.0, fz, Kit.RED)
 
 # ---------- hit testing & input ----------
@@ -602,3 +610,16 @@ func free_spot() -> Vector2:
 			if (n["pos"] as Vector2).distance_to(cand) < 80.0: ok = false; break
 		if ok: return cand
 	return best
+
+## A scale bar in the bottom-right corner, as on a plate: an inked rule with end ticks and an italic length (the model's 100 units).
+func _draw_scale_bar() -> void:
+	var fz := Kit.fs(14); var fi := Gfx.serif_italic()
+	var px := 100.0 * view_scale; var unit := "100 µm"
+	if px > size.x * 0.22: px *= 0.5; unit = "50 µm"
+	if px < 30.0: return
+	var tw := fi.get_string_size(unit, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x
+	var y := size.y - 18.0 - inset_bottom; var x1 := size.x - 22.0 - tw - 10.0; var x0 := x1 - px
+	if y < size.y * 0.5: return
+	draw_line(Vector2(x0, y), Vector2(x1, y), Gfx.INK, 1.6, true)
+	for x in [x0, x1]: draw_line(Vector2(x, y - 6.0), Vector2(x, y + 6.0), Gfx.INK, 1.4, true)
+	draw_string(fi, Vector2(x1 + 10.0, y + float(fz) * 0.35), unit, HORIZONTAL_ALIGNMENT_LEFT, -1, fz, Kit.TEXT_SOFT)

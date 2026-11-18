@@ -145,13 +145,13 @@ class _Plot extends Control:
 	var hv: HistogramView
 	func _draw() -> void:
 		var f := Fonts.regular; var fb := Fonts.bold; var fz := Kit.fs(14)
-		draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 8, 0, false), Rect2(Vector2.ZERO, size))
+		draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.5), 1, 2, 0, false), Rect2(Vector2.ZERO, size))
 		var d := hv.dist; var v := hv.value
 		var head := hv.label.to_upper()
 		var yours := "you: %s %s" % [HistogramView.fmt(v), hv.unit]
 		var yw := minf(fb.get_string_size(yours, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x, size.x * 0.68)
-		draw_string(fb, Vector2(10, float(fz) + 4.0), head, HORIZONTAL_ALIGNMENT_LEFT, size.x - yw - 28.0, fz, Kit.TEXT)
-		draw_string(fb, Vector2(size.x - 10.0 - yw, float(fz) + 4.0), yours, HORIZONTAL_ALIGNMENT_RIGHT, yw, fz, Kit.AMBER)
+		draw_string(Gfx.serif_italic(), Vector2(10, float(fz) + 4.0), hv.label, HORIZONTAL_ALIGNMENT_LEFT, size.x - yw - 28.0, Kit.fs(15), Kit.TEXT)
+		draw_string(fb, Vector2(size.x - 10.0 - yw, float(fz) + 4.0), yours, HORIZONTAL_ALIGNMENT_RIGHT, yw, fz, Kit.INK)
 		var pl := Rect2(14, float(fz) * 2.0 + 10.0, size.x - 28.0, size.y - float(fz) * 3.6 - 16.0)
 		if d.is_empty():
 			draw_multiline_string(f, Vector2(14, pl.position.y + float(fz) + 4.0), "No distribution for this task yet: the offline solution sweep has not been run. Your point and your own targets still count.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28.0, fz, 4, Kit.TEXT_SOFT)
@@ -171,19 +171,23 @@ class _Plot extends Control:
 			var x0: float = X.call(lo + w * float(i)); var x1: float = X.call(lo + w * float(i + 1))
 			var mid := lo + w * (float(i) + 0.5)
 			var better := (mid < v) if hv.lower_better else (mid > v)   # bars worse than you are dim, bars better than you are bright
-			draw_rect(Rect2(x0 + 1.0, pl.end.y - h, maxf(x1 - x0 - 2.0, 1.0), h), Color(Kit.CYAN if better else Kit.exc(), 0.55 if better else 0.8))
-		draw_line(Vector2(pl.position.x, pl.end.y), Vector2(pl.end.x, pl.end.y), Kit.LINE, 1.0)
+			var br := Rect2(x0 + 1.0, pl.end.y - h, maxf(x1 - x0 - 2.0, 1.0), h)   # an engraved bar: hatched in its stain, ruled in ink
+			if h > 0.5:
+				var bc := Kit.inh() if better else Kit.exc()
+				draw_rect(br, Color(bc, 0.10)); Gfx.hatch(self, PackedVector2Array([br.position, Vector2(br.end.x, br.position.y), br.end, Vector2(br.position.x, br.end.y)]), -PI * 0.25 if better else PI * 0.25, 3.5 if not better else 5.0, Color(bc, 0.9), 1.0)
+				draw_rect(br, Color(Kit.INK, 0.8), false, 1.0)
+		draw_line(Vector2(pl.position.x, pl.end.y), Vector2(pl.end.x, pl.end.y), Kit.INK, 1.4)
 		if not is_nan(med):
 			var mx_: float = X.call(med); Gfx.dashed(self, PackedVector2Array([Vector2(mx_, pl.position.y), Vector2(mx_, pl.end.y)]), Color(Kit.TEXT, 0.7), 1.5, 5.0, 4.0)
 			var mt := "median " + HistogramView.fmt(med); var mw := f.get_string_size(mt, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 8.0
 			var mxl := mx_ + 3.0 if mx_ + 3.0 + mw < size.x - 4.0 else mx_ - 3.0 - mw
-			draw_rect(Rect2(mxl, pl.position.y - 2.0, mw, float(fz) + 4.0), Color(Kit.WELL, 0.9))
+			draw_rect(Rect2(mxl, pl.position.y - 2.0, mw, float(fz) + 4.0), Color(Gfx.SHEET, 0.92))
 			draw_string(f, Vector2(mxl + 4.0, pl.position.y + float(fz) - 2.0), mt, HORIZONTAL_ALIGNMENT_LEFT, mw, fz, Kit.TEXT)
 		if not is_nan(hv.goal):
 			var gx: float = X.call(hv.goal); Gfx.dashed(self, PackedVector2Array([Vector2(gx, pl.position.y), Vector2(gx, pl.end.y)]), Kit.CYAN, 2.0, 6.0, 4.0)
 		var px: float = X.call(v)
-		draw_line(Vector2(px, pl.position.y), Vector2(px, pl.end.y), Kit.AMBER, 2.5, true)
-		draw_colored_polygon(PackedVector2Array([Vector2(px - 7.0, pl.end.y + 8.0), Vector2(px + 7.0, pl.end.y + 8.0), Vector2(px, pl.end.y)]), Kit.AMBER)
+		draw_line(Vector2(px, pl.position.y), Vector2(px, pl.end.y), Kit.INK, 2.2, true)   # you: an inked pointer
+		draw_colored_polygon(PackedVector2Array([Vector2(px - 7.0, pl.end.y + 9.0), Vector2(px + 7.0, pl.end.y + 9.0), Vector2(px, pl.end.y)]), Kit.INK)
 		var b := HistogramView.beats(d, v, hv.lower_better)
 		var txt := "beats %d%%" % int(roundf(b * 100.0)) if size.x < 330.0 else "better than %d%% of %d solutions" % [int(roundf(b * 100.0)), int(d["n"])]
 		if HistogramView.beats_median(d, v, hv.lower_better): txt += "  ·  beats median" if size.x < 330.0 else "  ·  beats the median"

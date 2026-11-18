@@ -134,9 +134,9 @@ static func hmax(t: Telemetry, k: String, floor_ := 1e-6) -> float:
 ## A tile: caption on top, big value, in a recessed well.
 static func _tile(c: Control, r: Rect2, cap: String, val: String, col: Color, big := 30) -> void:
 	var fz := Kit.fs(14)
-	c.draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 8, 0, false), r)
-	c.draw_string(Fonts.regular, Vector2(r.position.x + 9, r.position.y + float(fz) + 3.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14, fz, Kit.TEXT_SOFT)
-	c.draw_string(Fonts.bold, Vector2(r.position.x + 9, r.end.y - 8.0), val, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14, Kit.fs(big), col)
+	c.draw_style_box(Kit.sb(Gfx.SHEET, Kit.LINE, 1, 2, 0, false), r)
+	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 9, r.position.y + float(fz) + 3.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14, fz, Kit.TEXT)
+	c.draw_string(Gfx.mono(), Vector2(r.position.x + 9, r.end.y - 8.0), val, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14, Kit.fs(big), col.darkened(0.1) if col != Kit.TEXT else col)
 
 static func _tile_h(big := 30) -> float: return float(Kit.fs(big)) + float(Kit.fs(14)) + 18.0
 
@@ -147,8 +147,9 @@ static func _banner(c: Control, t: Telemetry, r: Rect2) -> float:
 		if t.t_ms >= float(e["t_ms"]) and t.t_ms <= float(e["t_ms"]) + float(e["dur_ms"]): banner = str(e["label"])
 	if banner == "": return 0.0
 	var bw := Fonts.bold.get_string_size(banner.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 24.0
-	Gfx.rounded_rect(c, Rect2(r.position.x, r.position.y, bw, float(fz) + 10.0), Color(Kit.exc(), 0.9), Kit.exc(), 7.0, 1.0)
-	c.draw_string(Fonts.bold, Vector2(r.position.x + 12.0, r.position.y + float(fz) + 3.0), banner.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, bw, fz, Kit.BENCH)
+	var br := Rect2(r.position.x, r.position.y, bw, float(fz) + 10.0)   # an event slip: ink-filled label with a sienna offset, like the primary button
+	c.draw_rect(Rect2(br.position + Vector2(3, 3), br.size), Kit.exc()); c.draw_rect(br, Kit.INK)
+	c.draw_string(Fonts.bold, Vector2(r.position.x + 12.0, r.position.y + float(fz) + 3.0), banner.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, bw, fz, Kit.PAPER)
 	return float(fz) + 16.0
 
 # ---------------------------------------------------------------- limb
@@ -359,28 +360,27 @@ static func _heart(c: Control, t: Telemetry, r: Rect2) -> void:
 ## The ECG strip: paper grid, the trace, the sweep position and the last R-R interval.
 static func _ecg_panel(c: Control, er: Rect2, beats: PackedFloat64Array, tn: float) -> void:
 	var fz := Kit.fs(14); var W := 5000.0
-	c.draw_rect(er, Color("#06100f", 0.92))
+	c.draw_rect(er, Color("#FBEFEA"))   # ECG paper: pale pink with a red grid
 	var t0 := tn - W; var base := er.position.y + er.size.y * 0.68; var amp := er.size.y * 0.50
 	var g := ceilf(t0 / 200.0) * 200.0   # paper: 200 ms minor, 1 s major
 	while g <= tn:
 		var gx := er.position.x + er.size.x * (g - t0) / W; var major := int(roundf(g / 200.0)) % 5 == 0
-		c.draw_line(Vector2(gx, er.position.y), Vector2(gx, er.end.y), Color(Kit.GREEN, 0.16 if major else 0.06), 1.0)
+		c.draw_line(Vector2(gx, er.position.y), Vector2(gx, er.end.y), Color(Kit.RED, 0.38 if major else 0.16), 1.0)
 		g += 200.0
 	for k in 4:
-		var gy := er.position.y + er.size.y * float(k + 1) / 5.0; c.draw_line(Vector2(er.position.x, gy), Vector2(er.end.x, gy), Color(Kit.GREEN, 0.06), 1.0)
-	c.draw_line(Vector2(er.position.x, base), Vector2(er.end.x, base), Color(Kit.GREEN, 0.18), 1.0)
-	c.draw_rect(er, Color(Kit.LINE, 0.9), false, 1.0)
+		var gy := er.position.y + er.size.y * float(k + 1) / 5.0; c.draw_line(Vector2(er.position.x, gy), Vector2(er.end.x, gy), Color(Kit.RED, 0.16), 1.0)
+	c.draw_rect(er, Color(Kit.INK, 0.6), false, 1.0)
 	if beats.is_empty():
 		c.draw_string(Fonts.regular, er.position + Vector2(10, float(fz) + 3.0), "ECG: waiting for the first beat", HORIZONTAL_ALIGNMENT_LEFT, er.size.x - 20.0, fz, Kit.TEXT_SOFT); return
 	var pl := ecg_points(beats, tn - W, tn, er, base, amp)
 	if pl.size() > 1:
-		c.draw_polyline(pl, Color(Kit.GREEN, 0.14), 7.0, true); c.draw_polyline(pl, Color(Kit.GREEN, 0.9), 1.7, true)
-		Gfx.glow(c, pl[pl.size() - 1], 12.0, Color(Kit.GREEN, 0.5)); c.draw_circle(pl[pl.size() - 1], 2.6, Color(1, 1, 1, 0.9))
+		c.draw_polyline(pl, Kit.INK, 1.5, true)
+		c.draw_circle(pl[pl.size() - 1], 3.2, Color(Gfx.SHEET, 0.9)); c.draw_circle(pl[pl.size() - 1], 2.2, Kit.INK)
 	var cap := "ECG, last 5 s"
 	if beats.size() >= 2: cap += "   R-R %d ms" % int(roundf(beats[beats.size() - 1] - beats[beats.size() - 2]))
 	var cw := Fonts.regular.get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 14.0
-	c.draw_rect(Rect2(er.position + Vector2(2, 2), Vector2(cw, float(fz) + 6.0)), Color(Kit.BENCH, 0.85))
-	c.draw_string(Fonts.regular, er.position + Vector2(8, float(fz) + 2.0), cap, HORIZONTAL_ALIGNMENT_LEFT, cw, fz, Kit.TEXT_SOFT)
+	c.draw_rect(Rect2(er.position + Vector2(2, 2), Vector2(cw, float(fz) + 6.0)), Color(Gfx.SHEET, 0.9))
+	c.draw_string(Gfx.serif_italic(), er.position + Vector2(8, float(fz) + 2.0), cap, HORIZONTAL_ALIGNMENT_LEFT, cw, fz, Kit.TEXT)
 
 # ---------------------------------------------------------------- lungs
 ## The lungs: the asymmetric pair with their bronchial tree inflating with volume (0..1), the diaphragm dome below flattening as it contracts, the phrenic nerves
@@ -422,7 +422,7 @@ static func _spark(c: Control, r: Rect2, arr: PackedFloat32Array, t: Telemetry, 
 		for i in range(arr.size() - n0, arr.size()): lo = minf(lo, arr[i]); hi = maxf(hi, arr[i])
 		if not is_nan(ref): lo = minf(lo, ref); hi = maxf(hi, ref)
 		var pad := maxf((hi - lo) * 0.1, 1e-6); lo -= pad; hi += pad
-	c.draw_rect(r, Color(Kit.BENCH, 0.6)); c.draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+	Gfx.chart_strip(c, r, 10.0)
 	if arr.size() < 2:
 		c.draw_string(Fonts.regular, r.position + Vector2(8, float(fz) + 2.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12, fz, Kit.TEXT_SOFT); return
 	var n := mini(arr.size(), int(window / 0.05)); var pl := PackedVector2Array(); var step := maxi(1, n / maxi(int(r.size.x / 2.0), 1))
@@ -431,10 +431,10 @@ static func _spark(c: Control, r: Rect2, arr: PackedFloat32Array, t: Telemetry, 
 	for i in range(arr.size() - n, arr.size(), step):
 		var u := float(i - (arr.size() - n)) / float(maxi(n - 1, 1))
 		pl.append(Vector2(r.position.x + r.size.x * u, yy.call(arr[i])))
-	if pl.size() > 1: c.draw_polyline(pl, Color(col, 0.25), 6.0, true); c.draw_polyline(pl, col, 1.8, true)
-	var lw := Fonts.regular.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 12.0   # the caption sits on a plate so the trace never runs through it
-	c.draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(lw, float(fz) + 6.0)), Color(Kit.BENCH, 0.85))
-	c.draw_string(Fonts.regular, r.position + Vector2(8, float(fz) + 2.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12, fz, Kit.TEXT_SOFT)
+	if pl.size() > 1: c.draw_polyline(pl, col, 1.6, true)
+	var lw := Gfx.serif_italic().get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 12.0   # the caption sits on a plate so the trace never runs through it
+	c.draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(lw, float(fz) + 6.0)), Color(Gfx.SHEET, 0.9))
+	c.draw_string(Gfx.serif_italic(), r.position + Vector2(8, float(fz) + 2.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12, fz, Kit.TEXT)
 
 # ---------------------------------------------------------------- eye
 ## An eye: the iris with its radial dilator fibres (amber, sympathetic) and the circular sphincter at the pupil margin (cyan, parasympathetic), the pupil of
@@ -550,8 +550,8 @@ static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, 
 	if unit == "": unit = str(pretty(key)[1])
 	var title := str(pretty(key)[0])
 	var cap := title if unit == "" or title.contains(unit) else "%s (%s)" % [title, unit]
-	c.draw_style_box(Kit.sb(Kit.WELL, Color(col, 0.55), 1, 10, 0, false), r)
-	c.draw_string(Fonts.regular, r.position + Vector2(10, float(fz) + 4.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, fz, Kit.TEXT_SOFT)
+	c.draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.55), 1, 2, 0, false), r)
+	c.draw_string(Gfx.serif_italic(), r.position + Vector2(10, float(fz) + 4.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, fz, Kit.TEXT_SOFT)
 	var vtxt := _n(v, 0 if absf(v) >= 100.0 else 1)
 	if compact:   # a bar with the band marked and a marker at the value
 		var bx := Rect2(r.position.x + 10.0, r.end.y - 18.0, r.size.x - 20.0, 8.0)
@@ -565,23 +565,23 @@ static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, 
 	var rad := minf(r.size.x * 0.34, gh / 1.8); var cc := Vector2(r.get_center().x, r.position.y + float(fz) + 12.0 + rad)
 	var a0 := PI * 0.5 + deg_to_rad(60.0); var sweep := deg_to_rad(240.0)
 	var ang := func(x: float) -> float: return a0 + sweep * clampf((x - glo) / (ghi - glo), 0.0, 1.0)
-	c.draw_arc(cc, rad, a0, a0 + sweep, 48, Color(Kit.LINE, 0.9), 8.0, true)
-	for k in 13:   # ticks
-		var a := a0 + sweep * float(k) / 12.0; var dv := Vector2(cos(a), sin(a))
-		c.draw_line(cc + dv * (rad + 7.0), cc + dv * (rad + (11.0 if k % 3 == 0 else 8.5)), Color(Kit.TEXT_SOFT, 0.55), 1.2, true)
-	c.draw_arc(cc, rad, ang.call(lo), ang.call(hi), 28, Color(Kit.GREEN, 0.92), 8.0, true)
+	# a needle gauge engraved on the plate: an inked dial rim, fine ticks, the band as a hatched green sector, a slim ink needle
+	c.draw_arc(cc, rad + 4.0, a0, a0 + sweep, 48, Color(Kit.INK, 0.85), 1.4, true)
+	for k in 25:   # ticks
+		var a := a0 + sweep * float(k) / 24.0; var dv := Vector2(cos(a), sin(a))
+		c.draw_line(cc + dv * (rad + 4.0), cc + dv * (rad - (7.0 if k % 6 == 0 else 3.5)), Color(Kit.INK, 0.75), 1.2 if k % 6 == 0 else 1.0, true)
+	c.draw_arc(cc, rad - 6.0, ang.call(lo), ang.call(hi), 28, Color(Kit.GREEN, 0.85), 5.0, true)
 	var na: float = ang.call(v); var dn := Vector2(cos(na), sin(na)); var tip := cc + dn * (rad - 2.0)
-	Gfx.glow(c, tip, rad * 0.4, Color(col, 0.3))
-	var nl := PackedVector2Array([cc + dn.orthogonal() * 4.0, tip, cc - dn.orthogonal() * 4.0, cc - dn * 8.0])
-	c.draw_colored_polygon(nl, col); c.draw_circle(cc, 7.0, col); c.draw_circle(cc, 3.0, Kit.BENCH)
-	c.draw_string(Fonts.bold, Vector2(r.position.x, cc.y + rad * 0.78), vtxt, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, Kit.fs(24), col)
+	var nl := PackedVector2Array([cc + dn.orthogonal() * 2.6, tip, cc - dn.orthogonal() * 2.6, cc - dn * 10.0])
+	c.draw_colored_polygon(nl, Kit.INK); c.draw_circle(cc, 6.0, Kit.INK); c.draw_circle(cc, 2.4, Gfx.SHEET)
+	c.draw_string(Gfx.mono(), Vector2(r.position.x, cc.y + rad * 0.78), vtxt, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, Kit.fs(24), col.darkened(0.1))
 	var sr := Rect2(r.position.x + 10.0, r.end.y - spark_h - 6.0, r.size.x - 20.0, spark_h)
 	if arr.size() > 2:
 		var n := mini(arr.size(), 400); var pl := PackedVector2Array(); var step := maxi(1, n / maxi(int(sr.size.x / 2.0), 1))
 		for i in range(arr.size() - n, arr.size(), step): pl.append(Vector2(sr.position.x + sr.size.x * float(i - (arr.size() - n)) / float(maxi(n - 1, 1)), sr.end.y - sr.size.y * clampf((arr[i] - glo) / (ghi - glo), 0, 1)))
 		var bt := sr.end.y - sr.size.y * (hi - glo) / (ghi - glo); var bb := sr.end.y - sr.size.y * (lo - glo) / (ghi - glo)
-		c.draw_rect(Rect2(sr.position.x, bt, sr.size.x, bb - bt), Color(Kit.GREEN, 0.14))
-		c.draw_polyline(pl, Color(col, 0.9), 1.6, true)
+		c.draw_rect(Rect2(sr.position.x, bt, sr.size.x, bb - bt), Color(Kit.GREEN, 0.12))
+		c.draw_polyline(pl, Kit.INK, 1.4, true)
 
 static func _tiles(c: Control, t: Telemetry, r: Rect2, keys: Array, d: Dictionary) -> void:
 	if keys.is_empty(): return
@@ -590,10 +590,10 @@ static func _tiles(c: Control, t: Telemetry, r: Rect2, keys: Array, d: Dictionar
 	for i in keys.size():
 		var cr := Rect2(r.position + Vector2(cw * float(i % cols), chh * float(i / cols)), Vector2(cw, chh)).grow(-3.0)
 		if cr.end.y > r.end.y + 1.0: break
-		c.draw_style_box(Kit.sb(Kit.WELL, Kit.LINE, 1, 8, 0, false), cr)
-		c.draw_string(Fonts.regular, cr.position + Vector2(8, float(fz) + 2.0), titled(str(keys[i])), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 12.0, fz, Kit.TEXT_SOFT)
+		c.draw_style_box(Kit.sb(Gfx.SHEET, Kit.LINE, 1, 2, 0, false), cr)
+		c.draw_string(Gfx.serif_italic(), cr.position + Vector2(8, float(fz) + 2.0), titled(str(keys[i])), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 12.0, fz, Kit.TEXT_SOFT)
 		var arr := hist(t, str(keys[i]))
-		c.draw_string(Fonts.bold, Vector2(cr.position.x + 8.0, cr.end.y - 7.0), num(rv(d, str(keys[i])), str(keys[i])), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x * 0.5, Kit.fs(20), Kit.TEXT)
+		c.draw_string(Gfx.mono(), Vector2(cr.position.x + 8.0, cr.end.y - 7.0), num(rv(d, str(keys[i])), str(keys[i])), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x * 0.5, Kit.fs(20), Kit.TEXT)
 		if arr.size() > 2 and cr.size.x > 150.0:
 			var lo := arr[0]; var hi := arr[0]
 			for q in arr: lo = minf(lo, q); hi = maxf(hi, q)
