@@ -75,6 +75,8 @@ public:
     return { { "go", in_kind( "dc", 100, 3 ) }, { "target", in_kind( "dc", 40, 3 ) }, { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 250 ) } };
   }
   double duration_ms() const override { return kDuration; }
+  /// Quick check: the first two reaches (0.4 and 0.7 rad), each shown for its whole display; the same rules as the full episode (a full run judges all three).
+  double quick_duration_ms() const override { return kLead + kSpacing + kJitter + kShow; }
   int par_neurons() const override { return variant_par( variant_, 55 ); }
 
   // ---- v0.3 ----
@@ -95,29 +97,31 @@ public:
   {
     Score s = score();
     std::vector< Hint > h;
+    if ( wiring_.ok() && mech_hints( h, "A fast reach is a triphasic burst: the agonist burst accelerates the limb, a later antagonist burst brakes it, and the reflex holds it on the target." ) )
+      return h;
     if ( s.parts[ "premature_rad" ] > lim_creep() )
     {
       h.push_back( make_hint( 1, "A pattern generator must stay quiet until it is triggered: the pools should be nearly silent at rest.", "" ) );
       h.push_back( make_hint( 2, "The arm creeps before 'go': lower the tonic drive onto the pools.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "Drive weight about 250 pA so the pools are nearly silent at rest.", "" ) );
+      h.push_back( make_hint( 3, "Lower the tonic drive weight until the pools are nearly silent at rest.", "" ) );
     }
     else if ( s.parts[ "worst_overshoot" ] > lim_over() )
     {
       h.push_back( make_hint( 1, "Timed bursts: the agonist burst accelerates, then a delayed antagonist burst brakes. Without the brake the limb overshoots.", "" ) );
       h.push_back( make_hint( 2, "The braking burst is too weak or too late.", "ant_motor" ) );
-      h.push_back( make_hint( 3, "B1 > B2 with a delay of about 150 ms, B2 > ant_motor at 200 pA, B2 > B3 with 100 ms delay for the final clamp.", "" ) );
+      h.push_back( make_hint( 3, "Delay the second burst group behind the first with a long link delay, make it excite the antagonist pool strongly, and let a third delayed group give the final clamp.", "" ) );
     }
     else if ( s.parts[ "good_reaches" ] < s.parts[ "reaches_done" ] && s.parts[ "worst_reach_ms" ] > lim_reach() )
     {
       h.push_back( make_hint( 1, "The first agonist burst sets the speed. It must be strong and start at the 'go' cue.", "" ) );
       h.push_back( make_hint( 2, "The first burst is too weak or late.", "ag_motor" ) );
-      h.push_back( make_hint( 3, "go > relay > B1 (4 cells, tau syn 50 ms) at 600, B1 > ag_motor at 800; the bursts are thresholded, so a small change of the go weight changes their size a lot.", "" ) );
+      h.push_back( make_hint( 3, "Strengthen go > relay > B1 and B1 > ag_motor; the bursts are thresholded, so a small change of the go weight changes their size a lot.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "The target input must set where the arm holds after the bursts: equilibrium-point control.", "" ) );
       h.push_back( make_hint( 2, "The final angle does not match the target.", "target" ) );
-      h.push_back( make_hint( 3, "target (weight 3) > relay > ag_motor +1500 and > ant_motor -450.", "" ) );
+      h.push_back( make_hint( 3, "Send target through a relay with a strong excitatory link onto ag_motor and a weaker inhibitory link onto ant_motor, then trim the balance until the final angle matches.", "" ) );
     }
     return h;
   }
@@ -163,26 +167,31 @@ public:
     s.parts[ "worst_reach_ms" ] = m.worst_reach_ms;
     s.parts[ "good_reaches" ] = m.good;
     s.parts[ "reaches_done" ] = m.done;
-    const bool done = t_ >= kDuration;
+    const bool done = t_ >= quick_duration_ms() - 1e-6;  // the quick check's length: two reaches (a full run has three)
+    const mechb::Issue* mech = mech_bad();
     s.value = m.value;
-    s.passed = done && m.done >= kN && m.good >= kN && m.premature <= lim_creep() && wiring_.ok();
+    if ( mech )
+      s.value = std::min( s.value, 40.0 );  // behaviour without the mechanism the level teaches is not a solution (docs/REQ-0.4.md rule 1)
+    s.passed = done && m.done >= 2 && m.good >= m.done && !mech && m.premature <= lim_creep() && wiring_.ok();
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( mech )
+      o << mech->fail;
     else if ( m.done == 0 )
       o << "Waiting for the first target" << yet;
     else if ( m.premature > lim_creep() )
-      o << "The arm creeps " << std::setprecision( 2 ) << m.premature << " rad before the go cue (limit " << lim_creep() << "): the target input must not move it until 'go'.";
+      o << "The arm creeps before the go cue: the target input and the tonic drive must not move it until 'go'.";
     else if ( m.good < m.done && m.never > 0 )
-      o << "The arm does not reach the target: " << m.never << " of " << m.done << " reaches never settle within 0.10 rad.";
+      o << "The arm does not reach the target: some reaches never settle close to it.";
     else if ( m.good < m.done && m.worst_over > lim_over() )
-      o << "Worst overshoot " << m.worst_over * 100 << "% of the distance (limit " << lim_over() * 100 << "%): the braking (antagonist) burst is too weak or too late.";
+      o << "The arm overshoots the target too far: the braking (antagonist) burst is too weak or too late.";
     else if ( m.good < m.done && m.worst_reach_ms > lim_reach() )
-      o << "The slowest reach takes " << m.worst_reach_ms << " ms (limit " << lim_reach() << "): the first (agonist) burst is too weak or too late.";
+      o << "The slowest reach is too slow: the first (agonist) burst is too weak or too late.";
     else if ( m.good < m.done )
-      o << "The worst reach ends " << std::setprecision( 2 ) << m.worst_final << " rad from the target (limit " << lim_final() << "): the hold command does not match the target.";
+      o << "The worst reach ends too far from the target: the hold command does not match the target.";
     else
       o << ( done ? "All reaches good: " : "Good so far: " ) << m.reach_ms << " ms, overshoot " << m.overshoot * 100 << "%.";
     s.verdict = o.str();
@@ -190,6 +199,7 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< mechb::Issue >& out ) const override { mechb::limb_burst( g, out ); }
   // Between reaches a light manipulandum brings the forearm back to the start (a spring-damper toward the rest angle, 30 N m/rad and
   // 3 N m s/rad, at most 8 N m) during 1500 ms after each display, so that every reach starts from rest.
   double torque( double t ) const override
@@ -309,7 +319,7 @@ private:
     {
       m.overshoot = so / m.done;
       m.final_err = sf / m.done;
-      m.value = 100.0 * val / kN - 10.0 * ( m.premature / 0.05 );
+      m.value = 100.0 * val / std::max( m.done, 2 ) - 10.0 * ( m.premature / 0.05 );
       if ( m.value < 0 )
         m.value = 0;
     }

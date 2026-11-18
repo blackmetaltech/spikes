@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "mech_b.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -105,6 +106,14 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, info_.sensors, info_.motors );
+    if ( !inspected_ )  // the circuit as the run starts (before any slice): mechanism criteria are judged on its structure
+    {
+      inspected_ = true;
+      graph_.capture( e );
+      mech_.clear();
+      if ( graph_.valid() )
+        mechanism( graph_, mech_ );
+    }
     drive( e, dt );
     e.step( dt );
     t_ += dt;
@@ -118,7 +127,10 @@ public:
     Score s;
     std::vector< Crit > cs;
     std::string pass_msg;
-    measure( s.parts, cs, pass_msg );
+    collect( s.parts, cs, pass_msg );
+    bool mech_ok = true;
+    for ( const auto& c : mech_ )
+      mech_ok = mech_ok && c.ok;
     int met = 0;
     double soft = 0;
     const Crit* bad = nullptr;
@@ -135,6 +147,8 @@ public:
     s.value = s.passed ? 100.0 : 85.0 * soft / std::max< size_t >( cs.size(), 1 );
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 30.0 );  // a circuit that leaves a channel unwired has not tried the puzzle yet
+    if ( !mech_ok )
+      s.value = std::min( s.value, 40.0 );  // behaviour without the mechanism the level teaches is not a solution (docs/REQ-0.4.md rule 1)
     if ( !s.passed && silent() )
       s.value = 0;  // nothing fired anywhere: staying quiet at rest is not partial credit
     s.parts[ "criteria_met" ] = met;
@@ -155,7 +169,7 @@ public:
     Score tmp;
     std::vector< Crit > cs;
     std::string pm;
-    measure( tmp.parts, cs, pm );
+    collect( tmp.parts, cs, pm );
     const Crit* bad = nullptr;
     for ( const auto& c : cs )
       if ( !c.ok )
@@ -178,6 +192,9 @@ protected:
   {
     rng_ = Rng( seed ^ hash_id() );
     t_ = 0;
+    inspected_ = false;
+    mech_.clear();
+    graph_.clear();
     wiring_.invalidate();
     motor_.invalidate();
     cum_.clear();
@@ -194,9 +211,31 @@ protected:
   virtual void plant( double dt ) {}
   /// Dashboard readouts, called after every slice.
   virtual void update_readouts() {}
+  /// Mechanism criteria (docs/REQ-0.4.md rule 1), judged on the circuit structure captured when the run starts. Each criterion that fails names the
+  /// missing part of the mechanism in words (no numbers); they speak before the behaviour criteria. Default: none.
+  virtual void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const { (void)g; (void)out; }
+  /// A mechanism criterion: `ok` when the structure has the part; the rest is the verdict and the hint tiers 2 and 3 (words only).
+  static Crit mech( const std::string& key, bool ok, const std::string& fail, const std::string& place, const std::string& target, const std::string& direction )
+  {
+    Crit c;
+    c.key = key;
+    c.ok = ok;
+    c.soft = 0.0;
+    c.fail = fail;
+    c.place = place;
+    c.target = target;
+    c.recipe = direction;
+    return c;
+  }
   /// Fill the score parts and the criteria from the recorded windows; pass_msg is the verdict of a passed run.
   virtual void measure( std::map< std::string, double >& parts, std::vector< Crit >& crits, std::string& pass_msg ) const = 0;
 
+  /// The criteria in speaking order: the mechanism first, then the behaviour.
+  void collect( std::map< std::string, double >& parts, std::vector< Crit >& cs, std::string& pass_msg ) const
+  {
+    measure( parts, cs, pass_msg );
+    cs.insert( cs.begin(), mech_.begin(), mech_.end() );
+  }
   bool done() const { return t_ >= info_.duration_ms - 1e-6; }
   /// True while no motor channel has fired a single spike.
   bool silent() const
@@ -275,6 +314,9 @@ protected:
   Rng rng_;
   double t_ = 0;
   std::map< std::string, double > readouts_;
+  mechb::Graph graph_;
+  std::vector< Crit > mech_;
+  bool inspected_ = false;
 
 private:
   void record( Engine& e, double dt )

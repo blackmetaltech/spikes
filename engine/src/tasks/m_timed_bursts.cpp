@@ -61,11 +61,11 @@ public:
     i.bands = {};
     i.timeline = { { 600, kGoLen, "go" }, { 2000, kGoLen, "go" } };
     i.concept_hint = "A pattern generator: a trigger plus delays between groups of cells gives a fixed sequence of bursts. A synaptic delay turns "
-                     "'the first group fired' into 'the second fires 120 ms later'.";
+                     "'the first group fired' into 'the second fires a moment later'.";
     i.generic_hints = { { 1, i.concept_hint, "" },
-      { 2, "Look at the links between the groups: each must be strong enough to fire the next group and carry a delay of about 120 ms.", "b2" },
-      { 3, "go onto group 1 (4 cells, read out on b1). Group 1 onto group 2 (4 cells, b2) at about 300 pA with delay 120 ms; group 2 onto group 3 "
-           "(4 cells, b3) the same.", "b2" } };
+      { 2, "Look at the links between the groups: each must be strong enough to fire the next group and carry a delay about as long as the pause you want between bursts.", "b2" },
+      { 3, "go goes onto a first group read out on b1. The first group projects onto a second group (b2), and the second onto a third (b3). Make each link strong "
+           "enough to fire the next group and give each a long delay, as long as the pause between bursts should be.", "b2" } };
     i.note = { "The triphasic pattern",
       "When you flick your forearm quickly, the biceps fires a burst, then the triceps brakes it, then the biceps fires again to hold "
       "the arm. The three bursts are 100-200 ms apart and come out the same each time, which shows that the sequence is generated centrally "
@@ -90,6 +90,29 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // a chain of three different groups, each driven by the one before it, started by 'go'
+    const auto b1 = g.out_pops( "b1" ), b2 = g.out_pops( "b2" ), b3 = g.out_pops( "b3" );
+    auto disjoint = []( const mechb::PopSet& a, const mechb::PopSet& b ) {
+      for ( int x : a )
+        if ( b.count( x ) )
+          return false;
+      return true;
+    };
+    const bool three = !b1.empty() && !b2.empty() && !b3.empty() && disjoint( b1, b2 ) && disjoint( b2, b3 ) && disjoint( b1, b3 );
+    const bool l12 = three && g.exc( b1, b2, 3 ), l23 = three && g.exc( b2, b3, 3 );
+    out.push_back( mech( "three_groups", three, "The three bursts are not read from three different groups: a chain needs a group for b1, another for b2 and another for b3.",
+                         "Each burst needs its own group of cells.", "b2", "Make three groups, one read out on each of b1, b2 and b3." ) );
+    out.push_back( mech( "chain", l12 && l23,
+                         std::string( "The groups are not a chain: " ) + ( !l12 ? "nothing drives the b2 group from the b1 group" : "nothing drives the b3 group from the b2 group" ) +
+                         ", so one burst cannot release the next.",
+                         "The links between the groups: b1's group must excite b2's group, and b2's group must excite b3's group.", "b2",
+                         "Link the groups forward with excitatory projections and give each link a delay." ) );
+    out.push_back( mech( "trigger", g.exc( g.in_pops( "go" ), b1, 3 ), "The 'go' trigger does not drive the first group of the chain.",
+                         "'go' must start the first group, the one read out on b1.", "go", "Connect 'go' to the group read out on b1." ) );
+  }
+
   double go_start( int k ) const { return ( k == 0 ? 600.0 : 2000.0 ) + j_; }
 
   void drive( Engine& e, double ) override
@@ -143,12 +166,12 @@ protected:
         if ( st[ i ].empty() )
         {
           all_fire = false;
-          if ( miss.empty() ) miss = std::string( kPool[ i ] ) + " never burst after the go at " + fmt( g / 1000.0, 1 ) + " s";
+          if ( miss.empty() ) miss = std::string( kPool[ i ] ) + " never bursts after a go";
         }
         if ( st[ i ].size() > 1 )
         {
           single = false;
-          if ( rep.empty() ) rep = std::string( kPool[ i ] ) + " burst " + std::to_string( st[ i ].size() ) + " times after one go";
+          if ( rep.empty() ) rep = std::string( kPool[ i ] ) + " bursts more than once after one go";
         }
       }
       if ( st[ 0 ].empty() || st[ 1 ].empty() || st[ 2 ].empty() ) continue;
@@ -160,7 +183,7 @@ protected:
       {
         order = false;
         if ( bad_order.empty() )
-          bad_order = "the bursts came at " + fmt( s1 - g ) + ", " + fmt( s2 - g ) + " and " + fmt( s3 - g ) + " ms after go";
+          bad_order = std::string( s1 < s2 && s2 < s3 ? "the bursts are in order but the first starts too late" : "the bursts do not come in the order b1, b2, b3" );
       }
       const double g12 = s2 - s1, g23 = s3 - s2;
       gap_seen[ k ][ 0 ] = g12;
@@ -172,7 +195,7 @@ protected:
         if ( gp < lo || gp > hi )
         {
           rhythm = false;
-          if ( bad_rhythm.empty() ) bad_rhythm = "the bursts were " + fmt( g12 ) + " and " + fmt( g23 ) + " ms apart";
+          if ( bad_rhythm.empty() ) bad_rhythm = std::string( "the bursts are " ) + ( gp > hi ? "too far apart" : "too close together" );
         }
       }
     }
@@ -183,22 +206,22 @@ protected:
     q.key = "quiet";
     q.ok = early <= 2;
     q.soft = 1.0 - ramp( early, 2, 40 );
-    q.fail = "The pools fire on their own before the first go (" + fmt( early ) + " spikes in 0.15-0.5 s): the cells are driven by something other than the trigger. "
-             "Check the biases of the cells (a bias above about 375 pA makes a cell fire alone).";
+    q.fail = "The pools fire on their own before the first go: the cells are driven by something other than the trigger. "
+             "Check the biases of the cells (a bias that is too high makes a cell fire alone).";
     q.place = "A pool that fires without a go: its cells have a bias current that makes them fire by themselves.";
     q.target = "b1";
-    q.recipe = "Leave the bias at 0 on every group: the cells should wait for their input.";
+    q.recipe = "Leave the bias at zero on every group: the cells should wait for their input.";
     crits.push_back( q );
 
     Crit a;
     a.key = "all_three";
     a.ok = all_fire;
     a.soft = all_fire ? 1.0 : 0.3;
-    a.fail = miss + ": a group does not fire strongly enough. Strengthen the link into it (the default 80 pA is far too weak for a relay): the weight "
-             "needed times the number of cells in the previous group is about 1200 pA, or give the previous group more cells.";
+    a.fail = miss + ": a group does not fire strongly enough. Strengthen the link into it (the default weight is far too weak for a relay), "
+             "or give the previous group more cells.";
     a.place = "The first link in the chain that is too weak: the group after it never gets enough input to burst.";
     a.target = miss.rfind( "b3", 0 ) == 0 ? "b3" : "b2";
-    a.recipe = "go onto group 1 (4 cells); group 1 onto group 2 and group 2 onto group 3 (4 cells each) at about 300 pA with delay 120 ms.";
+    a.recipe = "Make each link in the chain strong enough that the whole previous group firing makes the next group fire; more cells in a group lowers the weight needed.";
     crits.push_back( a );
 
     Crit s;
@@ -215,7 +238,7 @@ protected:
     o.key = "order";
     o.ok = order;
     o.soft = order ? 1.0 : 0.4;
-    o.fail = "Wrong order or too slow a start: " + bad_order + ". b1 must start within 120 ms of the go, then b2, then b3.";
+    o.fail = "Wrong order or too slow a start: " + ( bad_order.empty() ? std::string( "a burst is missing" ) : bad_order ) + ". b1 must start soon after the go, then b2, then b3.";
     o.place = "The first group must be driven straight by 'go' and the others behind it, in order.";
     o.target = "go";
     o.recipe = "go onto group 1 only; group 1 onto group 2 only; group 2 onto group 3 only.";
@@ -226,11 +249,11 @@ protected:
     r.ok = rhythm;
     double mean_gap = nint ? ( gap_seen[ 0 ][ 0 ] + gap_seen[ 0 ][ 1 ] + gap_seen[ 1 ][ 0 ] + gap_seen[ 1 ][ 1 ] ) / 4.0 : 0.0;
     r.soft = rhythm ? 1.0 : 0.5;
-    r.fail = "The gaps are off: " + ( bad_rhythm.empty() ? std::string( "bursts missing" ) : bad_rhythm ) + " (they must be " + fmt( lo ) + "-" + fmt( hi ) +
-             " ms). " + ( mean_gap > hi ? "Shorten the delay of the links." : "Lengthen the delay of the links (a delay of about 120 ms) so each burst waits for the one before." );
+    r.fail = "The gaps are off: " + ( bad_rhythm.empty() ? std::string( "bursts missing" ) : bad_rhythm ) + ". " +
+             ( mean_gap > hi ? "Shorten the delay of the links." : "Lengthen the delay of the links so each burst waits for the one before." );
     r.place = "The delay of the links between the groups sets the interval between bursts.";
     r.target = "b2";
-    r.recipe = "Set the delay of group 1 -> group 2 and group 2 -> group 3 to about 120 ms each.";
+    r.recipe = "Set the delay of the link between the first and second group, and of the one between the second and third, to the pause you want between bursts.";
     crits.push_back( r );
 
     pass_msg = "Three bursts in order after each go, " + fmt( parts.count( "gap12_ms_trial1" ) ? parts[ "gap12_ms_trial1" ] : 0 ) + " and " +

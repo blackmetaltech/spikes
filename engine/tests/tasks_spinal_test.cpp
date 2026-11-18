@@ -4,10 +4,12 @@
 //   tasks_spinal_test                       the CTest
 //   tasks_spinal_test run <task>[=circuit.json] [seeds=1,2,3] [pre>post*factor ...]
 //                                           tuning aid: run a spinal reference circuit (or a lesion of it), print the score parts.
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
+#include <set>
 #include <sstream>
 #include "check.h"
 #include "nlohmann/json.hpp"
@@ -38,9 +40,9 @@ static void apply( json& c, const Lesion& l )
   CHECK_MSG( hit, "lesion " + l.pre + ">" + l.post + " matched no projection" );
 }
 
-struct RunResult { Score score; std::map< std::string, double > rate_hz; double wall_s = 0; bool loaded = false; std::string error; };
+struct RunResult { Score score; std::vector< Task::Hint > hints; std::map< std::string, double > rate_hz; double wall_s = 0; bool loaded = false; std::string error; };
 
-static RunResult run_one( const std::string& task_id, const json& circuit_in, uint64_t seed )
+static RunResult run_one( const std::string& task_id, const json& circuit_in, uint64_t seed, bool quick = false )
 {
   RunResult r;
   Engine e;
@@ -59,7 +61,7 @@ static RunResult run_one( const std::string& task_id, const json& circuit_in, ui
   for ( int i = 0; i < e.neuron_count(); ++i )
     ++sizes[ e.neuron_population( i ) ];
   auto t0 = std::chrono::steady_clock::now();
-  const long steps = static_cast< long >( task->duration_ms() );
+  const long steps = static_cast< long >( quick ? task->quick_duration_ms() : task->duration_ms() );
   for ( long s = 0; s < steps; ++s )
   {
     task->step( e, 1.0 );
@@ -73,6 +75,7 @@ static RunResult run_one( const std::string& task_id, const json& circuit_in, ui
   for ( auto& [ pop, n ] : sizes )
     r.rate_hz[ pop ] = counts[ pop ] / ( double )n / ( task->duration_ms() / 1000.0 );
   r.score = task->score();
+  r.hints = task->hints();
   r.error = e.error();
   return r;
 }
@@ -214,6 +217,110 @@ static json renshaw_plain_desc()
 }
 
 
+// ---- the non-circular novice (docs/REQ-0.4.md rule 4) ----
+// It reads only the BRIEF and uses the lab's defaults: the part the parts picker opens on (iaf_psc_alpha), the first-connect weight the task declares for each
+// sensor (Task::channel_kinds), delay 2 ms, "a pool" of 12 cells and "a few" (4) cells for a small group, all-to-all links, "set to inhibitory" = a negative weight.
+// It may not read recipe(), hint tier 3 or the reference. It searches a coarse grid of at most 8 runs on the quick episode (the game's CHECK), seed 1, and a pass
+// is confirmed on seeds 2 and 3. The levels it cannot solve are reported, never hidden.
+struct NTry { std::string what; json circuit; };
+
+static double first_connect( const std::string& task, const std::string& sensor )
+{
+  auto kinds = make_task( task )->channel_kinds();
+  auto it = kinds.find( sensor );
+  return it != kinds.end() && it->second.weight > 0 ? it->second.weight : 300.0;
+}
+
+/// The stretch reflex of the brief: sensors onto pools (the afferent IS the sensor), tonic drive onto both pools, Ia onto an inhibitory group that projects onto the opposing pool.
+static Bench brief_reflex( const std::string& task, double drive, double ia, double inh )
+{
+  Bench b;
+  b.pop( "MNF", 12 ).pop( "MNE", 12 ).pop( "INF", 4 ).pop( "INE", 4 );
+  b.in( "ag_Ia", "dc", ia, { "MNF", "INF" } ).in( "ant_Ia", "dc", ia, { "MNE", "INE" } ).in( "drive", "dc", drive, { "MNF", "MNE" } );
+  b.proj( "INF", "MNE", -inh ).proj( "INE", "MNF", -inh );
+  b.out( "ag_motor", { "MNF" } ).out( "ant_motor", { "MNE" } );
+  (void)task;
+  return b;
+}
+
+static std::vector< NTry > novice_tries( const std::string& task )
+{
+  std::vector< NTry > v;
+  if ( task == "stretch_reflex" )
+  {
+    const double d0 = first_connect( task, "drive" ), ia0 = first_connect( task, "ag_Ia" );
+    for ( double drive : { d0, d0 + 80 } )
+      for ( double ia : { ia0, 2 * ia0 } )
+        for ( double inh : { 160.0, 320.0 } )
+          v.push_back( { "drive " + std::to_string( static_cast< int >( drive ) ) + ", Ia " + std::to_string( static_cast< int >( ia ) ) + ", inhibition -" + std::to_string( static_cast< int >( inh ) ), brief_reflex( task, drive, ia, inh ).c } );
+  }
+  else if ( task == "renshaw" )
+  {
+    // the brief: "add Renshaw cells to your stretch reflex: motoneurons excite them, they inhibit their own motoneurons (and the Ia interneurons and the opposite Renshaw
+    // cells); background noise reaches both pools through shared fibres ... cells that carry the noise to the pools must repeat every spike (parrot_neuron)"
+    const double d0 = first_connect( task, "drive" ), ia0 = first_connect( task, "ag_Ia" ), n0 = first_connect( task, "noise" );
+    for ( double w : { 80.0, 160.0, 320.0, 640.0 } )
+      for ( double shared : { 30.0, 60.0 } )
+      {
+        Bench b = brief_reflex( task, d0, ia0, 160 );
+        b.pop( "DESC", 2, json::object(), "parrot_neuron" ).pop( "RF", 4 ).pop( "RE", 4 );
+        b.in( "noise", "poisson", n0, { "DESC" } );
+        b.proj( "DESC", "MNF", shared ).proj( "DESC", "MNE", shared );
+        b.proj( "MNF", "RF", w ).proj( "MNE", "RE", w ).proj( "RF", "MNF", -w ).proj( "RE", "MNE", -w ).proj( "RF", "INF", -40 ).proj( "RE", "INE", -40 ).proj( "RF", "RE", -w ).proj( "RE", "RF", -w );
+        v.push_back( { "Renshaw loop " + std::to_string( static_cast< int >( w ) ) + ", shared noise fibres " + std::to_string( static_cast< int >( shared ) ), b.c } );
+      }
+  }
+  else if ( task == "posture" )
+  {
+    // the brief: spindle afferents to the pools; a gamma pool driven from the descending tone; the flexor gets more tone than the extensor
+    const double s0 = first_connect( task, "ag_Ia" ), d0 = first_connect( task, "drive" );
+    for ( double flex : { 10.0, 40.0 } )
+      for ( double sens : { s0 / 6, s0 / 2 } )
+        for ( double gam : { 480.0, 960.0 } )
+        {
+          Bench b;
+          b.pop( "MNF", 12 ).pop( "MNE", 12 ).pop( "TONIC", 6, { { "tau_m", 60.0 } } ).pop( "GAM", 4 );
+          b.in( "ag_Ia", "dc", sens, { "MNF" } ).in( "ag_II", "dc", sens, { "MNF" } ).in( "ant_Ia", "dc", sens, { "MNE" } ).in( "ant_II", "dc", sens, { "MNE" } ).in( "drive", "dc", d0, { "TONIC" } );
+          b.proj( "TONIC", "MNF", flex ).proj( "TONIC", "MNE", flex / 4 ).proj( "TONIC", "GAM", gam );
+          b.out( "ag_motor", { "MNF" } ).out( "ant_motor", { "MNE" } ).out( "gamma_motor", { "GAM" } );
+          v.push_back( { "flexor tone " + std::to_string( static_cast< int >( flex ) ) + ", spindle weight " + std::to_string( sens ).substr( 0, 4 ) + ", gamma " + std::to_string( static_cast< int >( gam ) ), b.c } );
+        }
+  }
+  else if ( task == "reach" )
+  {
+    // the brief: a pattern generator that starts on 'go', scales with 'target', times three bursts with delays; drive both pools; keep the reflex to hold
+    const double g0 = first_connect( task, "go" ), t0 = first_connect( task, "target" ), d0 = first_connect( task, "drive" ), ia0 = first_connect( task, "ag_Ia" );
+    for ( double burst : { 300.0, 600.0, 1200.0, 2400.0 } )
+      for ( double hold : { 750.0, 1500.0 } )
+      {
+        Bench b = brief_reflex( task, d0, ia0, 160 );
+        b.pop( "B1", 4 ).pop( "B2", 4 ).pop( "B3", 4 ).pop( "TGT", 3 );
+        b.in( "go", "dc", g0, { "B1" } ).in( "target", "dc", t0, { "TGT" } );
+        b.proj( "B1", "MNF", burst ).proj( "B1", "B2", burst, 150 ).proj( "B2", "MNE", burst ).proj( "B2", "B3", burst, 100 ).proj( "B3", "MNF", burst / 2 );
+        b.proj( "TGT", "MNF", hold ).proj( "TGT", "MNE", -hold / 3 );
+        v.push_back( { "bursts " + std::to_string( static_cast< int >( burst ) ) + ", hold command " + std::to_string( static_cast< int >( hold ) ), b.c } );
+      }
+  }
+  return v;
+}
+
+static bool has_number( const std::string& s )
+{
+  size_t i = 0;
+  while ( i < s.size() )
+  {
+    if ( std::isalpha( static_cast< unsigned char >( s[ i ] ) ) || s[ i ] == '_' )
+    {
+      while ( i < s.size() && ( std::isalnum( static_cast< unsigned char >( s[ i ] ) ) || s[ i ] == '_' ) ) ++i;
+      continue;
+    }
+    if ( std::isdigit( static_cast< unsigned char >( s[ i ] ) ) ) return true;
+    ++i;
+  }
+  return false;
+}
+
+
 struct Case { std::string task; std::vector< Lesion > lesions; const char* what; bool strict = true; };  // !strict: must only score clearly below the reference (< 80)
 
 int main( int argc, char** argv )
@@ -282,6 +389,17 @@ int main( int argc, char** argv )
         std::printf( "\n" );
       }
       if ( s % 500 == 499 ) e.drain_spikes();
+    }
+    return 0;
+  }
+
+  if ( argc >= 3 && std::string( argv[ 1 ] ) == "novice" )  // tuning aid: run the novice's tries of a task on seed 1 (novice <task> [seeds])
+  {
+    int k = 0;
+    for ( const auto& tr : novice_tries( argv[ 2 ] ) )
+    {
+      RunResult r = run_one( argv[ 2 ], tr.circuit, 1, true );
+      std::printf( "try %d %s: %.1f %s | %s\n", ++k, tr.what.c_str(), r.score.value, r.score.passed ? "PASS" : "fail", r.score.verdict.c_str() );
     }
     return 0;
   }
@@ -409,6 +527,50 @@ int main( int argc, char** argv )
     CHECK_MSG( r.score.verdict.find( "more flexor tone" ) != std::string::npos, r.score.verdict );
   }
 
+
+  // ---- the novice: brief + lab defaults, at most 8 quick runs, confirmed on 2 more seeds; the unsolved levels are reported ----
+  {
+    std::printf( "\nnovice searches (brief + lab defaults; <= 8 quick runs on seed 1, confirmed on seeds 2-3):\n" );
+    std::set< std::string > unsolved;
+    std::map< std::string, int > runs_to_pass;
+    for ( const std::string& id : { "stretch_reflex", "renshaw", "posture", "reach" } )
+    {
+      auto tries = novice_tries( id );
+      CHECK_MSG( tries.size() <= 8, id + ": novice budget is 8 runs" );
+      int runs = 0;
+      bool solved = false;
+      std::string last;
+      for ( const auto& tr : tries )
+      {
+        ++runs;
+        RunResult r = run_one( id, tr.circuit, 1, true );
+        CHECK_MSG( r.loaded, tr.what + ": " + r.error );
+        std::printf( "  %s run %d (%s): %.1f %s\n    %s\n", id.c_str(), runs, tr.what.c_str(), r.score.value, r.score.passed ? "PASS" : "fail", r.score.verdict.c_str() );
+        if ( !r.score.passed )
+        {
+          CHECK_MSG( !has_number( r.score.verdict ), id + " verdict carries a number: " + r.score.verdict );
+          last = r.score.verdict;
+          continue;
+        }
+        bool all = true;
+        for ( uint64_t seed : { 2, 3 } ) all = all && run_one( id, tr.circuit, seed, true ).score.passed;
+        if ( all ) { solved = true; break; }
+        std::printf( "    (passes seed 1 but not seeds 2-3: the search goes on)\n" );
+      }
+      if ( solved ) runs_to_pass[ id ] = runs;
+      else unsolved.insert( id );
+    }
+    // boss_spinal_sprint composes the components (posture, reflex, Renshaw, reach): it is not attempted separately by the scripted novice
+    std::printf( "  boss_spinal_sprint: not attempted (a composition of the four levels above)\n" );
+    for ( auto& [ k, n ] : runs_to_pass ) std::printf( "  solved: %-16s in %d run(s)\n", k.c_str(), n );
+    for ( auto& u : unsolved ) std::printf( "  NOT SOLVED by the novice: %s\n", u.c_str() );
+    // Honest result (docs/REQ-0.4.md rule 4): with sensors wired straight onto pools (no relay groups: the briefs name none) the scripted novice cannot
+    // find posture (the spindle gain onto the pools is far above what the loop tolerates and its coarse grid never lands inside the narrow tone window) or reach
+    // (three timed bursts plus a hold command need more structure than a coarse grid over the briefs' structure gives). stretch_reflex and renshaw are solved.
+    const std::set< std::string > expected_unsolved = { "posture", "reach" };  // update only with a note in the report: never hide a level here
+    CHECK_MSG( unsolved == expected_unsolved, "the set of spinal levels the novice cannot solve changed (see the printed list)" );
+  }
+
   // ---- lesions: removing the key mechanism must fail the task ----
   const std::vector< Case > cases = {
     // stretch reflex
@@ -442,6 +604,11 @@ int main( int argc, char** argv )
       RunResult r = run_one( cs.task, c, seed );
       print( "lesioned", seed, r );
       CHECK_MSG( r.loaded, r.error );
+      if ( !r.score.passed )  // the honesty contract (rule 2): no numbers in a verdict or in hint tiers 1-3 (tier 3 gives a direction, not the pass band)
+      {
+        CHECK_MSG( !has_number( r.score.verdict ), cs.task + " lesion verdict carries a number: " + r.score.verdict );
+        for ( auto& h : r.hints ) CHECK_MSG( !has_number( h.text ), cs.task + " lesion hint tier " + std::to_string( h.tier ) + " carries a number: " + h.text );
+      }
       if ( cs.strict )
         CHECK_MSG( !r.score.passed, std::string( cs.task ) + " still passes with lesion: " + cs.what );
       else

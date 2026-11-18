@@ -60,8 +60,8 @@ public:
                      "so the value returns to its set point whatever pushes it.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "The 'level' sensor has to oppose the drive: it must reach the effort cells through an inhibitory cell.", "level" },
-      { 3, "tone onto the effort cells (2 cells); level onto a group of 3 cells set to inhibitory, which projects onto the effort cells at about -300 pA. "
-           "If the level still moves too far under a push, add cells or strengthen the link.", "level" } };
+      { 3, "Tone goes onto the effort cells; level goes onto a group of cells set to inhibitory, which projects onto the effort cells. "
+           "If the level still moves too far under a push, add cells to that group or strengthen the link.", "level" } };
     i.note = { "Negative feedback",
       "Walter Cannon coined the word homeostasis in 1926 and developed the idea in his 1929 review: the body's variables are held "
       "steady by sensors that notice a departure and effectors that oppose it. Every loop of this book (stretch reflex, posture, baroreflex) "
@@ -91,6 +91,19 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // negative feedback: the sensed level must reach the effort cells with the opposite sign (an inhibitory path from the feedback input to the output)
+    const auto lvl = g.in_pops( "level" ), eff = g.out_pops( "effort" );
+    const bool inh = g.hops( lvl, eff, -1, 4 ) >= 1;
+    const bool exc = g.exc( lvl, eff, 4 );
+    std::string fail = "No feedback path: the level sensor does not reach the effort cells through an inhibitory cell, so nothing turns an excess of level into less effort.";
+    if ( exc )
+      fail = "The level reaches the effort cells with the wrong sign: more level gives more effort (positive feedback). The path must pass an inhibitory cell.";
+    out.push_back( mech( "inhibitory_feedback", inh, fail, "The 'level' sensor needs an inhibitory cell between it and the effort cells.", "level",
+                         "Route 'level' through a group set to inhibitory onto the effort cells: the more level, the less effort." ) );
+  }
+
   double push_at( double t ) const
   {
     const double b = 1100 + j_;
@@ -151,34 +164,34 @@ protected:
     c0.key = "baseline";
     c0.ok = std::fabs( y0 - kSet ) <= band;
     c0.soft = 1.0 - std::fabs( y0 - kSet ) / 0.5;
-    c0.fail = "Before any push the level sits at " + fmt( y0, 2 ) + ", the target is 0.50 +- " + fmt( band, 2 ) +
-              ( y0 > kSet ? ": the effort is too high and nothing brings it down." : ": the effort is too low, or 'tone' does not reach the effort cells.") +
+    c0.fail = std::string( "Before any push the level sits " ) + ( y0 > kSet ? "above" : "below" ) + " the target band" +
+              ( y0 > kSet ? ": the effort is too high and the feedback is too weak to bring it down." : ": the effort is too low, or 'tone' does not reach the effort cells.") +
               " Feed the level back through an inhibitory cell: more level, less effort.";
     c0.place = "The level sensor should reduce the effort when the level is high: it needs an inhibitory cell between it and the effort cells.";
     c0.target = "level";
-    c0.recipe = "tone onto 2 effort cells; level onto 3 inhibitory cells projecting onto them at about -300 pA.";
+    c0.recipe = "tone onto the effort cells; level onto a group of inhibitory cells projecting onto them, with enough weight that a high level clearly lowers the effort.";
     crits.push_back( c0 );
 
     Crit c1;
     c1.key = "push_down";
     c1.ok = std::fabs( y1 - kSet ) <= band;
     c1.soft = 1.0 - std::fabs( y1 - kSet ) / 0.4;
-    c1.fail = "While the level is pushed down it stays at " + fmt( y1, 2 ) + " (target 0.50 +- " + fmt( band, 2 ) + "): the loop does not compensate enough. "
+    c1.fail = std::string( "While the level is pushed down it stays " ) + ( y1 > kSet ? "above" : "below" ) + " the target band: the loop does not compensate enough. "
               "Strengthen the feedback: a larger weight or more inhibitory cells, so a small drop in level releases a lot of effort.";
     c1.place = "The loop gain: the weight from the inhibitory cells onto the effort cells and how many cells there are.";
     c1.target = "effort";
-    c1.recipe = "Use 3 inhibitory cells at -300 pA, or 6 cells at -150 pA.";
+    c1.recipe = "Strengthen the inhibitory link, or add cells to the inhibitory group: the loop gain is the weight times the number of cells.";
     crits.push_back( c1 );
 
     Crit c2;
     c2.key = "push_up";
     c2.ok = std::fabs( y2 - kSet ) <= band;
     c2.soft = 1.0 - std::fabs( y2 - kSet ) / 0.4;
-    c2.fail = "While the level is pushed up it reaches " + fmt( y2, 2 ) + " (target 0.50 +- " + fmt( band, 2 ) + "): feedback works in both directions only if the effort cells "
+    c2.fail = std::string( "While the level is pushed up it leaves the target band " ) + ( y2 > kSet ? "(too high)" : "(too low)" ) + ": feedback works in both directions only if the effort cells "
               "are active enough to be turned down. Check the effort cells still fire when the level is low (tone strong enough) and the feedback is strong.";
     c2.place = "The effort cells: they must be able to speed up (a deficit) and slow down (an excess).";
     c2.target = "effort";
-    c2.recipe = "Keep 'tone' at its default weight (300 pA per unit); 3 inhibitory cells at about -300 pA do the rest.";
+    c2.recipe = "Keep 'tone' at its default weight, so the effort cells have room to be turned down, and make the inhibitory feedback strong.";
     crits.push_back( c2 );
 
     pass_msg = "The level held at " + fmt( y0, 2 ) + " / " + fmt( y1, 2 ) + " / " + fmt( y2, 2 ) + " (target 0.50) before, during the push down and during the push up: "

@@ -68,8 +68,8 @@ public:
                      "force, so a growing command switches the units on one size after the other. Identical cells all switch on together.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "The three pools must have different thresholds. Look at the ADVANCED bias current of each group.", "mu_large" },
-      { 3, "Three groups, each driven by 'command' (weight 300) and read out on its own channel. Give the small pool a bias of about +100 pA, "
-           "the mid pool none, the large pool about -350 pA: then 360 pA recruits only the small pool, 660 pA the mid pool too, 960 pA all three.",
+      { 3, "Three groups, each driven by 'command' and read out on its own channel. Give the small pool a positive bias, leave the mid pool alone and give the "
+           "large pool a negative one: a growing command then crosses the thresholds in order, small pool first.",
         "command" } };
     i.note = { "The size principle",
       "In 1965 Elwood Henneman recorded from single motoneurons while a weak or a strong stimulus drove them. The smallest cells fired first and "
@@ -97,6 +97,45 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // at least two motor-unit pools, each driven by the command, with thresholds that differ (otherwise they are recruited together)
+    std::vector< mechb::PopSet > pools;
+    for ( int i = 0; i < 3; ++i )
+      pools.push_back( g.out_pops( kPool[ i ] ) );
+    const auto cmd = g.in_pops( "command" );
+    int driven = 0;
+    for ( const auto& p : pools )
+      if ( !p.empty() && g.exc( cmd, p, 4 ) )
+        ++driven;
+    // thresholds: the pools' firing-threshold fingerprints (cell parameters and the weights of what feeds them) must differ pairwise
+    bool distinct = true;
+    for ( int i = 0; i < 3; ++i )
+      for ( int j = i + 1; j < 3; ++j )
+      {
+        if ( pools[ i ].empty() || pools[ j ].empty() )
+          continue;
+        const bool same_pop = pools[ i ] == pools[ j ];
+        bool same_sig = true;
+        if ( !same_pop )
+        {
+          std::string a, b;
+          for ( int p : pools[ i ] ) a += g.threshold_signature( p ) + ";";
+          for ( int p : pools[ j ] ) b += g.threshold_signature( p ) + ";";
+          same_sig = a == b;
+        }
+        if ( same_pop || same_sig )
+          distinct = false;
+      }
+    out.push_back( mech( "pools_driven", driven >= 2, "Recruitment needs several motor-unit pools driven by the same command: fewer than two of the three pools are reached by 'command'.",
+                         "The command must reach every motor-unit pool, each group read out on its own channel.", "command",
+                         "Make a separate group for each pool, drive each from 'command' and read each out on its own channel." ) );
+    out.push_back( mech( "thresholds_differ", distinct,
+                         "The motor-unit pools are identical, so they switch on together: recruitment needs pools of different threshold, the small ones lowest.",
+                         "Compare the pools' thresholds: the ADVANCED bias current (or any cell property) of each group should differ.", "mu_large",
+                         "Give the three groups different thresholds: the small pool the lowest, the large pool the highest." ) );
+  }
+
   int stage( double t ) const
   {
     for ( int k = 0; k < 3; ++k )
@@ -163,13 +202,13 @@ protected:
     rest.key = "rest";
     rest.ok = f[ 0 ] <= 0.04 * tl;
     rest.soft = 1.0 - f[ 0 ] / 0.5;
-    rest.fail = "The muscle is active at rest (force " + fmt( f[ 0 ], 2 ) + "). Some pool fires with no command: check the biases of the cells; a pool must stay silent until the command reaches its threshold.";
+    rest.fail = "The muscle is active at rest: some pool fires with no command. Check the biases of the cells; a pool must stay silent until the command reaches its threshold.";
     int loud = 0;
     for ( int i = 1; i < 3; ++i )
       if ( rest_r[ i ] > rest_r[ loud ] ) loud = i;
     rest.target = kPool[ loud ];
-    rest.place = "A pool that fires at rest has a bias current too high (above about 375 pA the cell fires by itself).";
-    rest.recipe = "Keep every bias below about 150 pA; the cells should be silent until the command arrives.";
+    rest.place = "A pool that fires at rest has a bias current so high that the cell fires by itself.";
+    rest.recipe = "Lower the biases until every cell is silent until the command arrives; only a bias that is too high makes a cell fire alone.";
     crits.push_back( rest );
 
     static const char* const kEffort[ 3 ] = { "light", "medium", "maximal" };
@@ -194,13 +233,13 @@ protected:
         }
       }
       c.target = where;
-      c.fail = "At " + std::string( kEffort[ k - 1 ] ) + " effort the force is " + fmt( f[ k ], 2 ) + ", the staircase wants " + fmt( kTarget[ k ], 2 ) +
+      c.fail = "At " + std::string( kEffort[ k - 1 ] ) + " effort the force is " + ( e > 0 ? "above" : "below" ) + " the staircase step" +
                ( who.empty() ? "." : ": " + who + "." ) +
                ( e > 0 ? " A pool was recruited too early: raise its threshold (lower its bias) so it needs more command."
                        : " A pool was not recruited yet: lower its threshold (raise its bias) or check it is wired to 'command'.");
       c.place = "Compare the pools' thresholds: the pool '" + where + "' switches on at the wrong effort. Its threshold is set by the bias current of its cells.";
-      c.recipe = "Thresholds in order: mu_small bias about +100 pA, mu_mid 0, mu_large about -350 pA (cells at rest 375 pA rheobase; the command gives 360, "
-                 "660, 960 pA). Every pool is wired from 'command' and read out on its own channel.";
+      c.recipe = "Thresholds in order: the small pool needs the lowest threshold (positive bias), the large pool the highest (negative bias), the mid pool in between. "
+                 "Every pool is wired from 'command' and read out on its own channel.";
       crits.push_back( c );
     }
     pass_msg = "A clean staircase: force " + fmt( f[ 1 ], 2 ) + " / " + fmt( f[ 2 ], 2 ) + " / " + fmt( f[ 3 ], 2 ) +

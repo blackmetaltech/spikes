@@ -57,15 +57,15 @@ public:
                "of about 4 to 9 pA, so set the chemo weight to about 5 pA per unit: 5 pA "
                "at rest bursts about 10 times a second, 8 pA after the CO2 rise about 15. Any higher weight, such as 300, makes "
                "the cell fire continuously.";
-    i.kinds = { { "chemo", dc( kRest, 5.0 ) }, { "phrenic", rate() } };
+    i.kinds = { { "chemo", dc( kRest ) }, { "phrenic", rate() } };  // the lab's plain first-connect weight: the right one is for the player to find, not a default
     i.bands = { { "burst_rate_hz", "bursts/s", 5, 14 } };
     i.timeline = { { 2400, 2600, "CO2 rises" } };
     i.concept_hint = "A rhythm generator is a cell that bursts on its own; sensory input does not make the rhythm, it gates and tunes it: more drive, "
                      "faster bursts, up to the point where bursting turns into a steady train.";
     i.generic_hints = { { 1, i.concept_hint, "" },
       { 2, "The sensor's weight sets the drive: a bursting cell has a window of drive in which it bursts, and speeds up inside it. Look at the weight of 'chemo'.", "chemo" },
-      { 3, "One Izhikevich chattering cell (n = 1) read out on phrenic. Connect chemo to it and set the sensor weight to about 5 pA per unit (the lab "
-           "starts at 300): 5 pA at rest bursts about 10 times a second, 8 pA after the CO2 rise about 15.", "chemo" } };
+      { 3, "A single bursting cell read out on phrenic, with chemo connected to it. The lab's first-connection sensor weight is far too large for a bursting cell: "
+           "turn it down a long way until the cell bursts at rest, then check it bursts faster, not steadily, after the CO2 rise.", "chemo" } };
     i.note = { "A rhythm that listens",
       "The preBotzinger complex in the medulla contains neurons that burst rhythmically by themselves; Jack Smith and Jack Feldman found "
       "in 1991 that a slice containing it keeps producing a respiratory rhythm. The rhythm is not rigid: chemoreceptors that sense CO2 and "
@@ -90,6 +90,27 @@ public:
   }
 
 protected:
+  void mechanism( const mechb::Graph& g, std::vector< Crit >& out ) const override
+  {
+    // an intrinsic burst mechanism in the cell that is read out, and the sensor reaching it
+    const auto ph = g.out_pops( "phrenic" );
+    bool bursty = !ph.empty();
+    std::string model;
+    for ( int p : ph )
+    {
+      bursty = bursty && mechb::Graph::can_burst( g.pop( p ).model );
+      model = g.pop( p ).model;
+    }
+    out.push_back( mech( "bursting_cell", bursty,
+                         "The cell read out on 'phrenic' cannot burst on its own: this model has no intrinsic burst mechanism, so no sensor weight will give a rhythm. "
+                         "Use a bursting part (such as Izhikevich chattering).",
+                         "The part of the cell read out on 'phrenic': it has to be a bursting model.", "phrenic",
+                         "Replace the cell by the bursting part the lab opens on (Izhikevich chattering) and read it out on phrenic." ) );
+    out.push_back( mech( "chemo_reaches", g.exc( g.in_pops( "chemo" ), g.out_pops( "phrenic" ), 3 ),
+                         "The chemosensory input does not reach the bursting cell, so the sensor cannot tune the rhythm.",
+                         "'chemo' has to drive the cell read out on 'phrenic'.", "chemo", "Connect chemo to the bursting cell." ) );
+  }
+
   double s0() const { return 2400 + j_; }
   double level_at( double t ) const { return kRest + ( kStale - kRest ) * clampd( ( t - s0() ) / kRamp, 0, 1 ); }
 
@@ -151,10 +172,10 @@ protected:
     one.key = "one_cell";
     one.ok = pool( "phrenic" ) <= 1.0 + 1e-9;
     one.soft = 0.5;
-    one.fail = "'phrenic' reads " + fmt( pool( "phrenic" ) ) + " cells. This detector counts the bursts of a single cell; identical cells burst out of step and smear the rhythm together. Use one cell.";
+    one.fail = "'phrenic' reads more than one cell. This detector counts the bursts of a single cell; identical cells burst out of step and smear the rhythm together. Use one cell.";
     one.place = "The size of the bursting group: it must be exactly one cell.";
     one.target = "phrenic";
-    one.recipe = "Set the group to 1 cell and read it out on phrenic.";
+    one.recipe = "Set the group to a single cell and read it out on phrenic.";
     crits.push_back( one );
 
     const bool rhythm_ok = na >= 5 && ( na ? sa / na >= 2.0 : false ) && fa >= lo && fa <= hi;
@@ -163,20 +184,20 @@ protected:
     r.ok = rhythm_ok;
     r.soft = fa <= 0 ? 0.0 : ( fa < lo ? ramp( fa, 0, lo ) : 1.0 - ramp( fa, hi, 2 * hi ) );
     if ( na <= 2 && sa + la >= 20 )
-      r.fail = "At rest the cell fires a steady train (" + fmt( sa + la ) + " spikes, " + fmt( na ) + " bursts): the drive is far above the bursting window. The chemo weight is pA of current per "
-               "unit of level (a plain dc sensor starts at 300); lower it to about 5.";
+      r.fail = "At rest the cell fires a steady train instead of bursts: the drive is far above the bursting window. The chemo weight is the current per "
+               "unit of level, and a plain dc sensor starts far too high for a bursting cell: lower it a long way.";
     else if ( na == 0 && la == 0 )
-      r.fail = "At rest the cell is silent: its drive is below the bursting window. Raise the chemo weight (it needs about 4-9 pA of drive at the rest level).";
+      r.fail = "At rest the cell is silent: its drive is below the bursting window. Raise the chemo weight a little, or check that chemo reaches the cell.";
     else if ( na == 0 || ( na ? sa / na < 2.0 : true ) )
-      r.fail = "At rest the cell fires but does not burst (" + fmt( la ) + " single spikes, " + fmt( na ) + " bursts): the drive is outside the bursting window. "
-               "Too much drive makes the cell fire steadily; lower the chemo weight to about 5 pA per unit.";
+      r.fail = "At rest the cell fires but does not burst (single spikes, or a steady train): the drive is outside the bursting window. "
+               "Too much drive makes the cell fire steadily; lower the chemo weight.";
     else if ( fa > hi )
-      r.fail = "At rest the rhythm is too fast (" + fmt( fa, 1 ) + " bursts/s, limit " + fmt( hi, 1 ) + "): lower the chemo weight.";
+      r.fail = "At rest the rhythm is too fast: lower the chemo weight.";
     else
-      r.fail = "At rest the rhythm is too slow (" + fmt( fa, 1 ) + " bursts/s, needs at least " + fmt( lo, 1 ) + "): raise the chemo weight a little.";
+      r.fail = "At rest the rhythm is too slow: raise the chemo weight a little.";
     r.place = "The weight of 'chemo': it sets the drive of the bursting cell, and the cell only bursts inside a window of drive.";
     r.target = "chemo";
-    r.recipe = "Use the part Izhikevich chattering, 1 cell; chemo onto it with the sensor weight about 5 pA per unit (5 pA at rest, 8 pA when stale).";
+    r.recipe = "Use the bursting part (Izhikevich chattering) as one cell and connect chemo to it; the sensor weight has to be small, because the cell only bursts inside a narrow window of drive.";
     crits.push_back( r );
 
     const bool gate_ok = nb >= 3 && ( nb ? sb / nb >= 2.0 : false ) && fb >= gate * fa && fb <= 3.5 * std::max( fa, 1.0 );
@@ -185,14 +206,14 @@ protected:
     g.ok = gate_ok && rhythm_ok;
     g.soft = ramp( fa > 0 ? fb / fa : 0, 1.0, gate );
     if ( nb < 3 || ( nb ? sb / nb < 2.0 : true ) )
-      g.fail = "After the CO2 rise the cell stops bursting (" + fmt( nb ) + " bursts in " + fmt( ( kDur - s - 500 ) / 1000.0, 1 ) + " s): the extra drive pushed it out of the "
+      g.fail = "After the CO2 rise the cell stops bursting: the extra drive pushed it out of the "
                "bursting window into steady firing. Lower the chemo weight so that both the rest and the stale level stay inside it.";
     else
-      g.fail = "The CO2 rise speeds the rhythm only from " + fmt( fa, 1 ) + " to " + fmt( fb, 1 ) + " bursts/s (x" + fmt( fa > 0 ? fb / fa : 0, 2 ) + ", needs x" + fmt( gate, 2 ) +
-               "): the sensory drive must tune the burst rate. Check chemo is wired to the bursting cell.";
+      g.fail = "The CO2 rise does not speed the rhythm up enough: the sensory drive must tune the burst rate. Check chemo is wired to the bursting cell, and that the weight lets "
+               "the drive move the cell across a useful part of its bursting window.";
     g.place = "The gate: the same weight of 'chemo' must keep the cell bursting at both levels and make it faster at the second.";
     g.target = "chemo";
-    g.recipe = "About 5 pA per unit of chemo: 5 pA gives about 10 bursts/s, 8 pA about 15.";
+    g.recipe = "A small chemo weight in the middle of the cell's bursting window: the rest level should burst slowly and the stale level should burst clearly faster.";
     crits.push_back( g );
 
     pass_msg = "Rest: " + fmt( fa, 1 ) + " bursts/s; after the CO2 rise: " + fmt( fb, 1 ) + " bursts/s (x" + fmt( fa > 0 ? fb / fa : 0, 2 ) + "): a rhythm tuned by a sensor.";
