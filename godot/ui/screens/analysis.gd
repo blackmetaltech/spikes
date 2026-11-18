@@ -44,24 +44,24 @@ func build() -> void:
 	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my); add_child(margin)
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(12 * f)); margin.add_child(v)
 	var head := HFlowContainer.new(); head.add_theme_constant_override("h_separation", 12); head.add_theme_constant_override("v_separation", 6); v.add_child(head)
-	back_btn = Kit.btn("BACK", func(): app.back(), "panel", 22, Vector2(110, 0)); head.add_child(back_btn)
-	var ttl := Kit.shout("Analysis", int(46 * f) if not phone else 30, Kit.TEXT); ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(ttl)
+	back_btn = Kit.btn("← Back", func(): app.back(), "ghost", 22 if not phone else 18); back_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(back_btn)
+	var ttl := Kit.display("Analysis", int(46 * f) if not phone else 28, Kit.TEXT); ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; ttl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(ttl)
 	head.add_child(Kit.stepper(TABS, str(tab), func(i): tab = int(i); _tab_changed(), 380.0 if not phone else 260.0, 20 if not phone else 18))
 	var mrow := HFlowContainer.new(); mrow.add_theme_constant_override("h_separation", 12); mrow.add_theme_constant_override("v_separation", 6); v.add_child(mrow)
-	_head_motif.append(Kit.label("graph", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.italic("graph", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
 	_head_motif.append(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0)); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.label("edges", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.italic("edges", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
 	_head_motif.append(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0)); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.label("nulls", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
+	_head_motif.append(Kit.italic("nulls", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
 	_head_motif.append(Kit.stepper([[20, "20"], [100, "100"], [500, "500"]], str(null_n), func(i): null_n = int(i); compute(), 80.0)); mrow.add_child(_head_motif[-1])
 	var pops: Array = circuit.get("populations", [])
 	if pops.size() > 0:
 		pop_idx = _default_pop()
-		_head_rec.append(Kit.label("population", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
+		_head_rec.append(Kit.italic("population", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
 		var popts := []
 		for i in pops.size(): popts.append([i, str(pops[i].get("id", i))])
 		_head_rec.append(Kit.stepper(popts, str(pop_idx), func(i): pop_idx = int(i); compute(), 200.0 if not phone else 150.0)); mrow.add_child(_head_rec[-1])
-	_head_rec.append(Kit.label("record", 18, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
+	_head_rec.append(Kit.italic("record", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
 	_head_rec.append(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0)); mrow.add_child(_head_rec[-1])
 	_head_rec.append(Kit.btn("RECORD", func(): _start_record(), "green", 20, Vector2(120, 0))); mrow.add_child(_head_rec[-1])
 	var cols := HBoxContainer.new(); cols.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_theme_constant_override("separation", int(16 * f)); v.add_child(cols)
@@ -255,9 +255,8 @@ class MotifChart extends Control:
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
-		draw_style_box(Kit.sb(Kit.PANEL, Kit.LINE, 1, 14, 0, false), Rect2(Vector2.ZERO, size))
-		draw_string(fb, Vector2(16, 28), "THREE-NODE MOTIFS", HORIZONTAL_ALIGNMENT_LEFT, 300, fz + 2, Kit.exc())
-		if size.x > 700.0: draw_string(f, Vector2(16 + 230, 28), "count, and z-score against degree-preserving rewiring", HORIZONTAL_ALIGNMENT_LEFT, size.x - 260, fz, Kit.TEXT_SOFT)
+		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
+		Kit.draw_fig(self, Vector2(18, 32), 1, "Three-node motifs" + (": count, and z-score against degree-preserving rewiring" if size.x > 900.0 else ""), size.x - 44, "", 19)
 		if message != "" or not result.has("motifs"):
 			draw_string(f, Vector2(0, size.y * 0.5), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_CENTER, size.x, Kit.fs(20), Kit.TEXT_SOFT); return
 		var ms: Array = result["motifs"]; var top := 46.0
@@ -278,7 +277,7 @@ class MotifChart extends Control:
 		for m in ms: maxc = maxf(maxc, float(m["count"]))
 		for i in ms.size():
 			var m: Dictionary = ms[i]; var y := top + rh * i; var cy := y + rh * 0.5
-			if i % 2 == 0: draw_rect(Rect2(8, y, size.x - 16, rh), Color(1, 1, 1, 0.025))
+			if i % 2 == 0: draw_rect(Rect2(8, y, size.x - 24, rh), Color(Kit.LINE, 0.22))
 			_glyph(Vector2(gx + gw * 0.5, cy), minf(rh * 0.42, 14.0), int(m["milo_id"]))
 			draw_string(f, Vector2(gx + gw + 8, cy + float(fz) * 0.35), _pretty(str(m["name"])), HORIZONTAL_ALIGNMENT_LEFT, name_w, fz, Kit.TEXT)
 			var cnt := int(m["count"]); draw_string(fb, Vector2(gx + gw + name_w + 8, cy + float(fz) * 0.35), str(cnt), HORIZONTAL_ALIGNMENT_RIGHT, cnt_w, fz, Kit.TEXT if cnt > 0 else Kit.TEXT_SOFT)
@@ -331,12 +330,12 @@ class SeriesPanel extends Control:
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(380, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _title() -> String:
-		return {"m4": "FOUR-NODE MOTIFS", "hrv": "HEART-RATE VARIABILITY", "prc": "PHASE-RESPONSE CURVE", "bursts": "BURSTS", "energy": "ENERGY"}.get(kind, "")
+		return {"m4": "Four-node motifs", "hrv": "Heart-rate variability", "prc": "Phase-response curve", "bursts": "Bursts", "energy": "Energy"}.get(kind, "")
 	func _num(v: Variant, fmt := "%.1f") -> String: return "-" if v == null else fmt % float(v)
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
-		draw_style_box(Kit.sb(Kit.PANEL, Kit.LINE, 1, 14, 0, false), Rect2(Vector2.ZERO, size))
-		draw_string(fb, Vector2(16, 28), _title(), HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz + 2, Kit.exc())
+		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
+		Kit.draw_fig(self, Vector2(18, 32), 1, _title(), size.x - 44, "", 19)
 		if message != "" or data.is_empty():
 			draw_multiline_string(f, Vector2(16, 64), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(18), -1, Kit.TEXT_SOFT); return
 		match kind:
@@ -349,7 +348,7 @@ class SeriesPanel extends Control:
 		var y := y0
 		for kv in rows:
 			draw_string(f, Vector2(16, y), str(kv[0]), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.62, Kit.fs(17), Kit.TEXT_SOFT)
-			draw_string(fb, Vector2(size.x - 176, y), str(kv[1]), HORIZONTAL_ALIGNMENT_RIGHT, 160, Kit.fs(17), Kit.TEXT); y += 28.0
+			draw_string(Fonts.mono_med, Vector2(size.x - 176, y), str(kv[1]), HORIZONTAL_ALIGNMENT_RIGHT, 160, Kit.fs(17), Kit.TEXT); y += 28.0
 		return y
 	func _note(txt: String, y: float, f: Font, fz: int, col := Kit.TEXT_SOFT) -> void:
 		draw_multiline_string(f, Vector2(16, y), txt, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, -1, col)
@@ -382,7 +381,7 @@ class SeriesPanel extends Control:
 			_note("Fewer than three beats in %.0f s: record longer, or pick the population that makes the beat." % (float(extra.get("t_ms", 0.0)) * 0.001), y + 6.0, f, fz, Kit.RED); return
 		if not bool(d.get("spectrum_ok", false)): _note("Fewer than 9 beats: no spectrum (LF, HF). Record longer.", y, f, fz, Kit.TEXT_SOFT); y += 28.0
 		# tachogram: RR interval against beat number
-		var r := Rect2(16, y + 24.0, size.x - 32.0, maxf(size.y - y - 70.0, 40.0)); draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		var r := Rect2(16, y + 24.0, size.x - 32.0, maxf(size.y - y - 70.0, 40.0)); Kit.draw_graph_paper(self, r, 24.0); draw_rect(r, Kit.TEXT, false, 1.5)
 		draw_string(f, Vector2(16, y + 16.0), "RR interval per beat (ms)", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
 		var rr := PackedFloat64Array()
 		for i in range(1, beats.size()): rr.append(beats[i] - beats[i - 1])
@@ -404,7 +403,7 @@ class SeriesPanel extends Control:
 		var smax := 0.1
 		for p in pts: smax = maxf(smax, absf(float(p["shift"])))
 		smax = ceilf(smax * 10.0) / 10.0
-		draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		Kit.draw_graph_paper(self, r, 24.0); draw_rect(r, Kit.TEXT, false, 1.5)
 		var y0 := r.position.y + r.size.y * 0.5; draw_line(Vector2(r.position.x, y0), Vector2(r.end.x, y0), Color(Kit.LINE, 0.9), 1.0)
 		draw_string(f, Vector2(8, r.position.y + float(fz)), "+%.1f" % smax, HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(8, y0 + 5.0), "0", HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(8, r.end.y), "-%.1f" % smax, HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT)
 		for p in pts:
@@ -423,7 +422,7 @@ class SeriesPanel extends Control:
 			["intra-burst ISI", _num(s.get("mean_intra_burst_isi_ms")) + " ms"]], 60.0, f, fb)
 		var r := Rect2(16, y + 24.0, size.x - 32.0, 50.0); var tt := maxf(float(extra.get("t_ms", 1.0)), 1.0)
 		draw_string(f, Vector2(16, y + 16.0), "bursts over the recording", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
-		draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		Kit.draw_graph_paper(self, r, 24.0); draw_rect(r, Kit.TEXT, false, 1.5)
 		for b in d.get("bursts", []):
 			var x0 := r.position.x + r.size.x * float(b["onset_ms"]) / tt; var x1 := r.position.x + r.size.x * float(b["offset_ms"]) / tt
 			draw_rect(Rect2(x0, r.position.y + 6.0, maxf(x1 - x0, 2.0), r.size.y - 12.0), Color(Kit.exc(), 0.85))
@@ -463,15 +462,15 @@ class StatsView extends Control:
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
-		draw_style_box(Kit.sb(Kit.PANEL, Kit.LINE, 1, 14, 0, false), Rect2(Vector2.ZERO, size))
-		draw_string(fb, Vector2(16, 28), "SPIKE STATISTICS", HORIZONTAL_ALIGNMENT_LEFT, 300, fz + 2, Kit.inh())
+		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
+		Kit.draw_fig(self, Vector2(18, 32), 2, "Spike statistics", size.x - 44, "", 19)
 		if tele == null or tele.n == 0 or tele.t_ms < 200.0:
 			draw_multiline_string(f, Vector2(16, 64), "Run the circuit for a few seconds in the lab, then come back: rates, ISI variability and synchrony are measured from the spikes it produced.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(18), -1, Kit.TEXT_SOFT); return
 		var chi := tele.sync_chi(); var tot := tele.total_spikes
 		var mean_rate := float(tot) / maxf(float(tele.n), 1.0) / maxf(tele.t_ms * 0.001, 0.001)
 		var y := 56.0
 		for kv in [["simulated", "%.1f s" % (tele.t_ms * 0.001)], ["spikes", str(tot)], ["mean rate", "%.1f Hz" % mean_rate], ["synchrony (Golomb chi)", "%.2f" % chi]]:
-			draw_string(f, Vector2(16, y), kv[0], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, Kit.fs(17), Kit.TEXT_SOFT); draw_string(fb, Vector2(size.x - 160, y), kv[1], HORIZONTAL_ALIGNMENT_RIGHT, 144, Kit.fs(17), Kit.TEXT); y += 28.0
+			draw_string(f, Vector2(16, y), kv[0], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, Kit.fs(17), Kit.TEXT_SOFT); draw_string(Fonts.mono_med, Vector2(size.x - 160, y), kv[1], HORIZONTAL_ALIGNMENT_RIGHT, 144, Kit.fs(17), Kit.TEXT); y += 28.0
 		y += 8.0; draw_line(Vector2(16, y), Vector2(size.x - 16, y), Kit.LINE, 1.0); y += 24.0
 		draw_string(f, Vector2(16, y), "neuron", HORIZONTAL_ALIGNMENT_LEFT, 120, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(size.x - 190, y), "rate Hz", HORIZONTAL_ALIGNMENT_RIGHT, 80, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(size.x - 90, y), "ISI CV", HORIZONTAL_ALIGNMENT_RIGHT, 74, fz, Kit.TEXT_SOFT); y += 8.0
 		var psth_h := 150.0
@@ -500,7 +499,7 @@ class StatsView extends Control:
 			if t >= t0: h[mini(int((t - t0) / bw), bins - 1)] += 1.0
 		var mx := 1.0
 		for i in bins: h[i] = h[i] / (bw * 0.001 * maxf(float(tele.n), 1.0)); mx = maxf(mx, h[i])
-		draw_rect(r, Color(Kit.BENCH, 0.6)); draw_rect(r, Color(Kit.LINE, 0.9), false, 1.0)
+		Kit.draw_graph_paper(self, r, 24.0); draw_rect(r, Kit.TEXT, false, 1.5)
 		var pts := PackedVector2Array([Vector2(r.position.x, r.end.y)])
 		for i in bins: pts.append(Vector2(r.position.x + r.size.x * (float(i) + 0.5) / bins, r.end.y - r.size.y * h[i] / mx))
 		pts.append(Vector2(r.end.x, r.end.y))

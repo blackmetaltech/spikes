@@ -6,10 +6,10 @@ extends Screen
 const CREDITS := [
 	["Game engine", "Godot Engine 4.7, godotengine.org (MIT)."],
 	["Godot bindings", "godot-cpp (GDExtension C++ bindings), github.com/godotengine/godot-cpp (MIT)."],
-	["Typeface", "Atkinson Hyperlegible by the Braille Institute of America (SIL OFL 1.1). Licence: godot/assets/fonts/OFL-AtkinsonHyperlegible.txt."],
+	["Typefaces", "Fraunces by Undercase Type (Phaedra Charles, Flavia Zimbardi), the display and caption face. Atkinson Hyperlegible by the Braille Institute of America, the body face. IBM Plex Mono by IBM / Bold Monday, the readouts. All under the SIL Open Font License 1.1; licences in godot/assets/fonts (OFL-Fraunces.txt, OFL-AtkinsonHyperlegible.txt, OFL-IBMPlexMono.txt)."],
 	["Simulation", "NEST Simulator (GPL-2.0-or-later), nest-simulator.org: every neuron and synapse model in the game is a NEST model, run by the embedded libspike engine."],
 	["Models and tasks", "Izhikevich 2003, Naud et al. 2008 (adaptive exponential model), Hodgkin and Huxley 1952, Grillner 2003 (lamprey locomotion), Suzuki et al. 2008 (C. elegans salt chemotaxis), Milo et al. 2002 (network motifs). Each task header cites its sources."],
-	["Art", "Everything on screen is drawn procedurally in code. No external image assets."],
+	["Art", "Everything on screen is drawn procedurally in code, after the Golgi-stained plates of Santiago Ramon y Cajal (Textura del sistema nervioso, 1899-1904): every cell is grown from a seed. No external image assets."],
 ]
 
 var scroll: ScrollContainer
@@ -22,29 +22,27 @@ func build() -> void:
 	var phone := Layout.phone
 	add_child(Kit.bench())
 	var margin := MarginContainer.new(); margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var mx := int(Kit.f() * 190) if not phone else 40; var my := int(36 * f) if not phone else 14
+	var mx := int(Kit.f() * 190) if not phone else 28; var my := int(34 * f) if not phone else 10
 	margin.add_theme_constant_override("margin_left", mx); margin.add_theme_constant_override("margin_right", mx)
-	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my + 6); add_child(margin)
-	var sheet := Kit.panel(Kit.PANEL, int(24 * f) if not phone else 14); margin.add_child(sheet)
-	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(14 * f)); sheet.add_child(v)
-
-	var head := HBoxContainer.new(); head.add_theme_constant_override("separation", 20); v.add_child(head)
-	var title := Kit.shout("Credits", int(56 * f) if not phone else 40, Kit.TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(title)
-	back_btn = Kit.btn("BACK", func(): app.back(), "panel", int(30 * f) if not phone else 24, Vector2(150 if not phone else 110, 0))
-	head.add_child(back_btn)
+	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my); add_child(margin)
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(18 * f) if not phone else 6); margin.add_child(v)
+	var hb := Kit.page_head("Credits", func(): app.back(), phone); var head: HBoxContainer = hb[0]; back_btn = hb[1]; v.add_child(head)
+	if not phone: head.add_child(Kit.running_head("Plate IV  ·  acknowledgements"))
 
 	scroll = ScrollContainer.new(); scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; v.add_child(scroll)
-	var body := VBoxContainer.new(); body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(16 * f)); scroll.add_child(body)
+	var pad := MarginContainer.new(); pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for side in ["right", "bottom"]: pad.add_theme_constant_override("margin_" + side, int(Kit.SHADOW) + 14)
+	scroll.add_child(pad)
+	var body := VBoxContainer.new(); body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(16 * f)); pad.add_child(body)
 
-	var c1 := Kit.card("SPIKE", Kit.PANEL_HI, Kit.exc()); body.add_child(c1[0])
+	var c1 := Kit.fig_card(1, "Spike, and what it stands on", "", Kit.PANEL, 24 if not phone else 14); body.add_child(c1[0])
 	for e in CREDITS:
 		if c1[1].get_child_count() > 1: c1[1].add_child(Kit.hsep())
 		var b := VBoxContainer.new(); b.add_theme_constant_override("separation", 2); c1[1].add_child(b)
-		b.add_child(Kit.shout(str(e[0]), 22, Kit.TEXT))
-		b.add_child(Kit.label(str(e[1]), 17, Kit.TEXT_SOFT, true))
-	var end := Kit.label("Thanks for growing a nervous system.", 18, Kit.TEXT_SOFT, true); end.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.add_child(Kit.shout(str(e[0]), 24, Kit.TEXT))
+		b.add_child(Kit.label(str(e[1]), 18, Kit.TEXT_SOFT, true))
+	var end := Kit.italic("Thanks for growing a nervous system.", 22, Kit.TEXT_SOFT); end.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(end)
 	if OS.get_environment("SP_CREDITS_SCROLL") != "":
 		var px := int(OS.get_environment("SP_CREDITS_SCROLL"))
