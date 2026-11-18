@@ -40,6 +40,9 @@ public:
   virtual std::vector< std::string > motor_channels() const = 0;
   /// Episode length in ms.
   virtual double duration_ms() const = 0;
+  /// Additions (v0.4, add-only): episode length of the "quick check" (spike-run --quick, the game's CHECK). Default = the full episode.
+  /// A task that overrides this must score a run of this length by the same rules (its score() is called after quick_duration_ms() of steps).
+  virtual double quick_duration_ms() const { return duration_ms(); }
 
   virtual void reset( uint64_t seed ) = 0;
   /// One slice: read the world into engine inputs, step the engine `dt_ms`, read motor rates, advance the world.

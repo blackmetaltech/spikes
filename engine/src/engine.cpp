@@ -168,6 +168,11 @@ struct Engine::Impl
   double last_step_ms = 0, last_run_us = 0;
   std::map< int32_t, std::deque< double > > watched;
 
+  // structure() cache (v0.4): valid while steps_done and weight_edits are unchanged
+  Structure st;
+  int64_t st_steps = -1;
+  uint64_t st_edits = 0, weight_edits = 0;
+
   void clear_state()
   {
     error.clear();
@@ -194,6 +199,9 @@ struct Engine::Impl
     step_ok = true;
     last_step_ms = last_run_us = 0;
     watched.clear();
+    st = Structure();
+    st_steps = -1;
+    weight_edits = 0;
   }
 
   bool fail( const std::string& m )
@@ -218,6 +226,7 @@ struct Engine::Impl
     }
   }
 
+  const Structure& structure_of();
   void build();
   void collect();
   void apply_modulation();
@@ -969,6 +978,7 @@ bool Engine::set_weight( int32_t projection, int32_t edge, double weight )
     }
     Dictionary d;
     d[ "weight" ] = weight;
+    ++m.weight_edits;
     nest::set_connection_status( std::deque< nest::ConnectionID >{ conns[ pick ] }, d );
     if ( ps.gap )
     {
@@ -1034,6 +1044,193 @@ double Engine::modulator( const std::string& name ) const
     return 0.0;
   }
   return impl_->mod_total( k );
+}
+
+// ---- structure (v0.4) ------------------------------------------------------------------------------------------
+
+int Structure::population_index( const std::string& id ) const
+{
+  for ( size_t i = 0; i < populations.size(); ++i )
+    if ( populations[ i ].id == id )
+      return static_cast< int >( i );
+  return -1;
+}
+
+const PopulationInfo* Structure::population( const std::string& id ) const
+{
+  const int i = population_index( id );
+  return i < 0 ? nullptr : &populations[ i ];
+}
+
+Structure Engine::structure() const { return impl_->structure_of(); }
+
+const Structure& Engine::Impl::structure_of()
+{
+  Impl& m = *this;
+  static const Structure empty;
+  if ( not m.loaded )
+    return empty;
+  if ( m.st_steps == m.steps_done and m.st_edits == m.weight_edits and not m.st.populations.empty() )
+    return m.st;
+  Structure s;
+  const CircuitSpec& sp = m.spec;
+  for ( const auto& p : sp.pops )
+  {
+    PopulationInfo pi;
+    pi.id = p.id;
+    pi.model = p.model;
+    pi.n = p.n;
+    pi.first_index = p.first;
+    if ( p.params.is_object() )
+      for ( auto it = p.params.begin(); it != p.params.end(); ++it )
+        if ( it.value().is_number() )
+          pi.params[ it.key() ] = it.value().get< double >();
+    s.populations.push_back( pi );
+  }
+  std::vector< double > out_sum( sp.pops.size(), 0.0 );
+  std::vector< int64_t > out_n( sp.pops.size(), 0 );
+  for ( size_t k = 0; k < sp.projs.size(); ++k )
+  {
+    const ProjSpec& ps = sp.projs[ k ];
+    ProjectionInfo pi;
+    pi.index = static_cast< int32_t >( k );
+    pi.pre_pop = ps.pre;
+    pi.post_pop = ps.post;
+    pi.pre_index = ps.pre_pop;
+    pi.post_index = ps.post_pop;
+    pi.rule = ps.has_edges ? std::string( "edges" ) : ps.rule.value( "rule", std::string( "all_to_all" ) );
+    pi.synapse_model = m.projs[ k ].model;
+    std::map< size_t, int > indeg;
+    double sum = 0;
+    int n = 0;
+    try
+    {
+      for ( const auto& c : m.find_conns( m.projs[ k ], -1, -1 ) )
+      {
+        const double w = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 ).get< double >( "weight" );
+        if ( n == 0 )
+          pi.w_min = pi.w_max = w;
+        pi.w_min = std::min( pi.w_min, w );
+        pi.w_max = std::max( pi.w_max, w );
+        sum += w;
+        ++n;
+        ++indeg[ c.get_target_node_id() ];
+      }
+    }
+    catch ( const std::exception& )
+    {
+    }
+    pi.n_edges = n;
+    pi.w_mean = n ? sum / n : 0.0;
+    pi.sign = pi.w_mean > 0 ? 1 : ( pi.w_mean < 0 ? -1 : 0 );
+    int mx = 0;
+    for ( const auto& [ t, c ] : indeg )
+      mx = std::max( mx, c );
+    pi.indegree_max = mx;
+    const int npost = ps.post_pop >= 0 ? sp.pops[ ps.post_pop ].n : 0;
+    pi.indegree_mean = npost > 0 ? double( n ) / npost : 0.0;
+    if ( ps.pre_pop >= 0 )
+    {
+      out_sum[ ps.pre_pop ] += sum;
+      out_n[ ps.pre_pop ] += n;
+    }
+    s.projections.push_back( pi );
+  }
+  for ( size_t i = 0; i < s.populations.size(); ++i )
+    s.populations[ i ].sign = out_n[ i ] == 0 ? 0 : ( out_sum[ i ] > 0 ? 1 : ( out_sum[ i ] < 0 ? -1 : 0 ) );
+  auto pops_of = [ & ]( const std::vector< int32_t >& neurons ) {
+    std::vector< std::string > v;
+    for ( const auto& p : sp.pops )
+      for ( int32_t n : neurons )
+        if ( n >= p.first and n < p.first + p.n )
+        {
+          v.push_back( p.id );
+          break;
+        }
+    return v;
+  };
+  for ( const auto& in : sp.inputs )
+    s.inputs.push_back( { in.name, in.kind, pops_of( in.targets ), in.targets } );
+  for ( const auto& o : sp.outputs )
+    s.outputs.push_back( { o.name, o.kind, pops_of( o.neurons ), o.neurons } );
+  m.st = std::move( s );
+  m.st_steps = m.steps_done;
+  m.st_edits = m.weight_edits;
+  return m.st;
+}
+
+// Shortest hop counts over the usable projections (non-zero mean weight, at least one connection, sign filter), from population `src`.
+// dist[src] = 0; unreachable = -1.
+static std::vector< int > hop_dist( const Structure& s, int src, int sign_filter )
+{
+  std::vector< int > d( s.populations.size(), -1 );
+  if ( src < 0 )
+    return d;
+  d[ src ] = 0;
+  std::vector< int > q{ src };
+  for ( size_t h = 0; h < q.size(); ++h )
+    for ( const auto& p : s.projections )
+      if ( p.pre_index == q[ h ] and p.post_index >= 0 and p.n_edges > 0 and p.sign != 0 and ( sign_filter == 0 or p.sign == sign_filter ) and d[ p.post_index ] < 0 )
+      {
+        d[ p.post_index ] = d[ q[ h ] ] + 1;
+        q.push_back( p.post_index );
+      }
+  return d;
+}
+
+bool Engine::has_path( const std::string& from, const std::string& to, int max_hops, int sign_filter ) const
+{
+  const Structure& s = impl_->structure_of();
+  const int a = s.population_index( from ), b = s.population_index( to );
+  if ( a < 0 or b < 0 )
+    return false;
+  if ( a != b )
+  {
+    const int d = hop_dist( s, a, sign_filter )[ b ];
+    return d > 0 and ( max_hops <= 0 or d <= max_hops );
+  }
+  // a cycle: one projection out, then the shortest way back
+  for ( const auto& p : s.projections )
+    if ( p.pre_index == a and p.n_edges > 0 and p.sign != 0 and ( sign_filter == 0 or p.sign == sign_filter ) )
+    {
+      const int back = p.post_index == a ? 0 : hop_dist( s, p.post_index, sign_filter )[ a ];
+      if ( back >= 0 and ( max_hops <= 0 or 1 + back <= max_hops ) )
+        return true;
+    }
+  return false;
+}
+
+bool Engine::has_loop( const std::string& pop, int max_hops, int via_sign ) const
+{
+  const Structure& s = impl_->structure_of();
+  const int a = s.population_index( pop );
+  if ( a < 0 )
+    return false;
+  const auto from_a = hop_dist( s, a, 0 );
+  for ( const auto& p : s.projections )
+  {
+    if ( p.n_edges == 0 or p.sign == 0 or ( via_sign != 0 and p.sign != via_sign ) or p.pre_index < 0 or p.post_index < 0 )
+      continue;
+    const int to_u = from_a[ p.pre_index ];
+    if ( to_u < 0 )
+      continue;
+    const int back = p.post_index == a ? 0 : hop_dist( s, p.post_index, 0 )[ a ];
+    if ( back >= 0 and ( max_hops <= 0 or to_u + 1 + back <= max_hops ) )
+      return true;
+  }
+  return false;
+}
+
+bool Engine::has_loop_via( const std::string& pop, const std::string& via, int max_hops, int sign_filter ) const
+{
+  const Structure& s = impl_->structure_of();
+  const int a = s.population_index( pop ), v = s.population_index( via );
+  if ( a < 0 or v < 0 )
+    return false;
+  if ( a == v )
+    return has_path( pop, pop, max_hops, sign_filter );
+  const int out = hop_dist( s, a, sign_filter )[ v ], back = hop_dist( s, v, sign_filter )[ a ];
+  return out > 0 and back > 0 and ( max_hops <= 0 or out + back <= max_hops );
 }
 
 RunStats Engine::stats() const

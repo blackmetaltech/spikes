@@ -359,7 +359,7 @@ std::string headless_runner_path()
 }
 
 long headless_start( const std::string& task_id, const std::string& circuit_json, const std::vector< long long >& seeds_in, const std::string& mode,
-  const std::string& variant, std::string& err, const std::vector< long long >& circuit_seeds )
+  const std::string& variant, std::string& err, const std::vector< long long >& circuit_seeds, bool quick )
 {
   if ( task_id.empty() || !word( task_id ) || !word( mode ) || !word( variant ) )
   {
@@ -442,6 +442,8 @@ long headless_start( const std::string& task_id, const std::string& circuit_json
     args.push_back( "--variant" );
     args.push_back( variant );
   }
+  if ( quick )
+    args.push_back( "--quick" );
   int pfd[ 2 ];
   if ( pipe( pfd ) != 0 )
   {

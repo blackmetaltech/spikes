@@ -29,6 +29,7 @@ public:
   String id() const;
   String title() const;
   double duration_ms() const;
+  double quick_duration_ms() const;  // v0.4 (add-only): episode length of the quick check
   PackedStringArray sensor_channels() const;
   PackedStringArray motor_channels() const;
   String reference_circuit() const;
@@ -66,6 +67,8 @@ public:
   /// The spike-run that score_headless_async would launch ("" if none found). Searched: set_headless_runner, $SPIKE_RUN, next to the extension library, next to the executable, res://bin, dev tree, PATH.
   static String headless_runner_path();
   /// Poll: {done:bool, ok:bool, error:String, passed:bool, value:float (mean), passes:int, seeds:int, runs:Array of {seed, value, passed, parts, verdict}, ms:float}. Unknown id -> {done:true, ok:false}.
+  /// v0.4 (add-only): the same, on the task's quick-check episode (Task::quick_duration_ms()); poll with score_headless_poll.
+  int64_t score_headless_quick_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant, int64_t circuit_seed = -1 );
   Dictionary score_headless_poll( int64_t job );
   // v0.2 engine bridges (static, add-only): the parts-bin card list, and the neuromodulator channels of a SpikeSim (engine.h set_modulator / modulator)
   static String catalog_json();

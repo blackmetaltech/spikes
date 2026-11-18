@@ -46,7 +46,8 @@ std::string headless_runner_path();
 /// circuit_seeds: empty = the task seed reseeds the circuit (1000 * seed + circuit seed); one value = pin the circuit seed for every task seed;
 /// one per seed = pin each (pass the live run's circuit seed so CHECK scores the same circuit). The circuit goes through a private mkstemp file (0600), deleted when the job ends.
 long headless_start( const std::string& task_id, const std::string& circuit_json, const std::vector< long long >& seeds, const std::string& mode,
-  const std::string& variant, std::string& err, const std::vector< long long >& circuit_seeds = {} );
+  const std::string& variant, std::string& err, const std::vector< long long >& circuit_seeds = {}, bool quick = false );
+/// quick = true passes --quick (Task::quick_duration_ms() instead of the full episode). Seeds always run in parallel child processes inside spike-run (cap = cores).
 /// Kill the job's spike-run process group, delete its temp files and forget the job. True if it was still running.
 bool headless_cancel( long job );
 /// JSON: {"done":bool,"ok":bool,"error":"","ms":n,"result":{spike-run --task output}} (result only when ok). Unknown id -> done, not ok.

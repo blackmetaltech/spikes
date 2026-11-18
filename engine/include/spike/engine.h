@@ -4,6 +4,7 @@
 #pragma once
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,49 @@ struct RunStats
   double t_ms = 0;          // model time reached
   uint64_t spikes = 0;      // total spikes so far
   uint64_t checksum = 0;    // running FNV-1a over (neuron, step) of every spike, in time order: golden traces use it
+};
+
+
+/// Additions (v0.4, add-only): circuit structure for tasks and the editor (docs/ENGINE-STRUCTURE.md, docs/CIRCUIT-FORMAT.md "Structure").
+/// All numbers come from the live NEST connections (so rule projections, weight spread, set_weight() edits and plasticity are seen).
+struct PopulationInfo
+{
+  std::string id, model;
+  int32_t n = 0;
+  int32_t first_index = 0;                    // circuit-level index of the population's first neuron
+  int sign = 0;                               // +1 / -1 from the sign of the summed outgoing weights (sum of w over every outgoing connection); 0 if no outgoing connection or the sum is 0
+  std::map< std::string, double > params;     // the numeric entries of the population's "params"
+};
+
+struct ProjectionInfo
+{
+  int32_t index = 0;                          // the `projection` argument of set_weight()
+  std::string pre_pop, post_pop;              // population ids
+  int32_t pre_index = -1, post_index = -1;    // positions in Structure::populations
+  std::string rule;                           // NEST rule name, or "edges"
+  std::string synapse_model;                  // "static_synapse" by default
+  int32_t n_edges = 0;                        // connections pre -> post (a gap junction's mirror is not counted)
+  double w_mean = 0, w_min = 0, w_max = 0;    // over the connections (0 when n_edges == 0)
+  int sign = 0;                               // sign of w_mean (+1, -1, 0 when n_edges == 0 or w_mean == 0)
+  double indegree_mean = 0;                   // connections per post neuron (over all post neurons of the population)
+  int32_t indegree_max = 0;                   // most connections onto one post neuron
+};
+
+struct ChannelStructure
+{
+  std::string name, kind;                     // kind: "dc", "poisson", ... (inputs); "rate" / "modulator" (outputs)
+  std::vector< std::string > pops;            // populations touched (target pops of an input, source pops of an output), file order, unique
+  std::vector< int32_t > neurons;             // circuit-level neuron indices
+};
+
+struct Structure
+{
+  std::vector< PopulationInfo > populations;  // file order
+  std::vector< ProjectionInfo > projections;  // file order
+  std::vector< ChannelStructure > inputs, outputs;
+  /// Position of a population id in `populations`, -1 if unknown.
+  int population_index( const std::string& id ) const;
+  const PopulationInfo* population( const std::string& id ) const;
 };
 
 class Engine
@@ -92,6 +136,20 @@ public:
   /// (spikes of a population -> concentration, first-order decay). Unknown names set error() and return false / 0.
   bool set_modulator( const std::string& name, double conc );
   double modulator( const std::string& name ) const;
+
+
+  /// Additions (v0.4, add-only): circuit structure. structure() is a snapshot (recomputed when steps ran or set_weight() was called since the last call);
+  /// empty when nothing is loaded. Only connections with a non-zero weight count as a path in the helpers below (a weight-0 projection is "cut").
+  Structure structure() const;
+  /// True when a chain of 1..max_hops projections leads from population `from` to `to` (max_hops <= 0: unlimited). from == to asks for a cycle.
+  /// sign_filter: 0 = any projection, +1 = only projections with w_mean > 0, -1 = only w_mean < 0. Unknown ids give false.
+  bool has_path( const std::string& from, const std::string& to, int max_hops = 0, int sign_filter = 0 ) const;
+  /// True when `pop` lies on a cycle of at most max_hops projections (max_hops <= 0: unlimited) that contains at least one projection of sign `via_sign`
+  /// (0 = any; -1 = the motor -> inhibitory -> motor loop: a cycle with an inhibitory projection). A self-projection is a 1-hop cycle.
+  bool has_loop( const std::string& pop, int max_hops = 0, int via_sign = 0 ) const;
+  /// True when `pop` lies on a cycle of at most max_hops projections that passes through population `via` (e.g. has_loop_via("MN", "RC", 2)).
+  /// sign_filter as for has_path (applied to every projection of the cycle).
+  bool has_loop_via( const std::string& pop, const std::string& via, int max_hops = 0, int sign_filter = 0 ) const;
 
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.

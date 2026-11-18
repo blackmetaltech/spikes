@@ -3,6 +3,7 @@
 // sorted by (step, neuron). A summary line goes to stderr so stdout holds spikes only.
 //
 // spike-run --list-tasks prints the registered task ids, one per line.
+// spike-run --task <id> [--quick] [--jobs n]   (--quick: run Task::quick_duration_ms() instead of the full episode; --jobs: seeds run in parallel child processes, default = cores, 1 = in-process)
 // spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--circuit-seed n | --circuit-seeds a,b,c] [--lesion pre>post*k ...] [--require any|all] [--circuits-dir dir]
 //   [--circuit-seed n | --circuit-seeds a,b,c]: pin the circuit seed (one for all seeds, or one per seed) instead of the 1000 * seed + circuit seed reseed,
 //   so an instant check scores the same circuit seed as the live run.
@@ -14,6 +15,10 @@
 //   the executable). Seeds default to 1. A lesion scales the weight of every projection pre->post (0 deletes it). Exit status: 0 ok, 1 load or run
 //   error, 2 usage, 3 the --require condition failed (any: at least one seed passed, all: every seed passed). Used by CI and scripts/smoke.sh.
 #include <cstdio>
+#include <cerrno>
+#include <deque>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -33,7 +38,7 @@ static bool exists( const std::string& p )
   return static_cast< bool >( f );
 }
 
-/// The folder that holds the reference circuits: explicit, $SPIKE_CIRCUITS_DIR, then circuits/ in the cwd and up to 6 parents, then the same from argv[0].
+/// The folder that holds the reference circuits: explicit, $SPIKE_CIRCUITS_DIR, then circuits/ (or godot/circuits/) in the cwd and up to 6 parents, then the same from argv[0].
 static std::string find_circuits_dir( const std::string& given, const std::string& rel, const char* argv0 )
 {
   std::vector< std::string > cands;
@@ -43,14 +48,20 @@ static std::string find_circuits_dir( const std::string& given, const std::strin
     cands.push_back( e );
   std::string up = "";
   for ( int i = 0; i < 7; ++i, up += "../" )
+  {
     cands.push_back( up + "circuits" );
+    cands.push_back( up + "godot/circuits" );  // the Godot project is the single source (repo-root circuits/ is a symlink to it)
+  }
   std::string exe = argv0;
   auto slash = exe.find_last_of( '/' );
   if ( slash != std::string::npos )
   {
     up = exe.substr( 0, slash + 1 );
     for ( int i = 0; i < 7; ++i, up += "../" )
-      cands.push_back( up + "circuits" );
+    {
+      cands.push_back( up + "circuits" );  // exported game: circuits/ next to spike-run; dev tree: godot/bin/../circuits
+      cands.push_back( up + "godot/circuits" );
+    }
   }
   for ( const auto& c : cands )
     if ( exists( c + "/" + rel ) )
@@ -69,10 +80,11 @@ static int run_task_mode( int argc, char** argv )
   std::string task_id, circuit_file, dir, require, mode, variant;
   std::vector< unsigned long long > seeds, circuit_seeds;
   std::vector< Lesion > lesions;
-  int threads = 1;
+  int threads = 1, jobs = 0;
+  bool quick = false;
   auto usage = [] {
     std::fprintf( stderr, "usage: spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k]... "
-                          "[--mode guided|standard|researcher] [--variant id] [--require any|all] [--circuits-dir dir] [--threads n]\n" );
+                          "[--mode guided|standard|researcher] [--variant id] [--require any|all] [--circuits-dir dir] [--threads n] [--quick] [--jobs n]\n" );
     return 2;
   };
   for ( int i = 1; i < argc; ++i )
@@ -93,6 +105,10 @@ static int run_task_mode( int argc, char** argv )
       variant = argv[ ++i ];
     else if ( a == "--threads" and more )
       threads = std::atoi( argv[ ++i ] );
+    else if ( a == "--jobs" and more )
+      jobs = std::atoi( argv[ ++i ] );
+    else if ( a == "--quick" )
+      quick = true;
     else if ( ( a == "--seed" or a == "--seeds" ) and more )
     {
       std::stringstream ss( argv[ ++i ] );
@@ -187,27 +203,25 @@ static int run_task_mode( int argc, char** argv )
   out[ "mode" ] = mode.empty() ? "standard" : mode;
   out[ "variant" ] = variant;
   out[ "circuit" ] = circuit_file;
+  out[ "quick" ] = quick;
   out[ "runs" ] = json::array();
-  double sum = 0;
-  int passes = 0;
-  for ( size_t si = 0; si < seeds.size(); ++si )
-  {
+
+  // One seed: returns the run's JSON, or {"error": "..."} on a load / run failure. Needs a fresh process for every Engine (one NEST kernel per process).
+  auto run_seed = [ & ]( size_t si ) -> json {
     const auto seed = seeds[ si ];
     json c = base;
     // default: task seed also reseeds the circuit (1000 * seed + circuit seed); --circuit-seed(s) pins the circuit seed exactly (the live run's)
     c[ "seed" ] = circuit_seeds.empty() ? 1000 * seed + base.value( "seed", 1 ) : circuit_seeds[ circuit_seeds.size() == 1 ? 0 : si ];
     spike::Engine e;
     if ( not e.load( c.dump() ) )
-    {
-      std::fprintf( stderr, "spike-run: seed %llu: %s\n", seed, e.error().c_str() );
-      return 1;
-    }
+      return { { "error", "seed " + std::to_string( seed ) + ": " + e.error() } };
     auto task = spike::make_task( task_id );
     task->set_mode( mode.empty() ? "standard" : mode );
     task->set_variant( variant );
     task->reset( seed );
     unsigned long long spikes = 0;
-    const long steps = static_cast< long >( task->duration_ms() );
+    const double dur = quick ? task->quick_duration_ms() : task->duration_ms();
+    const long steps = static_cast< long >( dur );
     for ( long s = 0; s < steps; ++s )
     {
       task->step( e, 1.0 );
@@ -216,10 +230,7 @@ static int run_task_mode( int argc, char** argv )
     }
     spikes += e.drain_spikes().size();
     if ( not e.error().empty() )
-    {
-      std::fprintf( stderr, "spike-run: seed %llu: %s\n", seed, e.error().c_str() );
-      return 1;
-    }
+      return { { "error", "seed " + std::to_string( seed ) + ": " + e.error() } };
     const auto sc = task->score();
     json r;
     r[ "seed" ] = seed;
@@ -238,11 +249,117 @@ static int run_task_mode( int argc, char** argv )
       r[ "metrics" ][ k ] = { { "value", m.value }, { "unit", m.unit }, { "lower_is_better", m.lower_is_better } };
     r[ "neurons" ] = e.neuron_count();
     r[ "spikes" ] = spikes;
-    r[ "duration_ms" ] = task->duration_ms();
-    r[ "rate_hz_per_neuron" ] = e.neuron_count() > 0 ? spikes / double( e.neuron_count() ) / ( task->duration_ms() * 0.001 ) : 0.0;
+    r[ "duration_ms" ] = dur;
+    r[ "rate_hz_per_neuron" ] = e.neuron_count() > 0 ? spikes / double( e.neuron_count() ) / ( dur * 0.001 ) : 0.0;
+    return r;
+  };
+
+  // Seeds run in parallel child processes (fork before any engine exists in this process), at most `jobs` at a time; results keep seed order.
+  std::vector< json > results( seeds.size() );
+  if ( jobs <= 0 )
+  {
+    const long nc = sysconf( _SC_NPROCESSORS_ONLN );
+    jobs = nc > 0 ? static_cast< int >( nc ) : 1;
+  }
+  jobs = std::max( 1, std::min< int >( jobs, static_cast< int >( seeds.size() ) ) );
+  if ( jobs == 1 )
+  {
+    for ( size_t si = 0; si < seeds.size(); ++si )
+    {
+      results[ si ] = run_seed( si );
+      if ( results[ si ].contains( "error" ) )
+        break;
+    }
+  }
+  else
+  {
+    struct Child
+    {
+      pid_t pid;
+      int fd;
+      size_t si;
+    };
+    std::deque< Child > active;
+    size_t next = 0;
+    bool stop = false;
+    auto drain = [ & ]() {
+      Child ch = active.front();
+      active.pop_front();
+      std::string data;
+      char buf[ 65536 ];
+      for ( ssize_t n; ( n = read( ch.fd, buf, sizeof buf ) ) != 0; )
+      {
+        if ( n < 0 and errno == EINTR )
+          continue;
+        if ( n < 0 )
+          break;
+        data.append( buf, static_cast< size_t >( n ) );
+      }
+      close( ch.fd );
+      int status = 0;
+      waitpid( ch.pid, &status, 0 );
+      json r = json::parse( data, nullptr, false );
+      results[ ch.si ] = r.is_discarded() ? json{ { "error", "seed " + std::to_string( seeds[ ch.si ] ) + ": worker process failed" } } : r;
+      if ( results[ ch.si ].contains( "error" ) )
+        stop = true;
+    };
+    while ( not stop and ( next < seeds.size() or not active.empty() ) )
+    {
+      while ( not stop and next < seeds.size() and static_cast< int >( active.size() ) < jobs )
+      {
+        int pfd[ 2 ];
+        if ( pipe( pfd ) != 0 )
+        {
+          results[ next ] = { { "error", "pipe failed" } };
+          stop = true;
+          break;
+        }
+        std::fflush( nullptr );
+        const pid_t pid = fork();
+        if ( pid == 0 )
+        {
+          close( pfd[ 0 ] );
+          const std::string s = run_seed( next ).dump();
+          for ( size_t off = 0; off < s.size(); )
+          {
+            const ssize_t n = write( pfd[ 1 ], s.data() + off, s.size() - off );
+            if ( n <= 0 )
+              _exit( 1 );
+            off += static_cast< size_t >( n );
+          }
+          _exit( 0 );
+        }
+        close( pfd[ 1 ] );
+        if ( pid < 0 )
+        {
+          close( pfd[ 0 ] );
+          results[ next ] = { { "error", "fork failed" } };
+          stop = true;
+          break;
+        }
+        active.push_back( { pid, pfd[ 0 ], next++ } );
+      }
+      if ( not active.empty() )
+        drain();
+    }
+    while ( not active.empty() )
+      drain();
+  }
+  double sum = 0;
+  int passes = 0;
+  for ( size_t si = 0; si < seeds.size(); ++si )
+  {
+    const json& r = results[ si ];
+    if ( r.is_null() )
+      continue;
+    if ( r.contains( "error" ) )
+    {
+      std::fprintf( stderr, "spike-run: %s\n", r[ "error" ].get< std::string >().c_str() );
+      return 1;
+    }
     out[ "runs" ].push_back( r );
-    sum += sc.value;
-    passes += sc.passed ? 1 : 0;
+    sum += r[ "value" ].get< double >();
+    passes += r[ "passed" ].get< bool >() ? 1 : 0;
   }
   out[ "n" ] = seeds.size();
   out[ "passes" ] = passes;
