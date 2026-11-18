@@ -3,20 +3,27 @@
 #   scripts/build-nestml.sh            -> third_party/nestml-gen/   (engine CMake picks it up on the next configure)
 #   scripts/build-nestml.sh --pynest   additionally build libspike_nestml_py.so against third_party/nest-install
 #                                      (PyNEST parity: see models/nestml/spike_nestml.py)
-# Python: $NESTML_PYTHON, else a venv in third_party/nestml-venv (created, nestml installed from PyPI, on first use).
+# Python: $NESTML_PYTHON, else a venv in third_party/nestml-venv (created, nestml==$NESTML_VERSION installed from PyPI, on first use).
+# NESTML is pinned to the version that generated the committed model expectations; override only deliberately (NESTML_VERSION=...).
 # Then: cmake -S . -B build && cmake --build build -j
 set -euo pipefail
 PYNEST=0
 for a in "$@"; do case "$a" in --pynest) PYNEST=1 ;; *) echo "usage: $0 [--pynest]" >&2; exit 2 ;; esac; done
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GEN="$ROOT/third_party/nestml-gen"
+NESTML_VERSION="${NESTML_VERSION:-9.0.1}"
 PY="${NESTML_PYTHON:-}"
 if [ -z "$PY" ]; then
   VENV="$ROOT/third_party/nestml-venv"
-  if [ ! -x "$VENV/bin/python" ]; then python3 -m venv "$VENV"; "$VENV/bin/pip" install -q "nestml>=9,<10"; fi
+  if [ ! -x "$VENV/bin/python" ]; then python3 -m venv "$VENV"; fi
+  if [ "$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("nestml"))' 2>/dev/null)" != "$NESTML_VERSION" ]; then
+    "$VENV/bin/pip" install -q "nestml==$NESTML_VERSION"
+  fi
   PY="$VENV/bin/python"
 fi
-"$PY" -c 'import pynestml' 2>/dev/null || { echo "pynestml not importable with $PY (pip install nestml)" >&2; exit 1; }
+"$PY" -c 'import pynestml' 2>/dev/null || { echo "pynestml not importable with $PY (pip install nestml==$NESTML_VERSION)" >&2; exit 1; }
+have=$("$PY" -c 'import importlib.metadata as m; print(m.version("nestml"))')
+[ "$have" = "$NESTML_VERSION" ] || { echo "NESTML $have found, $NESTML_VERSION is pinned (set NESTML_VERSION to override)" >&2; exit 1; }
 "$PY" "$ROOT/scripts/nestml_generate.py" "$ROOT/models/nestml" "$GEN"
 touch "$GEN/.stamp"
 

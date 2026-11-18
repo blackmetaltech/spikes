@@ -36,7 +36,7 @@ static var _from_engine := false
 static func _read_thumbs() -> String:
 	var paths := []
 	if OS.get_environment("SP_CATALOG") != "": paths.append(OS.get_environment("SP_CATALOG"))
-	for base in [ProjectSettings.globalize_path("res://").path_join("../catalog"), ProjectSettings.globalize_path("res://catalog"), OS.get_executable_path().get_base_dir().path_join("catalog")]:
+	for base in ["res://catalog", OS.get_executable_path().get_base_dir().path_join("catalog")]:
 		paths.append(String(base).path_join("thumbs.json"))
 	for p in paths:
 		if FileAccess.file_exists(p): _src = p; return FileAccess.get_file_as_string(p)

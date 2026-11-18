@@ -1,0 +1,56 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+# One job builds the toolchain image (Dockerfile, pinned NEST/NESTML/godot-cpp/Godot) and runs everything inside it.
+# third_party/ (NEST clone + static build, NESTML venv, godot-cpp) is cached between runs; the cache key is the pin scripts + Dockerfile.
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            third_party/nest-simulator
+            third_party/nest-build
+            third_party/nest-install
+            third_party/nestml-venv
+            third_party/godot-cpp
+          key: third-party-${{ hashFiles('Dockerfile', 'scripts/build-nest.sh', 'scripts/build-nestml.sh', 'scripts/build-gd.sh') }}
+
+      - name: Build the toolchain image
+        run: docker build -t spike-build .
+
+      # Every later step runs in the image with the checkout mounted at /src (same user, so files stay writable).
+      - name: Build (NEST, NESTML, engine, extension, tests; PyNEST for the Python parity tests)
+        run: |
+          docker run --rm -v "$PWD":/src -w /src spike-build scripts/build-all.sh --tests --debug --pynest
+
+      - name: ctest
+        run: |
+          docker run --rm -v "$PWD":/src -w /src spike-build \
+            bash -c 'cd build && ctest --output-on-failure -j"$(nproc)"'
+
+      - name: pytest
+        run: |
+          docker run --rm -v "$PWD":/src -w /src spike-build \
+            bash -c 'export SPIKE_RUN=/src/godot/bin/spike-run; python3 -m pytest -q python/tests'
+
+      - name: Smoke (headless game, every screen and task)
+        run: docker run --rm -v "$PWD":/src -w /src spike-build scripts/smoke.sh
+
+      - name: Package (Linux zip + headless smoke of the exported build)
+        run: docker run --rm -v "$PWD":/src -w /src spike-build scripts/package.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spike-linux-x86_64
+          path: build/spike-linux-x86_64.zip
+          if-no-files-found: error
+
+  # Windows x86_64 is planned (docs: README "Windows"): NEST + GSL + godot-cpp need a MinGW or MSVC toolchain and the
+  # engine's POSIX bits (realpath, dladdr, fork/exec in the headless runner) need Windows ports first.
