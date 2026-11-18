@@ -27,3 +27,10 @@ Milder cuts that still pass: HYP -> SCG alone (EW withdrawal still dilates the p
 
 ## Limits
 Fixed luminance (no light reflex), a lumped sympathetic chain, no hypoxic drive, no skeletal muscle pump. Credits: Kirchheim HR (1976) Physiol Rev 56:100; Guyenet PG (2006) Nat Rev Neurosci 7:335; Raven PB, Fadel PJ, Ogoh S (2006) Exp Physiol 91:37 (doi:10.1113/expphysiol.2005.032250); Rowell LB, O'Leary DS (1990) J Appl Physiol 69:407; Dampney RAL (1994) Physiol Rev 74:323; Cannon WB (1915); Steinhauer SR, Hakerem G (1992) Ann N Y Acad Sci 658:182; Guyenet PG, Stornetta RL, Bayliss DA (2010) J Comp Neurol 518:3883.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** Every component of the chapter must be in the circuit: the baroreflex (both limbs, as in the `baroreflex` level), central command (the exercise cue and the threat each reach the cells behind `sympathetic` by excitation; a disinhibition through CVLM counts), the defence reaction (the threat reaches the cells behind `dilator` and behind `vent`, or the cue reaches `vent`), the chemoreflex (`chemo` reaches the cells behind `vent`) and separate pools for dilator, sphincter and vent. The verdict names the component; the value is capped at 49.
+
+**Quick check.** `quick_duration_ms()` = 82 s: the same day compressed (stand up at 12 s, exercise 36-50 s, threat 56-68 s, windows rest 8-12 s, stand 28-34 s, exercise 43-50 s, threat 62-68 s, recovery 74-82 s, gas exchange clock 1.5 times faster), same 19 conditions. Reference: 7.8 s -> 5.4 s wall (under the 8 s target).
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

@@ -50,3 +50,10 @@ Credits: Gamlin PDR (2006) Prog Brain Res 151:379; McDougal DH, Gamlin PD (2015)
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 15); weak_retina (3 fibres).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `constriction_latency_ms`. **Notebook:** McDougal & Gamlin 2015.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** Two pathways onto two pools: an excitatory path from `retina` to the cells `sphincter` reads (the parasympathetic reflex arc) and one from `threat` to the cells `dilator` reads (the sympathetic arm), and the two output pools must be different cells (one pool read by both is one muscle). The verdict names the missing pathway or says the outputs read the same cells; the value is capped at 49.
+
+**Quick check.** None needed: the full episode (40 s) already takes 1.4 s (`quick_duration_ms()` = the full episode).
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

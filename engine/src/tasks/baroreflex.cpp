@@ -15,6 +15,12 @@
 //   heart module's resting tone): resistance R = R0 (1 + 0.8 (sym - 0.2)), venoconstriction, contractility 1 + (sym - 0.2). A silent sympathetic
 //   output (NE = 0) therefore lowers resting pressure too (sympathetic tone is part of normal pressure).
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): a relay population (the NTS) that the baroreceptor input reaches and that
+//   feeds BOTH limbs: the vagal limb (an excitatory path from the relay to the cells read by 'vagal') and the sympathetic limb (a net-INHIBITORY
+//   path from the relay to the cells read by 'sympathetic': relay -> CVLM, CVLM -| RVLM, RVLM -> ... -> sympathetic, high pressure turns sympathetic
+//   output down). 'vagal' and 'sympathetic' must be modulator outputs on separate cells. Without it the score is capped below the pass bar and the
+//   verdict names the missing limb.
+//
 // SCORING (MAP = Heart::map_smooth, sampled every 100 ms from 10 s on)
 //   in_band      : fraction of samples with 80 <= MAP <= 100 mmHg
 //   settle_stand : time from the stand-up (15 s) until MAP has stayed inside the band for 3 s running (0 if it never left);
@@ -37,6 +43,7 @@
 #include <map>
 #include <sstream>
 #include "spike/body/heart.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -45,8 +52,16 @@ namespace spike::tasks
 namespace
 {
 
-constexpr double kDuration = 140000, kSkip = 10000;
-constexpr double kStand = 15000, kLie = 60000, kHaem0 = 80000, kHaem1 = 110000;
+constexpr double kDuration = 140000;
+// The scripted day (ms): stand up, lie down, haemorrhage start/end, episode end, first scored sample. The quick check runs the same script with a shorter
+// supine start, shorter upright and supine stretches and a shorter tail; the stretches stay longer than the settling limit (15 s) and the
+// haemorrhage is the same 300 ml at the same rate, scored by the same rules.
+struct Sched
+{
+  double stand, lie, haem0, haem1, end, skip;
+};
+constexpr Sched kFull{ 15000, 60000, 80000, 110000, kDuration, 10000 };
+constexpr Sched kQuick{ 10000, 32000, 52000, 82000, 94000, 8000 };
 constexpr double kHaemRate = 10.0;  // ml/s (standard)
 constexpr double kLo = 80, kHi = 100, kRecoverHold = 3000;  // ms in band to count as recovered
 constexpr double kSymGain = 0.5;  // sympathetic drive change per unit of NE change (NE 0.2 = resting tone = Heart's sym_rest 0.2)
@@ -89,7 +104,18 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "baroreceptor" }; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat", "vagal", "sympathetic" }; }
-  double duration_ms() const override { return kDuration; }
+  double duration_ms() const override
+  {
+    quick_ = false;
+    return kDuration;
+  }
+  /// Quick check: the same day, shortened (see Sched). The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scripts and
+  /// scores (spike-run and the test harness ask after reset(), before the first step).
+  double quick_duration_ms() const override
+  {
+    quick_ = true;
+    return kQuick.end;
+  }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "dashboard"; }
   int par_neurons() const override { return variant_par( variant_, 48 ); }
@@ -110,23 +136,29 @@ public:
   {
     Score s = score();
     std::vector< Hint > h;
-    if ( s.parts[ "spikes" ] < 1 || s.parts[ "map_min_mmHg" ] < kLo - 10 )
+    if ( !mech_.ok() )
+    {
+      h.push_back( make_hint( 1, "The reflex has two limbs, both started by the baroreceptor relay in the brainstem: vagal slowing of the heart, and withdrawal of sympathetic drive through an inhibitory relay.", "" ) );
+      h.push_back( make_hint( 2, "One limb of the reflex is missing or does not reach its output.", "baroreceptor" ) );
+      h.push_back( make_hint( 3, "From the relay, one excitatory chain goes to the vagal output; another goes through an inhibitory cell group that silences the tonically active vasomotor cells, which drive the sympathetic output.", "" ) );
+    }
+    else if ( s.parts[ "spikes" ] < 1 || s.parts[ "map_min_mmHg" ] < kLo - 10 )
     {
       h.push_back( make_hint( 1, "Negative feedback: low pressure must raise sympathetic output and lower vagal output. If the sympathetic side stays silent the pressure collapses.", "" ) );
       h.push_back( make_hint( 2, "The sympathetic output is too weak when pressure falls: check RVLM, the tonic sympathetic source.", "sympathetic" ) );
-      h.push_back( make_hint( 3, "baroreceptor at weight 1600 > AFF > NTS; NTS > CVLM (inhibitory) > RVLM (bias 380) > IML > SG > sympathetic.", "" ) );
+      h.push_back( make_hint( 3, "Make the baroreceptor input strong enough to be heard, and give the tonic vasomotor cells enough standing drive to fire when nothing inhibits them.", "" ) );
     }
     else if ( s.parts[ "map_max_mmHg" ] > kHi + 15 )
     {
       h.push_back( make_hint( 1, "A reflex that over-corrects pushes the pressure past the band: the gain of the loop is too high or too slow.", "" ) );
       h.push_back( make_hint( 2, "Reduce how strongly the baroreceptor path turns off the sympathetic branch.", "baroreceptor" ) );
-      h.push_back( make_hint( 3, "CVLM > RVLM at about -140; sympathetic gain 0.0076 with tau 1000 ms.", "" ) );
+      h.push_back( make_hint( 3, "Weaken the inhibitory link onto the vasomotor cells, or lower the release per spike of the sympathetic output.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "The reflex needs both limbs: sympathetic withdrawal and vagal slowing for high pressure, the reverse for low.", "" ) );
       h.push_back( make_hint( 2, "The vagal limb is probably missing or weak.", "vagal" ) );
-      h.push_back( make_hint( 3, "NTS > NA (4, bias 370) 30 > VG (segment, 1500) > vagal (ACh, gain 0.012, tau 500 ms).", "" ) );
+      h.push_back( make_hint( 3, "Strengthen the excitatory chain from the relay to the vagal output.", "" ) );
     }
     return h;
   }
@@ -146,8 +178,8 @@ public:
   }
   std::vector< Event > timeline() const override
   {
-    return { { kStand, 2000, "stand up" }, { kStand, kLie - kStand, "upright" }, { kLie, 2000, "lie down" },
-      { kHaem0, kHaem1 - kHaem0, "haemorrhage 300 ml" } };
+    return { { kFull.stand, 2000, "stand up" }, { kFull.stand, kFull.lie - kFull.stand, "upright" }, { kFull.lie, 2000, "lie down" },
+      { kFull.haem0, kFull.haem1 - kFull.haem0, "haemorrhage 300 ml" } };
   }
   std::vector< Band > bands() const override { return { { "map_mmHg", "mmHg", kLo, kHi } }; }
   std::vector< std::string > modulators() const override { return { "NE", "ACh" }; }
@@ -155,6 +187,7 @@ public:
   void reset( uint64_t ) override
   {
     heart_.reset();
+    sch_ = kFull;
     t_ = 0;
     beats_.clear();
     last_beat_ = -1;
@@ -173,11 +206,15 @@ public:
     hr_sum_ = hr_n_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
+    if ( t_ == 0 )
+      sch_ = quick_ ? kQuick : kFull;
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    mech_.refresh( e, t_, []( const Structure& st ) { return mech::baroreflex_limbs_missing( st ); } );
     e.set_input( "baroreceptor", heart_.baro_mean_hz );
     e.step( dt );
     ne_ = e.modulator( "NE" );
@@ -194,8 +231,8 @@ public:
       double sym = clampd( 0.2 + kSymGain * ( ne_ - 0.2 ), 0, 1 );
       in.sym_cardiac = in.sym_vascular = sym;
       in.vagal = 0.6;
-      in.standing = ( t_ >= kStand && t_ < kLie ) ? 1.0 : 0.0;
-      in.haemorrhage_ml_s = ( t_ >= kHaem0 && t_ < kHaem1 ) ? haem_rate() : 0.0;
+      in.standing = ( t_ >= sch_.stand && t_ < sch_.lie ) ? 1.0 : 0.0;
+      in.haemorrhage_ml_s = ( t_ >= sch_.haem0 && t_ < sch_.haem1 ) ? haem_rate() : 0.0;
       heart_.step( h, in );
       t_ += h;
       if ( heart_.beat_now )
@@ -224,8 +261,8 @@ public:
     b.readouts[ "hr_bpm" ] = hr_inst_;
     b.readouts[ "NE" ] = ne_;
     b.readouts[ "ACh" ] = ach_;
-    b.readouts[ "standing" ] = ( t_ >= kStand && t_ < kLie ) ? 1.0 : 0.0;
-    b.readouts[ "haemorrhage_ml_s" ] = ( t_ >= kHaem0 && t_ < kHaem1 ) ? haem_rate() : 0.0;
+    b.readouts[ "standing" ] = ( t_ >= sch_.stand && t_ < sch_.lie ) ? 1.0 : 0.0;
+    b.readouts[ "haemorrhage_ml_s" ] = ( t_ >= sch_.haem0 && t_ < sch_.haem1 ) ? haem_rate() : 0.0;
     b.readouts[ "heart_phase" ] = v.phase;
     b.readouts[ "ejection" ] = v.ejection;
     b.readouts[ "beat" ] = v.beat ? 1.0 : 0.0;
@@ -243,7 +280,7 @@ public:
     s.parts[ "map_max_mmHg" ] = n_ > 0 ? map_max_ : 0.0;
     const char* nm[ 3 ] = { "settle_stand_s", "settle_lie_s", "settle_haem_s" };
     const char* tn[ 3 ] = { "tail_stand", "tail_lie", "tail_haem" };
-    const double start[ 3 ] = { kStand, kLie, kHaem0 }, end[ 3 ] = { kLie, kHaem0, kDuration };
+    const double start[ 3 ] = { sch_.stand, sch_.lie, sch_.haem0 }, end[ 3 ] = { sch_.lie, sch_.haem0, sch_.end };
     double worst_settle = 0, worst_tail = 1;
     for ( int i = 0; i < 3; ++i )
     {
@@ -259,9 +296,11 @@ public:
     s.parts[ "hr_mean_bpm" ] = hr_n_ > 0 ? hr_sum_ / hr_n_ : 0.0;
     s.parts[ "spikes" ] = spikes_;
     s.value = 100.0 * frac;
-    bool done = t_ >= kDuration;
+    bool done = t_ >= sch_.end;
     bool tails = worst_tail >= tail_min();
-    s.passed = done && frac >= frac_min() && worst_settle <= settle_max() && tails;
+    s.passed = done && frac >= frac_min() && worst_settle <= settle_max() && tails && mech_.ok();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 0 );
     const char* yet = done ? "." : " yet.";
@@ -269,6 +308,8 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_ < 1 )
       o << "No beats: sa_beat has not fired" << yet << " Add the SA-node cell and read it out as sa_beat.";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: MAP " << s.parts[ "map_min_mmHg" ] << "-" << s.parts[ "map_max_mmHg" ] << " mmHg, " << 100 * frac << " % of the time in 80-100.)";
     else if ( !done )
       o << "MAP " << heart_.map_smooth << " mmHg so far, " << 100 * frac << " % of the time in 80-100.";
     else if ( passed_all_but( frac, worst_settle, tails ) )
@@ -306,7 +347,7 @@ private:
   void sample()
   {
     ne_peak_ = std::max( ne_peak_, ne_ );
-    if ( t_ < kSkip )
+    if ( t_ < sch_.skip )
       return;
     double m = heart_.map_smooth;
     bool ok = m >= kLo && m <= kHi;
@@ -317,7 +358,7 @@ private:
     map_max_ = std::max( map_max_, m );
     hr_sum_ += hr_inst_;
     hr_n_ += 1;
-    int seg = t_ >= kHaem0 ? 2 : ( t_ >= kLie ? 1 : ( t_ >= kStand ? 0 : -1 ) );
+    int seg = t_ >= sch_.haem0 ? 2 : ( t_ >= sch_.lie ? 1 : ( t_ >= sch_.stand ? 0 : -1 ) );
     if ( seg != cur_seg_ )
     {
       cur_seg_ = seg;
@@ -334,7 +375,7 @@ private:
       }
       else
         run_start_ = -1;
-      double seg_end = seg == 0 ? kLie : ( seg == 1 ? kHaem0 : kDuration );
+      double seg_end = seg == 0 ? sch_.lie : ( seg == 1 ? sch_.haem0 : sch_.end );
       if ( t_ >= seg_end - 10000 )
       {
         tail_n_[ seg ] += 1;
@@ -352,6 +393,9 @@ private:
   std::vector< double > beats_;
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
+  Sched sch_ = kFull;
+  mutable bool quick_ = false;
 };
 
 } // namespace

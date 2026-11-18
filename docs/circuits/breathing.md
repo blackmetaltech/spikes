@@ -51,3 +51,10 @@ Credits: Smith JC, Ellenberger HH, Ballanyi K, Richter DW, Feldman JL (1991) Sci
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 13); strong_co2 (x1.15).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `paco2_peak`. **Notebook:** Smith 1991; Feldman & Del Negro 2006.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** A rhythm group (a population on a cycle of excitatory projections among at least 2 cells that drives, by excitation, the cells `phrenic` reads) and the `chemo` input must reach that rhythm group by an excitatory path: the CO2 reflex acts on the rhythm generator itself, not only on the motoneurons. The verdict says "no rhythm generator" or "the chemoreceptor input does not reach the rhythm group"; the value is capped at 49.
+
+**Quick check.** `quick_duration_ms()` = 88 s: rest window 8-36 s (28 s still holds the 5 breaths the rule needs at 12 per minute), CO2 breath 36-66 s (ramps 2.5 s), challenge window 54-66 s, recovery window 76-88 s, and the gas exchange clock twice as fast (10 instead of 5) to match; same rules and bars. Reference: 11.8 s -> 6.4 s wall, so this level is not under 3 s: the rest window cannot be shortened below the time that holds 5 breaths and the CO2 test needs its own time. The quick check is slightly stricter than the full one (reference PaCO2 peak 50.9 against 49.3 mmHg, limit 52; ventilation ratio 1.8 against 2.2, bar 1.6).
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

@@ -77,3 +77,10 @@ The schedule is rest 65 and exercise 120; a young adult reaches 170-190 in hard 
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 23); tight_tracking (4 / 3 / 6 / 3 bpm).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).
 * **Quality metric:** `mae_bpm`. **Notebook:** Jose & Collison 1970; Levy 1971.
+
+## v0.4: mechanism check, quick check, negative tests
+**Mechanism (Engine::structure()).** `vagal` and `sympathetic` must be modulator outputs (ACh / NE release) read from two different populations, and each branch must be reachable from the inputs: some path from `exercise_cue` / `hr_too_low` / `hr_too_high` to the vagal cells and some path to the sympathetic cells. A branch no input can reach is a fixed tone, not a controller; one pool serving both outputs cannot release two transmitters. The verdict names the missing branch; the value is capped at 49.
+
+**Quick check.** `quick_duration_ms()` = 40 s: the same day compressed (rest until 13 s, ramp up 13-18 s, exercise until 26 s, ramp down 26-30 s, scored windows rest 8-13 s, exercise 22-26 s, recovery 35-40 s; the mean error counts from 6 s), same rules and pass bars. Reference: 6.2 s -> 2.8 s wall (mean error 3.8-4.2 bpm against the 6 bpm limit).
+
+The verdicts and the tier 1-3 hints carry no parameter numbers (weights, biases, gains): those live in `recipe()` only (checked in the tests). Negative tests: `engine/tests/cheap_rows_c.inc` (run by `tasks_cheap_test`) and the mechanism cases in the level's own test file.

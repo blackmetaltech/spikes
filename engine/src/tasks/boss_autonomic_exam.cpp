@@ -15,6 +15,12 @@
 //   Body effects of the day: exercise multiplies CO2 production by 1 + 2 w (so PaCO2 rises unless ventilation follows: the chemoreflex loop is
 //            closed) and dilates the working muscle's vessels (vascular drive - 0.1 w). Gas exchange runs 3x faster than real physiology (game time).
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): the chapter's parts must all be in the circuit: the baroreflex (both limbs, as
+//   in the baroreflex task), central command (the exercise cue and the threat each reach, by excitation, the cells behind 'sympathetic'), the defence
+//   reaction (the threat reaches the cells behind 'dilator' and behind 'vent'), the chemoreflex (the chemo input reaches the cells behind 'vent') and
+//   separate pools for the dilator, the sphincter and the ventilation outputs. A missing component caps the score below the pass bar and the
+//   verdict names it.
+//
 // SCORING (HR = last beat interval, MAP = 2 s-smoothed pressure, pupil, VE = last tidal volume x last breath rate; sampled every 100 ms)
 //   windows (s): rest 8-15, stand 38-48, exercise 62-70, threat 92-100, recovery 110-120 (means).
 //   REST      : HR 55-80, MAP 80-105, pupil 3-6 mm, VE 4-9 L/min.
@@ -37,6 +43,7 @@
 #include "spike/body/eye.h"
 #include "spike/body/heart.h"
 #include "spike/body/lungs.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -46,10 +53,18 @@ std::unique_ptr< Task > make_boss_autonomic_exam();
 namespace
 {
 
-constexpr double kDuration = 120000, kStand = 15000, kEx0 = 50000, kEx1 = 70000, kExRamp = 3000, kThr0 = 85000, kThr1 = 100000, kThrRamp = 500;
+constexpr double kDuration = 120000, kExRamp = 3000, kThrRamp = 500;
+// The scripted day (ms) and the scoring windows (s). The quick check runs the same day with shorter stretches (stand up at 12 s, 14 s of exercise,
+// 12 s of threat, 6-8 s windows) and a gas exchange clock 1.5 times faster to match, scored by the same 19 conditions.
+struct Sched
+{
+  double stand, ex0, ex1, thr0, thr1, end, lung_scale;
+  double w[ 5 ][ 2 ];
+};
+constexpr Sched kFull{ 15000, 50000, 70000, 85000, 100000, kDuration, 3.0, { { 8, 15 }, { 38, 48 }, { 62, 70 }, { 92, 100 }, { 110, 120 } } };
+constexpr Sched kQuick{ 12000, 36000, 50000, 56000, 68000, 82000, 4.5, { { 8, 12 }, { 28, 34 }, { 43, 50 }, { 62, 68 }, { 74, 82 } } };
 constexpr double kThreatHz = 250, kExerciseHz = 100, kDilRef = 40, kSphRef = 40, kVentRef = 40, kLum = 30, kSymGain = 0.5, kChemoPerHz = 4.0;
 // windows in s
-constexpr double kW[ 5 ][ 2 ] = { { 8, 15 }, { 38, 48 }, { 62, 70 }, { 92, 100 }, { 110, 120 } };
 
 enum Sys { HR = 0, MAP = 1, PUPIL = 2, VENT = 3 };
 const char* kName[ 4 ] = { "hr", "map", "pupil", "ve" };
@@ -85,7 +100,18 @@ public:
   }
   std::vector< std::string > sensor_channels() const override { return { "baroreceptor", "exercise_cue", "threat", "chemo" }; }
   std::vector< std::string > motor_channels() const override { return { "sa_beat", "sympathetic", "vagal", "dilator", "sphincter", "vent" }; }
-  double duration_ms() const override { return kDuration; }
+  double duration_ms() const override
+  {
+    quick_ = false;
+    return kDuration;
+  }
+  /// Quick check: the same day, compressed (see Sched). The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scripts and
+  /// scores (spike-run and the test harness ask after reset(), before the first step).
+  double quick_duration_ms() const override
+  {
+    quick_ = true;
+    return kQuick.end;
+  }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "dashboard"; }
   int par_neurons() const override { return 75; }
@@ -95,8 +121,8 @@ public:
 
   std::vector< Event > timeline() const override
   {
-    return { { kStand, 3000, "stand up" }, { kStand, kDuration - kStand, "upright" }, { kEx0, kEx1 - kEx0, "exercise" },
-             { kThr0, kThr1 - kThr0, "threat cue" } };
+    return { { kFull.stand, 3000, "stand up" }, { kFull.stand, kDuration - kFull.stand, "upright" }, { kFull.ex0, kFull.ex1 - kFull.ex0, "exercise" },
+             { kFull.thr0, kFull.thr1 - kFull.thr0, "threat cue" } };
   }
   std::vector< Band > bands() const override
   {
@@ -131,10 +157,11 @@ public:
   void reset( uint64_t ) override
   {
     t_ = 0;
+    sch_ = kFull;
     heart_ = body::Heart();
     eye_.reset( 0.0, 0.5 );
     body::LungParams lp;
-    lp.time_scale = 3;
+    lp.time_scale = sch_.lung_scale;
     lungs_ = body::Lungs( lp );
     lungs_.reset();
     for ( auto* l : { &l_dil_, &l_sph_ } ) { l->tau_ms = 20; l->reset( 0 ); }
@@ -148,13 +175,23 @@ public:
     for ( auto& v : tr_ ) v.clear();
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
+    if ( t_ == 0 && ( quick_ ? kQuick.end : kFull.end ) != sch_.end )  // the schedule follows the episode asked for
+    {
+      sch_ = quick_ ? kQuick : kFull;
+      body::LungParams lp;
+      lp.time_scale = sch_.lung_scale;
+      lungs_ = body::Lungs( lp );
+      lungs_.reset();
+    }
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    mech_.refresh( e, t_, []( const Structure& st ) { return parts_missing( st ); } );
     const double w = workload( t_ );
-    const double thr = kThreatHz * clampd( ( t_ - kThr0 ) / kThrRamp, 0, 1 ) * ( t_ < kThr1 ? 1.0 : 0.0 );
+    const double thr = kThreatHz * clampd( ( t_ - sch_.thr0 ) / kThrRamp, 0, 1 ) * ( t_ < sch_.thr1 ? 1.0 : 0.0 );
     e.set_input( "baroreceptor", heart_.baro_mean_hz );
     e.set_input( "exercise_cue", kExerciseHz * w );
     e.set_input( "threat", thr );
@@ -179,7 +216,7 @@ public:
     hi.sym_cardiac = sym;
     hi.sym_vascular = clampd( sym - 0.1 * w, 0, 1 );
     hi.vagal = 0.6;
-    hi.standing = t_ >= kStand ? 1.0 : 0.0;
+    hi.standing = t_ >= sch_.stand ? 1.0 : 0.0;
     heart_.step( dt, hi );
 
     body::EyeInput ei;
@@ -227,8 +264,8 @@ public:
     b.readouts[ "ACh" ] = ach_;
     b.readouts[ "DA" ] = 0;
     b.readouts[ "workload" ] = workload( t_ );
-    b.readouts[ "standing" ] = t_ >= kStand ? 1.0 : 0.0;
-    b.readouts[ "threat" ] = ( t_ >= kThr0 && t_ < kThr1 ) ? 1.0 : 0.0;
+    b.readouts[ "standing" ] = t_ >= sch_.stand ? 1.0 : 0.0;
+    b.readouts[ "threat" ] = ( t_ >= sch_.thr0 && t_ < sch_.thr1 ) ? 1.0 : 0.0;
     b.readouts[ "baro_hz" ] = heart_.baro_mean_hz;
     b.readouts[ "t_ms" ] = t_;
     return b;
@@ -241,7 +278,7 @@ public:
     double m[ 5 ][ 4 ];
     for ( int p = 0; p < 5; ++p )
       for ( int k = 0; k < 4; ++k )
-        m[ p ][ k ] = mean( tr_[ k ], kW[ p ][ 0 ], kW[ p ][ 1 ], k );
+        m[ p ][ k ] = mean( tr_[ k ], sch_.w[ p ][ 0 ], sch_.w[ p ][ 1 ], k );
     // conditions: c[phase][i] = pass, sc = soft score
     std::vector< Cond > cs;
     // REST
@@ -291,10 +328,12 @@ public:
     s.parts[ "ne_peak" ] = ne_max_;
     s.parts[ "ach_peak" ] = ach_max_;
     s.value = 100.0 * total;
-    const bool done = t_ >= kDuration;
-    s.passed = done && ok_n == static_cast< int >( cs.size() ) && wiring_.ok();
+    const bool done = t_ >= sch_.end;
+    s.passed = done && ok_n == static_cast< int >( cs.size() ) && wiring_.ok() && mech_.ok();
     if ( !wiring_.ok() )
       s.value = std::min( s.value, 20.0 );
+    else if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     // verdict: first failing condition in the order of the day (phases not yet reached are not judged)
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
@@ -302,6 +341,8 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_[ 0 ] < 1 )
       o << "The pacemaker never fired: no heartbeat. Check 'sa_beat'.";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: " << ok_n << " of " << cs.size() << " conditions met.)";
     else if ( spikes_[ 1 ] >= 1 && ne_max_ < 1e-6 )
       o << "'sympathetic' fires but releases no noradrenaline: make it a modulator output (NE).";
     else if ( spikes_[ 2 ] >= 1 && ach_max_ < 1e-6 )
@@ -310,7 +351,7 @@ public:
     {
       std::string bad;
       for ( auto& c : cs )
-        if ( !c.ok && t_ >= kW[ c.phase ][ 1 ] * 1000.0 && bad.empty() )
+        if ( !c.ok && t_ >= sch_.w[ c.phase ][ 1 ] * 1000.0 && bad.empty() )
           bad = c.text( kPhase[ c.phase ], kLabel[ c.sys ], m[ c.phase ][ c.sys ], c.sys == VENT ? m[ 1 ][ VENT ] : m[ 1 ][ c.sys ] );
       if ( !bad.empty() )
         o << bad;
@@ -336,29 +377,35 @@ public:
     Score s = score();
     std::vector< Hint > h;
     const double ne = s.parts[ "ne_peak" ];
-    if ( s.parts[ "map_stand" ] < 80 )
+    if ( !mech_.ok() )
+    {
+      h.push_back( { 1, "The exam needs every part of the chapter in one circuit: the baroreflex, the central command, the defence reaction and the chemoreflex.", "" } );
+      h.push_back( { 2, "One of those parts is not wired through to its output; read the verdict for which.", "" } );
+      h.push_back( { 3, "Reuse the earlier levels' circuits as blocks and connect each input to the organs it should move.", "" } );
+    }
+    else if ( s.parts[ "map_stand" ] < 80 )
     {
       h.push_back( { 1, "Standing is a pressure drop: negative feedback from the baroreceptors must raise sympathetic output.", "" } );
       h.push_back( { 2, "Follow the baroreceptor signal through NTS to the depressor cells and see what they do to the vasomotor neurons.", "CVLM" } );
-      h.push_back( { 3, "baroreceptor > AFF > NTS > CVLM (inhibitory) > RVLM > IML > SG (NE output); NTS also excites the vagal cells.", "RVLM" } );
+      h.push_back( { 3, "The baroreceptor relay excites an inhibitory depressor group that silences the tonic vasomotor cells, which drive the sympathetic output; the same relay also excites the vagal cells.", "RVLM" } );
     }
     else if ( s.parts[ "hr_exercise" ] - s.parts[ "hr_stand" ] < 30 || s.parts[ "hr_threat" ] - s.parts[ "hr_stand" ] < 30 )
     {
       h.push_back( { 1, "Exercise and fright do not wait for the baroreflex: a central command must override it, speeding the heart and raising pressure.", "" } );
       h.push_back( { 2, "Look at what the exercise relay and the hypothalamus do to the vagal cells and the depressor cells.", "CC" } );
-      h.push_back( { 3, "Let CC and HYP inhibit NA (vagal withdrawal) and CVLM (baroreflex resetting) and excite RVLM.", "HYP" } );
+      h.push_back( { 3, "Let the exercise relay and the hypothalamus inhibit the vagal cells and the depressor group, and excite the vasomotor cells.", "HYP" } );
     }
     else if ( s.parts[ "pupil_threat" ] - s.parts[ "pupil_stand" ] < 1.2 )
     {
       h.push_back( { 1, "The pupil has its own two arms: the sympathetic dilator and the parasympathetic sphincter, and a threat acts on both.", "" } );
       h.push_back( { 2, "Look at the hypothalamus connections to the superior cervical ganglion and the Edinger-Westphal cells.", "SCG" } );
-      h.push_back( { 3, "HYP excites SCG (dilator) and inhibits EW (sphincter tone).", "EW" } );
+      h.push_back( { 3, "The hypothalamus should excite the dilator ganglion and inhibit the parasympathetic relay of the sphincter.", "EW" } );
     }
     else
     {
       h.push_back( { 1, "Ventilation follows two signals: CO2 through the chemoreceptors, and the command from above.", "" } );
       h.push_back( { 2, "Look at the ventral respiratory group's inputs.", "VRG" } );
-      h.push_back( { 3, "chemo > CHEMO > VRG (feedback) and CC, HYP > VRG (feed-forward), VRG > vent.", "VRG" } );
+      h.push_back( { 3, "Feed the chemoreceptor relay (feedback) and the exercise and threat relays (feed-forward) onto the ventral respiratory group that drives the vent output.", "VRG" } );
     }
     (void)ne;
     return h;
@@ -376,6 +423,30 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  // the mechanism: every component of the chapter is in the circuit
+  static std::string parts_missing( const Structure& st )
+  {
+    const auto sym = mech::out_pops( st, "sympathetic" ), dil = mech::out_pops( st, "dilator" ), sph = mech::out_pops( st, "sphincter" ),
+               vent = mech::out_pops( st, "vent" ), cue = mech::in_pops( st, "exercise_cue" ), thr = mech::in_pops( st, "threat" ),
+               chemo = mech::in_pops( st, "chemo" );
+    std::string base = mech::baroreflex_limbs_missing( st );
+    if ( !base.empty() )
+      return "The baroreflex part of the exam is incomplete. " + base;
+    if ( !mech::path( st, cue, sym, +1 ) )
+      return "Central command is missing: the exercise cue must excite the cells behind the sympathetic output, so that the heart and vessels follow the effort.";
+    if ( !mech::path( st, thr, sym, +1 ) )
+      return "The defence reaction is missing its sympathetic part: the threat must excite the cells behind the sympathetic output.";
+    if ( dil.empty() || sph.empty() || vent.empty() || mech::overlap( dil, sph ) || mech::overlap( dil, vent ) || mech::overlap( sph, vent ) )
+      return "The pupil and breathing outputs need their own pools: the dilator, the sphincter and the vent output must each read separate cells.";
+    if ( !mech::path( st, thr, dil, +1 ) )
+      return "The defence reaction does not reach the pupil: the threat must excite the cells behind the dilator output.";
+    if ( !mech::path( st, thr, vent, +1 ) && !mech::path( st, cue, vent, +1 ) )
+      return "The central signals (threat, exercise cue) do not reach the breathing group: ventilation cannot follow the command.";
+    if ( !mech::path( st, chemo, vent, +1 ) )
+      return "The chemoreflex is missing: the chemo input must excite the cells behind the vent output, so that ventilation follows CO2.";
+    return "";
+  }
+
   struct Cond
   {
     int phase, sys;
@@ -427,12 +498,12 @@ private:
     return { ph, sys, r <= tol, clampd( 1.0 - ( r - tol ) / ( 2.0 * ( tol - 1.0 ) ), 0, 1 ), 4, tol, 0 };
   }
 
-  static double workload( double t )
+  double workload( double t ) const
   {
-    if ( t < kEx0 || t >= kEx1 + kExRamp ) return 0.0;
-    if ( t < kEx0 + kExRamp ) return ( t - kEx0 ) / kExRamp;
-    if ( t < kEx1 - kExRamp ) return 1.0;
-    return clampd( ( kEx1 - t ) / kExRamp, 0, 1 );
+    if ( t < sch_.ex0 || t >= sch_.ex1 + kExRamp ) return 0.0;
+    if ( t < sch_.ex0 + kExRamp ) return ( t - sch_.ex0 ) / kExRamp;
+    if ( t < sch_.ex1 - kExRamp ) return 1.0;
+    return clampd( ( sch_.ex1 - t ) / kExRamp, 0, 1 );
   }
   // mean of a 100 ms-sampled trace over [a, b] seconds (the current value if the window has not started)
   double mean( const std::vector< double >& v, double a, double b, int k ) const
@@ -457,6 +528,9 @@ private:
   std::array< double, 6 > spikes_{};
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
+  Sched sch_ = kFull;
+  mutable bool quick_ = false;
 };
 
 } // namespace

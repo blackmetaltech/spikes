@@ -17,6 +17,12 @@
 //                    for the first 35 % of each cycle (half-sine) into the Lungs model.
 //   All motor rates are smoothed (20 ms for the muscles, 1 s for ventilation) BEFORE any clamp.
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): ONE command fanning out. The threat must reach (by net excitation) the
+//   cells behind each of the four sympathetic effectors, 'sympathetic' (NE), 'sym_vascular', 'dilator' and 'vent', and those effectors must have
+//   a relay pool each (the vessel, pupil and ventilation pools do not share cells). There must be a command group, reached by the threat, that
+//   fans out: it reaches all four effectors through at least two different output projections. A serial chain from one organ to the next is
+//   not a command. Missing a branch caps the score below the pass bar; the verdict names the organ.
+//
 // SCORING  (each trace is sampled every 100 ms: HR = last beat interval, MAP = 2 s-smoothed pressure, pupil, VE = last tidal volume x last breath rate)
 //   rest = mean over 12-20 s, threat = mean over 40-50 s, recovery = mean over 90-100 s.
 //   per system: (1) rest inside its band (HR 55-80 bpm, MAP 80-105 mmHg, pupil 3-6 mm, VE 4-9 L/min),
@@ -35,6 +41,7 @@
 #include "spike/body/eye.h"
 #include "spike/body/heart.h"
 #include "spike/body/lungs.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -43,9 +50,16 @@ namespace spike::tasks
 namespace
 {
 
-constexpr double kDuration = 100000, kThreatOn = 20000, kThreatOff = 50000, kRamp = 500, kThreatHz = 250;
+constexpr double kDuration = 100000, kRamp = 500, kThreatHz = 250;
+// The scripted day (ms) and the scoring windows (s). The quick check runs the same story with a shorter rest, a 16 s threat and a 20 s recovery stretch
+// (windows of 5-8 s instead of 8-10 s), a gas exchange clock 1.5 times faster to match, scored by the same 12 conditions.
+struct Sched
+{
+  double on, off, end, lung_scale, rest_a, rest_b, thr_a, thr_b, rec_a, rec_b;
+};
+constexpr Sched kFull{ 20000, 50000, kDuration, 3.0, 12, 20, 40, 50, 90, 100 };
+constexpr Sched kQuick{ 12000, 28000, 50000, 4.5, 6, 12, 23, 28, 42, 50 };
 constexpr double kVasoRef = 100, kDilRef = 40, kSphRef = 40, kVentRef = 40, kLum = 30;
-constexpr double kRestA = 12, kRestB = 20, kThrA = 40, kThrB = 50, kRecA = 90, kRecB = 100;  // s
 
 enum Sys { HR = 0, MAP = 1, PUPIL = 2, VENT = 3 };
 const char* kName[ 4 ] = { "hr", "map", "pupil", "ve" };
@@ -88,7 +102,18 @@ public:
   {
     return { "sa_beat", "sympathetic", "vagal", "sym_vascular", "dilator", "sphincter", "vent" };
   }
-  double duration_ms() const override { return kDuration; }
+  double duration_ms() const override
+  {
+    quick_ = false;
+    return kDuration;
+  }
+  /// Quick check: the same story, compressed (see Sched). The episode asked for last, duration_ms() or quick_duration_ms(), is the one the task scripts and
+  /// scores (spike-run and the test harness ask after reset(), before the first step).
+  double quick_duration_ms() const override
+  {
+    quick_ = true;
+    return kQuick.end;
+  }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "dashboard"; }
   int par_neurons() const override { return variant_par( variant_, 45 ); }
@@ -121,23 +146,29 @@ public:
     }
     static const char* ch[ 4 ] = { "sa_beat", "sym_vascular", "dilator", "vent" };
     const std::string target = bad_sys >= 0 ? ch[ bad_sys ] : "threat";
-    if ( s.parts[ "sa_spikes" ] < 1 || bad_kind == 2 )
+    if ( !mech_.ok() )
+    {
+      h.push_back( make_hint( 1, "Divergent command: one cue (the threat) must fan out from one command group to every effector, each through its own relay.", "" ) );
+      h.push_back( make_hint( 2, "The threat does not reach one of the effectors through its own relay.", "threat" ) );
+      h.push_back( make_hint( 3, "Put one command group right after the threat input and let it excite a separate relay for each organ: the heart, the vessels, the pupil and the breathing group.", "" ) );
+    }
+    else if ( s.parts[ "sa_spikes" ] < 1 || bad_kind == 2 )
     {
       h.push_back( make_hint( 1, "Divergent command: one cue (the threat) must fan out to every effector, each through its own relay.", "" ) );
       h.push_back( make_hint( 2, bad_sys >= 0 ? std::string( "The threat did not raise the " ) + kLabel[ bad_sys ] + " enough." : "The threat does not reach the effectors.", target ) );
-      h.push_back( make_hint( 3, "threat > HYP > RVLM > SG > sympathetic (NE); RVLM > SV > sym_vascular; RVLM > SCG > dilator; HYP > VRG > vent.", "" ) );
+      h.push_back( make_hint( 3, "Chain the command group through a premotor relay to the sympathetic ganglion cells of the heart, vessels and iris, and to the ventilation group; strengthen the links that fall short.", "" ) );
     }
     else if ( bad_kind == 3 )
     {
       h.push_back( make_hint( 1, "After the threat the parasympathetic side must take over again, or everything stays high.", "" ) );
       h.push_back( make_hint( 2, bad_sys >= 0 ? std::string( "The " ) + kLabel[ bad_sys ] + " does not return to rest." : "Something does not return to rest.", target ) );
-      h.push_back( make_hint( 3, "HYP inhibits NA and EW at -150 only while the threat lasts; their bias 380 restores the rest tone.", "" ) );
+      h.push_back( make_hint( 3, "The command group should inhibit the vagal and Edinger-Westphal cells only while the threat lasts; their own standing drive then restores the rest tone.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "Each system needs a resting tone inside its band: cells with a standing current fire on their own.", "" ) );
       h.push_back( make_hint( 2, bad_sys >= 0 ? std::string( "Resting " ) + kLabel[ bad_sys ] + " is outside its band." : "A resting value is outside its band.", target ) );
-      h.push_back( make_hint( 3, "Bias 380 pA on the tonic groups (375 is the rheobase: silent).", "" ) );
+      h.push_back( make_hint( 3, "Give the tonic groups a standing drive that is enough to make them fire on their own, but not more.", "" ) );
     }
     return h;
   }
@@ -163,7 +194,7 @@ public:
   }
   std::vector< Event > timeline() const override
   {
-    return { { kThreatOn, kThreatOff - kThreatOn, "threat cue" }, { kThreatOff, kDuration - kThreatOff, "safe again" } };
+    return { { kFull.on, kFull.off - kFull.on, "threat cue" }, { kFull.off, kDuration - kFull.off, "safe again" } };
   }
   std::vector< Band > bands() const override
   {
@@ -202,10 +233,11 @@ public:
   void reset( uint64_t ) override
   {
     t_ = 0;
+    sch_ = kFull;
     heart_ = body::Heart();
     eye_.reset( 0.0, 0.5 );
     body::LungParams lp;
-    lp.time_scale = 3;
+    lp.time_scale = sch_.lung_scale;
     lungs_ = body::Lungs( lp );
     lungs_.reset();
     for ( auto* l : { &l_sv_, &l_dil_, &l_sph_ } ) { l->tau_ms = 20; l->reset( 0 ); }
@@ -226,12 +258,22 @@ public:
     spikes_.fill( 0 );
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
+    if ( t_ == 0 && ( quick_ ? kQuick.end : kFull.end ) != sch_.end )  // the schedule follows the episode asked for
+    {
+      sch_ = quick_ ? kQuick : kFull;
+      body::LungParams lp;
+      lp.time_scale = sch_.lung_scale;
+      lungs_ = body::Lungs( lp );
+      lungs_.reset();
+    }
     wiring_.probe( e, sensor_channels(), motor_channels() );
-    double thr = kThreatHz * threat_scale() * clampd( ( t_ - kThreatOn ) / kRamp, 0, 1 ) * ( t_ < kThreatOff ? 1.0 : 0.0 );
+    mech_.refresh( e, t_, []( const Structure& st ) { return fan_out_missing( st ); } );
+    double thr = kThreatHz * threat_scale() * clampd( ( t_ - sch_.on ) / kRamp, 0, 1 ) * ( t_ < sch_.off ? 1.0 : 0.0 );
     e.set_input( "threat", thr );
     e.step( dt );
     static const char* kCh[ 7 ] = { "sa_beat", "sympathetic", "vagal", "sym_vascular", "dilator", "sphincter", "vent" };
@@ -309,7 +351,7 @@ public:
     b.readouts[ "DA" ] = 0;
     b.readouts[ "sympathetic_hz" ] = sg_hz_;
     b.readouts[ "parasympathetic_hz" ] = vg_hz_;
-    b.readouts[ "threat" ] = ( t_ >= kThreatOn && t_ < kThreatOff ) ? 1.0 : 0.0;
+    b.readouts[ "threat" ] = ( t_ >= sch_.on && t_ < sch_.off ) ? 1.0 : 0.0;
     b.readouts[ "t_ms" ] = t_;
     return b;
   }
@@ -322,9 +364,9 @@ public:
     int ok_all = 0;
     for ( int k = 0; k < 4; ++k )
     {
-      rest[ k ] = mean( tr_[ k ], kRestA, kRestB, k );
-      thr[ k ] = mean( tr_[ k ], kThrA, kThrB, k );
-      rec[ k ] = mean( tr_[ k ], kRecA, kRecB, k );
+      rest[ k ] = mean( tr_[ k ], sch_.rest_a, sch_.rest_b, k );
+      thr[ k ] = mean( tr_[ k ], sch_.thr_a, sch_.thr_b, k );
+      rec[ k ] = mean( tr_[ k ], sch_.rec_a, sch_.rec_b, k );
       bool ratio = ( k == VENT );
       double rise = ratio ? ( rest[ k ] > 0.1 ? thr[ k ] / rest[ k ] : 0.0 ) : thr[ k ] - rest[ k ];
       double back = ratio ? ( rest[ k ] > 0.1 && rec[ k ] > 0.1 ? std::max( rec[ k ] / rest[ k ], rest[ k ] / rec[ k ] ) : 99.0 ) : std::fabs( rec[ k ] - rest[ k ] );
@@ -343,8 +385,10 @@ public:
       s.parts[ n + "_recovery" ] = rec[ k ];
     }
     s.value = 100.0 * total / 4.0;
-    bool done = t_ >= kDuration;
-    s.passed = done && ok_all == 12;
+    bool done = t_ >= sch_.end;
+    s.passed = done && ok_all == 12 && mech_.ok();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     s.parts[ "conditions_met" ] = ok_all;
     s.parts[ "sa_spikes" ] = spikes_[ 0 ];
     std::ostringstream o;
@@ -353,11 +397,13 @@ public:
       o << "Not wired: " << wiring_.message() << ".";
     else if ( spikes_[ 0 ] < 1 )
       o << "The pacemaker never fired: no heartbeat. Check 'sa_beat'.";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: heart rate " << heart_.hr_bpm << " bpm, pupil " << eye_.diameter_mm << " mm, " << ok_all << " of 12 conditions met.)";
     else if ( spikes_[ 1 ] >= 1 && ne_max_ < 1e-6 )
       o << "'sympathetic' fires but releases no noradrenaline: make it a modulator output (NE), not a rate output. The heart reads NE and ACh, not rates.";
     else if ( spikes_[ 2 ] >= 1 && ach_max_ < 1e-6 )
       o << "'vagal' fires but releases no acetylcholine: make it a modulator output (ACh), not a rate output.";
-    else if ( t_ < kThrB * 1000.0 )
+    else if ( t_ < sch_.thr_b * 1000.0 )
       o << "At rest so far: HR " << heart_.hr_bpm << " bpm, MAP " << heart_.map_smooth << " mmHg, pupil " << eye_.diameter_mm << " mm.";
     else
     {
@@ -387,6 +433,49 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }
 
 private:
+  // the mechanism: a command group, driven by the threat, that fans out to the four sympathetic effectors through separate relays
+  static std::string fan_out_missing( const Structure& st )
+  {
+    static const char* kOrgan[ 4 ] = { "heart (the 'sympathetic' NE output)", "vessels ('sym_vascular')", "pupil ('dilator')", "breathing ('vent')" };
+    static const char* kCh[ 4 ] = { "sympathetic", "sym_vascular", "dilator", "vent" };
+    const auto thr = mech::in_pops( st, "threat" );
+    mech::PopSet eff[ 4 ], all;
+    for ( int k = 0; k < 4; ++k )
+    {
+      eff[ k ] = mech::out_pops( st, kCh[ k ] );
+      all = mech::unite( all, eff[ k ] );
+    }
+    const auto from_threat = mech::reach( st, thr, +1 );
+    std::string lacking;
+    for ( int k = 0; k < 4; ++k )
+      if ( eff[ k ].empty() || !mech::overlap( from_threat, eff[ k ] ) )
+        lacking += std::string( lacking.empty() ? "" : ", " ) + kOrgan[ k ];
+    if ( !lacking.empty() )
+      return "The threat does not reach every organ: nothing excitatory carries it to the " + lacking + ". One command must drive all four effectors.";
+    for ( int a = 1; a < 4; ++a )
+      for ( int b = 0; b < a; ++b )
+        if ( mech::overlap( eff[ a ], eff[ b ] ) )
+          return std::string( "The " ) + kOrgan[ a ] + " and the " + kOrgan[ b ] + " read the same cells: each organ needs its own relay pool.";
+    // a command group that fans out: reaches all four through at least two different excitatory output targets
+    for ( int h : from_threat )
+    {
+      mech::PopSet targets;
+      for ( const auto& pr : st.projections )
+        if ( pr.n_edges > 0 && pr.sign > 0 && pr.pre_index == h && pr.post_index != h )
+          targets.insert( pr.post_index );
+      int useful = 0;
+      for ( int t : targets )
+        if ( mech::overlap( mech::reach( st, { t }, +1 ), all ) )
+          ++useful;
+      bool every = true;
+      for ( int k = 0; k < 4; ++k )
+        every = every && mech::overlap( mech::reach( st, { h }, +1 ), eff[ k ] );
+      if ( every && useful >= 2 )
+        return "";
+    }
+    return "No command fans out: the organs are served one after another down a single chain. One command group, driven by the threat, must excite separate relays to the heart, the vessels, the pupil and the breathing group.";
+  }
+
   double threat_scale() const { return mode_factor( mode_, 1.2, 0.9 ) * ( variant_ == "faint_threat" ? 0.5 : 1.0 ); }
   double bf() const { return mode_factor( mode_, 1.15, 0.92 ); }
   double blo( int k ) const { return kBandLo[ k ] / bf(); }
@@ -431,6 +520,9 @@ private:
   std::array< double, 7 > spikes_{};
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
+  Sched sch_ = kFull;
+  mutable bool quick_ = false;
 };
 
 } // namespace

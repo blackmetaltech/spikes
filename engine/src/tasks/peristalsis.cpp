@@ -15,6 +15,11 @@
 //           membrane drive (m = ex - inh + 0.4 sw; the body's own built-in slow wave is switched off, the ICC cells of the circuit ARE the clock).
 //   Contraction needs m above 0.6 (threshold), so slow waves alone and weak excitation alone do nothing: ICC timing gates propulsion.
 //
+// MECHANISM (Engine::structure(), checked at the start and every 0.5 s): the law of the intestine needs both chains, an ascending EXCITATORY one (an
+//   excitatory path from the dist sensors to the cells ach0..7 read) and a descending INHIBITORY one (an excitatory path from the dist sensors to
+//   cells no0..7 read, which relax the gut ahead of the bolus), on separate cells. The simple build with ach0..7 alone is how the level starts
+//   but is not the mechanism: it scores below the pass bar, and the verdict names the missing descending limb.
+//
 // SCORING
 //   progress = (bolus - 1) / 6, capped 0..1.  The bolus "arrives" the first time its centre passes 7.0.
 //   value = 100 * (0.8 * progress + 0.2 * time bonus), time bonus = 1 if arrival by 25 s, falling to 0 at 40 s.
@@ -29,6 +34,7 @@
 #include <map>
 #include <sstream>
 #include "spike/body/gut.h"
+#include "mech_util.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -64,9 +70,10 @@ public:
            "and a descending one excites inhibitory motoneurons aboral (ahead), which release NO and VIP and relax. That is the law of the "
            "intestine: squeeze behind, open ahead. Interstitial cells of Cajal run a slow wave (12 per minute) that decides when the muscle can "
            "contract. Start simple: wire 'dist0..7' (stretch sensors) through interneurons to 'ach0..7' (excitatory motor pools), each stretch "
-           "segment exciting the pool just oral of it; the gut then runs its own slow wave. Then improve it: add 'no0..7' outputs (inhibitory "
-           "motor pools, ahead of the bolus: they make it faster) and 'icc0..7' outputs (slow-wave pacemakers of your own, which then replace "
-           "the built-in clock). Score: the bolus must reach the end of the tube within 25 s. ";
+           "segment exciting the pool just oral of it; the gut then runs its own slow wave. That is only half of the law and not enough to pass: "
+           "add the descending chain, a second set of interneurons from the stretch sensors to inhibitory motor pools ('no0..7', ahead of "
+           "the bolus), so that the gut squeezes behind and opens ahead. You may also add 'icc0..7' outputs (slow-wave pacemakers of your own, "
+           "which then replace the built-in clock). Score: the bolus must reach the end of the tube within 25 s. ";
   }
   /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
   std::string default_model() const override { return "iaf_psc_alpha"; }
@@ -95,6 +102,10 @@ public:
     return k;
   }
   double duration_ms() const override { return kDuration; }
+  /// Quick check: the run up to just past this mode's deadline. The pass rule is "the bolus arrived by the deadline", so every circuit that arrives
+  /// in time gets the same arrival time and the same score, and every circuit that does not is judged on its progress at the deadline (the full
+  /// episode keeps going to 40 s, which can only change the partial score of a circuit that already failed).
+  double quick_duration_ms() const override { return std::min( kDuration, deadline() + 1000.0 ); }
   std::string chapter() const override { return "autonomic"; }
   std::string view() const override { return "gut"; }
   int par_neurons() const override { return variant_par( variant_, 49 ); }
@@ -119,19 +130,19 @@ public:
     {
       h.push_back( make_hint( 1, "Travelling wave: each segment's stretch must excite the muscle just behind the bolus, so the squeeze moves the food on.", "" ) );
       h.push_back( make_hint( 2, "The excitatory motor pools are silent or push the wrong way.", "ach0" ) );
-      h.push_back( make_hint( 3, "S > AIN (bias 340) segment wiring > EMN (bias 380) with a shift of -1 (oral side) > ach0..7.", "" ) );
+      h.push_back( make_hint( 3, "Relay the stretch sensors through excitatory interneurons to motoneurons shifted one segment toward the mouth, with standing drive on the relays so they fire.", "" ) );
     }
-    else if ( s.parts[ "no_spikes" ] < 1 )
+    else if ( !mech_.ok() || s.parts[ "no_spikes" ] < 1 )
     {
       h.push_back( make_hint( 1, "Polarity: squeeze behind, open ahead. The segments ahead of the bolus must relax, or they resist it.", "" ) );
       h.push_back( make_hint( 2, "The inhibitory motor pools never fire: nothing relaxes the segments ahead.", "no0" ) );
-      h.push_back( make_hint( 3, "S > DIN (bias 340) > IMN (bias 365) with a shift of +1 (aboral side) > no0..7. The bolus then arrives in about 11 s.", "" ) );
+      h.push_back( make_hint( 3, "Build a second chain from the stretch sensors through its own interneurons to motoneurons one segment toward the anus, read out as the no channels.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "The wave is there but slow. Timing between the ascending and descending chains sets the speed.", "" ) );
       h.push_back( make_hint( 2, "Shorten the delay between the stretch and the contraction behind it.", "ach0" ) );
-      h.push_back( make_hint( 3, "Delay 3 ms on the S > AIN and S > DIN links; stronger AIN > EMN (36 pA) contracts earlier.", "" ) );
+      h.push_back( make_hint( 3, "Shorten the synaptic delay on the first links of both chains, and strengthen the link onto the excitatory motoneurons so they contract earlier.", "" ) );
     }
     return h;
   }
@@ -172,11 +183,13 @@ public:
     spikes_ex_ = spikes_inh_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
+    mech_.invalidate();
   }
 
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    mech_.refresh( e, t_, [ this ]( const Structure& st ) { return limbs_missing( st ); } );
     if ( !probed_ )
     {
       probed_ = true;
@@ -261,12 +274,16 @@ public:
     s.parts[ "slow_waves" ] = cycles;
     s.value = 100.0 * ( 0.8 * prog + 0.2 * bonus );
     bool done = t_ >= kDuration;
-    s.passed = arrived && arrival_ms_ <= deadline();
+    s.passed = arrived && arrival_ms_ <= deadline() && mech_.ok();
+    if ( !mech_.ok() )
+      s.value = std::min( s.value, mech::kNoMechanismCap );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( !mech_.ok() )
+      o << mech_.missing() << " (The run itself: the bolus got to segment " << gut_.bolus_pos << " of 7.)";
     else if ( s.passed )
       o << "The bolus reached the end in " << arrival_ms_ / 1000.0 << " s.";
     else if ( arrived )
@@ -291,6 +308,27 @@ public:
   std::array< double, 4 > world_bounds() const override { return { 0, 0, kSeg, 1 }; }
 
 private:
+  // the mechanism: ascending excitatory chain (dist -> ach) and descending chain (dist -> no), on separate cells
+  std::string limbs_missing( const Structure& st ) const
+  {
+    mech::PopSet dist, ach, no;
+    for ( int i = 0; i < kSeg; ++i )
+    {
+      dist = mech::unite( dist, mech::in_pops( st, dist_ch_[ i ] ) );
+      ach = mech::unite( ach, mech::out_pops( st, ach_ch_[ i ] ) );
+      no = mech::unite( no, mech::out_pops( st, no_ch_[ i ] ) );
+    }
+    if ( !mech::path( st, dist, ach, +1 ) )
+      return "No ascending excitatory chain: the stretch sensors (dist0..7) must excite, through interneurons, the motoneurons that squeeze behind the bolus (ach0..7).";
+    if ( no.empty() )
+      return "No descending inhibitory chain: nothing relaxes the gut ahead of the bolus. Add a second chain from the stretch sensors to inhibitory motoneurons, read out as no0..7: squeeze behind, open ahead.";
+    if ( !mech::path( st, dist, no, +1 ) )
+      return "The inhibitory motoneurons (no0..7) are not driven by the stretch sensors: the descending chain must carry the distension signal to them.";
+    if ( mech::overlap( ach, no ) )
+      return "The excitatory and the inhibitory motor outputs read the same cells: the ascending and the descending chain need separate motoneurons.";
+    return "";
+  }
+
   double deadline() const { return variant_ == "fast_transit" ? 15000 : ( mode_ == "guided" ? 32000 : ( mode_ == "researcher" ? 18000 : kDeadline ) ); }
   double t_ = 0, arrival_ms_ = -1, spikes_ex_ = 0, spikes_inh_ = 0;
   bool probed_ = false, has_no_ = false, has_icc_ = false;
@@ -301,6 +339,7 @@ private:
   std::vector< int > icc_spikes_;
   MotorReader motor_;
   Wiring wiring_;
+  mech::Gate mech_;
 };
 
 } // namespace
