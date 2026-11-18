@@ -28,3 +28,6 @@ set_target_properties(spike_gd PROPERTIES
   OUTPUT_NAME "spike_gd"
   POSITION_INDEPENDENT_CODE ON
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/gd-out)
+# the extension finds sibling libraries next to itself; spike-run is installed beside it (see engine/CMakeLists.txt)
+set_target_properties(spike_gd PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
+install(TARGETS spike_gd LIBRARY DESTINATION bin COMPONENT game)

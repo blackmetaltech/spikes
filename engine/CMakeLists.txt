@@ -12,8 +12,15 @@ foreach(l models/libmodels.a nestkernel/libnestkernel.a libnestutil/libnestutil.
   endif()
   list(APPEND NEST_LIBS "${NEST_BLD}/${l}")
 endforeach()
-find_library(GSL_LIB gsl REQUIRED)
-find_library(GSLCBLAS_LIB gslcblas REQUIRED)
+# GSL: linked statically by default (libgsl.a / libgslcblas.a from libgsl-dev) so the exported game does not need libgsl.so.27 on the player's machine.
+option(SPIKE_STATIC_GSL "Link GSL statically (needs libgsl.a, built -fPIC as Debian/Ubuntu do)" ON)
+if(SPIKE_STATIC_GSL)
+  find_library(GSL_LIB NAMES libgsl.a REQUIRED)
+  find_library(GSLCBLAS_LIB NAMES libgslcblas.a REQUIRED)
+else()
+  find_library(GSL_LIB gsl REQUIRED)
+  find_library(GSLCBLAS_LIB gslcblas REQUIRED)
+endif()
 find_package(Threads REQUIRED)
 
 add_library(spike_nest INTERFACE)
@@ -73,6 +80,11 @@ target_compile_options(spike_engine PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
 add_executable(spike-run src/spike_run.cpp)
 target_link_libraries(spike-run PRIVATE spike::engine)
+# spike-run ships next to the extension: find sibling libraries, and carry its own C++ runtime
+set_target_properties(spike-run PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
+if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_options(spike-run PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 
 # spike-catalog: measures every parts-bin card (f-I curve, V_m trace) -> catalog/thumbs.json
 add_executable(spike-catalog src/catalog/spike_catalog.cpp)
@@ -111,3 +123,6 @@ if(SPIKE_BUILD_TESTS)
     set_tests_properties(test_nestml_parity PROPERTIES TIMEOUT 1500 SKIP_RETURN_CODE 77)
   endif()
 endif()
+
+# install: `cmake --install build --component game --prefix <dir>` puts spike-run where the extension lives (<dir>/bin)
+install(TARGETS spike-run RUNTIME DESTINATION bin COMPONENT game)

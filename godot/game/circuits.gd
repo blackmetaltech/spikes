@@ -99,9 +99,10 @@ static func _norm(v: Variant, key: String) -> Variant:
 	if v is float and key in INT_KEYS and is_equal_approx(v, roundf(v)): return int(v)
 	return v
 
-## Read a reference circuit shipped in the repo's circuits/ dir (a path relative to it). Looks next to the project (dev, ../circuits) and in res://circuits (exports).
+## Read a reference circuit shipped inside the project (res://circuits, a path relative to it; the pck carries it in exports).
+## The folder next to the executable is a fallback for a loose copy.
 static func read_reference(rel: String) -> String:
-	for base in [ProjectSettings.globalize_path("res://").path_join("../circuits"), ProjectSettings.globalize_path("res://circuits"), OS.get_executable_path().get_base_dir().path_join("circuits")]:
+	for base in ["res://circuits", OS.get_executable_path().get_base_dir().path_join("circuits")]:
 		var p := String(base).path_join(rel)
 		if FileAccess.file_exists(p): return FileAccess.get_file_as_string(p)
 	return ""

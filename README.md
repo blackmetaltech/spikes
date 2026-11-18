@@ -12,12 +12,24 @@ A circuit is one JSON file ([docs/CIRCUIT-FORMAT.md](docs/CIRCUIT-FORMAT.md)). T
 | `gdext/` | Godot GDExtension (`SpikeSim`, `SpikeTask`) over the engine |
 | `godot/` | The game (Godot 4.7; the extension builds against godot-cpp 4.5 and declares compatibility from 4.5) |
 | `python/` | `spike` package: build circuits in PyNEST, motif census, spike statistics ([python/README.md](python/README.md)) |
-| `circuits/`, `docs/` | Example circuits, format spec, plan, requirements |
-| `scripts/` | `build-nest.sh`, `build-gd.sh`, `smoke.sh`, `shots.sh` |
+| `godot/circuits/`, `godot/catalog/` | The reference circuits and the parts catalogue: the single source, inside the Godot project so exports carry them (`circuits/` and `catalog/` at the repo root are symlinks for tools and tests) |
+| `docs/` | Format spec, plan, requirements |
+| `scripts/` | `build-all.sh`, `build-nest.sh`, `build-nestml.sh`, `build-gd.sh`, `package.sh`, `smoke.sh`, `shots.sh` |
+| `Dockerfile`, `.github/workflows/ci.yml` | Reproducible build and CI |
 
 ## Build
 
-Requirements: a C++20 compiler, CMake 3.24+, GSL, and (for the game) Godot 4.7 and scons for godot-cpp.
+Requirements: a C++20 compiler, CMake 3.24+, Ninja or Make, GSL (`libgsl-dev`, **static** `libgsl.a` is linked), Python 3 with venv, and for the game Godot 4.7.2.
+Pinned: NEST commit (`scripts/build-nest.sh`), NESTML 9.0.1 (`scripts/build-nestml.sh`), godot-cpp `godot-4.5-stable` (`scripts/build-gd.sh`), Godot 4.7.2 (`Dockerfile`).
+
+**One command, clean Ubuntu 24.04 (what CI does):**
+```
+docker build -t spike-build .
+docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests   # NEST, NESTML, engine, release extension, spike-run, tests
+docker run --rm -v "$PWD":/src spike-build scripts/package.sh             # build/spike-linux-x86_64.zip, smoke-tested
+```
+
+**Without Docker**, `scripts/build-all.sh [--tests] [--debug] [--pynest]` runs the steps below in order; each is incremental:
 
 1. **NEST** (pinned commit, static libraries for the engine):
    ```
@@ -25,11 +37,20 @@ Requirements: a C++20 compiler, CMake 3.24+, GSL, and (for the game) Godot 4.7 a
    scripts/build-nest.sh --pynest    # also build and install NEST + PyNEST -> third_party/nest-install
    ```
    `--pynest` needs python3, cython and numpy. Use the same `SPIKE_OPENMP` value for both (default OFF) so the engine and PyNEST agree.
-2. **Engine and tests:**
+2. **NESTML models:** `scripts/build-nestml.sh` (venv with the pinned NESTML in `third_party/nestml-venv`). Without it Heart, Breathing and Peristalsis cannot load.
+3. **Engine and tests:**
    ```
    cmake -S . -B build && cmake --build build -j
    ```
-3. **GDExtension:** `scripts/build-gd.sh` (debug) or `scripts/build-gd.sh release`. It clones godot-cpp on first use and copies the library to `godot/bin`.
+4. **GDExtension and runner:** `scripts/build-gd.sh` (debug) or `scripts/build-gd.sh release`. It clones godot-cpp at the pinned tag on first use and copies `libspike_gd_<mode>.so` **and `spike-run`** to `godot/bin` (git-ignored), where the extension looks for the runner behind CHECK. GSL is linked statically (`-DSPIKE_STATIC_GSL=OFF` for the shared library); the extension and `spike-run` have `$ORIGIN` rpath.
+
+### Package a release
+
+`scripts/package.sh` builds the release extension, exports the Linux preset from `godot/export_presets.cfg` (needs the Godot 4.7.2 editor and its export templates), and writes `build/spike-linux-x86_64.zip`: `Spike.x86_64`, `Spike.pck` (carries `res://circuits` and `res://catalog`), `libspike_gd_release.so`, `spike-run`, plus loose `circuits/` and `catalog/` that `spike-run` and the histogram viewer read. It then extracts the zip into an empty directory, scrubs the environment (no `spike-run` on `PATH`, no `SPIKE_*`), and runs the exported binary headless: the full `SP_SMOKE` test, `tests/check_export.gd` (CHECK scores a reference circuit through the bundled `spike-run`), and the bundled `spike-run` alone. It targets glibc 2.39 / Ubuntu 24.04 or newer; build in an older image to run on older systems.
+
+### Windows
+
+Not built yet. The export preset ("Windows x86_64") and the `.gdextension` entries exist; what is missing is the binaries: NEST, GSL (static) and godot-cpp must be cross-built (MinGW-w64 on the Ubuntu image, or a `windows-latest` CI runner with MSYS2), and the POSIX parts of the headless runner (`realpath`, `dladdr`, fork/exec in `gdext/src/bridge.cpp`, `/` path handling in `spike_run.cpp`) need Windows ports. Until then `scripts/package.sh` is Linux only.
 
 ## Run the game
 
@@ -64,7 +85,7 @@ See [python/README.md](python/README.md).
 
 `build/engine/spike-run circuit.json 1000` prints one JSON line per spike.
 
-`build/engine/spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k] [--require any|all]` scores a circuit on a task headless, with the same loop and seeding as the game (a seed also reseeds the circuit), and prints the score JSON. Without `--circuit` it uses the task's reference circuit (found through `$SPIKE_CIRCUITS_DIR`, or a `circuits/` folder above the working directory). `--lesion` scales every projection `pre`->`post` by `k` (0 deletes it). `spike-run --list-tasks` prints the task ids. The exit status is 3 when `--require` fails, which is how CI and `scripts/smoke.sh` check that every reference circuit passes.
+`build/engine/spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k] [--require any|all]` scores a circuit on a task headless, with the same loop and seeding as the game (a seed also reseeds the circuit), and prints the score JSON. Without `--circuit` it uses the task's reference circuit (found through `$SPIKE_CIRCUITS_DIR`, or a `circuits/` or `godot/circuits/` folder above the working directory or the executable). `--lesion` scales every projection `pre`->`post` by `k` (0 deletes it). `spike-run --list-tasks` prints the task ids. The exit status is 3 when `--require` fails, which is how CI and `scripts/smoke.sh` check that every reference circuit passes.
 
 ## The campaign (0.2)
 
