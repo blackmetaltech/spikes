@@ -90,6 +90,7 @@ Rect2 SpikeTask::bounds() const
 String SpikeTask::id() const { return task_ ? S( task_->id() ) : String(); }
 String SpikeTask::title() const { return task_ ? S( task_->title() ) : String(); }
 double SpikeTask::duration_ms() const { return task_ ? task_->duration_ms() : 0.0; }
+double SpikeTask::quick_duration_ms() const { return task_ ? task_->quick_duration_ms() : 0.0; }
 PackedStringArray SpikeTask::sensor_channels() const { return task_ ? strs( task_->sensor_channels() ) : PackedStringArray(); }
 PackedStringArray SpikeTask::motor_channels() const { return task_ ? strs( task_->motor_channels() ) : PackedStringArray(); }
 String SpikeTask::reference_circuit() const { return task_ ? S( spike::reference_circuit( task_->id() ) ) : String(); }
@@ -274,6 +275,23 @@ int64_t SpikeTask::score_headless_async( const String& circuit_json, const Packe
     UtilityFunctions::push_warning( String( "score_headless_async: " ) + S( err ) );
   return id;
 }
+int64_t SpikeTask::score_headless_quick_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant, int64_t circuit_seed )
+{
+  if ( !task_ )
+    return 0;
+  std::vector< long long > sv;
+  for ( int64_t i = 0; i < seeds.size(); ++i )
+    sv.push_back( seeds[ i ] );
+  std::vector< long long > cs;
+  if ( circuit_seed >= 0 )
+    cs.push_back( circuit_seed );  // pinned for every task seed (the live run's circuit seed); -1 = the 1000 * seed + circuit seed reseed
+  add_project_bin();
+  std::string err;
+  const long id = spike_gd::headless_start( task_->id(), to_std( circuit_json ), sv, to_std( mode ), to_std( variant ), err, cs, true );
+  if ( id == 0 )
+    UtilityFunctions::push_warning( String( "score_headless_quick_async: " ) + S( err ) );
+  return id;
+}
 Dictionary SpikeTask::score_headless_poll( int64_t job )
 {
   Dictionary out;
@@ -324,6 +342,7 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "id" ), &SpikeTask::id );
   ClassDB::bind_method( D_METHOD( "title" ), &SpikeTask::title );
   ClassDB::bind_method( D_METHOD( "duration_ms" ), &SpikeTask::duration_ms );
+  ClassDB::bind_method( D_METHOD( "quick_duration_ms" ), &SpikeTask::quick_duration_ms );
   ClassDB::bind_method( D_METHOD( "sensor_channels" ), &SpikeTask::sensor_channels );
   ClassDB::bind_method( D_METHOD( "motor_channels" ), &SpikeTask::motor_channels );
   ClassDB::bind_method( D_METHOD( "reference_circuit" ), &SpikeTask::reference_circuit );
@@ -353,6 +372,7 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "score_headless_async", "circuit_json", "seeds", "mode", "variant", "circuit_seed" ), &SpikeTask::score_headless_async, DEFVAL( int64_t( -1 ) ) );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "headless_cancel", "job" ), &SpikeTask::headless_cancel );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "headless_runner_path" ), &SpikeTask::headless_runner_path );
+  ClassDB::bind_method( D_METHOD( "score_headless_quick_async", "circuit_json", "seeds", "mode", "variant", "circuit_seed" ), &SpikeTask::score_headless_quick_async, DEFVAL( int64_t( -1 ) ) );
   ClassDB::bind_method( D_METHOD( "score_headless_poll", "job" ), &SpikeTask::score_headless_poll );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_headless_runner", "path" ), &SpikeTask::set_headless_runner );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "catalog_json" ), &SpikeTask::catalog_json );
