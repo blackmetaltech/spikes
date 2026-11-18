@@ -9,6 +9,7 @@ config/version="0.3.0"
 config/icon="res://assets/brand/icon.svg"
 config/description="Spike: grow a nervous system. Wire spiking neurons into circuits that do real jobs."
 boot_splash/bg_color=Color(0.027, 0.043, 0.075, 1)
+boot_splash/show_image=false
 
 [display]
 window/size/viewport_width=1920
