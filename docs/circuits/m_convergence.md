@@ -40,3 +40,6 @@ Credits: Mendell LM, Henneman E (1971) J Neurophysiol 34:171 (a Ia fibre gives a
 * **`recipe()`:** Wire in_a, in_b and in_c to one integrate-and-fire cell and the cell to 'out'. Set each of the three sensor weights to about 150 pA: one input gives 150, two give 300 (under the 375 pA rheobase), three give 450 (over it). The lab starts them at 300, where two already fire.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: all three sensors must reach the cell that is read on `out`. Cheap rows: one input only (any weight), one cell per input, in_a cut, weights x2 (pairs fire).

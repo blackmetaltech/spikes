@@ -54,3 +54,8 @@ Credits: Sherrington CS (1906) *The Integrative Action of the Nervous System*; S
 * **Default part:** `iaf_psc_alpha` (`default_model()`); the lab's Poisson first connect (280 pA = 3.5 x 80) is declared as the `touch` weight.
 * **Recipe** (`recipe()`, kept out of the brief): touch onto 10 cells, those onto 6 motor cells with a link of about 140 pA (the default 80 answers too slowly or misses, above about 170 the motor cells fire on noise), motor cells onto `withdraw`. Passes Guided, Standard and Researcher on seeds 1-5.
 * **Convergence is enforced.** Standard allowed one false withdrawal, and one iaf cell tuned to a weight of about 280 pA passed 5 of 8 seeds ("Clean reflex ... 1 false withdrawals"). Now Standard and Researcher allow none and the verdict says "Clean" only when there were none; a single cell touch > N1 > withdraw swept over weights 200-315 pA never passes seeds 1, 2 or 4 (a few lucky seeds pass at 245-285 pA), so it cannot pass TEST x5. The 10 + 6 recipe and the 23-neuron reference pass on seeds 1-8. `tasks_physics_test` pins the rule with a stub (one stray burst fails Standard and Researcher, passes Guided).
+
+## Honesty contract (v0.4)
+Mechanism check (convergence): the touch input must reach at least two receptor cells and the motor cells must each receive from at least two cells (indegree >= 2 onto the withdraw pool). Wiring touch straight onto a motor pool,
+one afferent per cell, fails with a verdict that names the missing convergence whatever the weights. Verdicts and tier 1-2 hints carry no numbers.
+Cheap rows: touch onto the pool directly, a lone receptor cell, one_to_one SN > MN, SN > IN cut, SN > IN far too strong.

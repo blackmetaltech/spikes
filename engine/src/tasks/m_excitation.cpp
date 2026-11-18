@@ -24,6 +24,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr double kDur = 3000, kTapLen = 14, kLevel = 2.0, kTarget = 8.0, kMaxLat = 25.0, kSub = 0.1;
 constexpr int kTaps = 5;
@@ -81,6 +82,7 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, info_.sensors, info_.motors );
+    inspect_once( e );
     const int n = std::max( 1, static_cast< int >( std::lround( dt / kSub ) ) );
     const double h = dt / n;
     for ( int i = 0; i < n; ++i )
@@ -95,16 +97,29 @@ public:
   std::vector< Hint > hints() const override
   {
     return { { 1, "A synapse has two numbers. The weight decides whether one spike is enough to make the next cell fire (a lone spike through "
-                  "the default weight is a tiny nudge); the delay decides when the next cell answers.", "" },
-      { 2, "Look at the link from the first cell to the second: its weight and its delay. The second cell is the one wired to 'echo'.", "echo" },
-      { 3, "tap > cell A (the default weights work) > cell B. A is wired to 'source', B to 'echo'. Raise the A > B weight to about 1500 pA so "
-           "that one spike fires B, then lengthen the delay to about 4 or 5 ms (it starts at 2) until the echo latency reads 8 ms.", "echo" } };
+                  "a weak synapse is a tiny nudge); the delay decides when the next cell answers.", "" },
+      { 2, "Look at the link from the first cell to the second: its weight and its delay. The second cell is the one wired to 'echo', and "
+           "it must be driven by the first cell's spikes, not by the tap.", "echo" },
+      { 3, "tap > cell A > cell B, with A wired to 'source' and B to 'echo'. Make the A > B weight many times the default, until every "
+           "spike of A fires B. Then use the delay of that link to move the echo: a longer delay moves it later, and the verdict tells you "
+           "whether it is early or late.", "echo" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     Stats st = stats();
     return { { "latency_error_ms", { st.echoes > 0 ? std::fabs( st.mean_lat - kTarget ) : 99.0, "ms", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto src = g_.out_pops( "source" ), ech = g_.out_pops( "echo" );
+    if ( src.empty() || ech.empty() ) return;
+    if ( Graph::overlap( src, ech ) )
+      mech_ = "'source' and 'echo' are read from the same cell: an echo is a second cell repeating the first.";
+    else if ( !g_.path( src, ech, +1, 3 ) )
+      mech_ = "No excitatory synapse carries the source cell's spikes to the echo cell: an echo is a second cell fired by the first, through a link "
+              "that excites. (Driving both from the tap is not an echo of the source.)";
   }
 
   Score score() const override
@@ -122,30 +137,29 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ) + ( d ? 1 : 0 ), 4 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << static_cast< int >( st.src ) << " source spikes, " << static_cast< int >( st.echoes ) << " echoes so far.";
     else if ( !a )
-      o << "The source cell fired only " << static_cast< int >( st.src ) << " times: the taps are too weak to drive it. Raise the weight of the tap input.";
-    else if ( st.coincident > 0 && st.echoes == 0 )
-      o << "The echo fires at the same instant as the source: they are the same cell. Wire the source and the echo to two different cells.";
+      o << "The source cell hardly fired: the taps are too weak to drive it. Strengthen the tap input.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( st.echoes == 0 )
-      o << "The echo cell never fired. One spike through a weak synapse is only a nudge of about a millivolt, and this cell needs about 15 mV "
-           "from a single spike: raise the weight of the link from the source cell to the echo cell a lot (well beyond 1000 pA).";
+      o << "The echo cell never fired. One spike through a weak synapse is only a nudge, far from enough to bring this cell to threshold: "
+           "strengthen the link from the source cell to the echo cell a great deal.";
     else if ( !b )
-      o << "The echo answers only " << fmt( 100.0 * st.echoes / st.src ) << " % of the source spikes. Strengthen the link so every spike gets through.";
+      o << "The echo answers only some of the source spikes. Strengthen the link so every spike gets through.";
     else if ( !c && st.mean_lat < kTarget - tw )
-      o << "Echo too early: " << fmt( st.mean_lat, 1 ) << " ms after the source, target 8 +- " << fmt( tw, 1 ) << " ms. Lengthen the delay of the link by about "
-        << fmt( kTarget - st.mean_lat, 1 ) << " ms.";
+      o << "Echo too early. Lengthen the delay of the link.";
     else if ( !c )
-      o << "Echo too late: " << fmt( st.mean_lat, 1 ) << " ms after the source, target 8 +- " << fmt( tw, 1 ) << " ms. Shorten the delay of the link by about "
-        << fmt( st.mean_lat - kTarget, 1 ) << " ms.";
+      o << "Echo too late. Shorten the delay of the link.";
     else if ( !d )
-      o << static_cast< int >( st.extra ) << " echo spikes with no source spike before them: the echo cell must only repeat the source.";
+      o << "Echo spikes with no source spike before them: the echo cell must only repeat the source.";
     else
-      o << "Every source spike was echoed " << fmt( st.mean_lat, 1 ) << " ms later (target 8 ms).";
+      o << "Every source spike was echoed, on time.";
     s.verdict = o.str();
     return s;
   }

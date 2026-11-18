@@ -21,6 +21,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr double kDur = 4000, kW0 = 500;
 
@@ -38,8 +39,8 @@ public:
               "slow currents of its own membrane. The heart's pacemaker cell sits in the sinoatrial node and sets the heart rate. Here "
               "there is no input at all, nothing to drive a cell. Build a cell and wire it to 'beat' so that it beats on its own, "
               "regularly, between 50 and 140 times a minute (the beat intervals may vary by no more than 15 %). Look in the parts bin "
-              "for a cell designed for the job: a cell you have to push, even with a constant bias current, fires far too fast "
-              "when it fires at all.";
+              "for a cell designed for the job (the lab opens on a plain one, which stays silent): a cell you have to push, even with "
+              "a constant bias current, is not a pacemaker.";
     i.chapter = "heart";
     i.sensors = {};
     i.motors = { "beat" };
@@ -47,8 +48,8 @@ public:
     i.concepts_new = { "pacemaking" };
     i.concepts_used = { "threshold" };
     i.par_neurons = 1;
-    i.default_model = "sa_node_pacemaker";
-    i.recipe = "One SA node cell wired to 'beat', nothing else: it beats about 100 times a minute on its own. No sensor, no input "
+    i.default_model = "iaf_psc_alpha";  // the lab opens on a plain cell, which is silent: finding the pacemaker card IS the puzzle
+    i.recipe = "Swap the plain cell the lab opens on for the SA node cell, and wire it to 'beat', nothing else: it beats about 100 times a minute on its own. No sensor, no input "
                "weight, no bias current.";
     i.kinds = { { "beat", micro::rate() } };
     i.bands = { { "bpm", "beats/min", 50, 140 }, { "cv_pct", "%", 0, 15 } };
@@ -76,15 +77,33 @@ public:
   {
     return { { 1, "Pacemaking is rhythmic firing with no input: slow inward currents in the membrane bring it back to threshold again and "
                   "again. Most cells have none of that and need a push to fire.", "" },
-      { 2, "The parts bin has a cell built for this: the sinoatrial (SA) node pacemaker. Add one and wire it to the 'beat' output.", "beat" },
-      { 3, "One SA node cell wired to 'beat', nothing else: it beats about 100 times a minute on its own. No sensor, no input weight, no bias current.",
-        "beat" } };
+      { 2, "The parts bin has a cell built for this: the sinoatrial (SA) node pacemaker. Add one and wire it to the 'beat' output. A cell that "
+           "is pushed (by a bias current, or by other cells) is not a pacemaker.", "beat" },
+      { 3, "One SA node cell wired to 'beat', nothing else: no sensor, no synapse onto it, no bias current. The lab opens on a plain cell, "
+           "which stays silent: change the part.", "beat" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     Stats st = stats();
     return { { "interval_cv_pct", { st.n >= 3 ? 100.0 * st.cv : 99.0, "%", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto beat = g_.out_pops( "beat" );
+    for ( int p : beat )
+    {
+      const double ie = g_.param( p, "I_e" );
+      if ( !std::isnan( ie ) && std::fabs( ie ) > 1e-9 )
+      {
+        mech_ = "The cell is being pushed by a bias current: that is a constant drive from outside, not pacemaking. A pacemaker beats from its own "
+                "membrane currents, with nothing pushing it.";
+        return;
+      }
+    }
+    if ( g_.indegree( beat ) > 0 )
+      mech_ = "The cell is driven by other cells: its beat comes from them, not from itself. A pacemaker needs no input at all.";
   }
 
   Score score() const override
@@ -100,24 +119,25 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ), 3 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << static_cast< int >( beats_.size() ) << " beats so far.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( !a )
-      o << "The cell stays silent (" << static_cast< int >( st.n ) << " beats): it needs an input to fire, and there is none. A pacemaker cell fires by itself. "
+      o << "The cell stays silent: it needs an input to fire, and there is none. A pacemaker cell fires by itself. "
            "Choose a cell from the parts bin that is described as a pacemaker.";
     else if ( st.bpm > hi )
-      o << "It fires, but at " << fmt( st.bpm ) << " per minute: far too fast for a heart. A cell pushed over its threshold by a bias current fires "
-           "at tens of spikes a second. A real pacemaker beats about once a second, from its own slow currents.";
+      o << "It fires, but far too fast for a heart. A real pacemaker beats about once a second, from its own slow currents.";
     else if ( st.bpm < lo )
-      o << "Too slow: " << fmt( st.bpm ) << " beats per minute (needs at least " << fmt( lo ) << ").";
+      o << "Too slow for a heart.";
     else if ( !c )
-      o << "Rate fine (" << fmt( st.bpm ) << " per minute) but the beats are irregular: the intervals vary by " << fmt( 100.0 * st.cv ) << " % (needs "
-        << fmt( 100.0 * cvmax ) << " % or less). With several cells wired to 'beat' their beats merge: use one.";
+      o << "Rate fine but the beats are irregular. With several cells wired to 'beat' their beats merge: use one.";
     else
-      o << "A pacemaker: " << fmt( st.bpm ) << " beats per minute with no input at all, the intervals varying by only " << fmt( 100.0 * st.cv, 1 ) << " %.";
+      o << "A pacemaker: it beats at a heart's pace with no input at all, and regularly.";
     s.verdict = o.str();
     return s;
   }

@@ -28,6 +28,18 @@ Engine::Engine() : impl_( new Impl ) {}
 Engine::~Engine() { delete impl_; }
 bool Engine::load( const std::string& ) { return true; }
 const std::string& Engine::error() const { static std::string e; return e; }
+int Structure::population_index( const std::string& id ) const
+{
+  for ( size_t i = 0; i < populations.size(); ++i )
+    if ( populations[ i ].id == id ) return static_cast< int >( i );
+  return -1;
+}
+const PopulationInfo* Structure::population( const std::string& id ) const
+{
+  const int i = population_index( id );
+  return i < 0 ? nullptr : &populations[ static_cast< size_t >( i ) ];
+}
+Structure Engine::structure() const { return Structure(); }  // no circuit behind the stub: the tasks' mechanism checks find nothing to judge and stay quiet
 double Engine::modulator( const std::string& ) const { return 0.0; }
 bool Engine::set_modulator( const std::string&, double ) { return true; }
 int32_t Engine::neuron_count() const { return 0; }

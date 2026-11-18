@@ -24,6 +24,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 using micro::Window;
 
 constexpr double kDur = 3800, kDrive0 = 400, kDrive1 = 3400, kStop0 = 1400, kStop1 = 2400, kLevel = 2.0;
@@ -82,14 +83,28 @@ public:
     return { { 1, "Inhibition is the opposite of excitation: the spikes of an inhibitory neuron lower the membrane of the cell they connect "
                   "to. A sensor can only excite, so the stop signal must act through a neuron of its own that you set to inhibitory.", "" },
       { 2, "The stop sensor goes to a second neuron (set it inhibitory with the E / I switch), and that neuron connects to the cell wired to "
-           "'out'. Look at the weight of that last link: it has to cancel the drive.", "out" },
-      { 3, "drive > cell A > out. stop > cell B (inhibitory) > cell A, with the B > A weight at about -1000 pA. The default -80 pA only slows "
-           "A down a little (by about 8 %); the inhibition has to cut the whole drive, so the weight is roughly 12 times larger.", "out" } };
+           "'out'. Look at the weight of that last link: it has to be strong enough to cancel the drive.", "out" },
+      { 3, "drive > cell A > out. stop > cell B (inhibitory) > cell A. The default inhibitory weight only slows A a little: the stop has to "
+           "cancel the whole drive, so make that link several times stronger, and watch the verdict say whether stop slows the cell or "
+           "silences it.", "out" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     return { { "during_spikes", { during_.n, "spikes", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto stop = g_.in_pops( "stop" ), out = g_.out_pops( "out" ), drive = g_.in_pops( "drive" );
+    if ( out.empty() || stop.empty() ) return;
+    if ( !g_.path( stop, out, 0, 3, true ) )
+      mech_ = "The stop does not reach the cell that fires: there is no path from stop to 'out'.";
+    else if ( !g_.path( stop, out, -1, 3 ) )
+      mech_ = "The stop reaches the cell only by exciting it: a sensor can only excite. Send the stop through a neuron of its own that is inhibitory "
+              "(its outgoing link negative), onto the cell that fires.";
+    else if ( !drive.empty() && !g_.path( drive, out, 0, 3, true ) )
+      mech_ = "The drive does not reach the cell that fires.";
   }
 
   Score score() const override
@@ -106,27 +121,24 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ), 3 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << static_cast< int >( before_.n + during_.n + after_.n ) << " spikes so far.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( !a )
-      o << "The cell does not fire with the drive alone (" << static_cast< int >( before_.n ) << " spikes in 0.8 s). The drive is a current: "
-           "check that it reaches the cell and is over its rheobase.";
+      o << "The cell does not fire with the drive alone. The drive is a current: check that it reaches the cell and is over its rheobase.";
     else if ( !b && cut < 4.0 )
-      o << "The stop made no difference: " << fmt( during_.rate_hz() ) << " spikes/s during stop, " << fmt( before_.rate_hz() )
-        << " before. A sensor only excites. Send the stop through a second neuron set to inhibitory, and connect that neuron to the cell that fires.";
+      o << "The stop made no difference to the cell. Is the neuron it goes through inhibitory, and does that neuron connect to the cell that fires?";
     else if ( !b )
-      o << "Stop slows the cell (" << fmt( before_.rate_hz() ) << " to " << fmt( during_.rate_hz() ) << " spikes/s, cut by " << fmt( cut )
-        << " %) but does not silence it. The inhibition is too weak against the drive: it has to cut 100 %, so the inhibitory link needs about "
-        << fmt( 100.0 / cut, 100.0 / cut < 3 ? 1 : 0 ) << " times its present weight, or a little more.";
+      o << "Stop slows the cell but does not silence it. The inhibition is too weak against the drive: strengthen the inhibitory link.";
     else if ( !c )
-      o << "Silent during stop, but it does not recover afterwards (" << static_cast< int >( after_.n ) << " spikes after). Is the inhibitory cell still firing "
-           "when the stop is off, or the drive disconnected?";
+      o << "Silent during stop, but it does not recover afterwards. Is the inhibitory cell still firing when the stop is off, or the drive disconnected?";
     else
-      o << "Stop silences the cell (" << static_cast< int >( during_.n ) << " spikes during stop, " << fmt( before_.rate_hz() ) << " per second before) and it recovers ("
-        << fmt( after_.rate_hz() ) << " per second after).";
+      o << "Stop silences the cell and it recovers when the stop ends.";
     s.verdict = o.str();
     return s;
   }

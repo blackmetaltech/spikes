@@ -20,6 +20,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 
 constexpr int kSeg = 7;
 constexpr double kT0 = 300, kSlot = 500, kDur = 3800;
@@ -81,8 +82,8 @@ public:
                   "minus must go through a neuron you set to inhibitory. The inhibition has to be about as strong as the excitation it cancels.", "" },
       { 2, "plus drives the output cell directly; minus drives a second, inhibitory neuron that connects to the same output cell. Look at "
            "the weight of that last link: with the default it barely dents the drive.", "diff" },
-      { 3, "plus > out cell > diff. minus > cell B (inhibitory) > out cell, with the B > out weight at about -1100 pA. Too weak and equal "
-           "inputs still fire; too strong and plus 3 against minus 2 goes quiet.", "diff" } };
+      { 3, "plus > out cell > diff. minus > cell B (inhibitory) > the same out cell. Make the inhibitory link several times the default: "
+           "too weak and equal inputs still fire, too strong and plus 3 against minus 2 goes quiet. The verdict says which way you are off.", "diff" } };
   }
 
   std::map< std::string, Metric > metrics() const override
@@ -91,6 +92,19 @@ public:
     for ( int s = 0; s < kSeg; ++s )
       if ( kFire[ s ] ) { fire += n_[ s ]; nf += 1; }
     return { { "fire_rate_hz", { nf > 0 ? fire / nf / 0.4 : 0.0, "Hz", true } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    const auto plus = g_.in_pops( "plus" ), minus = g_.in_pops( "minus" ), out = g_.out_pops( "diff" );
+    if ( out.empty() || plus.empty() || minus.empty() ) return;
+    if ( !g_.path( plus, out, +1, 3, true ) )
+      mech_ = "'plus' does not excite the cell that is read on 'diff': the output needs excitation from plus.";
+    else if ( !g_.path( minus, out, 0, 3, true ) )
+      mech_ = "'minus' does not reach the cell that is read on 'diff': excitation and inhibition have to meet on the same output cell.";
+    else if ( !g_.path( minus, out, -1, 3 ) )
+      mech_ = "'minus' reaches the output only by exciting it, so it adds to plus instead of subtracting. A sensor can only excite: send minus through an "
+              "inhibitory neuron onto the output cell.";
   }
 
   Score score() const override
@@ -116,30 +130,30 @@ public:
     s.parts[ "silent_ok" ] = silent_ok;
     for ( int k = 0; k < kSeg; ++k ) s.parts[ "seg" + std::to_string( k ) ] = n_[ k ];
     const bool a = fire_ok >= 3, b = silent_ok >= 4;
-    const double cut = n_[ 1 ] > 0 ? 100.0 * ( 1.0 - n_[ 2 ] / n_[ 1 ] ) : 0.0;  // plus 3 / minus 3 against plus 3 / minus 0
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ), 2 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << static_cast< int >( fire_ok ) << " of 3 firing segments and " << static_cast< int >( silent_ok ) << " of 4 quiet ones right so far.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( fire_ok == 0 && n_[ 1 ] == 0 )
-      o << "Silent even for plus 3 against minus 0. plus must excite the output cell, and its current (3 x the sensor weight) must be over the rheobase.";
+      o << "Silent even for plus 3 against minus 0. plus must excite the output cell, and its current must be over the rheobase.";
     else if ( !b && a )
-      o << "Fired when plus " << fmt( kPlus[ bad_silent ] ) << ", minus " << fmt( kMinus[ bad_silent ] ) << " (" << static_cast< int >( silent_ok )
-        << " of 4 quiet segments right): the minus input does not cancel the plus. Make the inhibitory link from the minus cell stronger"
-        << ( cut >= 3.0 ? std::string( ": with equal inputs it cut the firing by " ) + fmt( cut ) + " % and has to cut 100 %, so it needs about "
-                 + fmt( 100.0 / cut, 100.0 / cut < 3 ? 1 : 0 ) + " times its present weight." : std::string( " (several times stronger)." ) );
+      o << "Fired when plus " << fmt( kPlus[ bad_silent ] ) << ", minus " << fmt( kMinus[ bad_silent ] )
+        << ": the minus input does not cancel the plus. Make the inhibitory link from the minus cell stronger.";
     else if ( !a && b )
-      o << "Silent when plus " << fmt( kPlus[ bad_fire ] ) << ", minus " << fmt( kMinus[ bad_fire ] ) << ": the inhibition is too strong. It should cancel "
-        << "equal inputs, not subtract more than minus carries. Weaken the inhibitory link a little.";
+      o << "Silent when plus " << fmt( kPlus[ bad_fire ] ) << ", minus " << fmt( kMinus[ bad_fire ] )
+        << ": the inhibition is too strong. It should cancel equal inputs, not subtract more than minus carries. Weaken the inhibitory link a little.";
     else if ( !a && !b )
-      o << "Neither right: " << static_cast< int >( fire_ok ) << " of 3 firing and " << static_cast< int >( silent_ok )
-        << " of 4 quiet segments. Check that plus reaches the output cell and that minus goes through an inhibitory cell onto the same output cell.";
+      o << "Neither right: some segments that should fire do not and some that should be quiet fire. Check that plus reaches the output cell and that "
+           "minus goes through an inhibitory cell onto the same output cell.";
     else
-      o << "Output = plus minus minus: it fires for 3 against 0 and 3 against 2, and stays quiet whenever minus is as strong as plus.";
+      o << "Output = plus minus minus: it fires when plus clearly beats minus, and stays quiet whenever minus is as strong as plus.";
     s.verdict = o.str();
     return s;
   }

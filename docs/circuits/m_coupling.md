@@ -40,3 +40,6 @@ Credits: Jalife J (1984) J Physiol 356:221; Michaels DC, Matyas EP, Jalife J (19
 * **`recipe()`:** N1 (SA node cell) > 'a' and N2 (SA node cell) > 'b'. Link N1 > N2 and N2 > N1 (both excitatory) and raise their weight from 0.2 nS to about 2 nS.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **2 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: a projection between the two pacemaker cells (either direction), no bias currents, two different cells. Cheap rows: uncoupled, default weight, one cell on a and b, plain cells coupled.

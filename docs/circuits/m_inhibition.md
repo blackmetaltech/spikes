@@ -42,3 +42,7 @@ Credits: Hartline HK, Wagner HG, Ratliff F (1956) J Gen Physiol 39:651 (lateral 
 * **`recipe()`:** drive > cell A > out. stop > cell B (inhibitory) > cell A, with the B > A weight at about -1000 pA. The default -80 pA only slows A down a little (by about 8 %); the inhibition has to cut the whole drive, so the weight is roughly 12 times larger.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **3 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: a path from `stop` to `out` with net inhibition (a neuron whose outgoing link is negative), and `drive` must reach `out`. A negative sensor weight is not a way round it: the structure only counts inhibitory projections.
+Verdicts: "stop made no difference" / "slows but does not silence" / "does not recover", without a ratio. Cheap rows: stop straight onto the cell, link sign flipped, link cut, stop on an unconnected cell, default-weight inhibition.

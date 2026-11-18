@@ -42,3 +42,8 @@ Credits: Connors BW, Gutnick MJ (1990) Trends Neurosci 13:99; Brette R, Gerstner
 * **`recipe()`:** step > one aeif cell > spikes. Keep the default step weight (300) and the cell's NEST-default values, and in its advanced parameters set tau_w to 300-400 ms: the cell starts near 50 spikes/s and settles near 10. The longer the adaptation current takes to fade, the more of it builds up; b alone only helps a little (even 200 pA gives a ratio of 2.7), and with b = 0 there is no adaptation at all.
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **3 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: every cell read on `spikes` must have its own adaptation variable (an `aeif` cell with b > 0, or an Izhikevich cell with d > 0); a plain integrate-and-fire cell, or an adaptive one with the jump set to 0, is told so.
+A default adaptive cell cannot pass at any step weight (ratio 1.9-2.3 from 300 to 2000 pA/unit): tau_w has to be raised. Cheap rows: plain cell, b = 0, default tau_w, tau_w 20 ms, default aeif at the largest step weight, plain cell at a huge step.
+"Max every weight" is not a row here: the lesson is a property of the cell, not a weight.

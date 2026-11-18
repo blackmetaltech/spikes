@@ -23,6 +23,7 @@ namespace spike::tasks
 namespace
 {
 using micro::MicroBase;
+using micro::Graph;
 using micro::Window;
 
 constexpr double kDur = 4000, kOn = 500, kOff = 3500, kLevel = 3.0;
@@ -86,15 +87,30 @@ public:
       { 2, "Use the adaptive exponential cell (aeif) in the parts bin, not the plain integrate-and-fire one. Its parameters b (the jump at each "
            "spike) and tau_w (how slowly it fades) set how much and how long it adapts. If the cell never fires, the 'step' weight is too small.",
         "spikes" },
-      { 3, "step > one aeif cell > spikes. Keep the default step weight (300) and the aeif defaults, and in the cell's advanced parameters "
-           "set tau_w to 400 ms: the cell starts near 50 spikes/s and settles near 9. The longer the adaptation current takes to fade, the more of "
-           "it builds up; with b = 0 there is no adaptation at all.",
-        "spikes" } };
+      { 3, "step > one aeif cell > spikes. The adaptation current only builds up if it fades more slowly than the cell spikes: lengthen tau_w "
+           "well beyond its default, and give b a little more as well if you want it deeper. With b at zero there is no adaptation at all, and "
+           "too much stops the cell firing at the end.", "spikes" } };
   }
 
   std::map< std::string, Metric > metrics() const override
   {
     return { { "adaptation_ratio", { late_.rate_hz() > 0 ? early_.rate_hz() / late_.rate_hz() : 0.0, "x", false } } };
+  }
+
+  void inspect( Engine& ) override
+  {
+    for ( int p : g_.out_pops( "spikes" ) )
+    {
+      const std::string& m = g_.pop( p ).model;
+      const double b = g_.param( p, "b" ), d = g_.param( p, "d" );
+      const bool adaptive = ( m.rfind( "aeif", 0 ) == 0 && ( std::isnan( b ) || b > 0 ) ) || ( m == "izhikevich" && ( std::isnan( d ) || d > 0 ) );
+      if ( !adaptive )
+      {
+        mech_ = "The cell you read has no adaptation current of its own (a plain integrate-and-fire cell, or an adaptive one with the jump set to zero): "
+                "it fires at one fixed rate however long the step lasts. Adaptation is a property of the cell, so use one that has it.";
+        return;
+      }
+    }
   }
 
   Score score() const override
@@ -110,24 +126,26 @@ public:
     finish( s, ( a ? 1 : 0 ) + ( b ? 1 : 0 ) + ( c ? 1 : 0 ), 3 );
     if ( !done() )
       s.passed = false;
+    apply_mech( s );
     std::ostringstream o;
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
       o << "Running: " << fmt( early_.rate_hz() ) << " spikes/s at the start, " << fmt( rate_now_ ) << " now.";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( total_ < 1 )
-      o << "The cell never fired. The step current is below its rheobase: raise the weight of the step sensor (this cell needs more current than "
+      o << "The cell never fired. The step current is below its rheobase: strengthen the step sensor (this cell needs more current than "
            "a plain integrate-and-fire cell).";
     else if ( !a )
-      o << "Only " << fmt( e ) << " spikes/s at the start of the step (needs 15): the drive is barely over threshold. Raise the step weight.";
+      o << "The cell hardly fires at the start of the step: the drive is barely over threshold. Strengthen the step.";
     else if ( !b )
-      o << "The cell fired " << fmt( e ) << " spikes/s at first, then fell nearly silent (" << fmt( l ) << " spikes/s). It adapts, but it has to keep firing: "
-           "lower the adaptation (b) or raise the step weight.";
+      o << "The cell fired fast at first, then fell nearly silent. It adapts, but it has to keep firing: lower the adaptation or strengthen the step.";
     else if ( !c )
-      o << "The rate falls only a little: " << fmt( e ) << " spikes/s at the start, " << fmt( l ) << " at the end (ratio " << fmt( ratio, 1 )
-        << ", needs " << fmt( need, 1 ) << "). Use the adaptive exponential cell if you have not, and give it more adaptation: raise tau_w (how slowly the adaptation current fades); raising b alone helps only a little.";
+      o << "The rate falls only a little over the step. Give the cell more adaptation: let the adaptation current fade more slowly (tau_w); "
+           "raising b alone helps only a little.";
     else
-      o << "The cell adapts: " << fmt( e ) << " spikes/s at the start of the step, " << fmt( l ) << " by the end (a factor " << fmt( ratio, 1 ) << ").";
+      o << "The cell adapts: fast at the start of the step, much slower by the end, and still firing.";
     s.verdict = o.str();
     return s;
   }

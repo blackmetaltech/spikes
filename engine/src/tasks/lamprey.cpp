@@ -31,12 +31,17 @@
 //   pass  : valid two-sided rhythm, 1 <= f <= 10 Hz, |phase - 180| <= 40 deg, speed >= 0.25 BL/s
 //   verdict: says plainly when a motor channel is not wired or never fired (left_motor / right_motor), or both are silent.
 //
+// MECHANISM (Engine::structure(), checked at the first slice): crossed inhibition. The left motor pool must be able to inhibit the right one and the
+// right the left (a path whose net sign is inhibitory, directly or through a commissural interneuron, in at most 3 projections each way). Without it
+// the run fails with a verdict naming the missing crossing, whatever the motor rates do. Verdicts and hint tiers 1-2 carry no numbers.
+//
 // Biology: lamprey spinal locomotor CPG (Grillner 2003 Nat Rev Neurosci; Buchanan 2001), swim frequency 0.3-10 Hz
 // (Wallen & Williams 1984), anti-phase left/right bursts from reciprocal commissural inhibition, one cycle of wave per
 // body length. Thrust is inspired by Lighthill M.J. (1960) J Fluid Mech 9:305, but simplified to a toy.
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include "micro_a.h"
 #include "task_util.h"
 #include "tasks.h"
 
@@ -105,19 +110,19 @@ public:
     {
       h.push_back( make_hint( 1, "A swimming rhythm needs both sides to fire in turn. One side is silent.", "" ) );
       h.push_back( make_hint( 2, sl < 1 ? "left_motor never fired." : "right_motor never fired.", sl < 1 ? "left_motor" : "right_motor" ) );
-      h.push_back( make_hint( 3, "Give drive to a left and a right pool of about 8 adapting cells, each driving its own motor channel.", "" ) );
+      h.push_back( make_hint( 3, "Give drive to a left and a right pool of adapting cells (a handful each), each driving its own motor channel. If nothing fires, strengthen the drive.", "" ) );
     }
     else if ( swing < 2.0 || std::fabs( s.parts[ "phase_deg" ] - 180.0 ) > 40.0 )
     {
       h.push_back( make_hint( 1, "Half-centre: two pools that inhibit each other take turns, because the winner tires (adaptation) and lets go.", "" ) );
       h.push_back( make_hint( 2, "The sides are not alternating: add or strengthen the inhibitory crossing between them.", "left_motor" ) );
-      h.push_back( make_hint( 3, "Left pool inhibits right and right inhibits left at about -8 nS, with an adapting cell model (b 60, tau_w 100).", "" ) );
+      h.push_back( make_hint( 3, "Left pool inhibits right and right inhibits left, with an adapting cell model so each side tires and lets go. The inhibition must be strong enough to silence the other side, not so strong that nothing is left to fire.", "" ) );
     }
     else
     {
       h.push_back( make_hint( 1, "The rhythm is there; the body needs a stronger, faster command to swim.", "" ) );
       h.push_back( make_hint( 2, "Raise the burst size of both motor pools.", "right_motor" ) );
-      h.push_back( make_hint( 3, "More drive to both pools lifts the rate difference that bends the body; stay below the weight where the rhythm stops.", "" ) );
+      h.push_back( make_hint( 3, "More drive to both pools lifts the rate difference that bends the body; stay below the strength at which the rhythm stops.", "" ) );
     }
     return h;
   }
@@ -150,11 +155,19 @@ public:
     motor_.invalidate();
     wiring_.invalidate();
     spikes_l_ = spikes_r_ = 0;
+    inspected_ = false;
+    mech_.clear();
   }
 
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( !inspected_ )
+    {
+      inspected_ = true;
+      inspect( e );
+      break_symmetry( e );
+    }
     e.set_input( "drive", 1.0 );
     e.step( dt );
     double l = motor_.hz_per_neuron( e, "left_motor" ), r = motor_.hz_per_neuron( e, "right_motor" );
@@ -207,16 +220,19 @@ public:
     double p_ok = a.valid ? std::max( 0.0, 1.0 - std::fabs( a.phase - 180.0 ) / 90.0 ) : 0.0;
     s.value = 100.0 * ( 0.25 * f_ok + 0.35 * p_ok + 0.40 * std::min( 1.0, a.speed / 0.8 ) );
     bool done = t_ >= kDuration;
-    s.passed = done && a.valid && f_ok > 0 && std::fabs( a.phase - 180.0 ) <= phase_tol() && a.speed >= speed_min();
+    s.passed = done && a.valid && f_ok > 0 && std::fabs( a.phase - 180.0 ) <= phase_tol() && a.speed >= speed_min() && mech_.empty();
+    if ( !mech_.empty() ) s.value = std::min( s.value, 40.0 );
     std::ostringstream o;
     o << std::fixed << std::setprecision( 1 );
     const char* yet = done ? "." : " yet.";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
+    else if ( !mech_.empty() )
+      o << mech_;
     else if ( spikes_l_ < 1 && spikes_r_ < 1 )
       o << "Both motor channels are silent: neither left_motor nor right_motor has fired" << yet
-        << " Check that drive reaches your neurons and that the drive weight (pA of current per unit of drive) is over the cells' rheobase: "
-           "the adaptive cells need about 550 pA or more.";
+        << " Check that drive reaches your neurons and that the drive weight (current per unit of drive) is over the cells' rheobase: "
+           "the adaptive cells need much more than a plain cell.";
     else if ( spikes_l_ < 1 )
       o << "left_motor never fired" << yet << " Both sides must burst in turn; only right_motor is active.";
     else if ( spikes_r_ < 1 )
@@ -232,14 +248,13 @@ public:
         o << "No rhythm: left and right motor rates never alternate cleanly" << yet;
     }
     else if ( f_ok == 0 )
-      o << "Rhythm at " << a.f << " Hz is outside the 1-10 Hz swimming range.";
+      o << "The rhythm is outside the swimming range (1-10 Hz): " << ( a.f < 1.0 ? "too slow." : "too fast." );
     else if ( std::fabs( a.phase - 180.0 ) > phase_tol() )
-      o << "Left and right are " << static_cast< int >( a.phase ) << " degrees apart, not alternating (180).";
+      o << "Left and right are not alternating: the bursts of the two sides overlap too much.";
     else if ( a.speed < speed_min() )
-      o << "Alternating at " << a.f << " Hz but only " << a.speed << " BL/s: too slow.";
+      o << "Alternating, but the body goes too slowly: the rate difference between the sides is too small to bend it.";
     else
-      o << ( done ? "Swimming" : "Swimming so far" ) << " at " << a.f << " Hz, " << static_cast< int >( a.phase ) << " degrees L/R, "
-        << a.speed << " BL/s.";
+      o << ( done ? "Swimming" : "Swimming so far" ) << ": the two sides alternate and the body goes forward.";
     s.verdict = o.str();
     return s;
   }
@@ -247,6 +262,44 @@ public:
   std::array< double, 4 > world_bounds() const override { return { -2, -4, 18, 4 }; }
 
 private:
+  /// Crossed inhibition (docs/REQ-0.4.md rule 1): left inhibits right and right inhibits left, directly or through a commissural interneuron.
+  void inspect( Engine& e )
+  {
+    micro::Graph g( e.structure() );
+    const auto l = g.out_pops( "left_motor" ), r = g.out_pops( "right_motor" );
+    if ( l.empty() || r.empty() ) return;
+    if ( micro::Graph::overlap( l, r ) )
+      mech_ = "left_motor and right_motor are read from the same cells: a swimming rhythm needs a left side and a right side.";
+    else if ( !g.crossed( l, r ) && !g.crossed( r, l ) )
+      mech_ = "The two sides do not inhibit each other: there is no crossed inhibition. A half-centre is built on it: each side's activity must silence the other.";
+    else if ( !g.crossed( l, r ) || !g.crossed( r, l ) )
+      mech_ = "The crossed inhibition runs one way only: one side silences the other, which cannot answer back, so nothing hands the burst over. "
+              "Each side must inhibit the other.";
+  }
+
+  /// The descending command reaches the left side a moment before the right (as in m_half_centre): the cells that drive the left motor pool start just
+  /// over threshold (V_m -50 mV) and those that drive the right one at -75 mV. Identical cells (and pools of them) can otherwise start in perfect step,
+  /// and a half-centre has no way to choose which side goes first. Only cells that clearly belong to one side are touched.
+  void break_symmetry( Engine& e )
+  {
+    micro::Graph g( e.structure() );
+    const auto l = g.out_pops( "left_motor" ), r = g.out_pops( "right_motor" );
+    if ( l.empty() || r.empty() || micro::Graph::overlap( l, r ) ) return;
+    std::vector< int > side( g.st.populations.size(), 0 );
+    for ( size_t p = 0; p < side.size(); ++p )
+    {
+      const std::vector< int > P = { static_cast< int >( p ) };
+      const bool in_l = g.path( P, l, +1, 3, true ), in_r = g.path( P, r, +1, 3, true );
+      side[ p ] = in_l && !in_r ? 1 : ( in_r && !in_l ? -1 : 0 );
+    }
+    for ( int n = 0; n < e.neuron_count(); ++n )
+    {
+      const std::string id = e.neuron_population( n );
+      for ( size_t p = 0; p < side.size(); ++p )
+        if ( g.st.populations[ p ].id == id && side[ p ] != 0 ) e.set_neuron_param( n, "V_m", side[ p ] > 0 ? -50.0 : -75.0 );
+    }
+  }
+
   void tick( double rl_hz, double rr_hz, double h )
   {
     double l = rl_.step( rl_hz, h ), r = rr_.step( rr_hz, h );
@@ -381,6 +434,8 @@ private:
   Lowpass rl_, rr_;
   MotorReader motor_;
   Wiring wiring_;
+  bool inspected_ = false;
+  std::string mech_;
   double spikes_l_ = 0, spikes_r_ = 0;
 };
 

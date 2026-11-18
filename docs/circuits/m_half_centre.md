@@ -44,3 +44,7 @@ Credits: Brown TG (1911) Proc R Soc B 84:308; Grillner S (2003) Nat Rev Neurosci
 * **`recipe()`:** drive > L and drive > R (the default sensor weight 300 is right for the Adapting preset). L and R: one aeif cell each, Adapting preset, both inhibitory. L > R and R > L at the default weight (-8 nS), L > 'left' and R > 'right'. Each side then bursts for a few hundred milliseconds and gives way to the other. With the NEST-default aeif cell the drive has to be raised to about 400 pA of weight (its rheobase is about 620 pA).
   The brief keeps the concept; the numbers live here, so the lab can show them by mode (Guided inline, Standard behind SHOW RECIPE at the cost of the third star, Researcher never).
 * **Novice path with the lab's defaults** (`tasks_micro_a_test`): first build made of the default part and the default weights, then one change per verdict: **3 runs** (gate: at most 8).
+
+## Honesty contract (v0.4)
+Mechanism check: reciprocal inhibition. `crossed(left, right)` and `crossed(right, left)`: a population that excites (or is) one side reaches the other with net inhibition within 3 projections, so interneurons count.
+Both directions are required (a one-way inhibition names itself in the verdict). Cheap rows: one link cut, both cut, mutual excitation, no adaptation, plain cells with strong inhibition, one cell on both channels.

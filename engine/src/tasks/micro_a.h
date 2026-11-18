@@ -7,6 +7,7 @@
 // in each task. Researcher: tight bands and physiological noise (the game asks for 5 seeds there).
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iomanip>
 #include <map>
@@ -40,6 +41,128 @@ inline Task::ChannelKind modulator( const std::string& which, double gain, doubl
 {
   return Task::ChannelKind{ "modulator", 0, which, gain, tau_ms, 0.0 };
 }
+
+/// Read-only view of Engine::structure() for the mechanism checks of the micro-puzzles (docs/ENGINE-STRUCTURE.md). Populations are addressed by
+/// index into Structure::populations; a channel's populations are the ones it is wired to (inputs: target pops, outputs: source pops).
+/// Only projections with cells (n_edges > 0) and a non-zero mean weight count: a cut synapse (weight 0) is no wiring.
+class Graph
+{
+public:
+  Graph() = default;
+  explicit Graph( Structure s ) : st( std::move( s ) ) {}
+  Structure st;
+
+  std::vector< int > in_pops( const std::string& ch ) const { return pops_of( st.inputs, ch ); }
+  std::vector< int > out_pops( const std::string& ch ) const { return pops_of( st.outputs, ch ); }
+  const PopulationInfo& pop( int i ) const { return st.populations[ static_cast< size_t >( i ) ]; }
+  bool empty() const { return st.populations.empty(); }
+  /// Number of cells of the populations in `s`.
+  int cells( const std::vector< int >& s ) const
+  {
+    int n = 0;
+    for ( int i : s ) n += pop( i ).n;
+    return n;
+  }
+  static bool overlap( const std::vector< int >& a, const std::vector< int >& b )
+  {
+    for ( int x : a )
+      for ( int y : b )
+        if ( x == y ) return true;
+    return false;
+  }
+  /// A direct projection from a population of `from` to one of `to` whose sign is `sign` (0 = any non-zero).
+  bool edge( const std::vector< int >& from, const std::vector< int >& to, int sign = 0 ) const
+  {
+    for ( const auto& p : st.projections )
+    {
+      if ( p.n_edges <= 0 || p.sign == 0 || ( sign != 0 && p.sign != sign ) ) continue;
+      if ( has( from, p.pre_index ) && has( to, p.post_index ) ) return true;
+    }
+    return false;
+  }
+  /// A chain of 1..max_hops projections (0 hops allowed when `allow_zero` and the sets overlap) from `from` to `to` whose net sign is
+  /// `net` (+1: an even number of inhibitory projections, -1: an odd number, 0: any).
+  bool path( const std::vector< int >& from, const std::vector< int >& to, int net = 0, int max_hops = 4, bool allow_zero = false ) const
+  {
+    const int n = static_cast< int >( st.populations.size() );
+    if ( n == 0 ) return false;
+    std::vector< std::array< bool, 2 > > seen( static_cast< size_t >( n ), { false, false } );
+    std::vector< std::pair< int, int > > frontier;
+    for ( int f : from )
+      if ( !seen[ f ][ 0 ] ) { seen[ f ][ 0 ] = true; frontier.push_back( { f, 0 } ); }
+    auto hit = [ & ]( int node, int par ) { return has( to, node ) && ( net == 0 || ( net > 0 ? par == 0 : par == 1 ) ); };
+    if ( allow_zero )
+      for ( auto& s : frontier )
+        if ( hit( s.first, s.second ) ) return true;
+    for ( int hop = 1; hop <= max_hops && !frontier.empty(); ++hop )
+    {
+      std::vector< std::pair< int, int > > next;
+      for ( auto& s : frontier )
+        for ( const auto& p : st.projections )
+        {
+          if ( p.n_edges <= 0 || p.sign == 0 || p.pre_index != s.first ) continue;
+          const int par = s.second ^ ( p.sign < 0 ? 1 : 0 );
+          if ( hit( p.post_index, par ) ) return true;
+          if ( !seen[ p.post_index ][ par ] ) { seen[ p.post_index ][ par ] = true; next.push_back( { p.post_index, par } ); }
+        }
+      frontier = next;
+    }
+    return false;
+  }
+  /// `from` inhibits `to` across the midline: some population P is excited by (or is) `from`'s side, i.e. reaches `from` with net excitation, and reaches
+  /// `to` with net inhibition (directly, or through an interneuron: at most max_hops projections). Reads the same for a half-centre of two cells (P =
+  /// the cell itself) and for a spinal CPG whose commissural interneurons sit between the excitatory pools and the motor pools.
+  bool crossed( const std::vector< int >& from, const std::vector< int >& to, int max_hops = 3 ) const
+  {
+    for ( size_t p = 0; p < st.populations.size(); ++p )
+    {
+      const std::vector< int > P = { static_cast< int >( p ) };
+      if ( path( P, from, +1, max_hops, true ) && path( P, to, -1, max_hops ) ) return true;
+    }
+    return false;
+  }
+  /// Largest number of presynaptic cells one cell of `to` receives over the projections from populations anywhere (sum of indegree_max).
+  int indegree( const std::vector< int >& to ) const
+  {
+    int best = 0;
+    for ( int t : to )
+    {
+      int s = 0;
+      for ( const auto& p : st.projections )
+        if ( p.n_edges > 0 && p.sign != 0 && p.post_index == t ) s += p.indegree_max;
+      best = std::max( best, s );
+    }
+    return best;
+  }
+  /// Value of a numeric parameter the player set on a population (nan when the card's own value is used).
+  double param( int i, const std::string& name ) const
+  {
+    auto it = pop( i ).params.find( name );
+    return it == pop( i ).params.end() ? std::nan( "" ) : it->second;
+  }
+
+private:
+  static bool has( const std::vector< int >& v, int x )
+  {
+    for ( int y : v )
+      if ( y == x ) return true;
+    return false;
+  }
+  std::vector< int > pops_of( const std::vector< ChannelStructure >& chans, const std::string& ch ) const
+  {
+    std::vector< int > r;
+    for ( const auto& c : chans )
+      if ( c.name == ch )
+        for ( const auto& id : c.pops )
+        {
+          int i = -1;  // (a local lookup: Structure::population_index lives in engine.cpp, which the stub-engine physics test must not pull in)
+          for ( size_t k = 0; k < st.populations.size(); ++k )
+            if ( st.populations[ k ].id == id ) i = static_cast< int >( k );
+          if ( i >= 0 && !has( r, i ) ) r.push_back( i );
+        }
+    return r;
+  }
+};
 
 /// Counts spikes of one motor channel inside a time window [t0, t1) of model time.
 struct Window
@@ -102,6 +225,7 @@ public:
   void step( Engine& e, double dt ) override
   {
     wiring_.probe( e, info_.sensors, info_.motors );
+    inspect_once( e );
     drive( e, dt );
     e.step( dt );
     t_ += dt;
@@ -118,9 +242,30 @@ protected:
   {
     rng_ = Rng( seed ^ hash_id() );
     t_ = 0;
+    inspected_ = false;
+    mech_.clear();
+    g_ = Graph();
     wiring_.invalidate();
     motor_.invalidate();
     readouts_.clear();
+  }
+
+  /// Mechanism check (v0.4 honesty contract): called once, before the first slice, with the live circuit. Read the structure through g_ and
+  /// put a sentence naming the missing part of the mechanism (never a number) into mech_; leave mech_ empty when the mechanism is there.
+  virtual void inspect( Engine& ) {}
+  void inspect_once( Engine& e )
+  {
+    if ( inspected_ ) return;
+    inspected_ = true;
+    g_ = Graph( e.structure() );
+    inspect( e );
+  }
+  /// A circuit that lacks the mechanism never passes and never scores more than 60.
+  void apply_mech( Score& s ) const
+  {
+    if ( mech_.empty() ) return;
+    s.passed = false;
+    s.value = std::min( s.value, 60.0 );
   }
 
   /// Set inputs for the slice about to run (t_ is its start).
@@ -147,6 +292,8 @@ protected:
   }
 
   Info info_;
+  Graph g_;
+  std::string mech_;
   Wiring wiring_;
   MotorReader motor_;
   Rng rng_;
@@ -154,6 +301,7 @@ protected:
   std::map< std::string, double > readouts_;
 
 private:
+  bool inspected_ = false;
   uint64_t hash_id() const
   {
     uint64_t h = 1469598103934665603ULL;
