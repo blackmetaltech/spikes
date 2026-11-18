@@ -39,8 +39,10 @@ tau_syn 2 ms). Delays 1 ms (Castellucci & Kandel 1974; Sherrington 1906; Rotter 
 | IN -> MN weight x0.1 | 6 of 6 missed |
 | SN -> IN x4 and IN -> MN x4 (no coincidence requirement left) | about 175 false withdrawals from noise |
 
-Credits: Sherrington CS (1906) *The Integrative Action of the Nervous System*; Castellucci V, Kandel ER (1974) PNAS
-71:5004; Rotter S, Diesmann M (1999) Biol Cybern 81:381.
+**Biology and limits.** The arrangement (weak sensory-to-motor connections made effective by summation) follows the Aplysia gill-withdrawal reflex (Castellucci & Kandel 1974); the figure of about 0.1 mV per afferent against about 10 mV needed to fire is from cat Ia afferents (Mendell & Henneman 1971), a stretch-reflex measurement used here only for the arithmetic. This is not a model of a mammalian touch reflex, which is polysynaptic (Sherrington 1910). The 150 Hz background is a game value: low-threshold cutaneous afferents are mostly silent at rest (Johnson 2001).
+
+Credits: Sherrington CS (1906) *The Integrative Action of the Nervous System*; Sherrington CS (1910) J Physiol 40:28; Castellucci V, Kandel ER (1974) PNAS
+71:5004; Mendell LM, Henneman E (1971) J Neurophysiol 34:171; Johnson KO (2001) Curr Opin Neurobiol 11:455; Rotter S, Diesmann M (1999) Biol Cybern 81:381.
 
 ## v0.3: concepts, modes, variants (item D)
 

@@ -42,7 +42,7 @@ The task also says plainly when the sensors are not connected ("sensor 'chemo' i
 ## Limits
 No O2 sensing or hypoxic drive, no Hering-Breuer stretch feedback, no active expiration. The chemoreceptor signal is a graded current rather than spikes. The preBotC here is a network of identical bursters with excitatory coupling only; the inhibitory interneurons that real preBotC networks have (Janczewski et al. 2013) are not modelled inside it, expiratory inhibition lives in the EXP cells.
 
-Credits: Smith JC, Ellenberger HH, Ballanyi K, Richter DW, Feldman JL (1991) Science 254:726; Butera RJ, Rinzel J, Smith JC (1999) J Neurophysiol 82:382; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232; Guyenet PG, Stornetta RL, Bayliss DA (2010) Respir Physiol Neurobiol 173:244; Lahiri S, DeLaney RG (1975) Respir Physiol 24:249; Janczewski WA et al. (2013) J Neurosci 33:3045; Grodins FS et al. (1967) J Appl Physiol 22:260 (gas exchange).
+Credits: Smith JC, Ellenberger HH, Ballanyi K, Richter DW, Feldman JL (1991) Science 254:726; Butera RJ, Rinzel J, Smith JC (1999) J Neurophysiol 82:382; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232; Guyenet PG, Mulkey DK (2010) Respir Physiol Neurobiol 173:244; Guyenet PG, Stornetta RL, Bayliss DA (2010) J Comp Neurol 518:3883; Lahiri S, DeLaney RG (1975) Respir Physiol 24:249; Janczewski WA et al. (2013) J Neurosci 33:5454; Grodins FS et al. (1967) J Appl Physiol 22:260 (gas exchange).
 
 ## v0.3: concepts, modes, variants (item D)
 

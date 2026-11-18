@@ -41,7 +41,7 @@ DxSpec spec()
   s.note = { "Congenital central hypoventilation syndrome",
              "In congenital central hypoventilation syndrome, mutations of the PHOX2B gene remove the CO2-sensitive drive to the brainstem respiratory network. "
              "Patients may breathe adequately when awake, because cortical drive covers the deficit, but in sleep they hypoventilate or stop breathing, and they do not respond to rising CO2 (formerly called Ondine's curse).",
-             "Amiel J et al. (2003) Nat Genet 33:459; Weese-Mayer DE et al. (2010) Am J Respir Crit Care Med 181:626; Guyenet PG, Stornetta RL, Bayliss DA (2010) Respir Physiol Neurobiol 173:244" };
+             "Amiel J et al. (2003) Nat Genet 33:459; Weese-Mayer DE et al. (2010) Am J Respir Crit Care Med 181:626; Guyenet PG, Mulkey DK (2010) Respir Physiol Neurobiol 173:244, doi:10.1016/j.resp.2010.02.005" };
   return s;
 }
 }  // namespace

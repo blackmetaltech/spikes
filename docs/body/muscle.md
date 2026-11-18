@@ -13,7 +13,7 @@ plus Hill contractile mechanics (rigid tendon).
   (Burke 1973), fast units at 30-60 Hz; a pool whose large units fire at <= 45 Hz stays partly unfused (pool maximum with all
   units recruited = ~66 % of the electrically fused tetanus, in line with voluntary vs stimulated maxima).
 
-## Size principle (Henneman 1957/1965; Fuglevand, Winters & Patla 1993)
+## Size principle (Henneman 1957/1965; Fuglevand, Winter & Patla 1993)
 Unit `i` (f = i/(n-1)): force share `∝ force_range^f` (30x), contraction time geometrically from 90 ms (S) to 30 ms (FF),
 recruitment threshold geometrically from 0.02 to 0.80 of pool excitation, peak rate 35 -> 45 Hz, `vmax` 3 -> 8 `l_opt`/s,
 fatigue rate 0.002 -> 0.03 /s. Rate coding: a unit fires at `min_rate (8 Hz) + 50 Hz * (e - threshold)`, capped at its peak.

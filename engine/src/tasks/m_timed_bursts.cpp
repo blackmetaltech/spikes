@@ -17,7 +17,7 @@
 // into "b2 fires 120 ms later", and so on. Each burst only lasts as long as its input.
 //
 // Biology: ballistic limb movements show a triphasic EMG: a burst in the agonist, then one in the antagonist, then a second in the agonist
-// (Hallett M, Shahani BT, Young RR (1975) J Neurol Neurosurg Psychiatry 38:1154-1162; Wacholder K, Altenburger H 1926), with 100-200 ms between bursts.
+// (Hallett M, Shahani BT, Young RR (1975) J Neurol Neurosurg Psychiatry 38:1154-1162; Wachholder K, Altenburger H 1926 Pflugers Arch 214:642), with 100-200 ms between bursts.
 #include "micro_b.h"
 
 namespace spike::tasks

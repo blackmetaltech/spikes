@@ -50,7 +50,7 @@ Milder cuts do not fail the task and show up as smaller responses: HYP -> NA x0 
 ## Limits
 No baroreflex in this circuit (the baroreflex task is separate), so pressure is not regulated; no metabolic CO2 production change with the fight, so PaCO2 falls with hyperventilation but nothing feeds back on it; the premotor and ganglion levels of each sympathetic branch are lumped (RVLM -> ganglion cells). The recovery is passive (decay and vagal rebound), not an active parasympathetic overshoot.
 
-Credits: Cannon WB (1915) *Bodily Changes in Pain, Hunger, Fear and Rage*; Hilton SM (1982) J Auton Nerv Syst 7:3 (defence area); Dampney RAL (1994) Physiol Rev 74:323 (central cardiovascular pathways); Robinson BF, Epstein SE, Beiser GD, Braunwald E (1966) J Appl Physiol 21:1655 (vagal then sympathetic components of the heart rate response); Steinhauer SR, Hakerem G (1992) Ann N Y Acad Sci 658:182 (arousal inhibits the EW nucleus); Demir SS et al. (1994) Am J Physiol 266:C832 (SA-node cell family).
+Credits: Cannon WB (1915) *Bodily Changes in Pain, Hunger, Fear and Rage*; Hilton SM (1982) J Exp Biol 100:159 (defence area); Dampney RAL (1994) Physiol Rev 74:323 (central cardiovascular pathways); Robinson BF, Epstein SE, Beiser GD, Braunwald E (1966) Circ Res 19:400 (vagal then sympathetic components of the heart rate response); Steinhauer SR, Hakerem G (1992) Ann N Y Acad Sci 658:182 (arousal inhibits the EW nucleus); Demir SS et al. (1994) Am J Physiol 266:C832 (SA-node cell family).
 
 ## v0.3: concepts, modes, variants (item D)
 

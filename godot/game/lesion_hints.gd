@@ -48,7 +48,7 @@ const HINTS := {
 		[["CC>IML"], "Central command to IML cut", "The error feedback alone still raises NE, but a proportional loop keeps a steady-state error."],
 		[["CC>NA"], "Central command to vagal cells cut", "Redundant route: the task still passes, only more slowly, because hr_too_low also withdraws the vagus."]],
 	"baroreflex": [
-		[["AFF>NTS"], "Sino-aortic denervation", "Baroreceptor denervation removes the tonic depressor drive: pressure is high and unregulated (Cowley, Liard & Guyton 1973)."],
+		[["AFF>NTS"], "Sino-aortic denervation", "Baroreceptor denervation removes the tonic depressor drive: mean pressure changes little but swings widely, unbuffered (Cowley, Liard & Guyton 1973)."],
 		[["RVLM>IML"], "Spinal cord / sympathetic cut", "Sympathectomy: no vascular tone and orthostatic hypotension on standing."],
 		[["IML>SG"], "Ganglionic block", "Hexamethonium-like block: the same loss of sympathetic tone as a spinal lesion."],
 		[["NTS>CVLM"], "Depressor pathway lost", "A CVLM lesion raises pressure: nothing inhibits the RVLM (Dampney 1994)."]],
@@ -58,7 +58,7 @@ const HINTS := {
 		[["PBC>EXP"], "No disinhibition", "The rhythm no longer gates the expiratory cells' silence: the phrenic pool stays quiet, apnoea."],
 		[["EXP>PHR"], "No expiratory silence", "Without expiratory inhibition the phrenic fires tonically in shallow, fast breaths with no real ventilation."]],
 	"pupil": [
-		[["PON>EW"], "Edinger-Westphal denervated", "Oculomotor (parasympathetic) palsy: a mid-dilated pupil that barely reacts to light (Gamlin 2006)."],
+		[["PON>EW"], "Edinger-Westphal denervated", "Oculomotor (parasympathetic) palsy: a mid-dilated pupil that barely reacts to light (McDougal & Gamlin 2015)."],
 		[["EW>CG"], "Ciliary ganglion cut", "Same picture one synapse later: a tonic, poorly reacting pupil."],
 		[["IML>SCG"], "Sympathetic chain cut", "Horner-like: the dilator never fires, so the pupil stays small in the dark and fright dilates it less."],
 		[["HYP>IML", "HYP>EW"], "Alarm pathway cut", "The light reflex is intact but there is no fright dilation."],

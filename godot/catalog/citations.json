@@ -1,0 +1,3987 @@
+{
+ "_comment": "Citation registry. Source of truth for every reference in the notebooks, docs and concept cards. Checked by tools/citations/check.py. Status: verified = read from the PubMed record; verified-locus = a PubMed record exists at exactly this journal/year/volume/page with this first author; unverified = could not be checked from the authoring session. 'match' is a regex used by check.py to find the citation in the repo text.",
+ "verified_on": "2026-11-18",
+ "retired": [
+  {
+   "was": "Raven PB, Fadel PJ, Ogoh S (2006) J Physiol 574:85",
+   "pattern": "J Physiol 574:85",
+   "reason": "That locus is Ramamurthy & Ronnett (AMPK), not Raven, Fadel & Ogoh (found by REVIEW-HARSH H2).",
+   "replaced_by": "Raven PB, Fadel PJ, Ogoh S (2006) Exp Physiol 91:37-49, doi:10.1113/expphysiol.2005.032250"
+  },
+  {
+   "was": "Guyenet PG, Stornetta RL, Bayliss DA (2010) Respir Physiol Neurobiol 173:244",
+   "pattern": "Stornetta (?:RL, Bayliss DA|& Bayliss)[^;]{0,12}\\(?2010\\)? Respir Physiol Neurobiol",
+   "reason": "Respir Physiol Neurobiol 173:244 is Guyenet & Mulkey; the Guyenet-Stornetta-Bayliss 2010 paper is J Comp Neurol 518:3883.",
+   "replaced_by": "Guyenet PG, Mulkey DK (2010) Respir Physiol Neurobiol 173:244-255, doi:10.1016/j.resp.2010.02.005"
+  },
+  {
+   "was": "Robinson et al. (1966) J Appl Physiol 21:1655",
+   "pattern": "J Appl Physiol 21:1655",
+   "reason": "That locus is Koushanpour & Collings (left-ventricle model), not Robinson et al.",
+   "replaced_by": "Robinson BF, Epstein SE, Beiser GD, Braunwald E (1966) Circ Res 19:400-411, doi:10.1161/01.res.19.2.400"
+  },
+  {
+   "was": "Hilton SM (1982) J Auton Nerv Syst 7:3",
+   "pattern": "J Auton Nerv Syst 7:3",
+   "reason": "Hilton 1982 is not in J Auton Nerv Syst.",
+   "replaced_by": "Hilton SM (1982) J Exp Biol 100:159-174, doi:10.1242/jeb.100.1.159"
+  },
+  {
+   "was": "Meffin et al. 2004 J Neurophysiol 92:2064-2086",
+   "pattern": "J Neurophysiol 92:2064",
+   "reason": "No such Meffin et al. paper; the conductance-based IF analysis is J Comput Neurosci.",
+   "replaced_by": "Meffin H, Burkitt AN, Grayden DB (2004) J Comput Neurosci 16:159-175, doi:10.1023/B:JCNS.0000014108.03012.81"
+  },
+  {
+   "was": "Janczewski WA et al. (2013) J Neurosci 33:3045",
+   "pattern": "J Neurosci 33:3045",
+   "reason": "No such Janczewski paper at that locus.",
+   "replaced_by": "Janczewski WA et al. (2013) J Neurosci 33:5454-5465, doi:10.1523/JNEUROSCI.1595-12.2013"
+  },
+  {
+   "was": "Dempsey & Smith 2014 J Appl Physiol",
+   "pattern": "Dempsey\\s*&\\s*Smith 2014 J Appl Physiol",
+   "reason": "Dempsey & Smith 2014 is in Eur Respir J.",
+   "replaced_by": "Dempsey JA, Smith CA (2014) Eur Respir J 44:495-512, doi:10.1183/09031936.00048514"
+  },
+  {
+   "was": "Wacholder K, Altenburger H",
+   "pattern": "Wacholder",
+   "reason": "Misspelt; the author is Wachholder.",
+   "replaced_by": "Wachholder K, Altenburger H (1926) Pflugers Arch 214:642"
+  }
+ ],
+ "citations": [
+  {
+   "id": "izhikevich2003",
+   "authors": [
+    "Izhikevich EM"
+   ],
+   "year": 2003,
+   "title": "Simple model of spiking neurons",
+   "journal": "IEEE Trans Neural Netw",
+   "volume": "14",
+   "pages": "1569-1572",
+   "doi": "10.1109/TNN.2003.820440",
+   "pmid": "18244602",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Izhikevich(?: EM)?,? \\(?2003",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_rhythm.md",
+    "engine/src/catalog/catalog.cpp",
+    "godot/game/catalog.gd",
+    "godot/game/circuits.gd"
+   ]
+  },
+  {
+   "id": "izhikevich2004",
+   "authors": [
+    "Izhikevich EM"
+   ],
+   "year": 2004,
+   "title": "Which model to use for cortical spiking neurons?",
+   "journal": "IEEE Trans Neural Netw",
+   "volume": "15",
+   "pages": "1063-1070",
+   "doi": "10.1109/TNN.2004.832719",
+   "pmid": "15484883",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Izhikevich(?: EM)?,? \\(?2004",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp"
+   ]
+  },
+  {
+   "id": "rotter1999",
+   "authors": [
+    "Rotter S",
+    "Diesmann M"
+   ],
+   "year": 1999,
+   "title": "Exact digital simulation of time-invariant linear systems with applications to neuronal modeling",
+   "journal": "Biol Cybern",
+   "volume": "81",
+   "pages": "381-402",
+   "doi": "10.1007/s004220050570",
+   "pmid": "10592015",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Rotter(?: S)?(?:,| &| and)? (?:Diesmann|M)",
+   "note": "",
+   "used_in": [
+    "docs/circuits/reflex.md",
+    "engine/src/catalog/catalog.cpp"
+   ]
+  },
+  {
+   "id": "brunel2000",
+   "authors": [
+    "Brunel N"
+   ],
+   "year": 2000,
+   "title": "Dynamics of sparsely connected networks of excitatory and inhibitory spiking neurons",
+   "journal": "J Comput Neurosci",
+   "volume": "8",
+   "pages": "183-208",
+   "doi": "10.1023/a:1008925309027",
+   "pmid": "10809012",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Brunel(?: N)?,? \\(?2000",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp"
+   ]
+  },
+  {
+   "id": "meffin2004",
+   "authors": [
+    "Meffin H",
+    "Burkitt AN",
+    "Grayden DB"
+   ],
+   "year": 2004,
+   "title": "An analytical model for the \"large, fluctuating synaptic conductance state\" typical of neocortical neurons in vivo",
+   "journal": "J Comput Neurosci",
+   "volume": "16",
+   "pages": "159-175",
+   "doi": "10.1023/B:JCNS.0000014108.03012.81",
+   "pmid": "14758064",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Meffin",
+   "note": "FIXED in registry. engine/src/catalog/catalog.cpp:78,100 cite it as 'J Neurophysiol 92:2064-2086', which does not exist in PubMed; the correct locus is J Comput Neurosci 16:159-175. That file is outside this pass's edit scope: pending.",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "brette2007",
+   "authors": [
+    "Brette R",
+    "Rudolph M",
+    "Carnevale T",
+    "Hines M",
+    "Beeman D",
+    "Bower JM",
+    "Diesmann M",
+    "Morrison A",
+    "Goodman PH",
+    "Harris FC",
+    "Zirpe M",
+    "Natschlager T",
+    "Pecevski D",
+    "Ermentrout B",
+    "Djurfeldt M",
+    "Lansner A",
+    "Rochel O",
+    "Vieville T",
+    "Muller E",
+    "Davison AP",
+    "El Boustani S",
+    "Destexhe A"
+   ],
+   "year": 2007,
+   "title": "Simulation of networks of spiking neurons: a review of tools and strategies",
+   "journal": "J Comput Neurosci",
+   "volume": "23",
+   "pages": "349-398",
+   "doi": "10.1007/s10827-007-0038-6",
+   "pmid": "17629781",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Brette(?: et al\\.?)?,? \\(?2007|Brette et al\\. 2007",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp"
+   ]
+  },
+  {
+   "id": "brette2005",
+   "authors": [
+    "Brette R",
+    "Gerstner W"
+   ],
+   "year": 2005,
+   "title": "Adaptive exponential integrate-and-fire model as an effective description of neuronal activity",
+   "journal": "J Neurophysiol",
+   "volume": "94",
+   "pages": "3637-3642",
+   "doi": "10.1152/jn.00686.2005",
+   "pmid": "16014787",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Brette(?: R)?,? (?:&|and)? ?Gerstner|Gerstner W \\(2005\\)|Gerstner 2005",
+   "note": "",
+   "used_in": [
+    "docs/circuits/lamprey.md",
+    "docs/circuits/m_adaptation.md",
+    "engine/src/catalog/catalog.cpp",
+    "engine/src/tasks/m_adaptation.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/catalog.gd"
+   ]
+  },
+  {
+   "id": "naud2008",
+   "authors": [
+    "Naud R",
+    "Marcille N",
+    "Clopath C",
+    "Gerstner W"
+   ],
+   "year": 2008,
+   "title": "Firing patterns in the adaptive exponential integrate-and-fire model",
+   "journal": "Biol Cybern",
+   "volume": "99",
+   "pages": "335-347",
+   "doi": "10.1007/s00422-008-0264-7",
+   "pmid": "19011922",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Naud",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/circuits.gd"
+   ]
+  },
+  {
+   "id": "hodgkin1952",
+   "authors": [
+    "Hodgkin AL",
+    "Huxley AF"
+   ],
+   "year": 1952,
+   "title": "A quantitative description of membrane current and its application to conduction and excitation in nerve",
+   "journal": "J Physiol",
+   "volume": "117",
+   "pages": "500-544",
+   "doi": "10.1113/jphysiol.1952.sp004764",
+   "pmid": "12991237",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hodgkin(?: AL)?,? (?:&|and) Huxley",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp"
+   ]
+  },
+  {
+   "id": "hill2005",
+   "authors": [
+    "Hill S",
+    "Tononi G"
+   ],
+   "year": 2005,
+   "title": "Modeling sleep and wakefulness in the thalamocortical system",
+   "journal": "J Neurophysiol",
+   "volume": "93",
+   "pages": "1671-1698",
+   "doi": "10.1152/jn.00915.2004",
+   "pmid": "15537811",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hill (?:&|and) Tononi",
+   "note": "Issue date Mar 2005, first published online Nov 2004.",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp"
+   ]
+  },
+  {
+   "id": "mensi2012",
+   "authors": [
+    "Mensi S",
+    "Naud R",
+    "Pozzorini C",
+    "Avermann M",
+    "Petersen CCH",
+    "Gerstner W"
+   ],
+   "year": 2012,
+   "title": "Parameter extraction and classification of three cortical neuron types reveals two distinct adaptation mechanisms",
+   "journal": "J Neurophysiol",
+   "volume": "107",
+   "pages": "1756-1775",
+   "doi": "10.1152/jn.00408.2011",
+   "pmid": "22157113",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Mensi",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "pozzorini2015",
+   "authors": [
+    "Pozzorini C",
+    "Mensi S",
+    "Hagens O",
+    "Naud R",
+    "Koch C",
+    "Gerstner W"
+   ],
+   "year": 2015,
+   "title": "Automated high-throughput characterization of single neurons by means of simplified spiking models",
+   "journal": "PLoS Comput Biol",
+   "volume": "11",
+   "pages": "e1004275",
+   "doi": "10.1371/journal.pcbi.1004275",
+   "pmid": "26083597",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Pozzorini",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "kobayashi2009",
+   "authors": [
+    "Kobayashi R",
+    "Tsubo Y",
+    "Shinomoto S"
+   ],
+   "year": 2009,
+   "title": "Made-to-order spiking neuron model equipped with a multi-timescale adaptive threshold",
+   "journal": "Front Comput Neurosci",
+   "volume": "3",
+   "pages": "9",
+   "doi": "10.3389/neuro.10.009.2009",
+   "pmid": "19668702",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Kobayashi",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "jolivet2006",
+   "authors": [
+    "Jolivet R",
+    "Rauch A",
+    "Luscher HR",
+    "Gerstner W"
+   ],
+   "year": 2006,
+   "title": "Predicting spike timing of neocortical pyramidal neurons by simple threshold models",
+   "journal": "J Comput Neurosci",
+   "volume": "21",
+   "pages": "35-49",
+   "doi": "10.1007/s10827-006-7074-5",
+   "pmid": "16633938",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Jolivet",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "hahne2015",
+   "authors": [
+    "Hahne J",
+    "Helias M",
+    "Kunkel S",
+    "Igarashi J",
+    "Bolten M",
+    "Frommer A",
+    "Diesmann M"
+   ],
+   "year": 2015,
+   "title": "A unified framework for spiking and gap-junction interactions in distributed neuronal network simulations",
+   "journal": "Front Neuroinform",
+   "volume": "9",
+   "pages": "22",
+   "doi": "10.3389/fninf.2015.00022",
+   "pmid": "26441628",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hahne",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "maltsev2009",
+   "authors": [
+    "Maltsev VA",
+    "Lakatta EG"
+   ],
+   "year": 2009,
+   "title": "Synergism of coupled subsarcolemmal Ca2+ clocks and sarcolemmal voltage clocks confers robust and flexible pacemaker function in a novel pacemaker cell model",
+   "journal": "Am J Physiol Heart Circ Physiol",
+   "volume": "296",
+   "pages": "H594-H615",
+   "doi": "10.1152/ajpheart.01118.2008",
+   "pmid": "19136600",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Maltsev",
+   "note": "",
+   "used_in": [
+    "docs/REQ-0.2.md",
+    "docs/models/README.md",
+    "docs/models/sa_node_pacemaker.md",
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "butera1999",
+   "authors": [
+    "Butera RJ",
+    "Rinzel J",
+    "Smith JC"
+   ],
+   "year": 1999,
+   "title": "Models of respiratory rhythm generation in the pre-Botzinger complex. I. Bursting pacemaker neurons",
+   "journal": "J Neurophysiol",
+   "volume": "82",
+   "pages": "382-397",
+   "doi": "10.1152/jn.1999.82.1.382",
+   "pmid": "10400966",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Butera",
+   "note": "",
+   "used_in": [
+    "CHANGELOG.md",
+    "README.md",
+    "docs/CIRCUIT-FORMAT.md",
+    "docs/REQ-0.2.md",
+    "docs/circuits/breathing.md",
+    "docs/models/README.md",
+    "docs/models/butera_burster.md",
+    "engine/src/catalog/catalog.cpp",
+    "engine/src/tasks/breathing.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "fitzhugh1961",
+   "authors": [
+    "FitzHugh R"
+   ],
+   "year": 1961,
+   "title": "Impulses and physiological states in theoretical models of nerve membrane",
+   "journal": "Biophys J",
+   "volume": "1",
+   "pages": "445-466",
+   "doi": "10.1016/s0006-3495(61)86902-6",
+   "pmid": "19431309",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "FitzHugh",
+   "note": "",
+   "used_in": [
+    "docs/circuits/peristalsis.md",
+    "docs/models/README.md",
+    "docs/models/icc_slow_wave.md",
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "cocatre1992",
+   "authors": [
+    "Cocatre-Zilgien JH",
+    "Delcomyn F"
+   ],
+   "year": 1992,
+   "title": "Identification of bursts in spike trains",
+   "journal": "J Neurosci Methods",
+   "volume": "41",
+   "pages": "19-30",
+   "doi": "10.1016/0165-0270(92)90120-3",
+   "pmid": "1578899",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Cocatre",
+   "note": "",
+   "used_in": [
+    "engine/src/analysis/bursts.cpp",
+    "godot/catalog/citations.json",
+    "python/README.md",
+    "python/spike/bursts.py"
+   ]
+  },
+  {
+   "id": "connors1990",
+   "authors": [
+    "Connors BW",
+    "Gutnick MJ"
+   ],
+   "year": 1990,
+   "title": "Intrinsic firing patterns of diverse neocortical neurons",
+   "journal": "Trends Neurosci",
+   "volume": "13",
+   "pages": "99-104",
+   "doi": "10.1016/0166-2236(90)90185-d",
+   "pmid": "1691879",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Connors",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_adaptation.md",
+    "engine/src/tasks/m_adaptation.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "mendell1971",
+   "authors": [
+    "Mendell LM",
+    "Henneman E"
+   ],
+   "year": 1971,
+   "title": "Terminals of single Ia fibers: location, density, and distribution within a pool of 300 homonymous motoneurons",
+   "journal": "J Neurophysiol",
+   "volume": "34",
+   "pages": "171-187",
+   "doi": "10.1152/jn.1971.34.1.171",
+   "pmid": "5540577",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Mendell",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_convergence.md",
+    "docs/circuits/reflex.md",
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/m_convergence.cpp",
+    "engine/src/tasks/reflex.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "jose1970",
+   "authors": [
+    "Jose AD",
+    "Collison D"
+   ],
+   "year": 1970,
+   "title": "The normal range and determinants of the intrinsic heart rate in man",
+   "journal": "Cardiovasc Res",
+   "volume": "4",
+   "pages": "160-167",
+   "doi": "10.1093/cvr/4.2.160",
+   "pmid": "4192616",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Jose(?: AD)?(?:,| &| and) (?:Collison|D\\b)",
+   "note": "",
+   "used_in": [
+    "docs/body/heart.md",
+    "docs/circuits/dx_vagal.md",
+    "docs/circuits/heart_autonomic.md",
+    "docs/circuits/heart_pacemaker.md",
+    "docs/circuits/m_pacemaking.md",
+    "docs/models/sa_node_pacemaker.md",
+    "engine/src/tasks/dx_vagal.cpp",
+    "engine/src/tasks/heart_autonomic.cpp",
+    "engine/src/tasks/heart_pacemaker.cpp",
+    "engine/src/tasks/m_pacemaking.cpp",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "michaels1987",
+   "authors": [
+    "Michaels DC",
+    "Matyas EP",
+    "Jalife J"
+   ],
+   "year": 1987,
+   "title": "Mechanisms of sinoatrial pacemaker synchronization: a new hypothesis",
+   "journal": "Circ Res",
+   "volume": "61",
+   "pages": "704-714",
+   "doi": "10.1161/01.res.61.5.704",
+   "pmid": "3664977",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Michaels|Matyas",
+   "note": "",
+   "used_in": [
+    "docs/circuits/heart_pacemaker.md",
+    "docs/circuits/m_coupling.md",
+    "engine/src/tasks/heart_pacemaker.cpp",
+    "engine/src/tasks/m_coupling.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "jalife1984",
+   "authors": [
+    "Jalife J"
+   ],
+   "year": 1984,
+   "title": "Mutual entrainment and electrical coupling as mechanisms for synchronous firing of rabbit sino-atrial pace-maker cells",
+   "journal": "J Physiol",
+   "volume": "356",
+   "pages": "221-243",
+   "doi": "10.1113/jphysiol.1984.sp015461",
+   "pmid": "6097670",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 6097670; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Jalife(?: J)?,? \\(?1984|Jalife 1984",
+   "note": "PubMed record confirmed (journal/volume/page/author, PMC DOI); title as cited in repo.",
+   "used_in": [
+    "docs/circuits/heart_pacemaker.md",
+    "docs/circuits/m_coupling.md",
+    "engine/src/tasks/heart_pacemaker.cpp",
+    "engine/src/tasks/m_coupling.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "difrancesco1993",
+   "authors": [
+    "DiFrancesco D"
+   ],
+   "year": 1993,
+   "title": "Pacemaker mechanisms in cardiac tissue",
+   "journal": "Annu Rev Physiol",
+   "volume": "55",
+   "pages": "455-472",
+   "doi": "10.1146/annurev.ph.55.030193.002323",
+   "pmid": "7682045",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "DiFrancesco",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_pacemaking.md",
+    "engine/src/tasks/m_pacemaking.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "taskforce1996",
+   "authors": [
+    "Task Force of the European Society of Cardiology and the North American Society of Pacing and Electrophysiology"
+   ],
+   "year": 1996,
+   "title": "Heart rate variability: standards of measurement, physiological interpretation and clinical use",
+   "journal": "Circulation",
+   "volume": "93",
+   "pages": "1043-1065",
+   "doi": "10.1161/01.CIR.93.5.1043",
+   "pmid": "8598068",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Task Force",
+   "note": "DOI added from the publisher pattern; the PubMed record carries no DOI field.",
+   "used_in": [
+    "docs/circuits/dx_vagal.md",
+    "docs/circuits/heart_autonomic.md",
+    "docs/circuits/heart_pacemaker.md",
+    "engine/src/tasks/dx_vagal.cpp",
+    "engine/src/tasks/heart_autonomic.cpp",
+    "engine/src/tasks/heart_pacemaker.cpp",
+    "godot/catalog/citations.json",
+    "python/spike/hrv.py"
+   ]
+  },
+  {
+   "id": "kanagalingam2015",
+   "authors": [
+    "Kanagalingam S",
+    "Miller NR"
+   ],
+   "year": 2015,
+   "title": "Horner syndrome: clinical perspectives",
+   "journal": "Eye Brain",
+   "volume": "7",
+   "pages": "35-46",
+   "doi": "10.2147/EB.S63633",
+   "pmid": "28539793",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 28539793; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Kanagalingam",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_horner.md",
+    "engine/src/tasks/dx_horner.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "mcdougal2015",
+   "authors": [
+    "McDougal DH",
+    "Gamlin PD"
+   ],
+   "year": 2015,
+   "title": "Autonomic control of the eye",
+   "journal": "Compr Physiol",
+   "volume": "5",
+   "pages": "439-473",
+   "doi": "10.1002/cphy.c140014",
+   "pmid": "25589275",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 25589275; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "McDougal",
+   "note": "",
+   "used_in": [
+    "docs/body/eye.md",
+    "docs/circuits/dx_horner.md",
+    "docs/circuits/pupil.md",
+    "engine/src/tasks/dx_horner.cpp",
+    "engine/src/tasks/pupil.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "goyal2010",
+   "authors": [
+    "Goyal RK",
+    "Chaudhury A"
+   ],
+   "year": 2010,
+   "title": "Pathogenesis of achalasia: lessons from mutant mice",
+   "journal": "Gastroenterology",
+   "volume": "139",
+   "pages": "1086-1090",
+   "doi": "10.1053/j.gastro.2010.08.013",
+   "pmid": "20800108",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Goyal",
+   "note": "Editorial comment, not primary evidence (REVIEW-HARSH H2). Kept as a pointer to the mouse work only.",
+   "used_in": [
+    "docs/circuits/dx_achalasia.md",
+    "engine/src/tasks/dx_achalasia.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "pandolfino2015",
+   "authors": [
+    "Pandolfino JE",
+    "Gawron AJ"
+   ],
+   "year": 2015,
+   "title": "Achalasia: a systematic review",
+   "journal": "JAMA",
+   "volume": "313",
+   "pages": "1841-1852",
+   "doi": "10.1001/jama.2015.2996",
+   "pmid": "25965233",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Pandolfino",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_achalasia.md",
+    "engine/src/tasks/dx_achalasia.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "bayliss1899",
+   "authors": [
+    "Bayliss WM",
+    "Starling EH"
+   ],
+   "year": 1899,
+   "title": "The movements and innervation of the small intestine",
+   "journal": "J Physiol",
+   "volume": "24",
+   "pages": "99-143",
+   "doi": "10.1113/jphysiol.1899.sp000752",
+   "pmid": "16992487",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 16992487; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Bayliss(?: WM)?(?:,| &| and) (?:Starling|EH)|Bayliss (?:&|and) Starling",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_achalasia.md",
+    "docs/circuits/m_wave.md",
+    "docs/circuits/peristalsis.md",
+    "engine/src/tasks/dx_achalasia.cpp",
+    "engine/src/tasks/m_wave.cpp",
+    "engine/src/tasks/peristalsis.cpp",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "williams2009",
+   "authors": [
+    "Williams ER",
+    "Baker SN"
+   ],
+   "year": 2009,
+   "title": "Renshaw cell recurrent inhibition improves physiological tremor by reducing corticomuscular coupling at 10 Hz",
+   "journal": "J Neurosci",
+   "volume": "29",
+   "pages": "6616-6624",
+   "doi": "10.1523/JNEUROSCI.0272-09.2009",
+   "pmid": "19458232",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 19458232; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Williams(?: ER)?(?:,| &| and) Baker",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_clonus.md",
+    "engine/src/tasks/dx_clonus.cpp"
+   ]
+  },
+  {
+   "id": "hultborn2006",
+   "authors": [
+    "Hultborn H"
+   ],
+   "year": 2006,
+   "title": "Spinal reflexes, mechanisms and concepts: from Eccles to Lundberg and beyond",
+   "journal": "Prog Neurobiol",
+   "volume": "78",
+   "pages": "215-232",
+   "doi": "10.1016/j.pneurobio.2006.04.001",
+   "pmid": "16716488",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hultborn(?: H)?,? \\(?2006|Hultborn 2006",
+   "note": "",
+   "used_in": [
+    "docs/circuits/boss_spinal_sprint.md",
+    "docs/circuits/dx_clonus.md",
+    "docs/circuits/renshaw.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/dx_clonus.cpp",
+    "engine/src/tasks/renshaw.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "hallett1975",
+   "authors": [
+    "Hallett M",
+    "Shahani BT",
+    "Young RR"
+   ],
+   "year": 1975,
+   "title": "EMG analysis of stereotyped voluntary movements in man",
+   "journal": "J Neurol Neurosurg Psychiatry",
+   "volume": "38",
+   "pages": "1154-1162",
+   "doi": "10.1136/jnnp.38.12.1154",
+   "pmid": "1219079",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 1219079; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Hallett",
+   "note": "",
+   "used_in": [
+    "docs/circuits/boss_spinal_sprint.md",
+    "docs/circuits/m_timed_bursts.md",
+    "docs/circuits/reach.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/m_timed_bursts.cpp",
+    "engine/src/tasks/reach.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "berardelli1996",
+   "authors": [
+    "Berardelli A",
+    "Hallett M",
+    "Rothwell JC",
+    "Agostino R",
+    "Manfredi M",
+    "Thompson PD",
+    "Marsden CD"
+   ],
+   "year": 1996,
+   "title": "Single-joint rapid arm movements in normal subjects and in patients with motor disorders",
+   "journal": "Brain",
+   "volume": "119",
+   "pages": "661-674",
+   "doi": "10.1093/brain/119.2.661",
+   "pmid": "8800955",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Berardelli",
+   "note": "",
+   "used_in": [
+    "docs/circuits/reach.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/reach.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "krogh1913",
+   "authors": [
+    "Krogh A",
+    "Lindhard J"
+   ],
+   "year": 1913,
+   "title": "The regulation of respiration and circulation during the initial stages of muscular work",
+   "journal": "J Physiol",
+   "volume": "47",
+   "pages": "112-136",
+   "doi": "10.1113/jphysiol.1913.sp001616",
+   "pmid": "16993229",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 16993229; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Krogh",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_feedforward.md",
+    "engine/src/tasks/m_feedforward.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "renshaw1941",
+   "authors": [
+    "Renshaw B"
+   ],
+   "year": 1941,
+   "title": "Influence of discharge of motoneurons upon excitation of neighboring motoneurons",
+   "journal": "J Neurophysiol",
+   "volume": "4",
+   "pages": "167-183",
+   "doi": "10.1152/jn.1941.4.2.167",
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Renshaw B|Renshaw \\(?1941|Renshaw 1941",
+   "note": "Not in PubMed (pre-1946). DOI from the publisher pattern, to be confirmed by check.py --online.",
+   "used_in": [
+    "docs/circuits/m_recurrent.md",
+    "docs/circuits/renshaw.md",
+    "engine/src/tasks/m_recurrent.cpp",
+    "engine/src/tasks/renshaw.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "eccles1954",
+   "authors": [
+    "Eccles JC",
+    "Fatt P",
+    "Koketsu K"
+   ],
+   "year": 1954,
+   "title": "Cholinergic and inhibitory synapses in a pathway from motor-axon collaterals to motoneurones",
+   "journal": "J Physiol",
+   "volume": "126",
+   "pages": "524-562",
+   "doi": "10.1113/jphysiol.1954.sp005226",
+   "pmid": "13222354",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 13222354; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Eccles(?: JC)?,? Fatt|Fatt(?:,| &) Koketsu|Eccles, Fatt",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_recurrent.md",
+    "docs/circuits/renshaw.md",
+    "engine/src/tasks/m_recurrent.cpp",
+    "engine/src/tasks/renshaw.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "guyenet2006",
+   "authors": [
+    "Guyenet PG"
+   ],
+   "year": 2006,
+   "title": "The sympathetic control of blood pressure",
+   "journal": "Nat Rev Neurosci",
+   "volume": "7",
+   "pages": "335-346",
+   "doi": "10.1038/nrn1902",
+   "pmid": "16760914",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Guyenet(?: PG)?,? \\(?2006|Guyenet 2006",
+   "note": "",
+   "used_in": [
+    "docs/circuits/baroreflex.md",
+    "docs/circuits/boss_autonomic_exam.md",
+    "docs/circuits/dx_orthostatic.md",
+    "engine/src/tasks/baroreflex.cpp",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/dx_orthostatic.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "dampney1994",
+   "authors": [
+    "Dampney RAL"
+   ],
+   "year": 1994,
+   "title": "Functional organization of central pathways regulating the cardiovascular system",
+   "journal": "Physiol Rev",
+   "volume": "74",
+   "pages": "323-364",
+   "doi": "10.1152/physrev.1994.74.2.323",
+   "pmid": "8171117",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Dampney",
+   "note": "",
+   "used_in": [
+    "docs/circuits/baroreflex.md",
+    "docs/circuits/boss_autonomic_exam.md",
+    "docs/circuits/dx_orthostatic.md",
+    "docs/circuits/fight_or_flight.md",
+    "engine/src/tasks/baroreflex.cpp",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/dx_orthostatic.cpp",
+    "engine/src/tasks/fight_or_flight.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "kirchheim1976",
+   "authors": [
+    "Kirchheim HR"
+   ],
+   "year": 1976,
+   "title": "Systemic arterial baroreceptor reflexes",
+   "journal": "Physiol Rev",
+   "volume": "56",
+   "pages": "100-177",
+   "doi": "10.1152/physrev.1976.56.1.100",
+   "pmid": "174143",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Kirchheim",
+   "note": "",
+   "used_in": [
+    "docs/body/heart.md",
+    "docs/circuits/baroreflex.md",
+    "docs/circuits/boss_autonomic_exam.md",
+    "engine/src/tasks/baroreflex.cpp",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "hartline1956",
+   "authors": [
+    "Hartline HK",
+    "Wagner HG",
+    "Ratliff F"
+   ],
+   "year": 1956,
+   "title": "Inhibition in the eye of Limulus",
+   "journal": "J Gen Physiol",
+   "volume": "39",
+   "pages": "651-673",
+   "doi": "10.1085/jgp.39.5.651",
+   "pmid": "13319654",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 13319654; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Hartline|Wagner (?:&|and) Ratliff",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_inhibition.md",
+    "engine/src/tasks/m_inhibition.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "costa2000",
+   "authors": [
+    "Costa M",
+    "Brookes SJH",
+    "Hennig GW"
+   ],
+   "year": 2000,
+   "title": "Anatomy and physiology of the enteric nervous system",
+   "journal": "Gut",
+   "volume": "47 Suppl 4",
+   "pages": "iv15-iv19",
+   "doi": "10.1136/gut.47.suppl_4.iv15",
+   "pmid": "11076898",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hennig 2000|Costa, Brookes|Costa M, Brookes",
+   "note": "Task notes and doc cited it as 'Hennig 2000'; first author is Costa.",
+   "used_in": [
+    "docs/body/gut.md",
+    "docs/circuits/peristalsis.md",
+    "engine/src/tasks/peristalsis.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "furness2012",
+   "authors": [
+    "Furness JB"
+   ],
+   "year": 2012,
+   "title": "The enteric nervous system and neurogastroenterology",
+   "journal": "Nat Rev Gastroenterol Hepatol",
+   "volume": "9",
+   "pages": "286-294",
+   "doi": "10.1038/nrgastro.2012.32",
+   "pmid": "22392290",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Furness(?: JB)?,? \\(?2012|Furness 2012",
+   "note": "",
+   "used_in": [
+    "docs/circuits/peristalsis.md",
+    "engine/src/tasks/peristalsis.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "sanders1996",
+   "authors": [
+    "Sanders KM"
+   ],
+   "year": 1996,
+   "title": "A case for interstitial cells of Cajal as pacemakers and mediators of neurotransmission in the gastrointestinal tract",
+   "journal": "Gastroenterology",
+   "volume": "111",
+   "pages": "492-515",
+   "doi": "10.1053/gast.1996.v111.pm8690216",
+   "pmid": "8690216",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Sanders(?: KM)?,? \\(?1996|Sanders 1996",
+   "note": "",
+   "used_in": [
+    "docs/body/gut.md",
+    "docs/circuits/peristalsis.md",
+    "docs/models/icc_slow_wave.md",
+    "engine/src/tasks/peristalsis.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "huizinga2009",
+   "authors": [
+    "Huizinga JD",
+    "Lammers WJEP"
+   ],
+   "year": 2009,
+   "title": "Gut peristalsis is governed by a multitude of cooperating mechanisms",
+   "journal": "Am J Physiol Gastrointest Liver Physiol",
+   "volume": "296",
+   "pages": "G1-G8",
+   "doi": "10.1152/ajpgi.90380.2008",
+   "pmid": "18988693",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Huizinga",
+   "note": "",
+   "used_in": [
+    "docs/body/gut.md",
+    "docs/circuits/peristalsis.md",
+    "engine/src/tasks/peristalsis.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "eccles1957",
+   "authors": [
+    "Eccles JC",
+    "Eccles RM",
+    "Lundberg A"
+   ],
+   "year": 1957,
+   "title": "The convergence of monosynaptic excitatory afferents on to many different species of alpha motoneurones",
+   "journal": "J Physiol",
+   "volume": "137",
+   "pages": "22-50",
+   "doi": "10.1113/jphysiol.1957.sp005794",
+   "pmid": "13439582",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 13439582; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Eccles(?: JC)?,? Eccles|Eccles, Eccles",
+   "note": "",
+   "used_in": [
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/stretch_reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "lloyd1943",
+   "authors": [
+    "Lloyd DPC"
+   ],
+   "year": 1943,
+   "title": "Neuron patterns controlling transmission of ipsilateral hind limb reflexes in cat",
+   "journal": "J Neurophysiol",
+   "volume": "6",
+   "pages": "111-119",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Lloyd(?: DPC)?,? \\(?1943|Lloyd 1943",
+   "note": "Not in PubMed (locus search failed). Locus as cited in the repo; title from memory; unverified. Run check.py --online.",
+   "used_in": [
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/stretch_reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "lloyd1946",
+   "authors": [
+    "Lloyd DPC"
+   ],
+   "year": 1946,
+   "title": "Integrative pattern of excitation and inhibition in two-neuron reflex arcs",
+   "journal": "J Neurophysiol",
+   "volume": "9",
+   "pages": "439-444",
+   "doi": "10.1152/jn.1946.9.6.439",
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Lloyd(?: DPC)?,? \\(?1946|Lloyd 1946",
+   "note": "Not in PubMed (locus search failed). Citation as written in the repo; unverified.",
+   "used_in": [
+    "docs/circuits/m_reciprocal.md",
+    "engine/src/tasks/m_reciprocal.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "robinson1966",
+   "authors": [
+    "Robinson BF",
+    "Epstein SE",
+    "Beiser GD",
+    "Braunwald E"
+   ],
+   "year": 1966,
+   "title": "Control of heart rate by the autonomic nervous system. Studies in man on the interrelation between baroreceptor mechanisms and exercise",
+   "journal": "Circ Res",
+   "volume": "19",
+   "pages": "400-411",
+   "doi": "10.1161/01.res.19.2.400",
+   "pmid": "5914852",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Robinson(?: BF)?(?: et al\\.?|,? Epstein)",
+   "note": "FIXED: docs/circuits/fight_or_flight.md and engine/src/tasks/fight_or_flight.cpp cited 'J Appl Physiol 21:1655'; that locus is Koushanpour & Collings, an ellipsoid left-ventricle model.",
+   "used_in": [
+    "docs/circuits/dx_vagal.md",
+    "docs/circuits/fight_or_flight.md",
+    "docs/circuits/heart_autonomic.md",
+    "engine/src/tasks/dx_vagal.cpp",
+    "engine/src/tasks/fight_or_flight.cpp",
+    "engine/src/tasks/heart_autonomic.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "rowell1990",
+   "authors": [
+    "Rowell LB",
+    "O'Leary DS"
+   ],
+   "year": 1990,
+   "title": "Reflex control of the circulation during exercise: chemoreflexes and mechanoreflexes",
+   "journal": "J Appl Physiol",
+   "volume": "69",
+   "pages": "407-418",
+   "doi": "10.1152/jappl.1990.69.2.407",
+   "pmid": "2228848",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Rowell",
+   "note": "",
+   "used_in": [
+    "docs/circuits/boss_autonomic_exam.md",
+    "docs/circuits/heart_autonomic.md",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/heart_autonomic.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "imai1994",
+   "authors": [
+    "Imai K",
+    "Sato H",
+    "Hori M",
+    "Kusuoka H",
+    "Ozaki H",
+    "Yokoyama H",
+    "Takeda H",
+    "Inoue M",
+    "Kamada T"
+   ],
+   "year": 1994,
+   "title": "Vagally mediated heart rate recovery after exercise is accelerated in athletes but blunted in patients with chronic heart failure",
+   "journal": "J Am Coll Cardiol",
+   "volume": "24",
+   "pages": "1529-1535",
+   "doi": "10.1016/0735-1097(94)90150-3",
+   "pmid": "7930286",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Imai",
+   "note": "",
+   "used_in": [
+    "docs/circuits/heart_autonomic.md",
+    "engine/src/tasks/heart_autonomic.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "levy1971",
+   "authors": [
+    "Levy MN"
+   ],
+   "year": 1971,
+   "title": "Sympathetic-parasympathetic interactions in the heart",
+   "journal": "Circ Res",
+   "volume": "29",
+   "pages": "437-445",
+   "doi": "10.1161/01.res.29.5.437",
+   "pmid": "4330524",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Levy",
+   "note": "",
+   "used_in": [
+    "docs/circuits/heart_autonomic.md",
+    "engine/src/tasks/heart_autonomic.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "freeman2011",
+   "authors": [
+    "Freeman R",
+    "Wieling W",
+    "Axelrod FB",
+    "Benditt DG",
+    "Benarroch E",
+    "Biaggioni I",
+    "Cheshire WP",
+    "Chelimsky T",
+    "Cortelli P",
+    "Gibbons CH",
+    "Goldstein DS",
+    "Hainsworth R",
+    "Hilz MJ",
+    "Jacob G",
+    "Kaufmann H",
+    "Jordan J",
+    "Lipsitz LA",
+    "Levine BD",
+    "Low PA",
+    "Mathias C",
+    "Raj SR",
+    "Robertson D",
+    "Sandroni P",
+    "Schatz I",
+    "Schondorff R",
+    "Stewart JM",
+    "van Dijk JG"
+   ],
+   "year": 2011,
+   "title": "Consensus statement on the definition of orthostatic hypotension, neurally mediated syncope and the postural tachycardia syndrome",
+   "journal": "Clin Auton Res",
+   "volume": "21",
+   "pages": "69-72",
+   "doi": "10.1007/s10286-011-0119-5",
+   "pmid": "21431947",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Freeman",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_orthostatic.md",
+    "engine/src/tasks/dx_orthostatic.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "brunel2007",
+   "authors": [
+    "Brunel N",
+    "van Rossum MCW"
+   ],
+   "year": 2007,
+   "title": "Lapicque's 1907 paper: from frogs to integrate-and-fire",
+   "journal": "Biol Cybern",
+   "volume": "97",
+   "pages": "337-339",
+   "doi": "10.1007/s00422-007-0190-0",
+   "pmid": "17968583",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "van Rossum",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_threshold.md",
+    "engine/src/tasks/m_threshold.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "lapicque1907",
+   "authors": [
+    "Lapicque L"
+   ],
+   "year": 1907,
+   "title": "Recherches quantitatives sur l'excitation electrique des nerfs traitee comme une polarisation",
+   "journal": "J Physiol Pathol Gen",
+   "volume": "9",
+   "pages": "620-635",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Lapicque",
+   "note": "Classic; translation and commentary is brunel2007 (verified).",
+   "used_in": [
+    "docs/circuits/m_threshold.md",
+    "engine/src/tasks/m_threshold.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "hodgkin1948",
+   "authors": [
+    "Hodgkin AL"
+   ],
+   "year": 1948,
+   "title": "The local electric changes associated with repetitive action in a non-medullated axon",
+   "journal": "J Physiol",
+   "volume": "107",
+   "pages": "165-181",
+   "doi": "10.1113/jphysiol.1948.sp004260",
+   "pmid": "16991796",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hodgkin(?: AL)?,? \\(?1948|Hodgkin 1948",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_threshold.md",
+    "engine/src/tasks/m_threshold.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "henneman1965",
+   "authors": [
+    "Henneman E",
+    "Somjen G",
+    "Carpenter DO"
+   ],
+   "year": 1965,
+   "title": "Functional significance of cell size in spinal motoneurons",
+   "journal": "J Neurophysiol",
+   "volume": "28",
+   "pages": "560-580",
+   "doi": "10.1152/jn.1965.28.3.560",
+   "pmid": "14328454",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Henneman(?: E)?,? Somjen|Somjen",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_recruitment.md",
+    "engine/src/tasks/m_recruitment.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "henneman1957",
+   "authors": [
+    "Henneman E"
+   ],
+   "year": 1957,
+   "title": "Relation between size of neurons and their susceptibility to discharge",
+   "journal": "Science",
+   "volume": "126",
+   "pages": "1345-1347",
+   "doi": "10.1126/science.126.3287.1345",
+   "pmid": "13495469",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Henneman(?: E)?,? \\(?1957|Henneman 1957|Henneman 1957/1965",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/stretch_reflex.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "katz1965",
+   "authors": [
+    "Katz B",
+    "Miledi R"
+   ],
+   "year": 1965,
+   "title": "The measurement of synaptic delay, and the time course of acetylcholine release at the neuromuscular junction",
+   "journal": "Proc R Soc Lond B",
+   "volume": "161",
+   "pages": "483-495",
+   "doi": "10.1098/rspb.1965.0016",
+   "pmid": "14278409",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Katz",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_excitation.md",
+    "engine/src/tasks/m_excitation.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "smith1991",
+   "authors": [
+    "Smith JC",
+    "Ellenberger HH",
+    "Ballanyi K",
+    "Richter DW",
+    "Feldman JL"
+   ],
+   "year": 1991,
+   "title": "Pre-Botzinger complex: a brainstem region that may generate respiratory rhythm in mammals",
+   "journal": "Science",
+   "volume": "254",
+   "pages": "726-729",
+   "doi": "10.1126/science.1683005",
+   "pmid": "1683005",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 1683005; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Smith(?: JC)?(?: et al\\.?|,? Ellenberger)",
+   "note": "",
+   "used_in": [
+    "docs/circuits/breathing.md",
+    "docs/circuits/m_rhythm.md",
+    "engine/src/tasks/breathing.cpp",
+    "engine/src/tasks/m_rhythm.cpp",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "guyenet2010",
+   "authors": [
+    "Guyenet PG",
+    "Stornetta RL",
+    "Bayliss DA"
+   ],
+   "year": 2010,
+   "title": "Central respiratory chemoreception",
+   "journal": "J Comp Neurol",
+   "volume": "518",
+   "pages": "3883-3906",
+   "doi": "10.1002/cne.22435",
+   "pmid": "20737591",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 20737591; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Guyenet(?: PG)?,? Stornetta|Guyenet, Stornetta|Guyenet et al\\. 2010",
+   "note": "",
+   "used_in": [
+    "docs/body/lungs.md",
+    "docs/circuits/boss_autonomic_exam.md",
+    "docs/circuits/breathing.md",
+    "docs/circuits/m_rhythm.md",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/breathing.cpp",
+    "engine/src/tasks/m_rhythm.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "guyenet2010rtn",
+   "authors": [
+    "Guyenet PG",
+    "Mulkey DK"
+   ],
+   "year": 2010,
+   "title": "Retrotrapezoid nucleus and parafacial respiratory group",
+   "journal": "Respir Physiol Neurobiol",
+   "volume": "173",
+   "pages": "244-255",
+   "doi": "10.1016/j.resp.2010.02.005",
+   "pmid": "20188865",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Guyenet(?: PG)?,? Mulkey|Guyenet & Mulkey",
+   "note": "FIXED: engine/src/tasks/dx_apnoea.cpp, breathing.cpp and docs/circuits/{dx_apnoea,breathing,boss_autonomic_exam}.md attributed Respir Physiol Neurobiol 173:244 to 'Guyenet, Stornetta & Bayliss'; the JCN paper is the Guyenet-Stornetta-Bayliss one.",
+   "used_in": [
+    "docs/circuits/breathing.md",
+    "docs/circuits/dx_apnoea.md",
+    "engine/src/tasks/breathing.cpp",
+    "engine/src/tasks/dx_apnoea.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "feldman2006",
+   "authors": [
+    "Feldman JL",
+    "Del Negro CA"
+   ],
+   "year": 2006,
+   "title": "Looking for inspiration: new perspectives on respiratory rhythm",
+   "journal": "Nat Rev Neurosci",
+   "volume": "7",
+   "pages": "232-242",
+   "doi": "10.1038/nrn1871",
+   "pmid": "16495944",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 16495944; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Feldman(?: JL)?,? (?:&|and)? ?Del Negro|Del Negro",
+   "note": "",
+   "used_in": [
+    "docs/circuits/breathing.md",
+    "engine/src/tasks/breathing.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "grillner2003",
+   "authors": [
+    "Grillner S"
+   ],
+   "year": 2003,
+   "title": "The motor infrastructure: from ion channels to neuronal networks",
+   "journal": "Nat Rev Neurosci",
+   "volume": "4",
+   "pages": "573-586",
+   "doi": "10.1038/nrn1137",
+   "pmid": "12838332",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Grillner(?: S)?,? \\(?2003|Grillner 2003",
+   "note": "",
+   "used_in": [
+    "docs/circuits/lamprey.md",
+    "docs/circuits/m_half_centre.md",
+    "engine/src/tasks/lamprey.cpp",
+    "engine/src/tasks/m_half_centre.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "wallen1984",
+   "authors": [
+    "Wallen P",
+    "Williams TL"
+   ],
+   "year": 1984,
+   "title": "Fictive locomotion in the lamprey spinal cord in vitro compared with swimming in the intact and spinal animal",
+   "journal": "J Physiol",
+   "volume": "347",
+   "pages": "225-239",
+   "doi": "10.1113/jphysiol.1984.sp015063",
+   "pmid": "6142945",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 6142945; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Wallen",
+   "note": "",
+   "used_in": [
+    "docs/circuits/lamprey.md",
+    "engine/src/tasks/lamprey.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "suzuki2008",
+   "authors": [
+    "Suzuki H",
+    "Thiele TR",
+    "Faumont S",
+    "Ezcurra M",
+    "Lockery SR",
+    "Schafer WR"
+   ],
+   "year": 2008,
+   "title": "Functional asymmetry in Caenorhabditis elegans taste neurons and its computational role in chemotaxis",
+   "journal": "Nature",
+   "volume": "454",
+   "pages": "114-117",
+   "doi": "10.1038/nature06927",
+   "pmid": "18596810",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 18596810; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Suzuki",
+   "note": "",
+   "used_in": [
+    "docs/circuits/m_subtraction.md",
+    "docs/circuits/worm.md",
+    "engine/src/tasks/m_subtraction.cpp",
+    "engine/src/tasks/worm.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "thiele2009",
+   "authors": [
+    "Thiele TR",
+    "Faumont S",
+    "Lockery SR"
+   ],
+   "year": 2009,
+   "title": "The neural network for chemotaxis to tastants in Caenorhabditis elegans is specialized for temporal differentiation",
+   "journal": "J Neurosci",
+   "volume": "29",
+   "pages": "11904-11911",
+   "doi": "10.1523/JNEUROSCI.0594-09.2009",
+   "pmid": "19776276",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 19776276; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Thiele",
+   "note": "",
+   "used_in": [
+    "docs/circuits/worm.md",
+    "engine/src/tasks/m_subtraction.cpp",
+    "engine/src/tasks/worm.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "iino2009",
+   "authors": [
+    "Iino Y",
+    "Yoshida K"
+   ],
+   "year": 2009,
+   "title": "Parallel use of two behavioral mechanisms for chemotaxis in Caenorhabditis elegans",
+   "journal": "J Neurosci",
+   "volume": "29",
+   "pages": "5370-5380",
+   "doi": "10.1523/JNEUROSCI.3633-08.2009",
+   "pmid": "19403805",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 19403805; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Iino",
+   "note": "",
+   "used_in": [
+    "docs/circuits/worm.md",
+    "engine/src/tasks/worm.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "kunitomo2013",
+   "authors": [
+    "Kunitomo H",
+    "Sato H",
+    "Iwata R",
+    "Satoh Y",
+    "Ohno H",
+    "Yamada K",
+    "Iino Y"
+   ],
+   "year": 2013,
+   "title": "Concentration memory-dependent synaptic plasticity of a taste circuit regulates salt concentration chemotaxis in Caenorhabditis elegans",
+   "journal": "Nat Commun",
+   "volume": "4",
+   "pages": "2210",
+   "doi": "10.1038/ncomms3210",
+   "pmid": "23887678",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Kunitomo",
+   "note": "",
+   "used_in": [
+    "docs/circuits/worm.md",
+    "engine/src/tasks/worm.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "amiel2003",
+   "authors": [
+    "Amiel J",
+    "Laudier B",
+    "Attie-Bitach T",
+    "Trang H",
+    "de Pontual L",
+    "Gener B",
+    "Trochet D",
+    "Etchevers H",
+    "Ray P",
+    "Simonneau M",
+    "Vekemans M",
+    "Munnich A",
+    "Gaultier C",
+    "Lyonnet S"
+   ],
+   "year": 2003,
+   "title": "Polyalanine expansion and frameshift mutations of the paired-like homeobox gene PHOX2B in congenital central hypoventilation syndrome",
+   "journal": "Nat Genet",
+   "volume": "33",
+   "pages": "459-461",
+   "doi": "10.1038/ng1130",
+   "pmid": "12640453",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Amiel",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_apnoea.md",
+    "engine/src/tasks/dx_apnoea.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "weesemayer2010",
+   "authors": [
+    "Weese-Mayer DE",
+    "Berry-Kravis EM",
+    "Ceccherini I",
+    "Keens TG",
+    "Loghmanee DA",
+    "Trang H"
+   ],
+   "year": 2010,
+   "title": "An official ATS clinical policy statement: Congenital central hypoventilation syndrome: genetic basis, diagnosis, and management",
+   "journal": "Am J Respir Crit Care Med",
+   "volume": "181",
+   "pages": "626-644",
+   "doi": "10.1164/rccm.200807-1069ST",
+   "pmid": "20208042",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Weese-Mayer",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_apnoea.md",
+    "engine/src/tasks/dx_apnoea.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "raven2006",
+   "authors": [
+    "Raven PB",
+    "Fadel PJ",
+    "Ogoh S"
+   ],
+   "year": 2006,
+   "title": "Arterial baroreflex resetting during exercise: a current perspective",
+   "journal": "Exp Physiol",
+   "volume": "91",
+   "pages": "37-49",
+   "doi": "10.1113/expphysiol.2005.032250",
+   "pmid": "16210446",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Raven|Fadel(?: &|,)? (?:and )?Ogoh",
+   "note": "FIXED (REVIEW-HARSH H2): engine/src/tasks/boss_autonomic_exam.cpp:29,373 and docs/circuits/boss_autonomic_exam.md cited 'J Physiol 574:85', which is Ramamurthy & Ronnett (AMPK), doi 10.1113/jphysiol.2006.110122.",
+   "used_in": [
+    "docs/circuits/boss_autonomic_exam.md",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "madison1984",
+   "authors": [
+    "Madison DV",
+    "Nicoll RA"
+   ],
+   "year": 1984,
+   "title": "Control of the repetitive discharge of rat CA1 pyramidal neurones in vitro",
+   "journal": "J Physiol",
+   "volume": "354",
+   "pages": "319-331",
+   "doi": "10.1113/jphysiol.1984.sp015378",
+   "pmid": "6434729",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 6434729; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Madison",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "benda2003",
+   "authors": [
+    "Benda J",
+    "Herz AVM"
+   ],
+   "year": 2003,
+   "title": "A universal model for spike-frequency adaptation",
+   "journal": "Neural Comput",
+   "volume": "15",
+   "pages": "2523-2564",
+   "doi": "10.1162/089976603322385063",
+   "pmid": "14577853",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Benda",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "marder2012",
+   "authors": [
+    "Marder E"
+   ],
+   "year": 2012,
+   "title": "Neuromodulation of neuronal circuits: back to the future",
+   "journal": "Neuron",
+   "volume": "76",
+   "pages": "1-11",
+   "doi": "10.1016/j.neuron.2012.09.010",
+   "pmid": "23040802",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 23040802; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Marder E \\(2012\\)|Marder 2012",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "marder2001",
+   "authors": [
+    "Marder E",
+    "Bucher D"
+   ],
+   "year": 2001,
+   "title": "Central pattern generators and the control of rhythmic movements",
+   "journal": "Curr Biol",
+   "volume": "11",
+   "pages": "R986-R996",
+   "doi": "10.1016/s0960-9822(01)00581-4",
+   "pmid": "11728329",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Marder(?: E)?,? (?:&|and)? ?Bucher",
+   "note": "",
+   "used_in": [
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "rorden2004",
+   "authors": [
+    "Rorden C",
+    "Karnath HO"
+   ],
+   "year": 2004,
+   "title": "Using human brain lesions to infer function: a relic from a past era in the fMRI age?",
+   "journal": "Nat Rev Neurosci",
+   "volume": "5",
+   "pages": "813-819",
+   "doi": "10.1038/nrn1521",
+   "pmid": "15378041",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Rorden",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "hultborn1971",
+   "authors": [
+    "Hultborn H",
+    "Jankowska E",
+    "Lindstrom S"
+   ],
+   "year": 1971,
+   "title": "Recurrent inhibition from motor axon collaterals of transmission in the Ia inhibitory pathway to motoneurones",
+   "journal": "J Physiol",
+   "volume": "215",
+   "pages": "591-612",
+   "doi": "10.1113/jphysiol.1971.sp009487",
+   "pmid": "4326306",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 4326306; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Hultborn(?: H)?,? Jankowska|Jankowska",
+   "note": "",
+   "used_in": [
+    "docs/circuits/renshaw.md",
+    "engine/src/tasks/renshaw.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "cowley1973",
+   "authors": [
+    "Cowley AW Jr",
+    "Liard JF",
+    "Guyton AC"
+   ],
+   "year": 1973,
+   "title": "Role of baroreceptor reflex in daily control of arterial blood pressure and other variables in dogs",
+   "journal": "Circ Res",
+   "volume": "32",
+   "pages": "564-576",
+   "doi": "10.1161/01.res.32.5.564",
+   "pmid": "4713198",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Cowley|Liard",
+   "note": "Claim check: the paper reports that after sino-aortic denervation the mean pressure is little changed in the long term but strongly labile. godot/game/lesion_hints.gd:51 says 'pressure is high and unregulated' - pending (outside edit scope); docs/circuits/baroreflex.md already states 'labile'.",
+   "used_in": [
+    "docs/circuits/baroreflex.md",
+    "engine/src/tasks/baroreflex.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "attwell2001",
+   "authors": [
+    "Attwell D",
+    "Laughlin SB"
+   ],
+   "year": 2001,
+   "title": "An energy budget for signaling in the grey matter of the brain",
+   "journal": "J Cereb Blood Flow Metab",
+   "volume": "21",
+   "pages": "1133-1145",
+   "doi": "10.1097/00004647-200110000-00001",
+   "pmid": "11598490",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Attwell",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/telemetry.gd"
+   ]
+  },
+  {
+   "id": "lennie2003",
+   "authors": [
+    "Lennie P"
+   ],
+   "year": 2003,
+   "title": "The cost of cortical computation",
+   "journal": "Curr Biol",
+   "volume": "13",
+   "pages": "493-497",
+   "doi": "10.1016/s0960-9822(03)00135-0",
+   "pmid": "12646132",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Lennie",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/telemetry.gd"
+   ]
+  },
+  {
+   "id": "milo2002",
+   "authors": [
+    "Milo R",
+    "Shen-Orr S",
+    "Itzkovitz S",
+    "Kashtan N",
+    "Chklovskii D",
+    "Alon U"
+   ],
+   "year": 2002,
+   "title": "Network motifs: simple building blocks of complex networks",
+   "journal": "Science",
+   "volume": "298",
+   "pages": "824-827",
+   "doi": "10.1126/science.298.5594.824",
+   "pmid": "12399590",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Milo",
+   "note": "",
+   "used_in": [
+    "CHANGELOG.md",
+    "docs/REQ-0.1.md",
+    "godot/catalog/citations.json",
+    "python/README.md",
+    "python/examples/motifs.ipynb",
+    "python/spike/motifs.py"
+   ]
+  },
+  {
+   "id": "wernicke2006",
+   "authors": [
+    "Wernicke S"
+   ],
+   "year": 2006,
+   "title": "Efficient detection of network motifs",
+   "journal": "IEEE/ACM Trans Comput Biol Bioinform",
+   "volume": "3",
+   "pages": "347-359",
+   "doi": "10.1109/TCBB.2006.51",
+   "pmid": "17085844",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Wernicke",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "python/spike/motifs.py"
+   ]
+  },
+  {
+   "id": "fuglevand1993",
+   "authors": [
+    "Fuglevand AJ",
+    "Winter DA",
+    "Patla AE"
+   ],
+   "year": 1993,
+   "title": "Models of recruitment and rate coding organization in motor-unit pools",
+   "journal": "J Neurophysiol",
+   "volume": "70",
+   "pages": "2470-2488",
+   "doi": "10.1152/jn.1993.70.6.2470",
+   "pmid": "8120594",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Fuglevand",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "engine/src/body/muscle.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "gamlin2006",
+   "authors": [
+    "Gamlin PDR"
+   ],
+   "year": 2006,
+   "title": "The pretectum: connections and oculomotor-related roles",
+   "journal": "Prog Brain Res",
+   "volume": "151",
+   "pages": "379-405",
+   "doi": "10.1016/S0079-6123(05)51012-4",
+   "pmid": "16221595",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Gamlin PDR|Gamlin 2006|Gamlin \\(2006|Gamlin PD R",
+   "note": "Claim check: supports the pretectal olivary nucleus -> Edinger-Westphal pupillary light reflex path; lesion_hints.gd:61 attributes 'oculomotor (parasympathetic) palsy' to it, which it does not discuss - McDougal & Gamlin 2015 is the better source (pending, outside edit scope).",
+   "used_in": [
+    "docs/circuits/pupil.md",
+    "engine/src/tasks/pupil.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "nichols1976",
+   "authors": [
+    "Nichols TR",
+    "Houk JC"
+   ],
+   "year": 1976,
+   "title": "Improvement in linearity and regulation of stiffness that results from actions of stretch reflex",
+   "journal": "J Neurophysiol",
+   "volume": "39",
+   "pages": "119-142",
+   "doi": "10.1152/jn.1976.39.1.119",
+   "pmid": "1249597",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Nichols",
+   "note": "",
+   "used_in": [
+    "docs/circuits/boss_spinal_sprint.md",
+    "docs/circuits/posture.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/posture.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "houk1979",
+   "authors": [
+    "Houk JC"
+   ],
+   "year": 1979,
+   "title": "Regulation of stiffness by skeletomotor reflexes",
+   "journal": "Annu Rev Physiol",
+   "volume": "41",
+   "pages": "99-114",
+   "doi": "10.1146/annurev.ph.41.030179.000531",
+   "pmid": "373611",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Houk(?: JC)?,? \\(?1979|Houk 1979",
+   "note": "",
+   "used_in": [
+    "docs/circuits/posture.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/posture.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "hulliger1984",
+   "authors": [
+    "Hulliger M"
+   ],
+   "year": 1984,
+   "title": "The mammalian muscle spindle and its central control",
+   "journal": "Rev Physiol Biochem Pharmacol",
+   "volume": "101",
+   "pages": "1-110",
+   "doi": "10.1007/BFb0027694",
+   "pmid": "6240757",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hulliger",
+   "note": "",
+   "used_in": [
+    "docs/circuits/posture.md",
+    "engine/src/tasks/posture.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "prochazka1998",
+   "authors": [
+    "Prochazka A",
+    "Gorassini M"
+   ],
+   "year": 1998,
+   "title": "Models of ensemble firing of muscle spindle afferents recorded during normal locomotion in cats",
+   "journal": "J Physiol",
+   "volume": "507",
+   "pages": "277-291",
+   "doi": "10.1111/j.1469-7793.1998.277bu.x",
+   "pmid": "9490851",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Prochazka",
+   "note": "Claim check: the paper compares models of spindle firing in walking cats; it does not itself show that a relaxed, gamma-quiet spindle is nearly silent. Used for spindle firing models only; the 'nearly silent' statement rests on Hulliger 1984 (review).",
+   "used_in": [
+    "docs/body/joint.md",
+    "docs/circuits/posture.md",
+    "engine/src/tasks/posture.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "farmer1993",
+   "authors": [
+    "Farmer SF",
+    "Bremner FD",
+    "Halliday DM",
+    "Rosenberg JR",
+    "Stephens JA"
+   ],
+   "year": 1993,
+   "title": "The frequency content of common synaptic inputs to motoneurones studied during voluntary isometric contraction in man",
+   "journal": "J Physiol",
+   "volume": "470",
+   "pages": "127-155",
+   "doi": "10.1113/jphysiol.1993.sp019851",
+   "pmid": "8308721",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Farmer",
+   "note": "",
+   "used_in": [
+    "docs/circuits/renshaw.md",
+    "engine/src/tasks/renshaw.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "buchanan2001",
+   "authors": [
+    "Buchanan JT"
+   ],
+   "year": 2001,
+   "title": "Contributions of identifiable neurons and neuron classes to lamprey vertebrate neurobiology",
+   "journal": "Prog Neurobiol",
+   "volume": "63",
+   "pages": "441-466",
+   "doi": "10.1016/s0301-0082(00)00050-2",
+   "pmid": "11163686",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Buchanan",
+   "note": "",
+   "used_in": [
+    "docs/circuits/lamprey.md",
+    "engine/src/tasks/lamprey.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "hilton1982",
+   "authors": [
+    "Hilton SM"
+   ],
+   "year": 1982,
+   "title": "The defence-arousal system and its relevance for circulatory and respiratory control",
+   "journal": "J Exp Biol",
+   "volume": "100",
+   "pages": "159-174",
+   "doi": "10.1242/jeb.100.1.159",
+   "pmid": "6816891",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Hilton",
+   "note": "FIXED: docs/circuits/fight_or_flight.md cited 'J Auton Nerv Syst 7:3'; the paper is J Exp Biol 100:159.",
+   "used_in": [
+    "docs/circuits/fight_or_flight.md",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/fight_or_flight.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "steinhauer1992",
+   "authors": [
+    "Steinhauer SR",
+    "Hakerem G"
+   ],
+   "year": 1992,
+   "title": "The pupillary response in cognitive psychophysiology and schizophrenia",
+   "journal": "Ann N Y Acad Sci",
+   "volume": "658",
+   "pages": "182-204",
+   "doi": "10.1111/j.1749-6632.1992.tb22845.x",
+   "pmid": "1497258",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Steinhauer",
+   "note": "",
+   "used_in": [
+    "docs/circuits/boss_autonomic_exam.md",
+    "docs/circuits/fight_or_flight.md",
+    "docs/circuits/pupil.md",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/pupil.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "ellis1981",
+   "authors": [
+    "Ellis CJ"
+   ],
+   "year": 1981,
+   "title": "The pupillary light reflex in normal subjects",
+   "journal": "Br J Ophthalmol",
+   "volume": "65",
+   "pages": "754-759",
+   "doi": "10.1136/bjo.65.11.754",
+   "pmid": "7326222",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Ellis 1981|Ellis CJ",
+   "note": "",
+   "used_in": [
+    "docs/body/eye.md",
+    "docs/circuits/pupil.md",
+    "engine/src/tasks/pupil.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "matthews1991",
+   "authors": [
+    "Matthews PBC"
+   ],
+   "year": 1991,
+   "title": "The human stretch reflex and the motor cortex",
+   "journal": "Trends Neurosci",
+   "volume": "14",
+   "pages": "87-91",
+   "doi": "10.1016/0166-2236(91)90064-2",
+   "pmid": "1709536",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Matthews(?: PBC)?,? \\(?1991|Matthews 1991",
+   "note": "",
+   "used_in": [
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/stretch_reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "janczewski2013",
+   "authors": [
+    "Janczewski WA",
+    "Tashima A",
+    "Hsu P",
+    "Cui Y",
+    "Feldman JL"
+   ],
+   "year": 2013,
+   "title": "Role of inhibition in respiratory pattern generation",
+   "journal": "J Neurosci",
+   "volume": "33",
+   "pages": "5454-5465",
+   "doi": "10.1523/JNEUROSCI.1595-12.2013",
+   "pmid": "23536061",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Janczewski",
+   "note": "FIXED: docs/circuits/breathing.md cited J Neurosci 33:3045 (not found); correct locus 33:5454.",
+   "used_in": [
+    "docs/circuits/breathing.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "dempsey2014",
+   "authors": [
+    "Dempsey JA",
+    "Smith CA"
+   ],
+   "year": 2014,
+   "title": "Pathophysiology of human ventilatory control",
+   "journal": "Eur Respir J",
+   "volume": "44",
+   "pages": "495-512",
+   "doi": "10.1183/09031936.00048514",
+   "pmid": "24925922",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Dempsey",
+   "note": "FIXED: engine/src/tasks/boss_autonomic_exam.cpp cited 'Dempsey & Smith 2014 J Appl Physiol' (no volume/page; the paper is in Eur Respir J).",
+   "used_in": [
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "mangoni2006",
+   "authors": [
+    "Mangoni ME",
+    "Traboulsie A",
+    "Leoni AL",
+    "Couette B",
+    "Marger L",
+    "Le Quang K",
+    "Kupfer E",
+    "Cohen-Solal A",
+    "Vilar J",
+    "Shin HS",
+    "Escande D",
+    "Charpentier F",
+    "Nargeot J",
+    "Lory P"
+   ],
+   "year": 2006,
+   "title": "Bradycardia and slowing of the atrioventricular conduction in mice lacking CaV3.1/alpha1G T-type calcium channels",
+   "journal": "Circ Res",
+   "volume": "98",
+   "pages": "1422-1430",
+   "doi": "10.1161/01.RES.0000225862.14314.49",
+   "pmid": "16690884",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-18",
+   "match": "Mangoni",
+   "note": "Supports T-type current contributing to SA-node pacemaking only.",
+   "used_in": [
+    "docs/circuits/heart_pacemaker.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "lahiri1975",
+   "authors": [
+    "Lahiri S",
+    "DeLaney RG"
+   ],
+   "year": 1975,
+   "title": "Stimulus interaction in the responses of carotid body chemoreceptor single afferent fibers",
+   "journal": "Respir Physiol",
+   "volume": "24",
+   "pages": "249-266",
+   "doi": null,
+   "pmid": "242049",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 242049; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Lahiri",
+   "note": "",
+   "used_in": [
+    "docs/body/lungs.md",
+    "docs/circuits/breathing.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "grodins1967",
+   "authors": [
+    "Grodins FS",
+    "Buell J",
+    "Bart AJ"
+   ],
+   "year": 1967,
+   "title": "Mathematical analysis and digital simulation of the respiratory control system",
+   "journal": "J Appl Physiol",
+   "volume": "22",
+   "pages": "260-276",
+   "doi": null,
+   "pmid": "6017893",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 6017893; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Grodins",
+   "note": "",
+   "used_in": [
+    "docs/body/lungs.md",
+    "docs/circuits/breathing.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "castellucci1974",
+   "authors": [
+    "Castellucci V",
+    "Kandel ER"
+   ],
+   "year": 1974,
+   "title": "A quantal analysis of the synaptic depression underlying habituation of the gill-withdrawal reflex in Aplysia",
+   "journal": "Proc Natl Acad Sci U S A",
+   "volume": "71",
+   "pages": "5004-5008",
+   "doi": "10.1073/pnas.71.12.5004",
+   "pmid": "4373738",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 4373738; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Castellucci",
+   "note": "",
+   "used_in": [
+    "docs/circuits/reflex.md",
+    "engine/src/tasks/reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "sherrington1910",
+   "authors": [
+    "Sherrington CS"
+   ],
+   "year": 1910,
+   "title": "Flexion-reflex of the limb, crossed extension-reflex, and reflex stepping and standing",
+   "journal": "J Physiol",
+   "volume": "40",
+   "pages": "28-121",
+   "doi": null,
+   "pmid": "16993027",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 16993027; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Sherrington CS \\(1910\\)|Sherrington 1910",
+   "note": "",
+   "used_in": [
+    "docs/circuits/reflex.md",
+    "engine/src/tasks/reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "johnson2001",
+   "authors": [
+    "Johnson KO"
+   ],
+   "year": 2001,
+   "title": "The roles and functions of cutaneous mechanoreceptors",
+   "journal": "Curr Opin Neurobiol",
+   "volume": "11",
+   "pages": "455-461",
+   "doi": null,
+   "pmid": "11502392",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 11502392; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Johnson KO",
+   "note": "",
+   "used_in": [
+    "docs/circuits/reflex.md",
+    "engine/src/tasks/reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "ryall1970",
+   "authors": [
+    "Ryall RW"
+   ],
+   "year": 1970,
+   "title": "Renshaw cell mediated inhibition of Renshaw cells: patterns of excitation and inhibition from impulses in motor axon collaterals",
+   "journal": "J Neurophysiol",
+   "volume": "33",
+   "pages": "257-270",
+   "doi": null,
+   "pmid": "4313286",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 4313286; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Ryall",
+   "note": "",
+   "used_in": [
+    "docs/circuits/renshaw.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "hidler1999",
+   "authors": [
+    "Hidler JM",
+    "Rymer WZ"
+   ],
+   "year": 1999,
+   "title": "A simulation study of reflex instability in spasticity: origins of clonus",
+   "journal": "IEEE Trans Rehabil Eng",
+   "volume": "7",
+   "pages": "327-340",
+   "doi": null,
+   "pmid": "10498378",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 10498378; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Hidler",
+   "note": "",
+   "used_in": [
+    "docs/circuits/dx_clonus.md",
+    "engine/src/tasks/dx_clonus.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "heckman2005",
+   "authors": [
+    "Heckman CJ",
+    "Gorassini MA",
+    "Bennett DJ"
+   ],
+   "year": 2005,
+   "title": "Persistent inward currents in motoneuron dendrites: implications for motor output",
+   "journal": "Muscle Nerve",
+   "volume": "31",
+   "pages": "135-156",
+   "doi": null,
+   "pmid": "15736297",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 15736297; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Heckman",
+   "note": "",
+   "used_in": [
+    "docs/circuits/posture.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "watson2012",
+   "authors": [
+    "Watson AB",
+    "Yellott JI"
+   ],
+   "year": 2012,
+   "title": "A unified formula for light-adapted pupil size",
+   "journal": "J Vis",
+   "volume": "12(10)",
+   "pages": "12",
+   "doi": null,
+   "pmid": "23012448",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 23012448; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Watson",
+   "note": "",
+   "used_in": [
+    "docs/body/eye.md",
+    "docs/circuits/pupil.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "naka1966",
+   "authors": [
+    "Naka KI",
+    "Rushton WAH"
+   ],
+   "year": 1966,
+   "title": "(title not read; Naka & Rushton 1966 J Physiol 185:536 as cited)",
+   "journal": "J Physiol",
+   "volume": "185",
+   "pages": "536-555",
+   "doi": "10.1113/jphysiol.1966.sp008001",
+   "pmid": "5918058",
+   "status": "verified-locus",
+   "verified_by": "PubMed record located 2026-11-18 (journal/year/volume/first page/first author match PMID 5918058; DOI from PubMed Central ID converter); title as cited in the repo, not re-read from the record",
+   "match": "Naka",
+   "note": "OPEN QUESTION: PubMed has a Naka & Rushton record at 185:536 (colour units, I believe); the saturating 'Naka-Rushton' function is usually quoted from the companion luminosity-units paper (185:587). docs/circuits/pupil.md and docs/body/eye.md cite 185:536. Needs a human check with the Crossref title.",
+   "used_in": [
+    "docs/body/eye.md",
+    "docs/circuits/pupil.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "demir1994",
+   "authors": [
+    "Demir SS",
+    "Clark JW",
+    "Murphey CR",
+    "Giles WR"
+   ],
+   "year": 1994,
+   "title": "A mathematical model of a rabbit sinoatrial node cell",
+   "journal": "Am J Physiol",
+   "volume": "266",
+   "pages": "C832-C852",
+   "doi": null,
+   "pmid": "8166247",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 8166247; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Demir",
+   "note": "",
+   "used_in": [
+    "docs/REQ-0.2.md",
+    "docs/circuits/fight_or_flight.md",
+    "docs/models/README.md",
+    "docs/models/sa_node_pacemaker.md",
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "kurata2002",
+   "authors": [
+    "Kurata Y",
+    "Hisatome I",
+    "Imanishi S",
+    "Shibamoto T"
+   ],
+   "year": 2002,
+   "title": "Dynamical description of sinoatrial node pacemaking: improved mathematical model for primary pacemaker cell",
+   "journal": "Am J Physiol Heart Circ Physiol",
+   "volume": "283",
+   "pages": "H2074-H2101",
+   "doi": null,
+   "pmid": "12384487",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 12384487; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Kurata",
+   "note": "",
+   "used_in": [
+    "docs/models/README.md",
+    "docs/models/sa_node_pacemaker.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "feldman1986",
+   "authors": [
+    "Feldman AG"
+   ],
+   "year": 1986,
+   "title": "Once more on the equilibrium-point hypothesis (lambda model) for motor control",
+   "journal": "J Mot Behav",
+   "volume": "18",
+   "pages": "17-54",
+   "doi": null,
+   "pmid": "15136283",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 15136283; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Feldman AG|Feldman 1986",
+   "note": "",
+   "used_in": [
+    "docs/circuits/boss_spinal_sprint.md",
+    "docs/circuits/reach.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/reach.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "marder1996",
+   "authors": [
+    "Marder E",
+    "Calabrese RL"
+   ],
+   "year": 1996,
+   "title": "Principles of rhythmic motor pattern generation",
+   "journal": "Physiol Rev",
+   "volume": "76",
+   "pages": "687-717",
+   "doi": null,
+   "pmid": "8757786",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 8757786; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Marder(?: E)?,? (?:&|and)? ?Calabrese|Calabrese",
+   "note": "",
+   "used_in": [
+    "docs/circuits/lamprey.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "janig2006",
+   "authors": [
+    "Janig W"
+   ],
+   "year": 2006,
+   "title": "The Integrative Action of the Autonomic Nervous System",
+   "journal": "Cambridge University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Janig|Jänig",
+   "note": "Book; not checkable via PubMed/Crossref journal records.",
+   "used_in": [
+    "docs/circuits/m_divergent.md",
+    "engine/src/tasks/m_divergent.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "cannon1915",
+   "authors": [
+    "Cannon WB"
+   ],
+   "year": 1915,
+   "title": "Bodily Changes in Pain, Hunger, Fear and Rage",
+   "journal": "D. Appleton and Company, New York (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Cannon WB \\(1915\\)|Cannon 1915",
+   "note": "Book.",
+   "used_in": [
+    "docs/circuits/boss_autonomic_exam.md",
+    "docs/circuits/fight_or_flight.md",
+    "docs/circuits/m_divergent.md",
+    "engine/src/tasks/boss_autonomic_exam.cpp",
+    "engine/src/tasks/fight_or_flight.cpp",
+    "engine/src/tasks/m_divergent.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "cannon1929",
+   "authors": [
+    "Cannon WB"
+   ],
+   "year": 1929,
+   "title": "Organization for physiological homeostasis",
+   "journal": "Physiol Rev",
+   "volume": "9",
+   "pages": "399-431",
+   "doi": "10.1152/physrev.1929.9.3.399",
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Cannon WB \\(1929\\)|Cannon \\(1929|Cannon 1929",
+   "note": "Not in PubMed (locus search failed). DOI from the publisher pattern; confirm with check.py --online.",
+   "used_in": [
+    "docs/circuits/m_negative_feedback.md",
+    "engine/src/tasks/m_negative_feedback.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "brown1911",
+   "authors": [
+    "Brown TG"
+   ],
+   "year": 1911,
+   "title": "The intrinsic factors in the act of progression in the mammal",
+   "journal": "Proc R Soc Lond B",
+   "volume": "84",
+   "pages": "308-319",
+   "doi": "10.1098/rspb.1911.0077",
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Brown TG|Brown's \\(1911\\)|Brown \\(1911",
+   "note": "Not in PubMed. DOI from the publisher pattern; confirm with check.py --online.",
+   "used_in": [
+    "docs/circuits/m_half_centre.md",
+    "engine/src/tasks/m_half_centre.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "loewi1921",
+   "authors": [
+    "Loewi O"
+   ],
+   "year": 1921,
+   "title": "Uber humorale Ubertragbarkeit der Herznervenwirkung",
+   "journal": "Pflugers Arch",
+   "volume": "189",
+   "pages": "239-242",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Loewi",
+   "note": "Not in PubMed. Citation as written in the repo; DOI not known to the authoring session.",
+   "used_in": [
+    "docs/circuits/m_neuromodulation.md",
+    "engine/src/tasks/m_neuromodulation.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "sherrington1906",
+   "authors": [
+    "Sherrington CS"
+   ],
+   "year": 1906,
+   "title": "The Integrative Action of the Nervous System",
+   "journal": "Yale University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Sherrington CS \\(1906\\)|Sherrington 1906",
+   "note": "Book.",
+   "used_in": [
+    "docs/circuits/m_reciprocal.md",
+    "docs/circuits/reflex.md",
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/m_reciprocal.cpp",
+    "engine/src/tasks/stretch_reflex.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "matthews1972",
+   "authors": [
+    "Matthews PBC"
+   ],
+   "year": 1972,
+   "title": "Mammalian Muscle Receptors and their Central Actions",
+   "journal": "Edward Arnold, London (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Matthews PBC \\(1972\\)|Matthews 1972",
+   "note": "Book.",
+   "used_in": [
+    "docs/circuits/boss_spinal_sprint.md",
+    "docs/circuits/posture.md",
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/boss_spinal_sprint.cpp",
+    "engine/src/tasks/posture.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/lesion_hints.gd"
+   ]
+  },
+  {
+   "id": "merton1953",
+   "authors": [
+    "Merton PA"
+   ],
+   "year": 1953,
+   "title": "Speculations on the servo-control of movement (in The Spinal Cord, Ciba Foundation Symposium)",
+   "journal": "Ciba Found Symp",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Merton",
+   "note": "Book chapter; title from memory.",
+   "used_in": [
+    "docs/circuits/posture.md",
+    "engine/src/tasks/posture.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "loewenfeld1993",
+   "authors": [
+    "Loewenfeld IE"
+   ],
+   "year": 1993,
+   "title": "The Pupil: Anatomy, Physiology, and Clinical Applications",
+   "journal": "Iowa State University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Loewenfeld",
+   "note": "Book.",
+   "used_in": [
+    "docs/body/eye.md",
+    "docs/circuits/dx_horner.md",
+    "docs/circuits/pupil.md",
+    "engine/src/tasks/dx_horner.cpp",
+    "engine/src/tasks/pupil.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "pierrot2005",
+   "authors": [
+    "Pierrot-Deseilligny E",
+    "Burke D"
+   ],
+   "year": 2005,
+   "title": "The Circuitry of the Human Spinal Cord",
+   "journal": "Cambridge University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Pierrot-Deseilligny",
+   "note": "Book.",
+   "used_in": [
+    "docs/circuits/dx_clonus.md",
+    "engine/src/tasks/dx_clonus.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "elble1990",
+   "authors": [
+    "Elble RJ",
+    "Koller WC"
+   ],
+   "year": 1990,
+   "title": "Tremor",
+   "journal": "Johns Hopkins University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Elble",
+   "note": "Book.",
+   "used_in": [
+    "docs/circuits/renshaw.md",
+    "engine/src/tasks/renshaw.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "wachholder1926",
+   "authors": [
+    "Wachholder K",
+    "Altenburger H"
+   ],
+   "year": 1926,
+   "title": "Beitraege zur Physiologie der willkuerlichen Bewegung. X. Einzelbewegungen",
+   "journal": "Pflugers Arch",
+   "volume": "214",
+   "pages": "642-661",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Wachholder|Wacholder",
+   "note": "Title/pages from memory; not in PubMed. Pattern is also reported in hallett1975 (verified).",
+   "used_in": [
+    "docs/circuits/m_timed_bursts.md",
+    "docs/circuits/reach.md",
+    "engine/src/tasks/m_timed_bursts.cpp",
+    "engine/src/tasks/reach.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "liddell1924",
+   "authors": [
+    "Liddell EGT",
+    "Sherrington CS"
+   ],
+   "year": 1924,
+   "title": "Reflexes in response to stretch (myotatic reflexes)",
+   "journal": "Proc R Soc Lond B",
+   "volume": "96",
+   "pages": "212-242",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Liddell",
+   "note": "Not in PubMed; title/pages from memory.",
+   "used_in": [
+    "docs/circuits/stretch_reflex.md",
+    "engine/src/tasks/stretch_reflex.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "kernell1965",
+   "authors": [
+    "Kernell D"
+   ],
+   "year": 1965,
+   "title": "The adaptation and the relation between discharge frequency and current strength of cat lumbosacral motoneurones stimulated by long-lasting injected currents",
+   "journal": "Acta Physiol Scand",
+   "volume": "65",
+   "pages": "65-73",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Kernell",
+   "note": "Not in PubMed (locus search failed); title/pages from memory.",
+   "used_in": [
+    "docs/circuits/stretch_reflex.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "wang1992",
+   "authors": [
+    "Wang XJ",
+    "Rinzel J"
+   ],
+   "year": 1992,
+   "title": "Alternating and synchronous rhythms in reciprocally inhibitory model neurons",
+   "journal": "Neural Comput",
+   "volume": "4",
+   "pages": "84-97",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Wang(?: X-J)?,? (?:&|and)? ?Rinzel",
+   "note": "Not in PubMed; title/pages from memory.",
+   "used_in": [
+    "docs/circuits/lamprey.md"
+   ]
+  },
+  {
+   "id": "ekeberg1993",
+   "authors": [
+    "Ekeberg O"
+   ],
+   "year": 1993,
+   "title": "A combined neuronal and mechanical model of fish swimming",
+   "journal": "Biol Cybern",
+   "volume": "69",
+   "pages": "363-374",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Ekeberg",
+   "note": "Not in PubMed; title/pages from memory.",
+   "used_in": [
+    "docs/circuits/lamprey.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "lighthill1960",
+   "authors": [
+    "Lighthill MJ"
+   ],
+   "year": 1960,
+   "title": "Note on the swimming of slender fish",
+   "journal": "J Fluid Mech",
+   "volume": "9",
+   "pages": "305-317",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Lighthill",
+   "note": "Not in PubMed; title/pages from memory. The repo uses it as inspiration only.",
+   "used_in": [
+    "docs/REQ-0.1.md",
+    "docs/circuits/lamprey.md",
+    "engine/src/tasks/lamprey.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "gottlieb1989",
+   "authors": [
+    "Gottlieb GL",
+    "Corcos DM",
+    "Agarwal GC"
+   ],
+   "year": 1989,
+   "title": "Strategies for the control of voluntary movements with one mechanical degree of freedom",
+   "journal": "Behav Brain Sci",
+   "volume": "12",
+   "pages": "189-210",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Gottlieb|Corcos(?: &|,)? Agarwal",
+   "note": "Not in PubMed; title/pages from memory.",
+   "used_in": [
+    "docs/circuits/reach.md",
+    "engine/src/tasks/reach.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "golomb2007",
+   "authors": [
+    "Golomb D"
+   ],
+   "year": 2007,
+   "title": "Neuronal synchrony measures",
+   "journal": "Scholarpedia",
+   "volume": "2(2)",
+   "pages": "1347",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Golomb",
+   "note": "Wiki-style reference; no DOI.",
+   "used_in": [
+    "CHANGELOG.md",
+    "docs/REQ-0.1.md",
+    "docs/circuits/heart_pacemaker.md",
+    "engine/src/tasks/heart_pacemaker.cpp",
+    "godot/catalog/citations.json",
+    "godot/game/spike_sim_stats.gd",
+    "python/examples/motifs.ipynb",
+    "python/spike/stats.py"
+   ]
+  },
+  {
+   "id": "dayan2001",
+   "authors": [
+    "Dayan P",
+    "Abbott LF"
+   ],
+   "year": 2001,
+   "title": "Theoretical Neuroscience",
+   "journal": "MIT Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Dayan",
+   "note": "Book.",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "gerstner2002",
+   "authors": [
+    "Gerstner W",
+    "Kistler WM"
+   ],
+   "year": 2002,
+   "title": "Spiking Neuron Models",
+   "journal": "Cambridge University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Kistler",
+   "note": "Book.",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "traub1991",
+   "authors": [
+    "Traub RD",
+    "Miles R"
+   ],
+   "year": 1991,
+   "title": "Neuronal Networks of the Hippocampus",
+   "journal": "Cambridge University Press (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Traub",
+   "note": "Book.",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "frank1899",
+   "authors": [
+    "Frank O"
+   ],
+   "year": 1899,
+   "title": "Die Grundform des arteriellen Pulses",
+   "journal": "Z Biol",
+   "volume": "37",
+   "pages": "483-526",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Frank 1899",
+   "note": "Not in PubMed; title/pages from memory.",
+   "used_in": [
+    "docs/body/heart.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "schutte1993",
+   "authors": [
+    "Schutte LM"
+   ],
+   "year": 1993,
+   "title": "Using musculoskeletal models to explore strategies for improving performance in electrical stimulation-induced leg cycle ergometry (PhD thesis, Stanford)",
+   "journal": "thesis",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Schutte",
+   "note": "docs/body/muscle.md cites 'Schutte 1993' with no locus; assumed to be the thesis. Unverified.",
+   "used_in": [
+    "docs/body/muscle.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "nagumo1962",
+   "authors": [
+    "Nagumo J",
+    "Arimoto S",
+    "Yoshizawa S"
+   ],
+   "year": 1962,
+   "title": "An active pulse transmission line simulating nerve axon",
+   "journal": "Proc IRE",
+   "volume": "50",
+   "pages": "2061-2070",
+   "doi": "10.1109/JRPROC.1962.288235",
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Nagumo",
+   "note": "Not in PubMed; DOI from memory.",
+   "used_in": [
+    "docs/circuits/peristalsis.md",
+    "docs/models/README.md",
+    "docs/models/icc_slow_wave.md",
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "hill1938",
+   "authors": [
+    "Hill AV"
+   ],
+   "year": 1938,
+   "title": "The heat of shortening and the dynamic constants of muscle",
+   "journal": "Proc R Soc Lond B",
+   "volume": "126",
+   "pages": "136-195",
+   "doi": "10.1098/rspb.1938.0050",
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Hill 1938",
+   "note": "Not in PubMed; DOI from memory.",
+   "used_in": [
+    "docs/body/muscle.md",
+    "engine/src/body/muscle.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "pierceshimomura1999",
+   "authors": [
+    "Pierce-Shimomura JT",
+    "Morse TM",
+    "Lockery SR"
+   ],
+   "year": 1999,
+   "title": "The fundamental role of pirouettes in Caenorhabditis elegans chemotaxis",
+   "journal": "J Neurosci",
+   "volume": "19",
+   "pages": "9557-9569",
+   "doi": null,
+   "pmid": "10531458",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 10531458; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Pierce-Shimomura|Morse",
+   "note": "",
+   "used_in": [
+    "docs/circuits/worm.md",
+    "engine/src/tasks/worm.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "gray2005",
+   "authors": [
+    "Gray JM",
+    "Hill JJ",
+    "Bargmann CI"
+   ],
+   "year": 2005,
+   "title": "A circuit for navigation in Caenorhabditis elegans",
+   "journal": "Proc Natl Acad Sci U S A",
+   "volume": "102",
+   "pages": "3184-3191",
+   "doi": null,
+   "pmid": "15689400",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 15689400; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Bargmann",
+   "note": "",
+   "used_in": [
+    "docs/circuits/worm.md",
+    "engine/src/tasks/worm.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "rauch2003",
+   "authors": [
+    "Rauch A",
+    "La Camera G",
+    "Luscher HR",
+    "Senn W",
+    "Fusi S"
+   ],
+   "year": 2003,
+   "title": "Neocortical pyramidal cells respond as integrate-and-fire neurons to in vivo-like input currents",
+   "journal": "J Neurophysiol",
+   "volume": "90",
+   "pages": "1598-1612",
+   "doi": null,
+   "pmid": "12750422",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 12750422; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Rauch",
+   "note": "",
+   "used_in": [
+    "engine/src/catalog/catalog.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "henneman1981",
+   "authors": [
+    "Henneman E",
+    "Mendell LM"
+   ],
+   "year": 1981,
+   "title": "Functional organization of motoneuron pool and its inputs (Handbook of Physiology, The Nervous System II)",
+   "journal": "Handbook of Physiology (book chapter)",
+   "volume": "",
+   "pages": "423-507",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Mendell 1981|Henneman E, Mendell",
+   "note": "Book chapter; title from memory.",
+   "used_in": [
+    "docs/circuits/stretch_reflex.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "furness2006",
+   "authors": [
+    "Furness JB"
+   ],
+   "year": 2006,
+   "title": "The Enteric Nervous System",
+   "journal": "Blackwell (book)",
+   "volume": "",
+   "pages": "",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Furness JB \\(2006\\)|Furness 2006",
+   "note": "Book.",
+   "used_in": [
+    "docs/circuits/m_wave.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "sherrington1893",
+   "authors": [
+    "Sherrington CS"
+   ],
+   "year": 1893,
+   "title": "Note on the knee-jerk and the correlation of action of antagonistic muscles",
+   "journal": "Proc R Soc Lond",
+   "volume": "52",
+   "pages": "556-564",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Sherrington CS \\(1893|Sherrington CS \\(1893, 1906\\)|1893",
+   "note": "Not in PubMed; title/pages from memory.",
+   "used_in": [
+    "engine/src/tasks/m_reciprocal.cpp",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "chapleau1987",
+   "authors": [
+    "Chapleau MW",
+    "Abboud FM"
+   ],
+   "year": 1987,
+   "title": "Contrasting effects of static and pulsatile pressure on carotid baroreceptor activity in dogs",
+   "journal": "Circ Res",
+   "volume": "61",
+   "pages": "648-658",
+   "doi": null,
+   "pmid": "3664974",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 3664974; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Chapleau",
+   "note": "",
+   "used_in": [
+    "docs/body/heart.md",
+    "docs/circuits/baroreflex.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "mahdi2013",
+   "authors": [
+    "Mahdi A",
+    "Sturdy J",
+    "Ottesen JT",
+    "Olufsen MS"
+   ],
+   "year": 2013,
+   "title": "Modeling the afferent dynamics of the baroreflex control system",
+   "journal": "PLoS Comput Biol",
+   "volume": "9",
+   "pages": "e1003384",
+   "doi": null,
+   "pmid": "24348231",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 24348231; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Mahdi",
+   "note": "",
+   "used_in": [
+    "docs/body/heart.md",
+    "docs/circuits/baroreflex.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "mileusnic2006",
+   "authors": [
+    "Mileusnic MP",
+    "Brown IE",
+    "Lan N",
+    "Loeb GE"
+   ],
+   "year": 2006,
+   "title": "Mathematical models of proprioceptors. I. Control and transduction in the muscle spindle",
+   "journal": "J Neurophysiol",
+   "volume": "96",
+   "pages": "1772-1788",
+   "doi": null,
+   "pmid": "16672301",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 16672301; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Mileusnic",
+   "note": "",
+   "used_in": [
+    "docs/REQ-0.2.md",
+    "docs/body/joint.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "houk1967",
+   "authors": [
+    "Houk J",
+    "Henneman E"
+   ],
+   "year": 1967,
+   "title": "Responses of Golgi tendon organs to active contractions of the soleus muscle of the cat",
+   "journal": "J Neurophysiol",
+   "volume": "30",
+   "pages": "466-481",
+   "doi": null,
+   "pmid": "6037588",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 6037588; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Houk (?:&|and) Henneman",
+   "note": "",
+   "used_in": [
+    "docs/body/joint.md"
+   ]
+  },
+  {
+   "id": "houk1981",
+   "authors": [
+    "Houk JC",
+    "Rymer WZ",
+    "Crago PE"
+   ],
+   "year": 1981,
+   "title": "Dependence of dynamic response of spindle receptors on muscle length and velocity",
+   "journal": "J Neurophysiol",
+   "volume": "46",
+   "pages": "143-166",
+   "doi": null,
+   "pmid": null,
+   "status": "unverified",
+   "verified_by": "not verified: not found in PubMed and Crossref was unreachable from the authoring session; run tools/citations/check.py --online",
+   "match": "Houk, Rymer",
+   "note": "Locus not checked (a PubMed hit for J Neurophysiol 46:1 is a different paper); title/pages from memory.",
+   "used_in": [
+    "docs/body/joint.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "otis1956",
+   "authors": [
+    "Otis AB",
+    "McKerrow CB",
+    "Bartlett RA",
+    "Mead J",
+    "McIlroy MB",
+    "Selverstone NJ",
+    "Radford EP"
+   ],
+   "year": 1956,
+   "title": "Mechanical factors in distribution of pulmonary ventilation",
+   "journal": "J Appl Physiol",
+   "volume": "8",
+   "pages": "427-443",
+   "doi": null,
+   "pmid": "13286206",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 13286206; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Otis",
+   "note": "",
+   "used_in": [
+    "docs/body/lungs.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "khoo1982",
+   "authors": [
+    "Khoo MCK",
+    "Kronauer RE",
+    "Strohl KP",
+    "Slutsky AS"
+   ],
+   "year": 1982,
+   "title": "Factors inducing periodic breathing in humans: a general model",
+   "journal": "J Appl Physiol",
+   "volume": "53",
+   "pages": "644-659",
+   "doi": null,
+   "pmid": "7129986",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 7129986; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Khoo",
+   "note": "",
+   "used_in": [
+    "docs/body/lungs.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "nattie2012",
+   "authors": [
+    "Nattie E",
+    "Li A"
+   ],
+   "year": 2012,
+   "title": "Central chemoreceptors: locations and functions",
+   "journal": "Compr Physiol",
+   "volume": "2",
+   "pages": "221-254",
+   "doi": null,
+   "pmid": "23728974",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 23728974; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Nattie",
+   "note": "",
+   "used_in": [
+    "docs/body/lungs.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "burke1973",
+   "authors": [
+    "Burke RE",
+    "Levine DN",
+    "Tsairis P",
+    "Zajac FE"
+   ],
+   "year": 1973,
+   "title": "Physiological types and histochemical profiles in motor units of the cat gastrocnemius",
+   "journal": "J Physiol",
+   "volume": "234",
+   "pages": "723-748",
+   "doi": null,
+   "pmid": "4148752",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 4148752; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Burke 1973|Burke et al\\. 1973|Burke(?: RE)?(?: et al\\.?)? \\(?1973",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "zajac1989",
+   "authors": [
+    "Zajac FE"
+   ],
+   "year": 1989,
+   "title": "Muscle and tendon: properties, models, scaling, and application to biomechanics and motor control",
+   "journal": "Crit Rev Biomed Eng",
+   "volume": "17",
+   "pages": "359-411",
+   "doi": null,
+   "pmid": "2676342",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 2676342; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Zajac",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "millard2013",
+   "authors": [
+    "Millard M",
+    "Uchida T",
+    "Seth A",
+    "Delp SL"
+   ],
+   "year": 2013,
+   "title": "Flexing computational muscle: modeling and simulation of musculotendon dynamics",
+   "journal": "J Biomech Eng",
+   "volume": "135",
+   "pages": "021005",
+   "doi": null,
+   "pmid": "23445050",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 23445050; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Millard",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "gordon1966",
+   "authors": [
+    "Gordon AM",
+    "Huxley AF",
+    "Julian FJ"
+   ],
+   "year": 1966,
+   "title": "The variation in isometric tension with sarcomere length in vertebrate muscle fibres",
+   "journal": "J Physiol",
+   "volume": "184",
+   "pages": "170-192",
+   "doi": null,
+   "pmid": "5921536",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 5921536; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Gordon, Huxley|Gordon,? Huxley",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "xia2008",
+   "authors": [
+    "Xia T",
+    "Frey Law LA"
+   ],
+   "year": 2008,
+   "title": "A theoretical approach for modeling peripheral muscle fatigue and recovery",
+   "journal": "J Biomech",
+   "volume": "41",
+   "pages": "3046-3052",
+   "doi": null,
+   "pmid": "18789445",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 18789445; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Xia (?:&|and) Frey|Xia T",
+   "note": "",
+   "used_in": [
+    "docs/body/muscle.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "corrias2007",
+   "authors": [
+    "Corrias A",
+    "Buist ML"
+   ],
+   "year": 2007,
+   "title": "A quantitative model of gastric smooth muscle cellular activation",
+   "journal": "Ann Biomed Eng",
+   "volume": "35",
+   "pages": "1595-1607",
+   "doi": null,
+   "pmid": "17486452",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 17486452; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Corrias",
+   "note": "",
+   "used_in": [
+    "docs/models/icc_slow_wave.md",
+    "godot/catalog/citations.json"
+   ]
+  },
+  {
+   "id": "grillner1985",
+   "authors": [
+    "Grillner S"
+   ],
+   "year": 1985,
+   "title": "Neurobiological bases of rhythmic motor acts in vertebrates",
+   "journal": "Science",
+   "volume": "228",
+   "pages": "143-149",
+   "doi": null,
+   "pmid": "3975635",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 3975635; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Grillner S \\(1985\\)|Grillner 1985",
+   "note": "",
+   "used_in": [
+    "godot/catalog/citations.json",
+    "godot/game/campaign.gd"
+   ]
+  },
+  {
+   "id": "westerhof2009",
+   "authors": [
+    "Westerhof N",
+    "Lankhaar JW",
+    "Westerhof BE"
+   ],
+   "year": 2009,
+   "title": "The arterial Windkessel",
+   "journal": "Med Biol Eng Comput",
+   "volume": "47",
+   "pages": "131-141",
+   "doi": null,
+   "pmid": "18543011",
+   "status": "verified-locus",
+   "verified_by": "PubMed lookup 2026-11-18: journal, year, volume, first page and first author match PMID 18543011; title/authors as cited in the repo; DOI not retrieved",
+   "match": "Westerhof",
+   "note": "",
+   "used_in": [
+    "docs/body/heart.md",
+    "godot/catalog/citations.json"
+   ]
+  }
+ ]
+}

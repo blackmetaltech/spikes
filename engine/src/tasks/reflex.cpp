@@ -25,7 +25,9 @@
 //   pass       : no misses, no false trigger (Guided: at most 1), mean latency <= 60 ms. A lone cell cannot meet this on any seed.
 //
 // Biology: the withdrawal reflex arc (sensory afferent -> interneuron -> motoneuron), e.g. the Aplysia siphon/gill
-// withdrawal (Kandel) or the leech/vertebrate flexor reflex; the interesting part is noise rejection by convergence.
+// withdrawal (Castellucci & Kandel 1974) or the vertebrate flexor reflex (Sherrington 1910); the interesting part is noise rejection by
+// convergence. The Ia numbers in the notebook are from the stretch reflex (Mendell & Henneman 1971), used here only for the arithmetic;
+// the 150 Hz resting rate is a game value (cutaneous low-threshold afferents are mostly silent at rest; Johnson 2001).
 #include <cmath>
 #include <deque>
 #include <sstream>
@@ -114,11 +116,18 @@ public:
   Note notebook() const override
   {
     return { "Many weak inputs, one decision",
-             "A single Ia afferent produces an excitatory potential of only about a tenth of a millivolt in a cat spinal motoneuron, "
-             "which needs roughly 10 mV to fire. A motoneuron therefore fires only when many afferents arrive together: summing "
-             "independent inputs makes the signal grow faster than the chatter, so a real stimulus stands out from the background "
-             "firing of single receptors (the principle of the reflex arc built here).",
-             "Mendell LM, Henneman E (1971) J Neurophysiol 34:171-187" };
+             "A withdrawal reflex has to ignore noise and react to a real touch. In the sea slug Aplysia, touching the siphon makes the gill withdraw: "
+             "sensory neurons contact the motor neurons both directly and through interneurons, and each connection is weak (Castellucci & Kandel 1974). "
+             "Weak inputs are made to count by summation. In the cat spinal cord a single Ia afferent gives a motoneuron only about a tenth of a "
+             "millivolt, and a motoneuron needs roughly 10 mV to fire, so it fires only when many afferents arrive together "
+             "(Mendell & Henneman 1971). That measurement is from the stretch reflex, not from touch, but the arithmetic is the same: averaging "
+             "independent inputs makes the signal grow faster than the chatter. "
+             "Where the game differs from the animal: the game's receptors fire at 150 Hz at rest so that the puzzle has noise to reject, whereas "
+             "low-threshold touch receptors in real skin are mostly silent at rest (Johnson 2001), and a mammalian touch or pain withdrawal runs through "
+             "several interneurons, not one (Sherrington 1910). The noise level is a game value.",
+             "Castellucci V, Kandel ER (1974) Proc Natl Acad Sci USA 71:5004-5008, doi:10.1073/pnas.71.12.5004; "
+             "Mendell LM, Henneman E (1971) J Neurophysiol 34:171-187, doi:10.1152/jn.1971.34.1.171; "
+             "Johnson KO (2001) Curr Opin Neurobiol 11:455-461; Sherrington CS (1910) J Physiol 40:28-121" };
   }
 
   void reset( uint64_t seed ) override
