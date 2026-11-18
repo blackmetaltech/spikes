@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0] - 2026-11-18 — Honest puzzles, shippable game
+
+0.4 answers the harsh review (`docs/REVIEW-HARSH.md`, requirements in `docs/REQ-0.4.md`): every level now checks the mechanism it teaches, and the game builds, exports and runs CHECK from a zip.
+
+### Added
+- **Mechanism checks on all 41 levels.** Tasks read the circuit structure (`Engine::structure()`, `has_path`, `has_loop`, `has_loop_via`) and the verdict names the missing part, e.g. no coupling between pacemaker cells, or a baroreflex without both limbs.
+- **Cheap circuits that must fail:** empty bench, single cell, zero weights, reference without the mechanism, max every weight, and the review's cheap circuits, for every level (`tasks_cheap_test_{a,b,c}`). Diagnosis cases test that every wrong and unknown answer fails.
+- **Recipes kept apart.** Verdicts and hint tiers 1-3 carry no numbers (a test scans them); numbers live only in `recipe()`.
+- **Faster CHECK:** seeds run in parallel processes and most tasks have a shorter quick episode (`Task::set_quick`).
+- **Cajal Plate identity** (`docs/IDENTITY.md`): paper and ink, Golgi sienna and Prussian blue, Fraunces / Atkinson Hyperlegible / IBM Plex Mono, atlas-plate maps. No Godot splash.
+- **UI honesty:** reference hidden until passed (or Guided), reference lock is a structural fingerprint, histograms labelled as generated variants, an in-game "What is real" page, progressive disclosure in the lab.
+- **Citations** checked against PubMed / Crossref with DOIs (`catalog/citations.json`, `tools/citations/check.py`); wrong ones fixed.
+- **Shipping:** levels and catalogue inside the Godot project, Linux export preset, `spike-run` bundled, static GSL, `scripts/build-all.sh`, `scripts/package.sh`, Dockerfile and CI workflow.
+
+### Fixed
+- NEST aborted on huge conductances. Weights are now limited at load (500 nS / 10000 pA) and a failed step latches a fault instead of crashing.
+
+### Known gaps
+- A brief-only scripted novice cannot solve posture and reach; the spinal boss and seven heart/autonomic levels (which need bias currents) have no novice test yet.
+- CHECK is over the 3 s target for breathing (6.8 s), peristalsis (4.5 s), baroreflex (3-4 s), reach (3.2 s) and renshaw (about 3 s).
+- The Dockerfile and CI workflow have never run; no Windows build; the Linux build needs glibc >= 2.39.
+- 34 citations (books, older papers) are unverified; the online checker mode is untested.
+- m_reciprocal and m_wave are nearly trivial. Some heart-map leader lines cross the drawing; population labels overlap on dense circuits.
+
 ## [0.3.0] - 2026-11-17 — Learning curve
 
 0.3 turns the campaign into a learning ladder (design in `docs/DESIGN-0.3.md`): one new idea per level, a hint for when you are stuck, and a reason to come back after three stars.
