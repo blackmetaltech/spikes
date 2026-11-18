@@ -75,7 +75,7 @@ std::vector< CatalogModel > build()
     m.summary = "Like the leaky integrate-and-fire cell, but synapses open ion channels (conductances) with exponential decay, so an input's effect "
                 "depends on the membrane voltage and shunts the cell: inhibition near rest mostly clamps the voltage rather than pushing it down.";
     m.examples = { "Cortical cells in conductance-based benchmark networks (Brette et al. 2007)", "Neurons in a high-conductance in-vivo state" };
-    m.source = "Meffin et al. 2004 J Neurophysiol 92:2064-2086; Brette et al. 2007 J Comput Neurosci 23:349-398";
+    m.source = "Meffin, Burkitt & Grayden 2004 J Comput Neurosci 16:159-175, doi:10.1023/B:JCNS.0000014108.03012.81; Brette et al. 2007 J Comput Neurosci 23:349-398";
     m.params = { P{ "g_L", "nS", "Leak conductance (membrane time constant = C_m / g_L).", 16.6667, 5, 100 },
       P{ "C_m", "pF", "Membrane capacitance.", 250, 50, 1000 }, P{ "V_th", "mV", "Spike threshold.", -55, -60, -40 },
       P{ "V_reset", "mV", "Voltage right after a spike.", -60, -80, -55 }, P{ "t_ref", "ms", "Refractory period.", 2, 0, 10 },
@@ -97,7 +97,7 @@ std::vector< CatalogModel > build()
     m.summary = "A conductance-based integrate-and-fire cell with two spike-triggered potassium conductances: a slow one that makes firing slow down "
                 "during a sustained input (spike-frequency adaptation) and a fast one that makes it harder to fire right after a spike.";
     m.examples = { "Regular-spiking neocortical pyramidal cells (adaptation over 100 ms)", "Visual cortex cells with spike-frequency adaptation" };
-    m.source = "Meffin et al. 2004 J Neurophysiol 92:2064-2086; Dayan & Abbott 2001 Theoretical Neuroscience, ch. 5";
+    m.source = "Meffin, Burkitt & Grayden 2004 J Comput Neurosci 16:159-175, doi:10.1023/B:JCNS.0000014108.03012.81; Dayan & Abbott 2001 Theoretical Neuroscience, ch. 5";
     m.params = { P{ "q_sfa", "nS", "Adaptation conductance added at each spike (0 = no adaptation).", 14.48, 0, 100 },
       P{ "tau_sfa", "ms", "Adaptation decay time constant.", 110, 20, 1000 },
       P{ "q_rr", "nS", "Fast refractory conductance added at each spike.", 3214, 0, 10000 },

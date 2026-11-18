@@ -26,10 +26,10 @@
 //   MODES: guided widens every tolerance by 1.25 (rises needed shrink to 0.8 of the above), researcher tightens by 0.85 (standard otherwise).
 //
 // Biology: arterial baroreflex (Kirchheim 1976; Guyenet 2006 Nat Rev Neurosci 7:335); during exercise and the defence reaction central command
-// resets the baroreflex to a higher pressure instead of fighting the rise (Raven, Fadel & Ogoh 2006 J Physiol 574:85; Rowell & O'Leary 1990 J Appl
-// Physiol 69:407); defence reaction (Cannon 1915; Hilton 1982; Dampney 1994 Physiol Rev 74:323); the pupil dilates by sympathetic drive and
+// resets the baroreflex to a higher pressure instead of fighting the rise (Raven, Fadel & Ogoh 2006 Exp Physiol 91:37; Rowell & O'Leary 1990 J Appl
+// Physiol 69:407); defence reaction (Cannon 1915; Hilton 1982 J Exp Biol 100:159; Dampney 1994 Physiol Rev 74:323); the pupil dilates by sympathetic drive and
 // Edinger-Westphal withdrawal (Steinhauer & Hakerem 1992); ventilation follows CO2 production through the chemoreflex plus central command (Dempsey
-// & Smith 2014 J Appl Physiol; Guyenet, Stornetta & Bayliss 2010). All gains are game values.
+// & Smith 2014 Eur Respir J 44:495; Guyenet, Stornetta & Bayliss 2010 J Comp Neurol 518:3883). All gains are game values.
 #include <cmath>
 #include <iomanip>
 #include <map>
@@ -370,7 +370,7 @@ public:
              "During exercise the arterial pressure rises, yet the baroreflex keeps working: central command resets it to operate at the higher pressure "
              "(here by turning down the depressor arm, CVLM) instead of pulling the pressure back down. The same happens in the defence reaction. A circuit with a fixed baroreflex set point fights every "
              "rise; real brainstems do not.",
-             "Raven PB, Fadel PJ, Ogoh S (2006) J Physiol 574:85; Rowell LB, O'Leary DS (1990) J Appl Physiol 69:407; Dampney RAL (1994) Physiol Rev 74:323" };
+             "Raven PB, Fadel PJ, Ogoh S (2006) Arterial baroreflex resetting during exercise: a current perspective. Exp Physiol 91:37-49, doi:10.1113/expphysiol.2005.032250; Rowell LB, O'Leary DS (1990) J Appl Physiol 69:407; Dampney RAL (1994) Physiol Rev 74:323" };
   }
 
   std::array< double, 4 > world_bounds() const override { return { 0, 0, 1, 1 }; }

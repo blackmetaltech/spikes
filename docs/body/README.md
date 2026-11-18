@@ -31,4 +31,4 @@ identical on every platform (each test asserts run-to-run equality).
 ## Honesty about parameters
 Structures and orders of magnitude follow the cited literature; many coefficients are simplified or tuned so that the model
 sits at textbook resting values and behaves plausibly in a game, and are marked "illustrative" in the per-module docs.
-References were written from memory of the literature; check page numbers before quoting them externally.
+Every citation is in `catalog/citations.json` (docs/CITATIONS.md) and is checked against PubMed or Crossref with `tools/citations/check.py`; see `docs/WHAT-IS-REAL.md` for which numbers are literature values and which are game values.

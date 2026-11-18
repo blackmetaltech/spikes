@@ -26,8 +26,8 @@
 //
 // Biology: the defence reaction (Cannon 1915 fight-or-flight; Hilton 1982 defence area; Dampney 1994 Physiol Rev 74:323 for the central pathways):
 // hypothalamus -> RVLM -> sympathetic preganglionic neurons (heart, vessels, iris dilator), simultaneous withdrawal of cardiac vagal and
-// Edinger-Westphal drive and increased ventilation. Heart rate rises first by vagal withdrawal, then by NE (Robinson et al. 1966 J Appl Physiol
-// 21:1655), recovery is vagal reactivation and sympathetic washout. All gains are game values.
+// Edinger-Westphal drive and increased ventilation. Heart rate rises first by vagal withdrawal, then by NE (Robinson et al. 1966 Circ Res 19:400
+// ), recovery is vagal reactivation and sympathetic washout. All gains are game values.
 #include <cmath>
 #include <iomanip>
 #include <map>

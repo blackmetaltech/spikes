@@ -43,7 +43,7 @@ Run 1: three groups in a chain at the default 80 pA and 2 ms: `b2 never burst`. 
 Lesions that must fail (tested in `engine/tests/tasks_micro_b_test.cpp`): Delays set back to 2 ms (the bursts coincide); the second link deleted (no third burst).
 
 ## Biology
-Hallett M, Shahani BT, Young RR (1975) EMG analysis of stereotyped voluntary movements in man. J Neurol Neurosurg Psychiatry 38:1154-1162: fast, accurate elbow movements show a triphasic EMG, an agonist burst, an antagonist burst and a second agonist burst, with 100-200 ms between bursts, nearly identical from trial to trial; Wacholder K, Altenburger H (1926) on the same pattern. In the tank the delays stand for polysynaptic pathways.
+Hallett M, Shahani BT, Young RR (1975) EMG analysis of stereotyped voluntary movements in man. J Neurol Neurosurg Psychiatry 38:1154-1162: fast, accurate elbow movements show a triphasic EMG, an agonist burst, an antagonist burst and a second agonist burst, with 100-200 ms between bursts, nearly identical from trial to trial; Wachholder K, Altenburger H (1926) Pflugers Arch 214:642 on the same pattern. In the tank the delays stand for polysynaptic pathways.
 
 ## Default part and recipe (v0.3 fix round)
 * **`default_model()`:** `iaf_psc_alpha` - the card the lab's parts picker opens this level on: the cell type the reference circuit and every verdict assume.

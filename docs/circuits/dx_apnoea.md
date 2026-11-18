@@ -17,7 +17,7 @@ A newborn breathes when awake but turns blue and stops in sleep; CO2 rises witho
 (`PBC>PHR` passes the task, the circuit being redundant through RTN>PHR, so it is not offered.)
 
 ## Biology
-PHOX2B mutations remove the CO2-sensitive drive to the brainstem network; patients hypoventilate in sleep and do not respond to rising CO2. Credits: Amiel J et al. (2003) Nat Genet 33:459; Weese-Mayer DE et al. (2010) Am J Respir Crit Care Med 181:626; Guyenet PG, Stornetta RL, Bayliss DA (2010) Respir Physiol Neurobiol 173:244.
+PHOX2B mutations remove the CO2-sensitive drive to the brainstem network; patients hypoventilate in sleep and do not respond to rising CO2. Credits: Amiel J et al. (2003) Nat Genet 33:459; Weese-Mayer DE et al. (2010) Am J Respir Crit Care Med 181:626; Guyenet PG, Mulkey DK (2010) Respir Physiol Neurobiol 173:244.
 
 ## How it is built
 The patient circuit is the reference circuit of the underlying task with the answer's projection(s) kept in the file at weight 0: every candidate is drawn and can be cut or probed in the lesion lab, and the dead wire is found from activity (a source that fires into a target that does not answer), not from a missing arrow. Cutting a working candidate changes the symptoms or the downstream rates; cutting the dead one (or anything after a silent group) changes nothing.

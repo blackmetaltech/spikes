@@ -22,7 +22,7 @@
 //
 // Biology: preBotC bursting pacemakers (Smith et al. 1991 Science 254:726; Butera, Rinzel & Smith 1999 J Neurophysiol 82:382) sit inside a
 // recurrently excitatory network (Feldman & Del Negro 2006 Nat Rev Neurosci 7:232); chemosensory input from retrotrapezoid neurons
-// (Guyenet, Stornetta & Bayliss 2010 Respir Physiol Neurobiol 173:244) and the carotid body sets the drive. Eupnoea 12-20 /min (West,
+// (Guyenet & Mulkey 2010 Respir Physiol Neurobiol 173:244; Guyenet, Stornetta & Bayliss 2010 J Comp Neurol 518:3883) and the carotid body sets the drive. Eupnoea 12-20 /min (West,
 // Respiratory Physiology). The chemoreflex gain here is a game value (a few L/min per mmHg PaCO2 for real subjects).
 #include <cmath>
 #include <iomanip>

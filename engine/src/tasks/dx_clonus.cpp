@@ -15,7 +15,7 @@ DxSpec spec()
   s.title = "Diagnosis: the shaky arm";
   s.inner = "renshaw";
   s.chapter = "spinal";
-  s.vignette = "A 54-year-old man, a year after a cervical spinal cord injury, says his arm trembles whenever he holds it out, and his "
+  s.vignette = "(A fictional patient.) A 54-year-old man, a year after a cervical spinal cord injury, says his arm trembles whenever he holds it out, and his "
                "physiotherapist notes that the muscles 'run away' with small stretches. You are given the circuit of his motor pool: the "
                "stretch reflex and its Renshaw cells.";
   s.symptoms = "Postural tremor at about 10 Hz that nothing damps: the force wobble is not reduced the way a healthy motor pool reduces it, and the "
@@ -44,9 +44,12 @@ DxSpec spec()
   s.hint2_target = "RC_F";
   s.note = { "Renshaw cells damp tremor",
              "Recurrent inhibition by Renshaw cells reduces the 8-12 Hz coupling between the motor cortex and the muscle, so the physiological tremor is smaller "
-             "than it would be with the brake off. Reduced recurrent inhibition is one of the changes proposed in spastic motor pools; in the game the missing wire is the "
-             "one that recruits the Renshaw cells.",
-             "Williams ER, Baker SN (2009) J Neurosci 29:6616; Hultborn H (2006) Prog Neurobiol 78:215; Pierrot-Deseilligny E, Burke D (2005) The Circuitry of the Human Spinal Cord" };
+             "than it would be with the brake off. This case is a model, not a clinical entity: an isolated loss of Renshaw excitation is not a recognised cause of any "
+             "disease, and the game's patient shows too much tremor, not clonus. Clinical clonus is a 5-8 Hz stretch-evoked oscillation of a hyperexcitable stretch "
+             "reflex loop after upper motor neuron injury (Hidler & Rymer 1999 model it as reflex instability); reduced recurrent inhibition has only been proposed "
+             "as one possible contributor to spasticity. In the game the missing wire is the one that recruits the Renshaw cells, because that is what the puzzle can show.",
+             "Williams ER, Baker SN (2009) J Neurosci 29:6616-6624, doi:10.1523/JNEUROSCI.0272-09.2009; Hultborn H (2006) Prog Neurobiol 78:215-232, doi:10.1016/j.pneurobio.2006.04.001; "
+             "Hidler JM, Rymer WZ (1999) IEEE Trans Rehabil Eng 7:327-340; Pierrot-Deseilligny E, Burke D (2005) The Circuitry of the Human Spinal Cord" };
   return s;
 }
 }  // namespace

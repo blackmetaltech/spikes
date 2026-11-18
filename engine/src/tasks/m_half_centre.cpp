@@ -16,7 +16,7 @@
 //
 // Biology: the lamprey spinal swimming CPG: excitatory interneurons drive ipsilateral motoneurons and commissural inhibitory interneurons that
 // silence the other side (Grillner 2003 Nat Rev Neurosci 4:573); the half-centre idea is Brown's (1911): two mutually inhibiting centres, each
-// tiring (adapting) while active, release the other. Adaptation-based half-centre: Daun-Gruhn 2011, Skinner & Mulloney 1998.
+// tiring (adapting) while active, release the other.
 #include "micro_a.h"
 
 namespace spike::tasks
