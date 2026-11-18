@@ -118,6 +118,7 @@ struct Engine::Impl
   std::string error;
   CircuitSpec spec;
   bool loaded = false, prepared = false;
+  bool faulted = false;  // a NEST update failed: the kernel is inconsistent, only load() recovers (a further run() would hit an assert and abort the process)
 
   std::vector< std::string > neuron_pop;
   std::vector< nest::NodeCollectionPTR > pop_nc;
@@ -178,6 +179,7 @@ struct Engine::Impl
     error.clear();
     spec = CircuitSpec();
     loaded = prepared = false;
+    faulted = false;
     neuron_pop.clear();
     pop_nc.clear();
     devs.clear();
@@ -824,6 +826,11 @@ void Engine::step( double ms )
     m.error = "step: no circuit loaded";
     return;
   }
+  if ( m.faulted )
+  {
+    m.error = "step: the simulation failed earlier and cannot continue (numerical divergence, e.g. an out-of-range conductance weight); reload the circuit";
+    return;
+  }
   const double res = m.spec.resolution_ms;
   const double n = ms / res;
   if ( not( n >= 1.0 ) or std::fabs( n - std::round( n ) ) > 1e-6 )
@@ -881,7 +888,13 @@ void Engine::step( double ms )
   }
   catch ( const std::exception& e )
   {
-    m.error = std::string( "step: " ) + e.what();
+    m.faulted = true;
+    m.error = std::string( "step: " ) + e.what() + " (simulation diverged; reload the circuit)";
+  }
+  catch ( ... )
+  {
+    m.faulted = true;
+    m.error = "step: unknown NEST failure (simulation diverged; reload the circuit)";
   }
 }
 
@@ -953,6 +966,15 @@ bool Engine::set_weight( int32_t projection, int32_t edge, double weight )
   {
     const ProjSpec& ps = m.spec.projs[ projection ];
     const Impl::Proj& pr = m.projs[ projection ];
+    {
+      const char* unit = nullptr;
+      const double lim = ps.gap ? 0.0 : weight_limit( m.spec.pops[ ps.post_pop ].model, &unit );
+      if ( lim > 0 and ( not std::isfinite( weight ) or std::fabs( weight ) > lim ) )
+      {
+        m.error = "set_weight: weight " + std::to_string( weight ) + " is outside the allowed range |w| <= " + std::to_string( static_cast< long >( lim ) ) + " " + unit;
+        return false;
+      }
+    }
     std::deque< nest::ConnectionID > conns;
     size_t pick = static_cast< size_t >( edge );
     if ( ps.has_edges )

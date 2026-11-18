@@ -71,6 +71,12 @@ It prints one JSON object (per seed: `seed`, `circuit_seed`, `value`, `passed`, 
 
 `Task::ChannelKind::weight` (inputs; 0 = unset) is the default synaptic weight the lab uses the first time the player connects that sensor to a population. `SpikeTask.channel_kinds()["inputs"][name]["weight"]` exposes it.
 
+## Weight limits
+
+A synapse onto a conductance-based cell (any model with `_cond_` in its name, such as `aeif_cond_alpha`, `iaf_cond_alpha`, `iaf_cond_exp`, `hh_cond_exp_traub`) must have `|weight| <= 500` nS; onto a current-based cell (`_psc_` / `_curr_`, such as `iaf_psc_alpha`) `|weight| <= 10000` pA. The reference circuits stay below 60 nS and 1500 pA. This is checked at load for every edge (after weight spread) and for a plain `synapse.weight`, and the error names the path (for example `projections[0].edges[3]: weight 10000.000000 is outside the allowed range |w| <= 500 nS for aeif_cond_alpha ...`). `Engine::set_weight` applies the same ceiling and returns false with `error()` set. Gap junctions and models without a rule here are not limited. Why: a very large conductance makes the GSL integrator of `aeif_cond_*` fail ("numerical instability"); a NEST built without `NDEBUG` then aborts the whole process at the next simulate call (`simulation_manager.cpp: inconsistent_state`).
+
+Even inside the limits a cell can diverge (for example 500 nS onto a tiny `C_m`). `Engine::step` then sets `error()` ("... numerical instability ... reload the circuit"), `last_step_ok()` is false, and every further `step()` is refused with an error until `load()` is called again: the engine never forwards a step to NEST after a failed update.
+
 ## Synapse models
 
 `synapse_model` may be any NEST connection model; these have extra rules, checked when the circuit loads (errors name the path, for example `projections[2].synapse.weight: ...`). The same rules are implemented in `python/spike/circuit.py`.

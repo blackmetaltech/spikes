@@ -185,6 +185,20 @@ def _num(d: dict, key: str, path: str):
     return float(v)
 
 
+# Weight ceilings (mirror weight_limit() in engine/src/circuit.cpp; docs/CIRCUIT-FORMAT.md "Weight limits")
+MAX_CONDUCTANCE_NS = 500.0
+MAX_CURRENT_PA = 10000.0
+
+
+def weight_limit(neuron_model: str):
+    """(limit, unit) of |weight| onto `neuron_model`: nS for "_cond_" models, pA for "_psc_" / "_curr_" models, else (0.0, None)."""
+    if "_cond_" in neuron_model:
+        return MAX_CONDUCTANCE_NS, "nS"
+    if "_psc_" in neuron_model or "_curr_" in neuron_model:
+        return MAX_CURRENT_PA, "pA"
+    return 0.0, None
+
+
 def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
     """Validate a projection and resolve synapse-model defaults exactly like engine/src/circuit.cpp (validate_synapse).
 
@@ -229,6 +243,23 @@ def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
             return [float(e[2]) for e in edges]
         w = syn.get("weight", 1.0)
         return [float(w)] if isinstance(w, (int, float)) and not isinstance(w, bool) else []
+
+    if model != "gap_junction":
+        lim, unit = weight_limit(b["model"])
+        if lim > 0:
+
+            def check_w(w, where):
+                if not math.isfinite(w) or abs(w) > lim:
+                    raise CircuitError(
+                        f"{where}: weight {w:f} is outside the allowed range |w| <= {int(lim)} {unit} for {b['model']} "
+                        f"(reference circuits use at most 60 nS / 1500 pA)"
+                    )
+
+            if edges is not None:
+                for i, e in enumerate(edges):
+                    check_w(float(e[2]), f"{path}.edges[{i}]")
+            elif isinstance(syn.get("weight"), (int, float)) and not isinstance(syn.get("weight"), bool):
+                check_w(float(syn["weight"]), f"{spath}.weight")
 
     gap = False
     dopamine = False
