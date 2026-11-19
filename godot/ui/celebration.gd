@@ -9,7 +9,10 @@ const TRAIL_LOOP_S := 1.0
 const TRAIL_LOOPS := 3
 const PUSH := 0.14
 
-var _toasts: Array = []             # {node, age, life}
+var _toasts: Array = []             # {node, age, life}: the toast on screen (at most one)
+var _queue: Array = []              # toasts waiting for their turn: {title, text, col, life}
+## () -> bool, set by the lab: true while the result modal is open. A toast never shows over the modal (its title would be covered): it waits, and appears when the modal closes.
+var blocked: Callable = Callable()
 var _col: VBoxContainer
 var _editor: CircuitEditor = null
 var _tele: Telemetry = null
@@ -33,19 +36,34 @@ func _ready() -> void:
 	add_child(_col)
 
 ## A toast: a title and a line of text, gone after `life` seconds. `col` is its accent.
+## Toasts are queued: only one is on screen at a time, the next one appears when it has gone (and none while the result modal is open).
 func toast(title: String, text: String, col: Color = Kit.AMBER, life := 5.0) -> void:
 	if _col == null: return
+	for q in _queue:
+		if str(q["title"]) == title and str(q["text"]) == text: return   # the same message twice in a row is one message
+	_queue.append({"title": title, "text": text, "col": col, "life": life})
+	while _queue.size() > 6: _queue.pop_front()
+	_pump()
+
+func _is_blocked() -> bool: return blocked.is_valid() and bool(blocked.call())
+
+## Show the next queued toast when none is on screen and the modal is not up.
+func _pump() -> void:
+	if _col == null or not _toasts.is_empty() or _queue.is_empty() or _is_blocked(): return
+	var q: Dictionary = _queue.pop_front()
+	_show_toast(str(q["title"]), str(q["text"]), q["col"], float(q["life"]))
+
+func _show_toast(title: String, text: String, col: Color, life: float) -> void:
 	var pn := PanelContainer.new(); pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, col, 2, 12, 12 if Layout.phone else 16, true))
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 2); v.mouse_filter = Control.MOUSE_FILTER_IGNORE; pn.add_child(v)
 	v.add_child(Kit.shout(title, 26 if not Layout.phone else 20, col))
 	var l := Kit.label(text, 17 if not Layout.phone else 15, Kit.TEXT, true); l.custom_minimum_size.x = 520.0 if not Layout.phone else 440.0; v.add_child(l)
 	_col.add_child(pn); _toasts.append({"node": pn, "age": 0.0, "life": life})
-	while _toasts.size() > 3: var old: Dictionary = _toasts.pop_front(); (old["node"] as Node).queue_free()
 
 func clear_toasts() -> void:
 	for t in _toasts: (t["node"] as Node).queue_free()
-	_toasts.clear()
+	_toasts.clear(); _queue.clear()
 
 ## Start the first-pass celebration on `editor` / `tele`: `path` is the critical path (Circuits.critical_path), `note` the notebook entry (Task::notebook()).
 func first_pass(editor: CircuitEditor, tele: Telemetry, path: Array, note: Dictionary) -> void:
@@ -66,7 +84,11 @@ func active() -> bool: return _t >= 0.0
 
 func _process(dt: float) -> void:
 	if _col != null: _col.position = Vector2((size.x - _col.size.x) * 0.5, 150.0 if not Layout.phone else 44.0)   # positioned by hand: the layer's own size is only known once it is in the tree
+	var held := _is_blocked()
+	if _col != null: _col.visible = not held   # the result modal is up: the toast on screen waits (its clock stops) instead of covering the modal's title
+	if not held: _pump()
 	for i in range(_toasts.size() - 1, -1, -1):
+		if held: break
 		var t: Dictionary = _toasts[i]; t["age"] = float(t["age"]) + dt
 		var left := float(t["life"]) - float(t["age"])
 		if left < 0.0: (t["node"] as Node).queue_free(); _toasts.remove_at(i)

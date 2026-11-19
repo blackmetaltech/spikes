@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased] - 0.5 playtest fixes (research/PLAYTEST-0.5.md)
+
+- **Reference lock:** a circuit counts as a copy of the reference only when it equals the reference file exactly (structure, editor positions, provenance, every number within a relative 1e-6) or the REFERENCE button filled the bench; hand-built circuits with round numbers are never flagged.
+- **Structure checks:** `w_latch` and `worm_touch` accept a self-excitation loop (autapse); `worm` accepts turning one way (the other turn channel may stay unconnected), in the engine and in the lab's wiring check. Test: `tasks_fixes_test`.
+- **CHECK** runs the quick episode (`score_headless_quick_async`); the spinal boss has a compressed quick schedule (all three reaches, a push in each hold; about 5 s), the autonomic boss's quick day is about 5 s, worm and lamprey under 1 s.
+- **No numbers in verdicts and hints (tiers 1-3)** for every task, pass or fail, including the "(The run itself: ...)" suffixes; the digit scan in `tasks_cheap_test` covers every task (names of the task's own channels and the formula CO2 are not numbers). Wiring messages name a numbered channel family once.
+- **Verdicts follow the parts:** `l_burst`, `lamprey`, `a_facilitate`, `aplysia_gill`, `l_rebound`.
+- **Gauges** are all fed (`tasks_gauges_test`); a missing readout shows a dash, not 0.0 in green. Sentinel -1 shows a dash.
+- **Lab/campaign:** two-row chapter tabs (Body / Bestiary) and a scrolling strip on a phone; pass rule in the visible part of the brief; slider caps from the level's reference (twice the largest weight) and typed values; a verdict that asks for more strength is not shown at a slider's cap; toasts queue (one at a time, none over the result modal); hints open after two different missed circuits; "rhythm by accident" only for circuits with a feedback loop and a task without a periodic stimulus; serotonin label on the Aplysia modulator dial; diagnosis: Reveal answer after two wrong picks, a generic "no diagnosis" verdict, `dx_aplysia` findings no longer name the answer, `dx_leech` patient robust on every seed; title shows the project version (0.5.0-dev).
+- **Difficulty:** `m_half_centre` default drive 400 fires the plain adaptive cell; the Aplysia lab defaults (U 0.1, gain 3, scale 4) are in the workable range; `l_rebound` brief names the steady drive.
+
 ## [Unreleased] - 0.5 Bestiary, step 3: fly compass, fly mushroom body, crab
 
 - Thirteen levels in three more chapters of the Bestiary wing: fly compass (`c_ring`, `c_shift`, `fly_compass`, `dx_compass`), fly mushroom body (`k_sparse`, `k_depress`, `fly_mb`, `dx_mb_apl`, `dx_mb_dan`), crab (`s_pacemaker`, `s_phase`, `crab_pyloric`, `dx_crab`). Notes: `docs/circuits/bestiary_b.md`.

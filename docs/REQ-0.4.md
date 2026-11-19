@@ -53,5 +53,8 @@ Source: `docs/REVIEW-HARSH.md`. 0.4 fixes the puzzle core and makes the game shi
 
 ## UI honesty (after the identity redesign lands)
 - REFERENCE is hidden until the level is passed, or in Guided mode.
-- The reference-derived lock is a hash of the circuit compared with the reference, not a flag stored in the file.
+- The reference-derived lock is a hash of the circuit compared with the reference, not a flag stored in the file. **The rule (0.5):** a circuit is reference-derived only when
+  it equals the reference file exactly (same populations, models, sizes, projections, editor positions and the file's own author and notes, every number within a relative 1e-6),
+  or when the REFERENCE button filled the bench in this session. A circuit the player built, even with the reference's round numbers (450 pA for `m_threshold`), is never
+  a copy: `main.gd` `_lock_checks` pins it. (Before 0.5 the comparison used three significant figures and flagged honest novice circuits.)
 - Fewer controls before the first build: progressive disclosure.

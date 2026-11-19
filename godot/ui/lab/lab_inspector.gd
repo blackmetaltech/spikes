@@ -47,16 +47,45 @@ static func lead(t: String, n: int) -> Array:
 		out = nxt; used += 1
 	return [out, used < sents.size()]
 
+## What the level asks, in the brief's own words, for the part of the brief that stays visible: the sentences that state the pass rule ("Pass: ...", "Score: ...", "... to pass"), else the last
+## sentences that state a requirement ("must", "needs", "at least"). Sentences already in `shown` are left out. At most two sentences and `n` characters; "" when there are none.
+static func pass_lines(t: String, shown: String, n := 300) -> String:
+	var sents := t.split(". "); var picks := []
+	for raw in sents:
+		var sn := str(raw).strip_edges(); var low := sn.to_lower()
+		if sn == "" or shown.contains(sn.trim_suffix(".")): continue
+		if low.begins_with("pass") or low.begins_with("score") or "pass:" in low or "score:" in low or " to pass" in low or " pass " in low: picks.append(sn)
+	if picks.is_empty():
+		for raw in sents:
+			var sn2 := str(raw).strip_edges(); var low2 := sn2.to_lower()
+			if sn2 == "" or shown.contains(sn2.trim_suffix(".")): continue
+			if " must " in low2 or " needs " in low2 or "at least" in low2 or " keep " in low2: picks.append(sn2)
+		picks = picks.slice(maxi(0, picks.size() - 2))
+	if picks.is_empty(): return ""
+	var out := ""
+	for sn3 in picks.slice(0, 2):
+		var piece := str(sn3).trim_suffix(".") + "."
+		if out != "" and out.length() + piece.length() > n: break
+		out += ("" if out == "" else " ") + piece
+	return out if out.length() <= n + 120 else out.substr(0, n).strip_edges() + "…"
+
 func inspect_brief(small: int) -> void:
 	var tid := lab.task_id; var t: String = ""
 	if tid != "" and lab.ext_ok: t = str(Campaign.info(tid)["brief"])
-	add(head("BRIEF" if tid != "" else "FREE RUN", Kit.exc(), lab._title() if tid != "" else "build any circuit and watch it run"))
+	var hd := head("BRIEF" if tid != "" else "FREE RUN", Kit.exc(), lab._title() if tid != "" else "build any circuit and watch it run"); add(hd)
 	var txt := t if t != "" else "Add neurons, connect them by dragging from one disc's rim to another, and watch the raster and the voltage traces."
 	var ld := lead(txt, BRIEF_LEAD if not Layout.phone else 200)
 	var short := not lab._brief_full and bool(ld[1])
+	if bool(ld[1]):   # More / Less sits in the header row, not under the text: a long brief (the bosses) never pushes it off the bottom of the screen
+		var mb := Kit.btn("More…" if short else "Less", func(): lab._brief_full = short; build(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_END
+		hd.add_child(mb); hd.move_child(mb, 2 if not Layout.phone else hd.get_child_count() - 1)
 	add(Kit.label(str(ld[0]) if short else txt, small, Kit.TEXT if short else Kit.TEXT_SOFT, true))
-	if bool(ld[1]):
-		var mb := Kit.btn("More…" if short else "Less", func(): lab._brief_full = not lab._brief_full; build(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; add(mb)
+	if short and tid != "":   # the pass rule stays in view, not behind More
+		var pl := pass_lines(txt, str(ld[0]), 260 if not Layout.phone else 170)
+		if pl != "":
+			var pr := HBoxContainer.new(); pr.add_theme_constant_override("separation", 8); add(pr)
+			var pc := Kit.chip("PASS", Kit.GREEN, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
+			var pt := Kit.label(pl, small, Kit.TEXT, true); pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pr.add_child(pt)
 	var rec := lab._recipe_text()
 	if rec != "" and lab.mode != "researcher":
 		if lab.mode == "guided" or lab._recipe_open:
@@ -82,10 +111,26 @@ func val_row(name: String, lo: float, hi: float, step: float, val: float, unit: 
 	if quad: s.min_value = 0.0; s.max_value = 1.0; s.step = QUAD_STEP; s.value = sqrt(clampf(val, 0.0, hi) / maxf(hi, 1e-9))
 	else: s.min_value = lo; s.max_value = hi; s.step = step; s.value = val
 	s.custom_minimum_size = Vector2(120, maxf(30.0, Layout.tap())); s.focus_mode = Kit.focus_mode(); h.add_child(s)
-	var vl := Kit.label(numd(val, dec if dec >= 0 or not quad else quad_dec(val)) + " " + unit, 17, Kit.TEXT); vl.custom_minimum_size.x = 96; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; h.add_child(vl)
+	# The value is also a field: click it and type a number (Enter or leaving the field applies it, clamped to the slider's range); the slider follows.
+	var vl := LineEdit.new(); vl.text = numd(val, dec if dec >= 0 or not quad else quad_dec(val)); vl.custom_minimum_size.x = 78; vl.alignment = HORIZONTAL_ALIGNMENT_RIGHT; vl.select_all_on_focus = true
+	vl.add_theme_font_size_override("font_size", 17); vl.tooltip_text = "Click to type a value"; vl.focus_mode = Control.FOCUS_CLICK; vl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var flat := StyleBoxFlat.new(); flat.bg_color = Color(Kit.PANEL_HI, 0.0); flat.border_color = Kit.LINE; flat.set_border_width_all(1); flat.border_width_top = 0; flat.border_width_left = 0; flat.border_width_right = 0; flat.set_content_margin_all(2)
+	var focus := flat.duplicate() as StyleBoxFlat; focus.bg_color = Color("#FBF7EE"); focus.border_color = Kit.AMBER; focus.set_border_width_all(1)
+	vl.add_theme_stylebox_override("normal", flat); vl.add_theme_stylebox_override("focus", focus); vl.add_theme_color_override("font_color", Kit.TEXT); vl.add_theme_color_override("caret_color", Kit.TEXT)
+	h.add_child(vl)
+	var ul := Kit.label(unit, 17, Kit.TEXT); ul.custom_minimum_size.x = 30 if unit != "" else 0; h.add_child(ul)
+	var apply_typed := func(_t = ""):
+		var v := clampf(vl.text.strip_edges().to_float(), lo if not quad else 0.0, hi)
+		if not vl.text.strip_edges().is_valid_float(): v = hi * s.value * s.value if quad else s.value   # not a number: back to the slider's value
+		if quad: s.set_value_no_signal(sqrt(clampf(v, 0.0, hi) / maxf(hi, 1e-9)))
+		else: s.set_value_no_signal(v)
+		vl.text = numd(v, dec if dec >= 0 else (-1 if not quad else quad_dec(v))); vl.release_focus(); cb.call(v)
+	vl.text_submitted.connect(apply_typed)
+	vl.focus_exited.connect(func(): if vl.text.strip_edges().is_valid_float() and absf(vl.text.to_float() - (hi * s.value * s.value if quad else s.value)) > 1e-6 * maxf(1.0, hi): apply_typed.call())
 	s.value_changed.connect(func(x):
 		var v: float = hi * x * x if quad else x
-		vl.text = numd(v, dec if dec >= 0 else (-1 if not quad else quad_dec(v))) + " " + unit; cb.call(v))
+		if not vl.has_focus(): vl.text = numd(v, dec if dec >= 0 else (-1 if not quad else quad_dec(v)))
+		cb.call(v))
 	return h
 
 ## Decimals for a square-law weight: whole numbers above 100, one decimal above 1, else three.
@@ -175,7 +220,7 @@ func inspect_proj(i: int, small: int) -> void:
 	var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight(pr)
 	var pre := Circuits.proj_pop(pr.get("pre", "")); var post := Circuits.proj_pop(pr.get("post", ""))
 	add(head("%s > %s" % [pre, post], Kit.inh() if w < 0.0 else Kit.exc(), "%s synapse   %s" % ["inhibitory" if w < 0.0 else "excitatory", str(pr.get("rule", "explicit edges"))]))
-	var pi := Circuits.pop_index(circuit, post); var wmax: float = Circuits.proj_wmax(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else 400.0
+	var pi := Circuits.pop_index(circuit, post); var wmax: float = Circuits.proj_wmax_for(str(circuit["populations"][pi].get("model", "")), lab.task_id) if pi >= 0 else 400.0
 	var unit := Catalog.unit_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else "pA"
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); add(r1)
 	var cur_syn := Circuits.proj_model(pr)
@@ -214,7 +259,9 @@ func _aplysia_synapse(pr: Dictionary, i: int, small: int) -> void:
 	add(Kit.label("Synapse type: a static synapse answers every spike alike; a depressing one loses strength with use and recovers.", small, Kit.TEXT_SOFT, true))
 	add(Kit.stepper([["static_synapse", "static"], ["tsodyks2_synapse", "depressing"]], cur, func(m):
 		var sy: Dictionary = pr.get("synapse", {})
-		if str(m) == "tsodyks2_synapse": sy["synapse_model"] = "tsodyks2_synapse"; sy["U"] = 0.2; sy["u"] = 0.2; sy["x"] = 1.0; sy["tau_rec"] = 1000.0; sy["tau_fac"] = 0.0
+		if str(m) == "tsodyks2_synapse":
+			var u0 := 0.2 if lab.task_id == "a_depress" else 0.1   # the reference values: a_depress 0.2, aplysia_gill 0.1
+			sy["synapse_model"] = "tsodyks2_synapse"; sy["U"] = u0; sy["u"] = u0; sy["x"] = 1.0; sy["tau_rec"] = 1000.0; sy["tau_fac"] = 0.0
 		else:
 			for k in ["U", "u", "x", "tau_rec", "tau_fac"]: sy.erase(k)
 			sy["synapse_model"] = "static_synapse"
@@ -237,8 +284,8 @@ func _aplysia_synapse(pr: Dictionary, i: int, small: int) -> void:
 		add(Kit.btn("Strengthen with serotonin (NE channel)", func():
 			var rr: Array = circuit.get("modulation", [])
 			var row := {"modulator": "NE", "projection": i, "param": param}
-			if param == "U": row["gain"] = 1.0; row["min"] = 0.0; row["max"] = 1.0
-			else: row["scale_per_unit"] = 2.0
+			if param == "U": row["gain"] = 3.0; row["min"] = 0.0; row["max"] = 1.0   # a gain of about 1 to 5 sensitises the reflex; 1.0 was at the weak end and U 0.2 below it too deep a depression
+			else: row["scale_per_unit"] = 4.0
 			rr.append(row); circuit["modulation"] = rr; lab._on_structure(); build(), "cyan", 18))
 	else:
 		var row: Dictionary = rows2[row_i]; var key := "scale_per_unit" if row.has("scale_per_unit") else "gain"
@@ -306,12 +353,12 @@ func inspect_channel(key: String, name: String, small: int) -> void:
 				var tp0 := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
 				if tp0 >= 0: tm0 = str(circuit["populations"][tp0].get("model", tm0))
 			ch["weight"] = Circuits.input_weight(tm0, str(k)); lab._on_structure(); build(), 250.0 if not Layout.phone else 200.0, 18, 40.0))
-		var wunit := "pA"; var wmax := Circuits.DC_WMAX if kind == "dc" else 1500.0   # a dc input is a current: pA of drive per unit of value, whatever the cell
+		var wunit := "pA"; var wmax := Circuits.input_wmax_for("", kind, lab.task_id) if kind == "dc" else maxf(1500.0, Circuits.input_wmax_for("", kind, lab.task_id))   # a dc input is a current: pA of drive per unit of value, whatever the cell
 		if not tg.is_empty() and kind != "dc":
 			var tpi := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
 			if tpi >= 0:
 				var tm := str(circuit["populations"][tpi].get("model", ""))
-				wunit = Catalog.unit_of(tm); wmax = Circuits.proj_wmax(tm)
+				wunit = Catalog.unit_of(tm); wmax = Circuits.input_wmax_for(tm, kind, lab.task_id)
 		add(val_row("weight", 0.0, wmax, wmax / 300.0, float(ch.get("weight", 1.0)), wunit + ("/unit" if kind == "dc" else ""), func(x): ch["weight"] = x; lab._on_structure(), -1, true))
 		if not driven: add(val_row("rate" if kind != "dc" else "value", 0.0, 1000.0 if kind == "dc" else 400.0, 1.0, float(ch.get("value", 0.0)), unit, func(x): ch["value"] = x; lab._on_structure()))
 		if not driven: add(Kit.btn("Remove input", func(): lab.editor.delete_selected(), "danger", 18))

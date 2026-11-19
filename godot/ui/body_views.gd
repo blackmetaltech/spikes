@@ -84,6 +84,7 @@ static func num(v: float, key := "") -> String:
 
 ## A value with its unit, no doubled units: "68 bpm", "4.95 L/min".
 static func valu(key: String, v: float) -> String:
+	if is_equal_approx(v, -1.0): return "—"   # the tasks' sentinel for "not measured (yet)": never shown as a number
 	var u := str(pretty(key)[1])
 	var s := num(v, key)
 	return s if u == "" else (s + u if u == "%" else "%s %s" % [s, u])
@@ -223,9 +224,11 @@ static func _limb(c: Control, t: Telemetry, r: Rect2) -> void:
 	var res := Anatomy.limb(c, sh, el, hd, {"ag": acts[0], "ant": acts[1], "ia_ag": ias[0], "ia_ant": ias[1], "t": tt})
 	var uw: float = res["uw"]
 	if not small:
-		c.draw_string(Fonts.regular, (res["ag"] as Vector2) + Vector2(-uw * 3.0, -uw * 3.2), "agonist", HORIZONTAL_ALIGNMENT_CENTER, uw * 6.0, fz, Color(Kit.exc(), 0.95))
-		c.draw_string(Fonts.regular, (res["ant"] as Vector2) + Vector2(-uw * 3.0, uw * 4.6), "antagonist", HORIZONTAL_ALIGNMENT_CENTER, uw * 6.0, fz, Color(Kit.inh(), 0.95))
-		c.draw_string(Fonts.regular, (res["ag_aff"] as Vector2) + Vector2(-uw * 6.5, -uw * 0.6), "spindle Ia", HORIZONTAL_ALIGNMENT_RIGHT, uw * 6.0, fz, Color(Kit.GREEN, 0.9))
+		for lb in [["agonist", res["ag"], Vector2(0.0, -uw * 3.2), Kit.exc(), 0], ["antagonist", res["ant"], Vector2(0.0, uw * 4.6), Kit.inh(), 0], ["spindle Ia", res["ag_aff"], Vector2(-uw * 0.5, -uw * 0.6), Kit.GREEN, 1]]:
+			var tw: float = Fonts.regular.get_string_size(str(lb[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 6.0   # the box is as wide as the word (a fixed width clipped "antagonist")
+			var at: Vector2 = (lb[1] as Vector2) + (lb[2] as Vector2)
+			if int(lb[4]) == 1: c.draw_string(Fonts.regular, at + Vector2(-tw, 0.0), str(lb[0]), HORIZONTAL_ALIGNMENT_RIGHT, tw, fz, Color(lb[3], 0.9))
+			else: c.draw_string(Fonts.regular, at + Vector2(-tw * 0.5, 0.0), str(lb[0]), HORIZONTAL_ALIGNMENT_CENTER, tw, fz, Color(lb[3], 0.95))
 	# forces on the hand: the push (external torque, from the timeline) and gravity
 	var nrm := Vector2(dirv.y, -dirv.x)
 	if d.has("ext_torque_Nm"):
@@ -561,7 +564,7 @@ static func _dashboard(c: Control, t: Telemetry, r: Rect2) -> void:
 	var cw := g.size.x / float(cols); var chh := g.size.y / float(rows); var compact := chh < 112.0
 	for i in nb:
 		var b: Dictionary = bands[i]; var cr := Rect2(g.position + Vector2(cw * float(i % cols), chh * float(i / cols)), Vector2(cw, chh)).grow(-4.0)
-		_gauge(c, t, cr, b, rv(d, str(b["name"])), compact)
+		_gauge(c, t, cr, b, rv(d, str(b["name"])), compact, d.has(str(b["name"])))
 	if strip_h > 0.0:
 		var items := []
 		for k in others: items.append([k, rv(d, k)])
@@ -569,9 +572,10 @@ static func _dashboard(c: Control, t: Telemetry, r: Rect2) -> void:
 
 const DASH_FIRST := ["NE", "ACh", "DA", "sympathetic_hz", "parasympathetic_hz", "rr_per_min", "co2_mmHg", "ventilation", "sys_mmHg", "dia_mmHg", "stroke_ml", "volume", "threat", "standing", "haemorrhage_ml_s"]
 
-static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, compact: bool) -> void:
+## `has` false: the task supplies no reading for this gauge (yet): the dial shows a dash in soft ink, no needle and no verdict colour, never a 0.0 in green.
+static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, compact: bool, has := true) -> void:
 	var fz := Kit.fs(14); var lo := float(b["lo"]); var hi := float(b["hi"]); var span := maxf(hi - lo, 1e-6)
-	var ok := v >= lo and v <= hi; var col := Kit.GREEN if ok else Kit.RED
+	var ok := v >= lo and v <= hi; var col := (Kit.GREEN if ok else Kit.RED) if has else Kit.TEXT_SOFT
 	var key := str(b["name"]); var arr := hist(t, key); var glo := lo - span * 0.8; var ghi := hi + span * 0.8
 	for q in arr: glo = minf(glo, q); ghi = maxf(ghi, q)
 	glo = minf(glo, v); ghi = maxf(ghi, v)
@@ -581,11 +585,11 @@ static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, 
 	var cap := title if unit == "" or title.contains(unit) else "%s (%s)" % [title, unit]
 	c.draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.55), 1, 2, 0, false), r)
 	c.draw_string(Gfx.serif_italic(), r.position + Vector2(10, float(fz) + 4.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, fz, Kit.TEXT_SOFT)
-	var vtxt := _n(v, 0 if absf(v) >= 100.0 else 1)
+	var vtxt := _n(v, 0 if absf(v) >= 100.0 else 1) if has else "—"
 	if compact:   # a bar with the band marked and a marker at the value
 		var bx := Rect2(r.position.x + 10.0, r.end.y - 18.0, r.size.x - 20.0, 8.0)
 		c.draw_rect(bx, Color(Kit.LINE, 0.7)); c.draw_rect(Rect2(bx.position.x + bx.size.x * (lo - glo) / (ghi - glo), bx.position.y, bx.size.x * span / (ghi - glo), bx.size.y), Color(Kit.GREEN, 0.7))
-		var mx := bx.position.x + bx.size.x * clampf((v - glo) / (ghi - glo), 0, 1); c.draw_rect(Rect2(mx - 2.0, bx.position.y - 4.0, 4.0, bx.size.y + 8.0), col)
+		if has: var mx := bx.position.x + bx.size.x * clampf((v - glo) / (ghi - glo), 0, 1); c.draw_rect(Rect2(mx - 2.0, bx.position.y - 4.0, 4.0, bx.size.y + 8.0), col)
 		c.draw_string(Fonts.bold, Vector2(r.position.x + 10.0, r.position.y + float(fz) + float(Kit.fs(24)) + 6.0), vtxt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, Kit.fs(24), col)
 		return
 	# an arc gauge: 240 degrees, the tolerance band on the rim, the needle on top, the value in the gap below the hub
@@ -602,7 +606,8 @@ static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, 
 	c.draw_arc(cc, rad - 6.0, ang.call(lo), ang.call(hi), 28, Color(Kit.GREEN, 0.85), 5.0, true)
 	var na: float = ang.call(v); var dn := Vector2(cos(na), sin(na)); var tip := cc + dn * (rad - 2.0)
 	var nl := PackedVector2Array([cc + dn.orthogonal() * 2.6, tip, cc - dn.orthogonal() * 2.6, cc - dn * 10.0])
-	c.draw_colored_polygon(nl, Kit.INK); c.draw_circle(cc, 6.0, Kit.INK); c.draw_circle(cc, 2.4, Gfx.SHEET)
+	if has: c.draw_colored_polygon(nl, Kit.INK)
+	c.draw_circle(cc, 6.0, Kit.INK); c.draw_circle(cc, 2.4, Gfx.SHEET)
 	c.draw_string(Gfx.mono(), Vector2(r.position.x, cc.y + rad * 0.78), vtxt, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, Kit.fs(24), col.darkened(0.1))
 	var sr := Rect2(r.position.x + 10.0, r.end.y - spark_h - 6.0, r.size.x - 20.0, spark_h)
 	if arr.size() > 2:

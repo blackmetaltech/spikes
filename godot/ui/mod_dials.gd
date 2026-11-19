@@ -5,6 +5,9 @@ extends HBoxContainer
 ## `Telemetry.modulators_available()` says whether the engine can take them; the lab hides the dials when it cannot (SP_MODDIALS=1 forces them for dev).
 const COLORS := {"NE": "amber", "ACh": "cyan", "DA": "violet"}
 const FULL := {"NE": "noradrenaline", "ACh": "acetylcholine", "DA": "dopamine"}
+## Levels that use a channel for another transmitter than its engine name: the Aplysia levels drive "NE" as serotonin (5-HT). The channel id stays "NE" in the circuit and the
+## engine; only what the dial says changes. task id -> {channel id -> [chip text, full name]}.
+const TASK_NAMES := {"a_facilitate": {"NE": ["5-HT", "serotonin"]}, "aplysia_gill": {"NE": ["5-HT", "serotonin"]}, "dx_aplysia": {"NE": ["5-HT", "serotonin"]}}
 var lab_tele: Callable          # () -> Telemetry
 var editable := true
 var _sl := {}
@@ -12,15 +15,16 @@ var _val := {}
 
 static func available() -> bool: return Telemetry.modulators_available() or OS.get_environment("SP_MODDIALS") != ""
 
-func setup(tele_getter: Callable, names: Array, can_edit: bool) -> ModDials:
+func setup(tele_getter: Callable, names: Array, can_edit: bool, task_id := "") -> ModDials:
 	lab_tele = tele_getter; editable = can_edit
 	add_theme_constant_override("separation", 16); size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for n in names:
 		var col := Kit.exc() if COLORS.get(n, "amber") == "amber" else (Kit.inh() if COLORS[n] == "cyan" else Gfx.VIOLET)
 		var v := VBoxContainer.new(); v.size_flags_horizontal = Control.SIZE_EXPAND_FILL; v.add_theme_constant_override("separation", 2); add_child(v)
 		var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 8); v.add_child(h)
-		h.add_child(Kit.chip(str(n), col, 16))
-		var nm := Kit.label(str(FULL.get(n, "")), 15, Kit.TEXT_SOFT); nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL; nm.clip_text = true; h.add_child(nm)
+		var alias: Array = (TASK_NAMES.get(task_id, {}) as Dictionary).get(n, [str(n), str(FULL.get(n, ""))])
+		h.add_child(Kit.chip(str(alias[0]), col, 16))
+		var nm := Kit.label(str(alias[1]), 15, Kit.TEXT_SOFT); nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL; nm.clip_text = true; h.add_child(nm)
 		var val := Kit.label("0.00", 17, Kit.TEXT); h.add_child(val); _val[n] = val
 		var s := HSlider.new(); s.min_value = 0.0; s.max_value = 1.0; s.step = 0.01; s.value = 0.0; s.editable = can_edit; s.focus_mode = Kit.focus_mode()
 		s.custom_minimum_size = Vector2(0, maxf(30.0, Layout.tap())); s.size_flags_horizontal = Control.SIZE_EXPAND_FILL; v.add_child(s); _sl[n] = s

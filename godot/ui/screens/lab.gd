@@ -70,6 +70,7 @@ var _test_result := {}             # {passes, n, scores}: the last finished TEST
 ## v0.3 lab play: difficulty mode and variant, hint ladder, verdict highlight, post-solve histograms, diagnosis, instant check, skip, celebration, surprise.
 var mode := "standard"
 var variant := ""
+static var _fail_fp := {}          # task -> fingerprint of the circuit of the last counted miss (one miss per circuit)
 static var _fails := {}            # task -> failed runs this session (the Standard hint ladder opens after HintPanel.UNLOCK_FAILS)
 static var _hint_tier := {}        # task -> highest hint tier revealed
 static var _ref_loaded := {}       # task -> the REFERENCE button filled the bench this session (an edited copy is still derived; cleared by Empty bench)
@@ -211,9 +212,9 @@ func _cards_for(with_chapter: bool) -> Array:
 	return out
 
 ## The reference lock. Reference circuits do not count for progress, and neither does anything derived from one. The game decides it, not the file:
-## the circuit's structural fingerprint (Circuits.fingerprint: populations, models, projections, channels, weights to three significant figures) equals
-## the reference's, OR the REFERENCE button filled this bench in this session and it has not been emptied since (a nudged weight is still the reference).
-## LOAD from disk, a copied file or retyping the reference's numbers are all caught by the fingerprint.
+## the circuit equals the reference exactly (Circuits.fingerprint: populations, models, sizes, projections, channels, editor positions, the file's provenance, and
+## every number to a relative 1e-6), OR the REFERENCE button filled this bench in this session and it has not been emptied since (a nudged weight is still the reference).
+## LOAD from disk or a copied reference file is caught by the fingerprint. A circuit the player built, even with the reference's round numbers, is not a copy.
 func _is_reference() -> bool:
 	if task_id == "" or _is_dx(): return false
 	if bool(_ref_loaded.get(task_id, false)): return true
@@ -540,8 +541,10 @@ func _surprise_tick(dt: float) -> void:
 	if task_id == "" or tele == null or tele.sim == null or tele.finished or not tele.running or not _test.is_empty() or _lrun != null or _surprise_done.has("osc") or _is_dx(): return
 	var info := Campaign.info(task_id)
 	if Surprise.is_rhythm_task(task_id, (info.get("concepts_new", []) as Array) + (info.get("concepts_used", []) as Array)): return
+	if not Circuits.has_loop(circuit): return   # no feedback loop in the circuit: a rhythm in its spikes is the task's own stimulus, not something the player built
 	var r := Surprise.rhythm(tele)
 	if not bool(r["found"]): return
+	if Surprise.stimulus_is_periodic(info.get("timeline", []), float(r["period_ms"])): return   # the task itself pulses: a rhythm that follows it is not a surprise
 	_surprise_done["osc"] = true
 	var tx := Surprise.oscillation_text(r)
 	GameAudio.event("celebrate")
