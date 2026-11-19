@@ -38,6 +38,81 @@ static func weight_of(model: String) -> float:
 
 ## Largest weight the projection slider offers onto `model`: 20 typical synapses (the slider is square-law, so small weights stay easy to set), in the card's unit.
 static func proj_wmax(model: String) -> float: return 20.0 * weight_of(model)
+
+## True when the circuit has a feedback loop: a cycle of connections (a population that projects, directly or through others, back onto itself; a self-connection counts). A
+## connection with weight 0 is cut and does not count. A rhythm needs one (or a cell that pulses by itself), so a loop-free circuit cannot have "built" one.
+static func has_loop(c: Dictionary) -> bool:
+	var adj := {}
+	for pr in c.get("projections", []):
+		if is_zero_approx(proj_weight(pr)) and not (pr.has("edges") and not (pr["edges"] as Array).is_empty()): continue
+		var a := proj_pop(pr.get("pre", "")); var b := proj_pop(pr.get("post", ""))
+		if a == b: return true
+		if not adj.has(a): adj[a] = []
+		(adj[a] as Array).append(b)
+	var state := {}   # 0 unseen, 1 on the stack, 2 done
+	var cyc := [false]   # (an array: a lambda cannot assign to a captured local)
+	var visit := func(self_fn: Callable, n: String) -> void:
+		state[n] = 1
+		for m in adj.get(n, []):
+			if cyc[0]: return
+			if int(state.get(m, 0)) == 1: cyc[0] = true; return
+			if int(state.get(m, 0)) == 0: self_fn.call(self_fn, m)
+		state[n] = 2
+	for n in adj.keys():
+		if cyc[0]: break
+		if int(state.get(n, 0)) == 0: visit.call(visit, n)
+	return cyc[0]
+
+## The slider range of a level: the model's own range, and at least TWICE the largest weight the level's reference circuit uses onto that model (a_depress needs 8000 pA, aplysia_gill 2500,
+## w_switch and worm_touch several thousand of inhibition), so every reference weight is reachable with room above it. `tid` "" (sandbox, other levels' parts) = the model's range.
+static func proj_wmax_for(model: String, tid: String) -> float:
+	var m := proj_wmax(model)
+	if tid != "": m = maxf(m, 2.0 * float(_ref_wmax(tid).get("proj:" + model, 0.0)))
+	return m
+## Largest input weight for a sensor of `kind` ("dc" / "poisson") onto `model`, likewise at least twice the reference's.
+static func input_wmax_for(model: String, kind: String, tid: String) -> float:
+	var m := DC_WMAX if kind == "dc" else proj_wmax(model)
+	if tid != "": m = maxf(m, 2.0 * float(_ref_wmax(tid).get("in:" + kind, 0.0)))
+	return m
+
+static var _ref_wmax_cache := {}
+## {"proj:<post model>": max |w|, "in:<kind>": max |w|} over task `tid`'s reference circuit (cached; {} when it has none).
+static func _ref_wmax(tid: String) -> Dictionary:
+	if _ref_wmax_cache.has(tid): return _ref_wmax_cache[tid]
+	var out := {}
+	var rc := parse(read_reference(Campaign.ref_path(tid))) if tid != "" else {}
+	if not rc.is_empty():
+		var model_of := {}
+		for p in rc.get("populations", []): model_of[str(p.get("id", ""))] = str(p.get("model", ""))
+		for pr in rc.get("projections", []):
+			var k := "proj:" + str(model_of.get(proj_pop(pr.get("post", "")), ""))
+			out[k] = maxf(float(out.get(k, 0.0)), absf(proj_weight(pr)))
+		for ch in rc.get("inputs", []):
+			var k2 := "in:" + str(ch.get("kind", "poisson"))
+			out[k2] = maxf(float(out.get(k2, 0.0)), absf(float(ch.get("weight", 0.0))))
+	_ref_wmax_cache[tid] = out
+	return out
+
+## True when some connection or sensor weight of `c` sits at the end of its slider (within 3 %): more strength is not available there.
+static func at_weight_cap(c: Dictionary, tid: String) -> bool:
+	var model_of := {}
+	for p in c.get("populations", []): model_of[str(p.get("id", ""))] = str(p.get("model", ""))
+	for pr in c.get("projections", []):
+		var cap := proj_wmax_for(str(model_of.get(proj_pop(pr.get("post", "")), "")), tid)
+		if absf(proj_weight(pr)) >= 0.97 * cap: return true
+	for ch in c.get("inputs", []):
+		var tg: Array = ch.get("targets", [])
+		var tm := str(model_of.get(proj_pop(tg[0]), "")) if not tg.is_empty() else ""
+		if float(ch.get("weight", 0.0)) >= 0.97 * input_wmax_for(tm, str(ch.get("kind", "poisson")), tid): return true
+	return false
+
+## A verdict that asks for more strength ("strengthen", "stronger", "raise ...") is not shown while a weight is already at its slider cap: the answer is then in the structure.
+static func cap_verdict(verdict: String, c: Dictionary, tid: String) -> String:
+	if tid == "" or verdict == "": return verdict
+	var lv := verdict.to_lower()
+	if not (("strengthen" in lv) or ("stronger" in lv) or ("raise" in lv) or ("more strength" in lv)): return verdict
+	if not at_weight_cap(c, tid): return verdict
+	return "A weight is already at the end of its slider, so more strength is not the answer: try more cells in a group, another cell type, or a different route."
 ## Largest weight of a dc input: pA of current per unit of the sensor's value, whichever cell it drives (a conductance cell still takes a current).
 const DC_WMAX := 2000.0
 ## Longest synaptic delay the slider offers (ms), square-law like the weights: 1-3 ms for a synapse, 100-250 ms to stand for a polysynaptic chain (a burst generator).
@@ -558,17 +633,20 @@ static func candidate_text(cand: String) -> String:
 	return cand
 
 # ---------- structural fingerprint (the reference lock) ----------
-## A fingerprint of what a circuit IS, independent of its name, ids, layout, seed and file metadata: every population as model, size and parameters,
-## every projection as (pre population, post population, sign and weight, delay, synapse, rule), every channel with what it is wired to, and the
-## modulation rows. Ids are replaced by the population's own signature, so renaming a group does not change the print; numbers are rounded to three
-## significant figures, so a value copied from the reference matches and a value tuned by hand on a slider almost never does.
-## The lab compares fingerprint(circuit) with fingerprint(reference): equal means "reference-derived" (no stars), wherever the circuit came from (the
-## REFERENCE button, LOAD from disk, a copied file). Nothing about it is stored in the circuit file.
+## A fingerprint of what a circuit IS, independent of its seed and of the ids it gives its groups: every population as model, size, parameters and editor
+## positions, every projection as (pre population, post population, sign and weight, delay, synapse, rule), every channel with what it is wired to, the
+## modulation rows, and the file's own author and notes (the reference files carry "spike" as author; a bench the player builds does not).
+## The rule is deliberately narrow, so that it is honest: a circuit is "reference-derived" only when it equals the reference EXACTLY (same populations,
+## models, sizes, projections, positions and provenance, and every number within a relative 1e-6: seven significant figures), or when the REFERENCE
+## button filled the bench this session (see LabScreen._is_reference). A round number a player types (450 pA) on a circuit they built never matches,
+## because their circuit is not the reference file. Nothing about the lock is stored in the circuit file.
 static func fingerprint(c: Dictionary) -> String:
 	var sig := {}
 	for p in c.get("populations", []):
-		sig[str(p.get("id", ""))] = "%s*%d{%s}" % [str(p.get("model", "")), pop_n(p), _dict_sig(p.get("params", {}))]
+		sig[str(p.get("id", ""))] = "%s*%d{%s}@%s" % [str(p.get("model", "")), pop_n(p), _dict_sig(p.get("params", {})), _pos_sig(p.get("pos", []))]
 	var parts := PackedStringArray()
+	var meta: Dictionary = c.get("meta", {})
+	parts.append("A %s|%s" % [str(meta.get("author", "")), str(meta.get("notes", ""))])
 	for id in sig: parts.append("P " + str(sig[id]))
 	for pr in c.get("projections", []):
 		var a := str(sig.get(proj_pop(pr.get("pre", "")), "?")); var b := str(sig.get(proj_pop(pr.get("post", "")), "?"))
@@ -588,11 +666,18 @@ static func fingerprint(c: Dictionary) -> String:
 	parts.sort()
 	return "\n".join(parts).md5_text()
 
-## Three significant figures, as text (0 stays "0").
+## Seven significant figures (relative 1e-6 and a little better), as text (0 stays "0").
 static func _sig3(x: float) -> String:
 	if is_zero_approx(x): return "0"
-	var e := floori(log(absf(x)) / log(10.0)) - 2
+	var e := floori(log(absf(x)) / log(10.0)) - 6
 	return str(snappedf(x, pow(10.0, e)))
+
+static func _pos_sig(pos: Variant) -> String:
+	if not pos is Array: return ""
+	var out := PackedStringArray()
+	for q in pos:
+		if q is Array and q.size() >= 2: out.append("%d,%d" % [roundi(float(q[0])), roundi(float(q[1]))])
+	return ";".join(out)
 
 static func _dict_sig(d: Variant) -> String:
 	if not d is Dictionary: return ""
@@ -603,7 +688,7 @@ static func _dict_sig(d: Variant) -> String:
 		out.append("%s=%s" % [str(k), _sig3(float(v)) if (v is float or v is int) else str(v)])
 	return ",".join(out)
 
-## True when `c` is the reference circuit of task `tid` (or a copy of it with only cosmetic changes: layout, names, seed, metadata).
+## True when `c` is the reference circuit of task `tid` (an exact copy of it; see fingerprint).
 static func is_reference_of(c: Dictionary, tid: String) -> bool:
 	if tid == "" or neuron_count(c) == 0: return false
 	var ref := reference_print(tid)

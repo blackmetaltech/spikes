@@ -340,8 +340,24 @@ func _v02_checks() -> void:
 	if sb != null: small_fonts_total += _small_fonts(screen)
 	Circuits.sandbox = false
 	cur = ""; show_screen("title", false, true); await _frames()
+	_lock_checks()
 	await _task_checks()
 	print("V02 OK chapters=%d tasks=%d cards=%d" % [Campaign.CHAPTERS.size(), Campaign.installed().size(), Catalog.cards().size()])
+
+## The reference lock (Circuits.is_reference_of): exact copies are flagged; a circuit the player built, with the same round numbers, is not.
+func _lock_checks() -> void:
+	var ref := Circuits.parse(Circuits.read_reference(Campaign.ref_path("m_threshold")))
+	_check(Circuits.is_reference_of(ref.duplicate(true), "m_threshold"), "lock: the reference file itself is a copy")
+	var moved := ref.duplicate(true); moved["name"] = "renamed"; moved["seed"] = 99
+	_check(Circuits.is_reference_of(moved, "m_threshold"), "lock: a renamed copy with another seed is still a copy")
+	# m_threshold built by hand: one iaf_psc_alpha cell, a 450 pA step, the reference's round number, but not the reference file
+	var hand := {"schema_version": 1, "name": "mine", "resolution_ms": 0.1, "seed": 1, "populations": [{"id": "N1", "model": "iaf_psc_alpha", "n": 1, "params": {}, "role": "neuron", "pos": [[300, 220]]}], "projections": [],
+		"inputs": [{"name": "pulse", "kind": "dc", "targets": [{"pop": "N1"}], "weight": 450.0, "value": 1.0}], "outputs": [{"name": "spike", "kind": "rate", "neurons": [{"pop": "N1"}]}], "record": {"spikes": "all"}, "meta": {"author": "", "notes": ""}}
+	_check(not Circuits.is_reference_of(hand, "m_threshold"), "lock: m_threshold built by hand at 450 pA is not flagged as a copy")
+	var hand2: Dictionary = hand.duplicate(true); hand2["populations"][0]["pos"] = ref["populations"][0]["pos"]
+	_check(not Circuits.is_reference_of(hand2, "m_threshold"), "lock: even at the reference's position, a circuit without the reference's provenance is not a copy")
+	var nudged := ref.duplicate(true); nudged["inputs"][0]["weight"] = float(nudged["inputs"][0]["weight"]) * 1.001
+	_check(not Circuits.is_reference_of(nudged, "m_threshold"), "lock: a weight 0.1% off the reference is not a copy (tolerance is 1e-6)")
 
 ## What each body view needs in Task::body().readouts before it can draw (anything else shows a "Waiting for ..." placeholder; keep in step with body_views.gd).
 const VIEW_NEEDS := {"limb": [["theta_deg", "theta_rad", "angle_deg"]], "heart": [["hr_bpm"]], "lungs": [["volume"]], "eye": [["pupil_mm"]], "gut": [["bolus"]], "dashboard": [], "compass": [["bump_deg"]], "polyline": []}
