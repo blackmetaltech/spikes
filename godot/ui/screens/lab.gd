@@ -251,7 +251,13 @@ func _skeleton(tid: String) -> Dictionary:
 			for s in t.sensor_channels():
 				var kind: String = str((kinds["inputs"] as Dictionary).get(str(s), SENSOR_KIND.get(tid, "poisson")))
 				var tw: float = float((kinds["weights"] as Dictionary).get(str(s), 0.0))   # the task's own sensor weight (ChannelKind::weight), else the heuristic
-				c["inputs"].append({"name": str(s), "kind": kind, "targets": [], "weight": tw if tw > 0.0 else Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0})
+				var inp := {"name": str(s), "kind": kind, "targets": [], "weight": tw if tw > 0.0 else Circuits.input_weight("iaf_psc_alpha", kind), "value": 0.0}
+				if kind == "tuned_poisson":   # the tuning of the afferents (v0.6) is the level's: copy it from the reference circuit
+					for rch in Circuits.parse(Circuits.read_reference(Campaign.ref_path(tid))).get("inputs", []):
+						if str(rch.get("name", "")) == str(s):
+							for k in ["rate_max", "rate_base", "kappa", "period_deg"]:
+								if rch.has(k): inp[k] = rch[k]
+				c["inputs"].append(inp)
 			for m in t.motor_channels():
 				var ch := {"name": str(m), "kind": "rate", "neurons": []}
 				var ok: Dictionary = (kinds["outputs"] as Dictionary).get(str(m), {"kind": "rate"})

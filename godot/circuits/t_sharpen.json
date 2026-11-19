@@ -1,0 +1,158 @@
+{
+ "schema_version": 1,
+ "name": "Sharpening a tuning curve",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "A",
+   "model": "parrot_neuron",
+   "n": 8,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     60,
+     80
+    ],
+    [
+     88,
+     80
+    ],
+    [
+     116,
+     80
+    ],
+    [
+     144,
+     80
+    ],
+    [
+     172,
+     80
+    ],
+    [
+     200,
+     80
+    ],
+    [
+     228,
+     80
+    ],
+    [
+     256,
+     80
+    ]
+   ]
+  },
+  {
+   "id": "T",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     60,
+     240
+    ],
+    [
+     88,
+     240
+    ],
+    [
+     116,
+     240
+    ],
+    [
+     144,
+     240
+    ],
+    [
+     172,
+     240
+    ],
+    [
+     200,
+     240
+    ],
+    [
+     228,
+     240
+    ],
+    [
+     256,
+     240
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "A",
+   "post": "T",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "T",
+   "post": "T",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -2500.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "T",
+   "post": "T",
+   "rule": "one_to_one",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 2500.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "stim",
+   "kind": "tuned_poisson",
+   "targets": [
+    {
+     "pop": "A"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.0,
+   "rate_max": 80.0,
+   "rate_base": 10.0,
+   "kappa": 0.5,
+   "period_deg": 180.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "resp",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "T"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "t_sharpen",
+  "notes": "docs/circuits/theory.md"
+ }
+}

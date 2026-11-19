@@ -91,7 +91,8 @@ struct Level
 };
 const Level kLevels[] = { { "d_class", "dynamics", "micro" }, { "d_phasic", "dynamics", "micro" }, { "d_switch", "dynamics", "task" },
   { "r_oscillate", "rates", "micro" }, { "r_choose", "rates", "micro" }, { "r_meanfield", "rates", "task" },
-  { "h_complete", "memory", "micro" }, { "h_two", "memory", "micro" }, { "h_learn", "memory", "task" } };
+  { "h_complete", "memory", "micro" }, { "h_two", "memory", "micro" }, { "h_learn", "memory", "task" },
+  { "t_tuned", "tuning", "micro" }, { "t_sharpen", "tuning", "micro" }, { "t_decode", "tuning", "task" } };
 
 std::set< std::string > glossary_ids()
 {
@@ -176,7 +177,7 @@ int main( int argc, char** argv )
     contract( L, gloss );
     const json ref = load_circuit( L.id );
     const int cells = neuron_count( ref );
-    if ( std::string( L.kind ) == "micro" ) CHECK_MSG( cells <= 9, std::string( L.id ) + ": reference size" );
+    if ( std::string( L.kind ) == "micro" ) CHECK_MSG( cells <= ( std::string( L.id ) == "t_sharpen" ? 16 : 9 ), std::string( L.id ) + ": reference size" );
     int passes = 0, runs = 0;
     for ( const char* mode : { "guided", "standard", "researcher" } )
       for ( uint64_t seed = 1; seed <= 5; ++seed )
@@ -227,6 +228,7 @@ int main( int argc, char** argv )
   // the campaign order: a chapter's micro-puzzles come before its task
   CHECK( pos( "d_class" ) < pos( "d_phasic" ) && pos( "d_phasic" ) < pos( "d_switch" ) );
   CHECK( pos( "r_oscillate" ) < pos( "r_choose" ) && pos( "r_choose" ) < pos( "r_meanfield" ) );
+  CHECK( pos( "t_tuned" ) < pos( "t_sharpen" ) && pos( "t_sharpen" ) < pos( "t_decode" ) );
   CHECK( pos( "h_complete" ) < pos( "h_two" ) && pos( "h_two" ) < pos( "h_learn" ) );
 
   // ---- no numbers in verdicts or hint tiers 1-3 (honesty contract rule 2)

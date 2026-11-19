@@ -40,6 +40,7 @@ flowchart LR
   campaign_chapter_dynamics("Campaign chapter tab: Theory: Dynamics")
   campaign_chapter_rates("Campaign chapter tab: Theory: Rate models")
   campaign_chapter_memory("Campaign chapter tab: Theory: Attractor memory")
+  campaign_chapter_tuning("Campaign chapter tab: Theory: Tuning and decoding")
   parts["Parts bin (browse the catalogue)"]
   notebook["Lab notebook, Notes tab"]
   notebook_concepts("Notebook, Concepts tab (glossary)")
@@ -232,6 +233,7 @@ flowchart LR
 | `campaign.chapter.dynamics` | tab | Campaign chapter tab: Theory: Dynamics |  |
 | `campaign.chapter.rates` | tab | Campaign chapter tab: Theory: Rate models |  |
 | `campaign.chapter.memory` | tab | Campaign chapter tab: Theory: Attractor memory |  |
+| `campaign.chapter.tuning` | tab | Campaign chapter tab: Theory: Tuning and decoding |  |
 | `parts` | screen | Parts bin (browse the catalogue) | `BtnBack`, `BtnSandbox`, `PartsBin` |
 | `notebook` | screen | Lab notebook, Notes tab | `BtnBack`, `BtnWhatIsReal`, `TabNotes`, `TabConcepts` |
 | `notebook.concepts` | tab | Notebook, Concepts tab (glossary) |  |
@@ -247,6 +249,7 @@ flowchart LR
 | `analysis.prc` | tab | Analysis, PRC tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.bursts` | tab | Analysis, bursts tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.energy` | tab | Analysis, energy tab |  |
+| `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
 | `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnNoise?` |
@@ -285,5 +288,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 55 nodes, 115 edges, 8 guard checks.
+Counts: 57 nodes, 117 edges, 8 guard checks.
 <!-- END GENERATED -->

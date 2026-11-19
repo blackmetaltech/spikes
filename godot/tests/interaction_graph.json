@@ -201,6 +201,15 @@
    },
    "state_of": "campaign"
   },
+  "campaign.chapter.tuning": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Theory: Tuning and decoding",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "tuning"
+   },
+   "state_of": "campaign"
+  },
   "parts": {
    "kind": "screen",
    "label": "Parts bin (browse the catalogue)",
@@ -417,6 +426,20 @@
     "screen": "analysis",
     "tab": 5
    },
+   "state_of": "analysis"
+  },
+  "analysis.sta": {
+   "kind": "tab",
+   "label": "Analysis, spike-triggered average tab",
+   "detect": {
+    "screen": "analysis",
+    "tab": 6
+   },
+   "controls": [
+    "StepPop",
+    "StepRec",
+    "BtnRecord"
+   ],
    "state_of": "analysis"
   },
   "lab": {
@@ -985,6 +1008,13 @@
    "from": "campaign",
    "to": "campaign.chapter.memory",
    "control": "Chapter_memory",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.tuning",
+   "from": "campaign",
+   "to": "campaign.chapter.tuning",
+   "control": "Chapter_tuning",
    "note": "A tab shows a chapter's map; locked chapters can be looked at."
   },
   {
@@ -1912,6 +1942,18 @@
    "id": "tab:analysis.energy",
    "from": "analysis.bursts",
    "to": "analysis.energy",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "tab:analysis.sta",
+   "from": "analysis.energy",
+   "to": "analysis.sta",
    "control": "StepTab",
    "action": "step",
    "setup": {

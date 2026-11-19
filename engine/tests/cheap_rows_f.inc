@@ -163,4 +163,56 @@
   } ) );
   CHEAP_ROW_V( "h_learn", "asymmetric start (R > C four times C > R)", "symmetric", cheap::from_ref( "h_learn", cut_f( "R", "C", 4.0 ) ) );
   CHEAP_ROW_V( "h_learn", "the cue reaches every cell", "every cell", cheap::from_ref( "h_learn", add_target( "cue", "R" ) ) );
+
+  // ---- tuning ----
+  for ( const char* t : { "t_tuned", "t_sharpen", "t_decode" } )
+  {
+    CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
+    CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
+    CHEAP_ROW( t, "one tonic cell, I_e 450, every weight 0", cheap::tonic( t, 450 ) );
+    CHEAP_ROW( t, "reference with every weight 0", zero_f( t ) );
+  }
+  auto add_proj = [ & ]( const std::string& pre, const std::string& post, double w ) -> cheap::Mut {
+    return [ = ]( json& c ) { c[ "projections" ].push_back( { { "pre", pre }, { "post", post }, { "rule", "all_to_all" }, { "synapse", { { "synapse_model", "static_synapse" }, { "weight", w }, { "delay", 2.0 } } } } ); };
+  };
+  // the A > T projection of the reference as explicit edges with a ring mapping k -> f(k)
+  auto remap = [ & ]( std::function< int( int ) > f, double w, int n ) -> cheap::Mut {
+    return [ = ]( json& c ) {
+      json edges = json::array();
+      for ( int k = 0; k < n; ++k ) edges.push_back( { k, f( k ), w, 2.0 } );
+      c[ "projections" ][ 0 ] = { { "pre", "A" }, { "post", "T" }, { "edges", edges }, { "synapse", { { "synapse_model", "static_synapse" } } } };
+    };
+  };
+  CHEAP_ROW_V( "t_tuned", "the cell listens to every afferent", "every afferent", cheap::from_ref( "t_tuned", cheap::both( add_proj( "A1", "R", 1500.0 ), add_proj( "A3", "R", 1500.0 ) ) ) );
+  CHEAP_ROW( "t_tuned", "the cell listens to the wrong group (A1, the small angles)", cheap::from_ref( "t_tuned", [ & ]( json& c ) { c[ "projections" ][ 0 ][ "pre" ] = "A1"; } ) );
+  CHEAP_ROW( "t_tuned", "the connection far too weak (x0.05)", cheap::from_ref( "t_tuned", cut_f( "A2", "R", 0.05 ) ) );
+  CHEAP_ROW_V( "t_tuned", "the cell hears no afferent", "none of the afferents", cheap::from_ref( "t_tuned", cut_f( "A2", "R" ) ) );
+  CHEAP_ROW_V( "t_tuned", "'resp' reads the afferent", "afferents themselves", [] {
+    json c = cheap::reference( "t_tuned" );
+    c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "A2" } } } );
+    return c;
+  }() );
+
+  CHEAP_ROW_V( "t_sharpen", "reference minus all inhibition", "inhibit one another", cheap::from_ref( "t_sharpen", [ & ]( json& c ) { c[ "projections" ].erase( 1 ); c[ "projections" ].erase( 1 ); } ) );
+  CHEAP_ROW( "t_sharpen", "every afferent listened to by every cell (no one-to-one wiring)", cheap::from_ref( "t_sharpen", [ & ]( json& c ) { c[ "projections" ][ 0 ][ "rule" ] = "all_to_all"; c[ "projections" ][ 0 ][ "synapse" ][ "weight" ] = 400.0; } ) );
+  CHEAP_ROW_V( "t_sharpen", "'resp' reads the afferents", "afferents themselves", [] {
+    json c = cheap::reference( "t_sharpen" );
+    c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "A" } } } );
+    return c;
+  }() );
+
+  CHEAP_ROW_V( "t_decode", "'heading' reads the afferents", "afferents themselves", [] {
+    json c = cheap::reference( "t_decode" );
+    c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "A" } } } );
+    return c;
+  }() );
+  CHEAP_ROW( "t_decode", "cells wired to the afferents three places round the ring (rotated readout)", cheap::from_ref( "t_decode", remap( []( int k ) { return ( k + 3 ) % 12; }, 1500.0, 12 ) ) );
+  CHEAP_ROW( "t_decode", "cells wired in reverse order (mirrored readout)", cheap::from_ref( "t_decode", remap( []( int k ) { return 11 - k; }, 1500.0, 12 ) ) );
+  CHEAP_ROW( "t_decode", "every cell listens to every afferent (no tuning left)", cheap::from_ref( "t_decode", [ & ]( json& c ) { c[ "projections" ][ 0 ][ "rule" ] = "all_to_all"; c[ "projections" ][ 0 ][ "synapse" ][ "weight" ] = 200.0; } ) );
+  CHEAP_ROW( "t_decode", "afferent connections far too weak (x0.05)", cheap::from_ref( "t_decode", cut_f( "A", "T", 0.05 ) ) );
+  CHEAP_ROW_V( "t_decode", "the readout lists only half of the cells", "too few cells", [] {
+    json c = cheap::reference( "t_decode" );
+    c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "T" }, { "idx", json::array( { 0, 1, 2, 3, 4, 5 } ) } } } );
+    return c;
+  }() );
 }

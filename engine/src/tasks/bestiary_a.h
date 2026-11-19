@@ -218,6 +218,8 @@ struct Spec
   std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
   std::vector< std::string > cells;                    // motor channels whose individual cells are tracked (Meas::active / Meas::both)
   std::function< void( Engine&, std::map< std::string, double >& ) > start;  // 0.6 (add-only): called once before the first slice with the live engine; may set the initial state of cells and fill the per-channel level scale
+  std::set< std::string > raw;                           // 0.6 (add-only): sensor channels whose level is used as it is (a stimulus angle), not scaled by the episode's small gain noise
+  std::function< void( Schedule&, uint64_t, std::map< std::string, double >& ) > reseed;  // 0.6 (add-only): called in reset() with the episode's seed: may redraw the levels of the schedule (random stimuli) and note them in Meas::extra
   std::function< void( Engine&, double, Meas& ) > tick;  // 0.6 (add-only): called after every slice with the live engine, the model time and the measurements (fill Meas::sets, Meas::extra)
   std::vector< std::string > vals;                     // 0.6 (add-only): rate_value motor channels recorded per ms in Meas::val (the mean `rate` of the units)
   std::function< std::vector< Task::Event >() > timeline;  // optional: the events shown under the world (default: one per input segment, labelled with its channel)
@@ -252,6 +254,7 @@ public:
     meas_ = Meas();
     meas_.dur = cur_.dur;
     meas_.wins = cur_.wins;
+    if ( s_.reseed ) s_.reseed( cur_, seed, meas_.extra );
     for ( const auto& m : info_.motors ) meas_.cnt[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
     for ( const auto& m : info_.motors ) lp_[ m ].reset( 0 );
     meas_.spk.clear();
@@ -342,7 +345,7 @@ protected:
       for ( const auto& g : cur_.segs )
         if ( g.ch == ch && t_ >= g.t0 && t_ < g.t1 ) v = std::max( v, g.v );
       auto sc = scale_.find( ch );
-      e.set_input( ch, v * gain_ * ( sc == scale_.end() ? 1.0 : sc->second ) );
+      e.set_input( ch, v * ( s_.raw.count( ch ) ? 1.0 : gain_ ) * ( sc == scale_.end() ? 1.0 : sc->second ) );
     }
   }
 
