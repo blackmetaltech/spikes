@@ -85,10 +85,10 @@ Spec spec()
       if ( g.path( th, { p }, +1, 5, true ) && g.path( { p }, r, +1, 5, true ) ) rev_side.insert( p );
       if ( g.path( tt, { p }, +1, 5, true ) && g.path( { p }, f, +1, 5, true ) ) fwd_side.insert( p );
     }
-    if ( !mech::excitatory_loop( g.st, rev_side ) )
+    if ( !mech::excitatory_loop( g.st, rev_side, true ) )
       return "The backward command does not hold itself: the cells on the way to 'reverse' must excite each other (the two sides of a command pair do), "
              "otherwise the reversal ends as soon as the touch does.";
-    if ( !mech::excitatory_loop( g.st, fwd_side ) )
+    if ( !mech::excitatory_loop( g.st, fwd_side, true ) )
       return "The forward command does not hold itself: the cells on the way to 'forward' must excite each other, otherwise the forward run ends as soon as the touch does.";
     if ( !g.crossed( r, f ) && !g.crossed( f, r ) )
       return "The backward and the forward command do not inhibit each other at all: a worm that is touched at both ends would try to do both. Each command must silence the other.";

@@ -73,7 +73,7 @@ public:
            "from it. Two sensor cells sit in its head: ASEL (ON) fires when the salt level is rising, which means "
            "things are getting better; ASER (OFF) fires when it is falling, which means worse. Two motor pools steer "
            "it: the turning speed is (turn_left rate minus turn_right rate), so turn_left spins it counter-clockwise "
-           "and turn_right clockwise. Turning one way is enough, because a worm that keeps turning eventually points "
+           "and turn_right clockwise. Turning one way is enough, so you may leave the other turn channel unconnected: a worm that keeps turning eventually points "
            "uphill. The rule to build: turn while things get worse, go straight while they get better. Catch: the plate "
            "is stirred, and now and then BOTH cells chatter together for a second or so. That chatter means nothing; "
            "only ASER minus ASEL does. So wire ASER to excite turn_left and ASEL to inhibit it (inhibition does the "
@@ -86,8 +86,7 @@ public:
   {
     return "A recipe that works (8 integrate-and-fire cells in every group; weights in pA): ASER onto a group A and ASEL onto a group B "
            "with a sensor weight of about 1000 (each sensor cell then fires once per input spike); A onto the turn_left group with +1000; "
-           "B set inhibitory (E / I) and onto turn_left with -1000; turn_right must be connected to a neuron too, but an idle group will "
-           "do. With 4 cells per group the worm reaches the peak on some seeds only.";
+           "B set inhibitory (E / I) and onto turn_left with -1000; turn_right can be left unconnected (one turning direction is enough). With 4 cells per group the worm reaches the peak on some seeds only.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ASEL", "ASER" }; }
   std::vector< std::string > motor_channels() const override { return { "turn_left", "turn_right" }; }
@@ -191,7 +190,16 @@ public:
 
   void step( Engine& e, double dt ) override
   {
-    wiring_.probe( e, sensor_channels(), motor_channels() );
+    if ( !inspected_ )
+    {
+      // Turning one way is enough (the brief says so): one wired turn channel satisfies the wiring check, the other may stay unconnected (it then never fires).
+      std::vector< std::string > motors = motor_channels();
+      int wired = 0;
+      for ( const auto& c : e.outputs() )
+        if ( ( c.name == "turn_left" || c.name == "turn_right" ) && !c.neurons.empty() ) ++wired;
+      if ( wired >= 1 ) motors.clear();
+      wiring_.probe( e, sensor_channels(), motors );
+    }
     if ( !inspected_ )
     {
       inspected_ = true;
