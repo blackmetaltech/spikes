@@ -1,0 +1,135 @@
+{
+ "schema_version": 1,
+ "name": "Recalling a whole from a part",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "C",
+   "model": "iaf_psc_alpha",
+   "n": 3,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     180,
+     120
+    ],
+    [
+     208,
+     120
+    ],
+    [
+     236,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "R",
+   "model": "iaf_psc_alpha",
+   "n": 5,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     180,
+     260
+    ],
+    [
+     208,
+     260
+    ],
+    [
+     236,
+     260
+    ],
+    [
+     264,
+     260
+    ],
+    [
+     292,
+     260
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "C",
+   "post": "C",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 400.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "C",
+   "post": "R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 400.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "R",
+   "post": "C",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 400.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "R",
+   "post": "R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 400.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "cue",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "C"
+    }
+   ],
+   "weight": 1500.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "memory",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "C"
+    },
+    {
+     "pop": "R"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "h_complete",
+  "notes": "docs/circuits/theory.md"
+ }
+}

@@ -6,7 +6,7 @@ extends RefCounted
 ## draws the numbers: strip charts, the ECG (from the real beat times), the gauges of the dashboard. Everything draws onto a TaskView (a Control) `c`, inside
 ## rect `r`; history comes from Telemetry.hist.
 
-const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase", "rates"]
+const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase", "rates", "memory"]
 
 static func ro(t: Telemetry) -> Dictionary: return (t.body.get("readouts", {}) as Dictionary) if t != null else {}
 static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.get(k, dflt))
@@ -22,6 +22,7 @@ static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
 		"compass": _compass(c, t, r)
 		"phase": _phase(c, t, r)
 		"rates": _rates(c, t, r)
+		"memory": _memory(c, t, r)
 		_: _dashboard(c, t, r)
 
 # ---------------------------------------------------------------- readout names and units (G6)
@@ -664,6 +665,44 @@ static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
 		c.draw_string(Fonts.bold, Vector2(lx + 28.0, ly), lab, HORIZONTAL_ALIGNMENT_LEFT, 220.0, fz, Kit.TEXT)
 		lx += 28.0 + Fonts.bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 22.0
 	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 330.0, ly), "last 3 s, rate units in arbitrary units", HORIZONTAL_ALIGNMENT_RIGHT, 326.0, fz, Kit.TEXT_SOFT)
+
+# ---------------------------------------------------------------- patterns of cells (v0.6, memory chapter)
+## The cells the level's motor channels read, laid out on a grid in the order of their channels and lit by their own spikes (a soma glows for a moment after each spike, Telemetry.flash). Cells that a
+## sensor reaches are ringed in amber and named by the sensor: the cue is the part that is touched, the pattern is the whole.
+static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
+	var fz := Kit.fs(14)
+	if t == null or t.sim == null or t.task == null: _empty(c, r, "Build the pattern: its cells light up here."); return
+	var groups := []; var seen := {}
+	for m in t.task.motor_channels():
+		for o in t.sim.outputs():
+			if str(o["name"]) != str(m): continue
+			var cells := []
+			for n in (o["neurons"] as PackedInt32Array):
+				if not seen.has(int(n)): seen[int(n)] = true; cells.append(int(n))
+			groups.append([str(m), cells])
+	var cued := {}
+	for ch in t.sim.inputs():
+		if not str(ch["name"]).begins_with("cue"): continue   # the ring marks the cue, not the sensor that shows the whole pattern
+		for n in (ch["neurons"] as PackedInt32Array):
+			if not cued.has(int(n)): cued[int(n)] = []
+			(cued[int(n)] as Array).append(str(ch["name"]))
+	var y0 := r.position.y + _banner(c, t, r)
+	var area := Rect2(r.position.x, y0 + 6.0, r.size.x, r.end.y - y0 - 6.0 - float(fz) - 14.0)
+	var gw := area.size.x / float(maxi(groups.size(), 1))
+	for gi in groups.size():
+		var cells: Array = groups[gi][1]; var n := cells.size()
+		var cols := maxi(1, int(ceilf(sqrt(float(maxi(n, 1))))))
+		var rows := maxi(1, int(ceilf(float(n) / float(cols))))
+		var cell := minf(minf(gw / float(cols + 1), area.size.y / float(rows + 1)), 64.0)
+		var org := Vector2(area.position.x + gw * float(gi) + (gw - cell * float(cols)) * 0.5, area.position.y + (area.size.y - cell * float(rows)) * 0.5 + 8.0)
+		c.draw_string(Gfx.serif_italic(), Vector2(area.position.x + gw * float(gi) + 6.0, area.position.y + float(fz)), str(groups[gi][0]), HORIZONTAL_ALIGNMENT_LEFT, gw - 12.0, fz, Kit.TEXT)
+		for k in n:
+			var id: int = cells[k]; var ctr := org + Vector2(float(k % cols) + 0.5, float(k / cols) + 0.5) * cell
+			var lit := clampf(float(t.flash[id]) if id < t.flash.size() else 0.0, 0.0, 1.0)
+			c.draw_circle(ctr, cell * 0.36, Color(Kit.exc(), 0.12 + 0.88 * lit)); c.draw_arc(ctr, cell * 0.36, 0.0, TAU, 24, Kit.INK, 1.4, true)
+			if cued.has(id): c.draw_arc(ctr, cell * 0.46, 0.0, TAU, 24, Kit.AMBER, 3.0, true)
+	var legend := "cells that fire glow sienna; an amber ring marks the cells a cue reaches"
+	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), legend, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- dashboard
 ## Gauges for every judged trace (the arc is the tolerance band, the needle the value, green inside it and red outside, with a sparkline of the last 20 s), then

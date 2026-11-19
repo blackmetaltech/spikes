@@ -2,7 +2,9 @@
 // or its rate units (rates chapter). Same contract: mechanism checks read the circuit (Engine::structure(), the cell's live NEST parameters), verdicts and hint tiers 1-3 never
 // carry a number.
 #pragma once
+#include <cmath>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "bestiary_a.h"
@@ -123,5 +125,48 @@ inline double best_lag( const std::vector< float >& x, const std::vector< float 
     if ( c > best ) { best = c; bl = static_cast< double >( lag ); }
   }
   return bl;
+}
+
+// ---------------------------------------------------------------- patterns of cells (memory chapter)
+/// Circuit-level neurons the output channel `ch` reads / the input channel `ch` reaches.
+inline std::set< int > out_cells( const Engine& e, const std::string& ch )
+{
+  std::set< int > r;
+  for ( const auto& o : e.outputs() )
+    if ( o.name == ch ) r.insert( o.neurons.begin(), o.neurons.end() );
+  return r;
+}
+inline std::set< int > in_cells( const Engine& e, const std::string& ch )
+{
+  std::set< int > r;
+  for ( const auto& o : e.inputs() )
+    if ( o.name == ch ) r.insert( o.neurons.begin(), o.neurons.end() );
+  return r;
+}
+/// Fill Meas::sets "memory" (the cells `mem` reads), "cued" (those the input `cue` reaches) and "uncued" (the rest) once, at the start of the episode.
+inline void pattern_sets( Engine& e, Meas& m, const std::string& mem, const std::string& cue )
+{
+  if ( m.sets.count( "memory" ) ) return;
+  const auto M = out_cells( e, mem ), C = in_cells( e, cue );
+  m.sets[ "memory" ] = M;
+  for ( int n : M ) m.sets[ C.count( n ) ? "cued" : "uncued" ].insert( n );
+  m.sets[ "cued" ];
+  m.sets[ "uncued" ];
+}
+/// "" when the connections among the populations `pops` that carry excitation are roughly symmetric (every projection between two different populations has a partner back of about the same
+/// weight, within a factor of two), else the sentence. Self-projections are symmetric by construction.
+inline std::string asymmetry( const Graph& g, const std::vector< int >& pops )
+{
+  auto in = [ & ]( int p ) { return std::find( pops.begin(), pops.end(), p ) != pops.end(); };
+  for ( const auto& a : g.st.projections )
+  {
+    if ( a.n_edges <= 0 || a.sign == 0 || a.pre_index == a.post_index || !in( a.pre_index ) || !in( a.post_index ) ) continue;
+    bool partner = false;
+    for ( const auto& b : g.st.projections )
+      if ( b.n_edges > 0 && b.sign == a.sign && b.pre_index == a.post_index && b.post_index == a.pre_index && std::fabs( b.w_mean ) <= 2.0 * std::fabs( a.w_mean ) && std::fabs( a.w_mean ) <= 2.0 * std::fabs( b.w_mean ) ) partner = true;
+    if ( !partner )
+      return "The connections are not symmetric: a Hopfield-style memory has the same weight from cell A to cell B as from B to A. Some connection between two groups has no partner back of about the same strength.";
+  }
+  return "";
 }
 }  // namespace spike::tasks::tl

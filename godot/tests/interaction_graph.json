@@ -192,6 +192,15 @@
    },
    "state_of": "campaign"
   },
+  "campaign.chapter.memory": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Theory: Attractor memory",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "memory"
+   },
+   "state_of": "campaign"
+  },
   "parts": {
    "kind": "screen",
    "label": "Parts bin (browse the catalogue)",
@@ -969,6 +978,13 @@
    "from": "campaign",
    "to": "campaign.chapter.rates",
    "control": "Chapter_rates",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.memory",
+   "from": "campaign",
+   "to": "campaign.chapter.memory",
+   "control": "Chapter_memory",
    "note": "A tab shows a chapter's map; locked chapters can be looked at."
   },
   {

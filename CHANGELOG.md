@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] - 0.6 Theory wing, chapter 3: attractor memory
+
+- Three levels: `h_complete` (a partial cue recalls the whole pattern), `h_two` (two patterns, no blended state), `h_learn` (the pattern is written by `stdp_synapse` during an exposure phase and recalled after, with a check that the weights really grew and that nothing was recalled before).
+- Lab: a pattern view (cells lit by their own spikes, the cued ones ringed), a plastic-synapse editor (learning rate, weakening, ceiling) in `h_learn`.
+- `Scripted` (task scaffold) gained `tick` and named neuron sets (`Meas::sets`, `active_in`) for levels that need to know which cells a sensor reaches.
+
 ## [Unreleased] - 0.6 Theory wing, chapter 2: rate models and mean field
 
 - Three levels: `r_oscillate` (Wilson-Cowan pair), `r_choose` (winner take all with a held choice), `r_meanfield` (a spiking E-I network and its siegert mean-field prediction, scored on agreement at three drive levels).

@@ -227,11 +227,12 @@ func inspect_proj(i: int, small: int) -> void:
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); add(r1)
 	var cur_syn := Circuits.proj_model(pr)
 	var rate_syn := ["rate_connection_instantaneous", "rate_connection_delayed", "diffusion_connection"].has(cur_syn)
-	if cur_syn != "static_synapse" and not rate_syn: r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; lab._on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
+	if cur_syn != "static_synapse" and not rate_syn and lab.task_id != "h_learn": r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; lab._on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
 	r1.add_child(Kit.btn("E / I", func(): Circuits.set_proj_weight(pr, -Circuits.proj_weight(pr)); lab._on_structure(); build(), "panel", 18))
 	r1.add_child(Kit.btn("Delete", func(): lab.editor.delete_selected(), "danger", 18))
 	if Campaign.chapter_of(lab.task_id) == "aplysia": _aplysia_synapse(pr, i, small)
 	if Campaign.chapter_of(lab.task_id) == "fly_mb": _mb_synapse(pr, i, small)
+	if lab.task_id == "h_learn": _plastic_synapse(pr, small)
 	var pa_i := Circuits.pop_index(circuit, pre)
 	var na := Circuits.pop_n(circuit["populations"][pa_i]) if pa_i >= 0 else 1; var nb := Circuits.pop_n(circuit["populations"][pi]) if pi >= 0 else 1
 	if na > 1 and nb > 1:   # N4: segment wiring, neuron k to neuron k + offset, instead of every pair
@@ -256,6 +257,27 @@ func inspect_proj(i: int, small: int) -> void:
 	if cur_syn != "gap_junction" and not rate_syn:
 		add(val_row("spread", 0.0, 100.0, 1.0, float(pr.get("weight_cv", 0.0)) * 100.0, "%", func(x): Circuits.set_proj_spread(pr, snappedf(x, 1.0) * 0.01); lab._on_structure(), 0))
 		add(Kit.label("Spread: each synapse of this axon gets its own weight, varying by this much around the value above (fixed by the circuit seed; “Test x5” draws it again for every seed). A circuit that only works with identical weights fails here.", small, Kit.TEXT_SOFT, true))
+
+## h_learn (v0.6): a connection among the pattern's cells can be plastic (NEST stdp_synapse: strengthened when its presynaptic cell fires just before its postsynaptic one, weakened in the other order).
+## Excitatory only: an inhibitory connection stays static.
+func _plastic_synapse(pr: Dictionary, small: int) -> void:
+	var cur := Circuits.proj_model(pr); var w := Circuits.proj_weight(pr)
+	if w <= 0.0 and cur != "stdp_synapse": add(Kit.label("Only excitatory connections can be plastic.", small, Kit.TEXT_SOFT, true)); return
+	add(Kit.label("Synapse type: a static synapse keeps its weight; a plastic one learns: it strengthens when its presynaptic cell fires just before its postsynaptic one and weakens in the other order.", small, Kit.TEXT_SOFT, true))
+	add(Kit.stepper([["static_synapse", "static"], ["stdp_synapse", "plastic (STDP)"]], cur, func(m):
+		var sy: Dictionary = pr.get("synapse", {})
+		if str(m) == "stdp_synapse":
+			sy["synapse_model"] = "stdp_synapse"; sy["lambda"] = 0.0015; sy["alpha"] = 0.5; sy["tau_plus"] = 20.0; sy["Wmax"] = maxf(absf(w) * 10.0, 100.0)
+		else:
+			for k in ["lambda", "alpha", "tau_plus", "Wmax"]: sy.erase(k)
+			sy["synapse_model"] = "static_synapse"
+		pr["synapse"] = sy; lab._on_structure(); build(), 280.0 if not Layout.phone else 200.0, 18, 40.0))
+	if cur == "stdp_synapse":
+		var sy: Dictionary = pr.get("synapse", {})
+		add(val_row("learning rate", 0.0001, 0.03, 0.0001, float(sy.get("lambda", 0.0015)), "", func(x): sy["lambda"] = x; pr["synapse"] = sy; lab._on_structure(), 4))
+		add(val_row("weakening", 0.1, 3.0, 0.05, float(sy.get("alpha", 0.5)), "x", func(x): sy["alpha"] = x; pr["synapse"] = sy; lab._on_structure(), 2))
+		add(val_row("ceiling", 10.0, 3000.0, 10.0, float(sy.get("Wmax", 800.0)), "pA", func(x): sy["Wmax"] = x; pr["synapse"] = sy; lab._on_structure(), 0))
+		add(Kit.label("Learning rate: how much one spike pair changes the weight. Weakening: how much stronger a late pairing weakens than an early one strengthens. Ceiling: the weight a connection can never exceed.", small, Kit.TEXT_SOFT, true))
 
 ## Aplysia levels (v0.5): a connection can be a depressing synapse (NEST tsodyks2: it runs out of transmitter with use and recovers slowly) and can be strengthened by a released
 ## modulator (a row of the circuit's modulation table that acts on this connection: its release probability U for a depressing synapse, its weight for a static one).

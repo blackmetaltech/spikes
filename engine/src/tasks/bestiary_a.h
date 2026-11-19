@@ -71,6 +71,7 @@ public:
       r = hi ? std::max( r, static_cast< double >( it->second[ static_cast< size_t >( k ) ] ) ) : std::min( r, static_cast< double >( it->second[ static_cast< size_t >( k ) ] ) );
     return r;
   }
+  std::map< std::string, std::set< int > > sets;       // 0.6 (add-only): named sets of circuit-level neurons the task worked out from the circuit (Spec::tick), e.g. "cued" and "uncued" cells of a pattern
   std::vector< Win > wins;
   double tol = 1.0;                                   // mode scale: 1.5 guided, 1 standard, 0.7 researcher (wider bands for larger)
   double dur = 0;
@@ -135,6 +136,22 @@ public:
     int c = 0;
     for ( int n : a ) c += b.count( n ) ? 1 : 0;
     return c;
+  }
+  /// Distinct cells of the named set (Meas::sets) of the channel's tracked cells that fired in [t0, t1).
+  int active_in( const std::string& ch, double t0, double t1, const std::string& set_name ) const
+  {
+    auto it = spk.find( ch );
+    auto st = sets.find( set_name );
+    if ( it == spk.end() || st == sets.end() ) return 0;
+    std::set< int > a;
+    for ( const auto& [ t, n ] : it->second )
+      if ( t >= t0 && t < t1 && st->second.count( n ) ) a.insert( n );
+    return static_cast< int >( a.size() );
+  }
+  int size_of( const std::string& set_name ) const
+  {
+    auto st = sets.find( set_name );
+    return st == sets.end() ? 0 : static_cast< int >( st->second.size() );
   }
   /// Spikes per cell in the window (a response that does not depend on how many cells the player gave the motor pool).
   double c( const std::string& ch, const std::string& key ) const
@@ -201,6 +218,7 @@ struct Spec
   std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
   std::vector< std::string > cells;                    // motor channels whose individual cells are tracked (Meas::active / Meas::both)
   std::function< void( Engine&, std::map< std::string, double >& ) > start;  // 0.6 (add-only): called once before the first slice with the live engine; may set the initial state of cells and fill the per-channel level scale
+  std::function< void( Engine&, double, Meas& ) > tick;  // 0.6 (add-only): called after every slice with the live engine, the model time and the measurements (fill Meas::sets, Meas::extra)
   std::vector< std::string > vals;                     // 0.6 (add-only): rate_value motor channels recorded per ms in Meas::val (the mean `rate` of the units)
   std::function< std::vector< Task::Event >() > timeline;  // optional: the events shown under the world (default: one per input segment, labelled with its channel)
 };
@@ -352,6 +370,7 @@ protected:
       meas_.vx[ m ][ static_cast< size_t >( k ) ] += static_cast< float >( n * st * std::cos( a ) );
       meas_.vy[ m ][ static_cast< size_t >( k ) ] += static_cast< float >( n * st * std::sin( a ) );
     }
+    if ( s_.tick ) s_.tick( e, t_, meas_ );
     on_observe();
     if ( !s_.gauges.empty() && s_.judge && static_cast< long >( t_ ) % 250 == 0 ) feed_gauges();
   }
