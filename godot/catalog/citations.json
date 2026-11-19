@@ -4217,6 +4217,258 @@
     "docs/WHAT-IS-REAL.md",
     "docs/research/bestiary-a.md"
    ]
+  },
+  {
+   "id": "seelig2015",
+   "authors": [
+    "Seelig JD",
+    "Jayaraman V"
+   ],
+   "year": 2015,
+   "title": "Neural dynamics for landmark orientation and angular path integration",
+   "journal": "Nature",
+   "volume": "521",
+   "pages": "186-191",
+   "doi": "10.1038/nature14446",
+   "pmid": "25971509",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 25971509): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Seelig JD|Seelig & Jayaraman|Seelig et al\\.? \\(?2015",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "turnerevans2017",
+   "authors": [
+    "Turner-Evans D",
+    "Wegener S",
+    "Rouault H",
+    "Franconville R",
+    "Wolff T",
+    "Seelig JD",
+    "Druckmann S",
+    "Jayaraman V"
+   ],
+   "year": 2017,
+   "title": "Angular velocity integration in a fly heading circuit",
+   "journal": "eLife",
+   "volume": "6",
+   "pages": "e23496",
+   "doi": "10.7554/eLife.23496",
+   "pmid": "28530551",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 28530551): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Turner-Evans D|Turner-Evans et al\\.? \\(?2017",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "green2017",
+   "authors": [
+    "Green J",
+    "Adachi A",
+    "Shah KK",
+    "Hirokawa JD",
+    "Magani PS",
+    "Maimon G"
+   ],
+   "year": 2017,
+   "title": "A neural circuit architecture for angular integration in Drosophila",
+   "journal": "Nature",
+   "volume": "546",
+   "pages": "101-106",
+   "doi": "10.1038/nature22343",
+   "pmid": "28538731",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 28538731): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Green J|Green et al\\.? \\(?2017",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "aso2014a",
+   "authors": [
+    "Aso Y",
+    "Hattori D",
+    "Yu Y",
+    "Johnston RM",
+    "Iyer NA",
+    "Ngo TT",
+    "Dionne H",
+    "Abbott LF",
+    "Axel R",
+    "Tanimoto H",
+    "Rubin GM"
+   ],
+   "year": 2014,
+   "title": "The neuronal architecture of the mushroom body provides a logic for associative learning",
+   "journal": "eLife",
+   "volume": "3",
+   "pages": "e04577",
+   "doi": "10.7554/eLife.04577",
+   "pmid": "25535793",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 25535793): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Aso Y et al\\.? \\(?2014a|Aso et al\\.? \\(?2014a",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "aso2014b",
+   "authors": [
+    "Aso Y",
+    "Sitaraman D",
+    "Ichinose T",
+    "Kaun KR",
+    "Vogt K",
+    "Belliart-Guerin G",
+    "Placais PY",
+    "Robie AA",
+    "Yamagata N",
+    "Schnaitmann C",
+    "Rowell WJ",
+    "Johnston RM",
+    "Ngo TT",
+    "Chen N",
+    "Korff W",
+    "Nitabach MN",
+    "Heberlein U",
+    "Preat T",
+    "Branson KM",
+    "Tanimoto H",
+    "Rubin GM"
+   ],
+   "year": 2014,
+   "title": "Mushroom body output neurons encode valence and guide memory-based action selection in Drosophila",
+   "journal": "eLife",
+   "volume": "3",
+   "pages": "e04580",
+   "doi": "10.7554/eLife.04580",
+   "pmid": "25535794",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 25535794): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Aso et al\\.? \\(?2014b",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "hige2015",
+   "authors": [
+    "Hige T",
+    "Aso Y",
+    "Modi MN",
+    "Rubin GM",
+    "Turner GC"
+   ],
+   "year": 2015,
+   "title": "Heterosynaptic plasticity underlies aversive olfactory learning in Drosophila",
+   "journal": "Neuron",
+   "volume": "88",
+   "pages": "985-998",
+   "doi": "10.1016/j.neuron.2015.11.003",
+   "pmid": "26637800",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 26637800): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Hige T|Hige et al\\.? \\(?2015",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "papadopoulou2011",
+   "authors": [
+    "Papadopoulou M",
+    "Cassenaer S",
+    "Nowotny T",
+    "Laurent G"
+   ],
+   "year": 2011,
+   "title": "Normalization for sparse encoding of odors by a wide-field interneuron",
+   "journal": "Science",
+   "volume": "332",
+   "pages": "721-725",
+   "doi": "10.1126/science.1201835",
+   "pmid": "21551062",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 21551062): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Papadopoulou M|Papadopoulou et al\\.? \\(?2011",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "prinz2004",
+   "authors": [
+    "Prinz AA",
+    "Bucher D",
+    "Marder E"
+   ],
+   "year": 2004,
+   "title": "Similar network activity from disparate circuit parameters",
+   "journal": "Nat Neurosci",
+   "volume": "7",
+   "pages": "1345-1352",
+   "doi": "10.1038/nn1352",
+   "pmid": "15558066",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 15558066): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Prinz AA, Bucher|Prinz et al\\.? \\(?2004",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "prinz2003",
+   "authors": [
+    "Prinz AA",
+    "Billimoria CP",
+    "Marder E"
+   ],
+   "year": 2003,
+   "title": "Alternative to hand-tuning conductance-based models: construction and analysis of databases of model neurons",
+   "journal": "J Neurophysiol",
+   "volume": "90",
+   "pages": "3998-4015",
+   "doi": "10.1152/jn.00641.2003",
+   "pmid": "12944532",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 12944532): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Prinz AA, Billimoria|Prinz et al\\.? \\(?2003",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "research/bestiary-a.md"
+   ]
   }
  ]
 }
