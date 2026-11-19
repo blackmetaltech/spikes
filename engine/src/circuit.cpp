@@ -269,7 +269,7 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
         pr.rule[ "allow_autapses" ] = false;
     }
   }
-  else if ( model == "tsodyks2_synapse" or model == "quantal_stp_synapse" )
+  else if ( model == "tsodyks2_synapse" or model == "tsodyks_synapse" or model == "quantal_stp_synapse" )
   {
     if ( opt_number( pr.synapse, "U", spath, v ) and not( v >= 0 and v <= 1 ) )
       fail( sub( spath, "U" ), "utilisation U must be in [0, 1]" );
@@ -279,10 +279,17 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
       fail( sub( spath, "tau_rec" ), "recovery time constant tau_rec must be > 0 ms" );
     if ( opt_number( pr.synapse, "tau_fac", spath, v ) and not( v >= 0 ) )
       fail( sub( spath, "tau_fac" ), "facilitation time constant tau_fac must be >= 0 ms (0 = depression only)" );
-    if ( model == "tsodyks2_synapse" )
+    if ( model == "tsodyks2_synapse" or model == "tsodyks_synapse" )
     {
       if ( opt_number( pr.synapse, "x", spath, v ) and not( v >= 0 and v <= 1 ) )
         fail( sub( spath, "x" ), "initial resources x must be in [0, 1]" );
+      if ( model == "tsodyks_synapse" )
+      {
+        if ( opt_number( pr.synapse, "y", spath, v ) and not( v >= 0 and v <= 1 ) )
+          fail( sub( spath, "y" ), "initial active fraction y must be in [0, 1]" );
+        if ( opt_number( pr.synapse, "tau_psc", spath, v ) and not( v > 0 ) )
+          fail( sub( spath, "tau_psc" ), "postsynaptic current time constant tau_psc must be > 0 ms" );
+      }
     }
     else
     {
@@ -568,21 +575,65 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         const json& p = ( *it )[ i ];
         std::string path = at( "inputs", i );
         require_object( p, path );
-        check_keys( p, { "name", "kind", "targets", "weight", "value", "delay" }, path );
+        check_keys( p, { "name", "kind", "targets", "weight", "value", "delay", "spike_times", "rate", "amplitude", "freq_hz", "phase" }, path );
         InputSpec in;
         in.name = get_string( p, "name", path, true );
         if ( in.name.empty() or not names.insert( in.name ).second )
           fail( sub( path, "name" ), "must be non-empty and unique among inputs" );
         in.kind = get_string( p, "kind", path, true );
-        if ( in.kind != "dc" and in.kind != "poisson" )
-          fail( sub( path, "kind" ), "unsupported input kind '" + in.kind + "' (supported: dc, poisson)" );
+        if ( in.kind != "dc" and in.kind != "poisson" and in.kind != "spike_generator" and in.kind != "sinusoidal_poisson" )
+          fail( sub( path, "kind" ), "unsupported input kind '" + in.kind + "' (supported: dc, poisson, spike_generator, sinusoidal_poisson)" );
         parse_selector_list( c, need( p, "targets", path ), sub( path, "targets" ), in.targets );
         sort_unique( in.targets );
         in.weight = get_number( p, "weight", path, 1.0 );
         in.value = get_number( p, "value", path, 0.0 );
         in.delay = get_number( p, "delay", path, -1.0 );
+        const bool sg = in.kind == "spike_generator", sp = in.kind == "sinusoidal_poisson";
+        if ( not sg and p.contains( "spike_times" ) )
+          fail( sub( path, "spike_times" ), "only valid for kind \"spike_generator\"" );
+        for ( const char* k : { "rate", "amplitude", "freq_hz", "phase" } )
+          if ( not sp and p.contains( k ) )
+            fail( sub( path, k ), "only valid for kind \"sinusoidal_poisson\"" );
+        if ( ( sg or sp ) and p.contains( "value" ) )
+          fail( sub( path, "value" ), sg ? "a spike_generator has no value: give \"spike_times\" (ms)" : "a sinusoidal_poisson input has no value: give \"rate\" (mean, Hz), \"amplitude\" (Hz), \"freq_hz\" and \"phase\" (degrees)" );
         if ( in.kind == "poisson" and in.value < 0 )
           fail( sub( path, "value" ), "rate must be >= 0" );
+        if ( sg )
+        {
+          if ( auto it = p.find( "spike_times" ); it != p.end() )
+          {
+            if ( not it->is_array() )
+              fail( sub( path, "spike_times" ), "must be an array of times in ms" );
+            for ( size_t k = 0; k < it->size(); ++k )
+            {
+              const std::string tp = at( sub( path, "spike_times" ), k );
+              if ( not( *it )[ k ].is_number() )
+                fail( tp, "must be a number (ms)" );
+              const double t = ( *it )[ k ].get< double >();
+              if ( not( t > 0.0 ) )
+                fail( tp, "spike time must be > 0 ms" );
+              const double steps = t / c.resolution_ms;
+              if ( std::fabs( steps - std::round( steps ) ) > 1e-6 )
+                fail( tp, "spike time " + std::to_string( t ) + " ms is not a multiple of resolution_ms (" + std::to_string( c.resolution_ms ) + ")" );
+              if ( not in.spike_times.empty() and t < in.spike_times.back() )
+                fail( tp, "spike times must be sorted in ascending order" );
+              in.spike_times.push_back( std::round( steps ) * c.resolution_ms );
+            }
+          }
+        }
+        if ( sp )
+        {
+          in.value = get_number( p, "rate", path, 0.0 );
+          in.amplitude = get_number( p, "amplitude", path, 0.0 );
+          in.freq_hz = get_number( p, "freq_hz", path, 0.0 );
+          in.phase = get_number( p, "phase", path, 0.0 );
+          if ( not( in.value >= 0 ) )
+            fail( sub( path, "rate" ), "mean rate must be >= 0 Hz" );
+          if ( not( in.amplitude >= 0 ) )
+            fail( sub( path, "amplitude" ), "amplitude must be >= 0 Hz" );
+          if ( not( in.freq_hz >= 0 and in.freq_hz * c.resolution_ms / 1000.0 < 0.5 ) )
+            fail( sub( path, "freq_hz" ), "frequency must be >= 0 and below the Nyquist limit of the resolution (" + std::to_string( 500.0 / c.resolution_ms ) + " Hz)" );
+        }
         c.inputs.push_back( std::move( in ) );
       }
     }
@@ -604,8 +655,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         if ( o.name.empty() or not names.insert( o.name ).second )
           fail( sub( path, "name" ), "must be non-empty and unique among outputs" );
         o.kind = get_string( p, "kind", path, false, "rate" );
-        if ( o.kind != "rate" and o.kind != "modulator" )
-          fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate, modulator)" );
+        if ( o.kind != "rate" and o.kind != "modulator" and o.kind != "population_vector" )
+          fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate, modulator, population_vector)" );
         if ( o.kind == "modulator" )
         {
           o.modulator = get_string( p, "modulator", path, true );
@@ -621,7 +672,16 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         else if ( p.contains( "modulator" ) or p.contains( "gain" ) or p.contains( "tau_ms" ) )
           fail( path, "'modulator', 'gain' and 'tau_ms' are only valid for kind \"modulator\"" );
         parse_selector_list( c, need( p, "neurons", path ), sub( path, "neurons" ), o.neurons );
-        sort_unique( o.neurons );
+        if ( o.kind == "population_vector" )
+        {
+          // ring order = the order the selectors list the neurons (neuron k of N sits at angle 2 pi k / N): no sorting, no repeats
+          std::vector< int32_t > u = o.neurons;
+          sort_unique( u );
+          if ( u.size() != o.neurons.size() )
+            fail( sub( path, "neurons" ), "a population_vector lists every neuron once (it is an ordered ring)" );
+        }
+        else
+          sort_unique( o.neurons );
         c.outputs.push_back( std::move( o ) );
       }
     }
@@ -636,15 +696,40 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         const json& p = ( *it )[ i ];
         std::string path = at( "modulation", i );
         require_object( p, path );
-        check_keys( p, { "modulator", "pop", "param", "gain", "scale_per_unit", "min", "max" }, path );
+        check_keys( p, { "modulator", "pop", "projection", "param", "gain", "scale_per_unit", "min", "max" }, path );
         ModulationSpec m;
         m.modulator = get_string( p, "modulator", path, true );
         if ( not is_modulator_name( m.modulator ) )
           fail( sub( path, "modulator" ), "unknown modulator '" + m.modulator + "' (NE, ACh or DA)" );
-        m.pop = get_string( p, "pop", path, true );
-        m.pop_index = find_pop( c, m.pop );
-        if ( m.pop_index < 0 )
-          fail( sub( path, "pop" ), "unknown population '" + m.pop + "'" );
+        if ( p.contains( "pop" ) == p.contains( "projection" ) )
+          fail( path, "exactly one of 'pop' (a neuron parameter) or 'projection' (a synapse parameter) is required" );
+        if ( p.contains( "pop" ) )
+        {
+          m.pop = get_string( p, "pop", path, true );
+          m.pop_index = find_pop( c, m.pop );
+          if ( m.pop_index < 0 )
+            fail( sub( path, "pop" ), "unknown population '" + m.pop + "'" );
+        }
+        else
+        {
+          const json& pj = p[ "projection" ];
+          if ( not pj.is_number_integer() or pj.get< long >() < 0 or pj.get< long >() >= static_cast< long >( c.projs.size() ) )
+            fail( sub( path, "projection" ), "must be a projection number (0-based, file order; this circuit has " + std::to_string( c.projs.size() ) + ")" );
+          m.proj_index = pj.get< int >();
+          const std::string sm = c.projs[ m.proj_index ].synapse[ "synapse_model" ].get< std::string >();
+          if ( sm == "gap_junction" )
+            fail( sub( path, "projection" ), "gap_junction projections cannot be modulated" );
+          const std::string prm = get_string( p, "param", path, true );
+          if ( prm == "weight" and sm.rfind( "stdp", 0 ) == 0 )
+            fail( sub( path, "param" ), "the weight of a plastic " + sm + " projection is owned by the plasticity rule and cannot be modulated" );
+          for ( size_t j = 0; j < c.projs.size(); ++j )
+            if ( static_cast< int >( j ) != m.proj_index and c.projs[ j ].pre_pop == c.projs[ m.proj_index ].pre_pop and c.projs[ j ].post_pop == c.projs[ m.proj_index ].post_pop and
+                 c.projs[ j ].synapse[ "synapse_model" ] == c.projs[ m.proj_index ].synapse[ "synapse_model" ] )
+              fail( sub( path, "projection" ), "projections " + std::to_string( std::min< size_t >( j, m.proj_index ) ) + " and " + std::to_string( std::max< size_t >( j, m.proj_index ) ) +
+                                                 " connect the same populations with the same synapse model, so their connections cannot be told apart: use another synapse model for one of them" );
+          if ( prm == "delay" or prm == "synapse_model" or prm == "port" or prm == "target" or prm == "source" )
+            fail( sub( path, "param" ), "'" + prm + "' cannot be modulated" );
+        }
         m.param = get_string( p, "param", path, true );
         if ( p.contains( "gain" ) == p.contains( "scale_per_unit" ) )
           fail( path, "exactly one of 'gain' (value += gain * conc) or 'scale_per_unit' (value *= 1 + scale_per_unit * conc) is required" );
