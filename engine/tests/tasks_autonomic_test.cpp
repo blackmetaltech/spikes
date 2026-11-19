@@ -397,7 +397,7 @@ static void test_peristalsis()
     CHECK( a.loaded );
     CHECK( part( a, "progress" ) >= 0.99 );                                   // it works, the bolus gets there ...
     CHECK( !a.score.passed );                                                 // ... but too late without the inhibitory arm
-    CHECK_MSG( a.score.verdict.find( "no0..7" ) != std::string::npos, a.score.verdict );
+    CHECK_MSG( a.score.verdict.find( "the 'no' outputs" ) != std::string::npos, a.score.verdict );
     CHECK( a.score.value < 50.0 && contains( a.score.verdict, "descending" ) );   // the simple build is the start of the level, not the law of the intestine
     Run b = run( "peristalsis", strip( { "icc" } ), 1 );
     show( "ach + no", 1, b );
