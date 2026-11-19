@@ -1,0 +1,145 @@
+{
+ "schema_version": 1,
+ "name": "Aplysia: a shock to the tail",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "SN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     120,
+     80
+    ]
+   ]
+  },
+  {
+   "id": "MN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     80
+    ]
+   ]
+  },
+  {
+   "id": "TSN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     120,
+     240
+    ]
+   ]
+  },
+  {
+   "id": "FN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     240
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "SN",
+   "post": "MN",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 450.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "TSN",
+   "post": "FN",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1000.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "touch",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "SN"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  },
+  {
+   "name": "shock",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "TSN"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "gill",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN"
+    }
+   ]
+  },
+  {
+   "name": "serotonin",
+   "kind": "modulator",
+   "neurons": [
+    {
+     "pop": "FN"
+    }
+   ],
+   "modulator": "NE",
+   "gain": 0.05,
+   "tau_ms": 1000.0
+  }
+ ],
+ "modulation": [
+  {
+   "modulator": "NE",
+   "projection": 0,
+   "param": "weight",
+   "scale_per_unit": 4.0
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "a_facilitate",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}

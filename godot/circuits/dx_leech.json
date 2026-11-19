@@ -1,0 +1,168 @@
+{
+ "schema_version": 1,
+ "name": "Patient circuit: leech",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "HN_L",
+   "model": "aeif_cond_alpha",
+   "n": 1,
+   "params": {
+    "a": 0.0,
+    "b": 5.0,
+    "tau_w": 1500.0,
+    "V_reset": -58.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     90
+    ]
+   ]
+  },
+  {
+   "id": "HN_R",
+   "model": "aeif_cond_alpha",
+   "n": 1,
+   "params": {
+    "a": 0.0,
+    "b": 5.0,
+    "tau_w": 1500.0,
+    "V_reset": -58.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     90
+    ]
+   ]
+  },
+  {
+   "id": "HE_L",
+   "model": "aeif_cond_alpha",
+   "n": 1,
+   "params": {
+    "a": 0.0,
+    "b": 0.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     230
+    ]
+   ]
+  },
+  {
+   "id": "HE_R",
+   "model": "aeif_cond_alpha",
+   "n": 1,
+   "params": {
+    "a": 0.0,
+    "b": 0.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     230
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "HN_L",
+   "post": "HN_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "HN_R",
+   "post": "HN_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -50.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "HN_L",
+   "post": "HE_L",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -300.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "HN_R",
+   "post": "HE_R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -300.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "drive",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "HN_L"
+    },
+    {
+     "pop": "HN_R"
+    },
+    {
+     "pop": "HE_L"
+    },
+    {
+     "pop": "HE_R"
+    }
+   ],
+   "weight": 480.0,
+   "value": 2.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "left",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "HE_L"
+    }
+   ]
+  },
+  {
+   "name": "right",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "HE_R"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "dx_leech",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}

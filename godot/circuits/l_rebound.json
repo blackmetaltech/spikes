@@ -1,0 +1,83 @@
+{
+ "schema_version": 1,
+ "name": "Leech: rebound after inhibition",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "S",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     140
+    ]
+   ]
+  },
+  {
+   "id": "T",
+   "model": "aeif_cond_alpha",
+   "n": 1,
+   "params": {
+    "a": 20.0,
+    "b": 0.0,
+    "tau_w": 200.0,
+    "I_e": 580.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     140
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "S",
+   "post": "T",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -400.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "inhibit",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "rebound",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "T"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "l_rebound",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}

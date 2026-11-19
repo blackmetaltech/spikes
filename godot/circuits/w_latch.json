@@ -1,0 +1,132 @@
+{
+ "schema_version": 1,
+ "name": "Worm: holding a reversal",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "A",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "B",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "S",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     260
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "A",
+   "post": "B",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 4.0
+   }
+  },
+  {
+   "pre": "B",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 4.0
+   }
+  },
+  {
+   "pre": "S",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1500.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "S",
+   "post": "B",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1500.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "touch",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "A"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  },
+  {
+   "name": "stop",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "S"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "reverse",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "B"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "w_latch",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}
