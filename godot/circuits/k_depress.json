@@ -1,0 +1,212 @@
+{
+ "schema_version": 1,
+ "name": "Fly: learning to avoid an odour",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "KCA",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     100,
+     80
+    ],
+    [
+     128,
+     80
+    ],
+    [
+     156,
+     80
+    ],
+    [
+     184,
+     80
+    ],
+    [
+     212,
+     80
+    ],
+    [
+     240,
+     80
+    ]
+   ]
+  },
+  {
+   "id": "KCB",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     100,
+     220
+    ],
+    [
+     128,
+     220
+    ],
+    [
+     156,
+     220
+    ],
+    [
+     184,
+     220
+    ],
+    [
+     212,
+     220
+    ],
+    [
+     240,
+     220
+    ]
+   ]
+  },
+  {
+   "id": "MBON",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 350.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     400,
+     150
+    ],
+    [
+     428,
+     150
+    ],
+    [
+     456,
+     150
+    ],
+    [
+     484,
+     150
+    ]
+   ]
+  },
+  {
+   "id": "DAN",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     400,
+     300
+    ],
+    [
+     428,
+     300
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "KCA",
+   "post": "MBON",
+   "rule": "all_to_all",
+   "dopamine_source": "DAN",
+   "synapse": {
+    "synapse_model": "stdp_dopamine_synapse",
+    "weight": 300.0,
+    "delay": 2.0,
+    "A_plus": -0.6,
+    "A_minus": 0.6,
+    "Wmin": 0.0,
+    "Wmax": 900.0,
+    "tau_c": 30.0,
+    "tau_n": 200.0,
+    "b": 0.0,
+    "tau_plus": 20.0
+   }
+  },
+  {
+   "pre": "KCB",
+   "post": "MBON",
+   "rule": "all_to_all",
+   "dopamine_source": "DAN",
+   "synapse": {
+    "synapse_model": "stdp_dopamine_synapse",
+    "weight": 300.0,
+    "delay": 2.0,
+    "A_plus": -0.6,
+    "A_minus": 0.6,
+    "Wmin": 0.0,
+    "Wmax": 900.0,
+    "tau_c": 30.0,
+    "tau_n": 200.0,
+    "b": 0.0,
+    "tau_plus": 20.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "odor_a",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "KCA"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 100.0
+  },
+  {
+   "name": "odor_b",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "KCB"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 100.0
+  },
+  {
+   "name": "punish",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "DAN"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 100.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "avoid",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MBON"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "k_depress",
+  "notes": "docs/circuits/bestiary_b.md"
+ }
+}

@@ -139,6 +139,7 @@ struct Engine::Impl
   std::vector< Dev > devs;
   std::map< std::string, size_t > in_idx, out_idx;
   std::vector< double > out_count;
+  std::vector< std::vector< int32_t > > out_spiked;  // v0.5: per output, the circuit-level neurons that spiked in the last step (output_spiked)
   std::vector< std::vector< int > > out_of_neuron;
   // population_vector outputs (v0.5): per neuron, the unit vector (cos, sin) of its ring angle for each output it belongs to (parallel to out_of_neuron),
   // and the running vector sum and spike count of the current step per output.
@@ -210,6 +211,7 @@ struct Engine::Impl
     in_idx.clear();
     out_idx.clear();
     out_count.clear();
+    out_spiked.clear();
     out_of_neuron.clear();
     out_vec_of_neuron.clear();
     pv_x.clear();
@@ -644,6 +646,7 @@ void Engine::Impl::build()
 
   // outputs
   out_count.assign( spec.outputs.size(), 0.0 );
+  out_spiked.assign( spec.outputs.size(), {} );
   out_of_neuron.assign( spec.n_neurons, {} );
   out_vec_of_neuron.assign( spec.n_neurons, {} );
   pv_x.assign( spec.outputs.size(), 0.0 );
@@ -851,6 +854,7 @@ void Engine::Impl::collect()
     {
       const int o = out_of_neuron[ n ][ oi ];
       out_count[ o ] += 1.0;
+      out_spiked[ o ].push_back( n );
       const OutputSpec& os = spec.outputs[ o ];
       if ( os.kind == "population_vector" )
       {
@@ -1151,6 +1155,8 @@ void Engine::step( double ms )
       nest::prepare();
     }
     std::fill( m.out_count.begin(), m.out_count.end(), 0.0 );
+    for ( auto& v : m.out_spiked )
+      v.clear();
     std::fill( m.pv_x.begin(), m.pv_x.end(), 0.0 );
     std::fill( m.pv_y.begin(), m.pv_y.end(), 0.0 );
     // Long steps run in slices of <= 100 ms (identical spikes) so the spike ring cannot overflow.
@@ -1206,6 +1212,13 @@ double Engine::output_count( const std::string& channel ) const
 {
   auto it = impl_->out_idx.find( channel );
   return it == impl_->out_idx.end() ? 0.0 : impl_->out_count[ it->second ];
+}
+
+const std::vector< int32_t >& Engine::output_spiked( const std::string& channel ) const
+{
+  static const std::vector< int32_t > none;
+  auto it = impl_->out_idx.find( channel );
+  return it == impl_->out_idx.end() ? none : impl_->out_spiked[ it->second ];
 }
 
 double Engine::output_angle( const std::string& channel ) const
@@ -1436,6 +1449,11 @@ const Structure& Engine::Impl::structure_of()
     pi.post_index = ps.post_pop;
     pi.rule = ps.has_edges ? std::string( "edges" ) : ps.rule.value( "rule", std::string( "all_to_all" ) );
     pi.synapse_model = m.projs[ k ].model;
+    if ( ps.dopamine && ps.dopamine_pop >= 0 )
+    {
+      pi.dopamine_index = ps.dopamine_pop;
+      pi.dopamine_source = sp.pops[ ps.dopamine_pop ].id;
+    }
     std::map< size_t, int > indeg;
     double sum = 0;
     int n = 0;

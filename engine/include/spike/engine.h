@@ -59,6 +59,8 @@ struct ProjectionInfo
   int sign = 0;                               // sign of w_mean (+1, -1, 0 when n_edges == 0 or w_mean == 0)
   double indegree_mean = 0;                   // connections per post neuron (over all post neurons of the population)
   int32_t indegree_max = 0;                   // most connections onto one post neuron
+  int32_t dopamine_index = -1;                // 0.5, add-only: stdp_dopamine_synapse: position in Structure::populations of its "dopamine_source" (-1 otherwise)
+  std::string dopamine_source;                // 0.5, add-only: the id of that population (empty otherwise)
 };
 
 struct ChannelStructure
@@ -172,6 +174,8 @@ public:
   /// "population_vector" outputs: the circular mean of the spike counts of the last step() over the ordered ring (neuron k of N at angle 2 pi k / N).
   /// output_angle(): bump angle in radians [0, 2 pi), 0 when no spike; output_strength(): vector length / spike count, 0 (no preference) to 1 (all spikes at one angle),
   /// 0 when no spike. Both are 0 for any other output kind or an unknown name.
+  /// 0.5, add-only: the circuit-level indices of the neurons of an output that spiked during the last step() (one entry per spike), so a task can count distinct active cells (sparse codes). Empty for unknown names.
+  const std::vector< int32_t >& output_spiked( const std::string& name ) const;
   double output_angle( const std::string& name ) const;
   double output_strength( const std::string& name ) const;
 

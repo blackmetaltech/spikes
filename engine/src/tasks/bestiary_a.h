@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -46,6 +47,7 @@ public:
   std::map< std::string, double > pool;               // channel -> number of neurons
   // 0.5 chapter B (add-only): population_vector outputs: per ms, count * strength * (cos, sin) of the bump angle of that step (Spec::vec lists the channels)
   std::map< std::string, std::vector< float > > vx, vy;
+  std::map< std::string, std::vector< std::pair< int, int > > > spk;  // (ms, circuit-level neuron) of every spike of the channels Spec::cells lists (distinct active cells)
   std::map< std::string, double > extra;               // facts the task chose for this episode (e.g. which wedge the landmark was at), set in its reset()
   std::vector< Win > wins;
   double tol = 1.0;                                   // mode scale: 1.5 guided, 1 standard, 0.7 researcher (wider bands for larger)
@@ -95,6 +97,22 @@ public:
       x += a->second[ static_cast< size_t >( k ) ];
       y += b->second[ static_cast< size_t >( k ) ];
     }
+  }
+  /// Distinct cells of a Spec::cells channel that fired at least once in [t0, t1) ms; `both` counts the cells that fired in [t0, t1) and also in [u0, u1).
+  int active( const std::string& ch, double t0, double t1 ) const { return both( ch, t0, t1, t0, t1 ); }
+  int both( const std::string& ch, double t0, double t1, double u0, double u1 ) const
+  {
+    auto it = spk.find( ch );
+    if ( it == spk.end() ) return 0;
+    std::set< int > a, b;
+    for ( const auto& [ t, n ] : it->second )
+    {
+      if ( t >= t0 && t < t1 ) a.insert( n );
+      if ( t >= u0 && t < u1 ) b.insert( n );
+    }
+    int c = 0;
+    for ( int n : a ) c += b.count( n ) ? 1 : 0;
+    return c;
   }
   /// Spikes per cell in the window (a response that does not depend on how many cells the player gave the motor pool).
   double c( const std::string& ch, const std::string& key ) const
@@ -147,6 +165,7 @@ struct Spec
   std::vector< std::string > readouts;                 // motor channels shown live (default: every motor)
   bool spine = true;
   std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
+  std::vector< std::string > cells;                    // motor channels whose individual cells are tracked (Meas::active / Meas::both)
 };
 
 class Scripted : public micro::MicroBase
@@ -179,6 +198,7 @@ public:
     meas_.wins = cur_.wins;
     for ( const auto& m : info_.motors ) meas_.cnt[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
     for ( const auto& m : info_.motors ) lp_[ m ].reset( 0 );
+    meas_.spk.clear();
     for ( const auto& m : s_.vec )
     {
       meas_.vx[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
@@ -277,6 +297,9 @@ protected:
       lp_[ m ].tau_ms = 60;
       readouts_[ m + "_hz" ] = lp_[ m ].step( n / meas_.pool[ m ] * 1000.0 / dt, dt );
     }
+    for ( const auto& m : s_.cells )
+      for ( int32_t n : e.output_spiked( m ) )
+        if ( k >= 0 ) meas_.spk[ m ].push_back( { static_cast< int >( k ), n } );
     for ( const auto& m : s_.vec )
     {
       const double n = e.output_count( m ), a = e.output_angle( m ), st = e.output_strength( m );

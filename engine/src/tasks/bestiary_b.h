@@ -142,4 +142,97 @@ inline std::string shifters_missing( const Graph& g, const std::string& heading,
   return "";
 }
 
+
+// ---------------------------------------------------------------- the mushroom body: odours as patterns on PN sensors, a sparse Kenyon-cell code, a dopamine-gated KC > MBON synapse
+/// The odour sensors: pn0 .. pn19 are the glomeruli (one Poisson input each); an odour is a pattern of six of them. A and B share one.
+constexpr int kGlomeruli = 20;
+inline const std::vector< int >& odour_a() { static const std::vector< int > a = { 1, 4, 7, 9, 12, 16 }; return a; }
+inline const std::vector< int >& odour_b() { static const std::vector< int > b = { 0, 3, 7, 10, 13, 18 }; return b; }
+inline std::vector< std::string > glomerulus_family()
+{
+  std::vector< std::string > v;
+  for ( int k = 0; k < kGlomeruli; ++k ) v.push_back( "pn" + std::to_string( k ) );
+  return v;
+}
+inline Task::ChannelKind glomerulus_kind() { return in_kind( "poisson", 100, 1000 ); }
+/// Segments of one odour presentation on the glomeruli sensors at `hz`.
+inline void odour_segments( const std::vector< int >& o, double t0, double t1, double hz, std::vector< Seg >& segs )
+{
+  for ( int k : o ) segs.push_back( { "pn" + std::to_string( k ), t0, t1, hz } );
+}
+/// "" when the Kenyon cells read the glomeruli with sparse, random-looking wiring (each cell listens to a few of them) and feed an inhibitory loop (the APL) that holds the code sparse.
+inline std::string sparse_code_missing( const Graph& g, const std::string& kc_channel, bool need_apl = true )
+{
+  const auto kc = g.out_pops( kc_channel );
+  if ( kc.empty() ) return "";
+  std::vector< int > pn;
+  for ( int k = 0; k < kGlomeruli; ++k )
+    for ( int p : g.in_pops( "pn" + std::to_string( k ) ) )
+      if ( std::find( pn.begin(), pn.end(), p ) == pn.end() ) pn.push_back( p );
+  if ( pn.empty() ) return "";
+  if ( Graph::overlap( pn, kc ) || !g.path( pn, kc, +1, 3 ) )
+    return "The odour does not reach the Kenyon cells: the glomeruli sensors drive projection neurons, and those excite the Kenyon cells.";
+  if ( g.cells( kc ) < 30 ) return "A sparse code needs many Kenyon cells, each answering to a few odours: use a large group of Kenyon cells.";
+  for ( const auto& p : g.st.projections )
+    if ( p.n_edges > 0 && p.sign > 0 && Graph::overlap( { p.pre_index }, pn ) && Graph::overlap( { p.post_index }, kc ) && p.indegree_max > 8 )
+      return "Every Kenyon cell listens to many of the projection neurons: with that much overlap every odour excites the same cells. Each Kenyon cell should listen to just a few of them, picked at random (random sparse wiring: a few inputs per cell).";
+  if ( need_apl && !g.path( kc, kc, -1, 3 ) )
+    return "Nothing inhibits the Kenyon cells in proportion to their own activity: the code gets dense when the odour is strong. Add a cell that the Kenyon cells excite and that inhibits them all (the APL, feedback inhibition).";
+  return "";
+}
+/// "" when the circuit has a dopamine-gated synapse from the odour code onto the avoidance cells, with a dopamine source that the punishment reaches.
+inline std::string dopamine_gate_missing( const Graph& g, const std::string& punish, const std::string& motor, const std::string& first_sensor )
+{
+  const auto m = g.out_pops( motor ), pu = g.in_pops( punish ), od = g.in_pops( first_sensor );
+  if ( m.empty() || pu.empty() ) return "";
+  bool any_gate = false;
+  for ( const auto& p : g.st.projections )
+  {
+    if ( p.n_edges <= 0 || p.sign <= 0 || p.synapse_model.find( "stdp_dopamine" ) == std::string::npos || !Graph::overlap( { p.post_index }, m ) ) continue;
+    any_gate = true;
+    if ( p.dopamine_index < 0 ) continue;
+    if ( !od.empty() && !g.path( od, { p.pre_index }, +1, 3, true ) ) continue;
+    if ( g.path( pu, { p.dopamine_index }, +1, 3, true ) && p.dopamine_index != p.pre_index && p.dopamine_index != p.post_index ) return "";
+    return "The punishment does not reach the dopamine cells of this synapse: the dopamine source must be a cell group that the punishment sensor drives (directly or through a relay), and it must not be the odour cells or the avoidance cells themselves.";
+  }
+  (void)any_gate;
+  return "Nothing in the circuit can learn: the synapse from the odour cells onto the avoidance cells is an ordinary one, so it answers every odour as before. It must be a dopamine-gated synapse, whose strength changes only when its input was active and a dopamine cell fires (select the synapse type, set its dopamine source).";
+}
+
+
+/// The training protocol of the mushroom-body levels (ms; 4400 in all). Odour A and B tests before and after; two pairings of odour A with punishment in between.
+///   base [0, 400)  quiet                  a0 [550, 900)  odour A    b0 [1150, 1500)  odour B     (naive responses)
+///   pairing 1 [1900, 2300), pairing 2 [2500, 2900): odour A and punishment together
+///   a1 [3350, 3700)  odour A    b1 [3950, 4300)  odour B     (trained responses)
+constexpr double kMbEnd = 4400;
+constexpr double kMbHz = 150;   // the rate of an odour on its glomeruli
+inline void mb_windows( Schedule& c )
+{
+  c.wins = { { "base", 0, 400 }, { "a0", 550, 900 }, { "b0", 1150, 1500 }, { "a1", 3350, 3700 }, { "b1", 3950, 4300 } };
+}
+/// Learning criteria on the avoidance channel `ch` (response = Hz per cell above the baseline of the quiet window).
+inline void mb_judge( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p, const std::string& ch )
+{
+  const double base = m.hz( ch, "base" );
+  auto r = [ & ]( const char* k ) { return std::max( 0.0, m.hz( ch, k ) - base ); };
+  const double a0 = r( "a0" ), b0 = r( "b0" ), a1 = r( "a1" ), b1 = r( "b1" );
+  p[ "response_a_before_hz" ] = a0;
+  p[ "response_b_before_hz" ] = b0;
+  p[ "response_a_after_hz" ] = a1;
+  p[ "response_b_after_hz" ] = b1;
+  p[ "a_after_over_before" ] = a0 > 0 ? a1 / a0 : 0.0;
+  p[ "b_after_over_before" ] = b0 > 0 ? b1 / b0 : 0.0;
+  p[ "baseline_hz" ] = base;
+  const double need = 8.0 / m.tol;
+  c.push_back( { "answers", a0 >= need && b0 >= need, ramp( std::min( a0, b0 ), 0, need ),
+    "The avoidance cells hardly answer the odours before any training: the odour cells must drive them (the synapse onto them too weak, or the odour does not reach it). Without a response there is nothing to learn." } );
+  const double lim = m.tol > 1.2 ? 0.8 : ( m.tol < 0.9 ? 0.6 : 0.65 );
+  c.push_back( { "learns", a0 > 0 && a1 <= lim * a0, a0 > 0 ? 1.0 - ramp( a1 / a0, lim, 1.0 ) : 0.0,
+    a1 > 1.15 * a0 ? "After the pairing the avoidance cells answer odour A MORE: the dopamine-gated synapse potentiated instead of depressing. In the mushroom body odour followed by punishment weakens the synapse."
+                   : "After odour A was paired with punishment the avoidance cells still answer it as before: nothing learned. The dopamine cells must fire during the punishment, and the synapse must weaken when its input was active and dopamine is released: strengthen the learning of the synapse." } );
+  const double sp = m.tol > 1.2 ? 0.45 : ( m.tol < 0.9 ? 0.6 : 0.55 );
+  c.push_back( { "specific", b0 > 0 && b1 >= sp * b0, b0 > 0 ? ramp( b1 / b0, 0, sp ) : 0.0,
+    "The avoidance cells also answer odour B less after training: the memory is not specific to the punished odour. Only the synapses of the odour that was active may weaken: the odours' codes must not overlap (sparse code), and the dopamine alone must not weaken silent inputs." } );
+}
+
 }  // namespace spike::tasks::bestiary
