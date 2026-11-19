@@ -90,8 +90,9 @@ struct Level
   const char* chapter;
   const char* kind;
 };
-const Level kLevels[] = { { "c_ring", "fly_compass", "micro" }, { "c_shift", "fly_compass", "micro" }, { "fly_compass", "fly_compass", "task" } };
-const char* kDx[][2] = { { "dx_compass", "fly_compass" } };
+const Level kLevels[] = { { "c_ring", "fly_compass", "micro" }, { "c_shift", "fly_compass", "micro" }, { "fly_compass", "fly_compass", "task" },
+  { "k_sparse", "fly_mb", "micro" }, { "k_depress", "fly_mb", "micro" }, { "fly_mb", "fly_mb", "task" } };
+const char* kDx[][2] = { { "dx_compass", "fly_compass" }, { "dx_mb_apl", "fly_mb" }, { "dx_mb_dan", "fly_mb" } };
 
 std::set< std::string > glossary_ids()
 {
@@ -187,7 +188,7 @@ int main( int argc, char** argv )
     contract( L, gloss, false );
     const json ref = load_circuit( L.id );
     const int cells = neuron_count( ref );
-    if ( std::string( L.kind ) == "micro" ) CHECK_MSG( cells <= 80, std::string( L.id ) + ": reference size" );  // ring and population levels: cells are numerous, populations are few
+    if ( std::string( L.kind ) == "micro" ) CHECK_MSG( cells <= 250, std::string( L.id ) + ": reference size" );  // ring and population levels: cells are numerous, populations are few
     int passes = 0, runs = 0;
     for ( const char* mode : { "guided", "standard", "researcher" } )
       for ( uint64_t seed = 1; seed <= 5; ++seed )
@@ -226,6 +227,7 @@ int main( int argc, char** argv )
   }
   // the campaign order: a chapter's micro-puzzles come before its task, the diagnosis case after
   CHECK( pos( "c_ring" ) < pos( "c_shift" ) && pos( "c_shift" ) < pos( "fly_compass" ) && pos( "fly_compass" ) < pos( "dx_compass" ) );
+  CHECK( pos( "k_sparse" ) < pos( "k_depress" ) && pos( "k_depress" ) < pos( "fly_mb" ) && pos( "fly_mb" ) < pos( "dx_mb_apl" ) && pos( "dx_mb_apl" ) < pos( "dx_mb_dan" ) );
 
   // ---- diagnosis cases
   for ( const auto& d : kDx )
