@@ -1,6 +1,6 @@
 # 0.5 design: The Bestiary
 
-Research: `docs/research/bestiary-a.md` (0.5 species), `docs/research/bestiary-b.md` (0.6 species). Numbers tagged `[mem]`/`[M]` there are unverified and may not reach player text until checked.
+Research: `research/bestiary-a.md` (0.5 species), `research/bestiary-b.md` (0.6 species). Numbers tagged `[mem]`/`[M]` there are unverified and may not reach player text until checked.
 
 ## Idea
 A new campaign wing: one chapter per model organism, each built around the circuit comp-neuro knows best. Each chapter = 2-3 micro-puzzles (one concept each), one task (the organism's behaviour, scored), and 1-2 diagnosis cases on that organism's circuit. The body chapters stay; the Bestiary is a second map page drawn as a natural-history plate (one engraved animal per chapter).
