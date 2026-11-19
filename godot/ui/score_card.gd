@@ -59,6 +59,7 @@ func _draw() -> void:
 	if check_text != "" and has_task: draw_string(f, Vector2(x + sw + 10.0, 10 + float(fz) + 1.0), check_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - x - sw - 18.0, fz, Kit.TEXT_SOFT)
 	var verdict := str(sc.get("verdict", "")) if has_task else ""
 	if has_task and verdict == "": verdict = "Add neurons and connect sensors to motors."
+	if has_task and tele != null and tele.task != null: verdict = Circuits.cap_verdict(verdict, tele.circuit, str(tele.task.id()))
 	draw_multiline_string(f, Vector2(x, 10 + float(fz) * 2.6), verdict, HORIZONTAL_ALIGNMENT_LEFT, w, fz, 2, Kit.TEXT_SOFT)
 	var parts: Dictionary = (sc.get("parts", {}) as Dictionary).duplicate() if has_task else {}
 	if has_task and tele.task != null and Progress.budget(str(tele.task.id())) > 0:

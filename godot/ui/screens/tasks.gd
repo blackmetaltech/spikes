@@ -69,20 +69,40 @@ func _default_chapter() -> String:
 			if Campaign.unlocked(id) and not Campaign.passed(id): return c["id"]
 	return Campaign.CHAPTERS[0]["id"]
 
+## The chapter tabs. Desktop: two rows, "Body" (the five body chapters) over "Bestiary" (one tab per model organism), so eleven chapters fit at 1920 px and the
+## detail panel and the Sandbox button stay on screen however many chapters there are. Phone: one row of short names in a horizontal scroll strip.
 func _tabs(f: float, phone: bool) -> Control:
-	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10 if not phone else 6)
+	var roman := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV"]
 	var ci := 0
+	var rows := {"body": HBoxContainer.new(), "bestiary": HBoxContainer.new()}
+	for r in rows: (rows[r] as HBoxContainer).add_theme_constant_override("separation", 10 if not phone else 6)
 	for c in Campaign.CHAPTERS:
 		ci += 1
 		var id: String = c["id"]; var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id)
 		var st := Campaign.star_total(id)
-		var txt := (str(SHORT[id]) if phone else "%s. %s" % [["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"][mini(ci - 1, 10)], str(c["title"])])
+		var wing := "bestiary" if Campaign.is_bestiary(id) else "body"
+		var txt := str(SHORT[id]) if phone else (("%s. %s" % [roman[mini(ci - 1, roman.size() - 1)], str(c["title"])]) if wing == "body" else str(c["title"]).trim_prefix("Bestiary: "))
 		if not open and not phone: txt += "  (locked)"
 		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0))
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not phone else Control.SIZE_SHRINK_BEGIN
+		b.clip_text = false
 		b.tooltip_text = ("%s: %d of %d levels passed, %d of %d stars" % [c["title"], Campaign.passed_count(id), n, st.x, st.y]) if n > 0 else ("%s: no tasks installed yet" % c["title"])
-		tab_btns[id] = b; h.add_child(b)
-	return h
+		tab_btns[id] = b; (rows[wing] as HBoxContainer).add_child(b)
+	if phone:
+		var sc := ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		sc.custom_minimum_size.y = 44.0; sc.set_meta("nowrap", true)   # WrapGuard must not turn this strip into a wrapping flow: it scrolls sideways on purpose
+		var one := HBoxContainer.new(); one.add_theme_constant_override("separation", 6)
+		for r in ["body", "bestiary"]:
+			for k in (rows[r] as HBoxContainer).get_children().duplicate(): (rows[r] as HBoxContainer).remove_child(k); one.add_child(k)
+		for r in rows: (rows[r] as Node).free()   # the two row containers were only a place to collect the tabs (never in the tree)
+		sc.add_child(one)
+		return sc
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6)
+	for r in ["body", "bestiary"]:
+		var hb := HBoxContainer.new(); hb.add_theme_constant_override("separation", 12)
+		var lab := Kit.small_caps("BODY" if r == "body" else "BESTIARY", int(15 * f), Kit.TEXT_SOFT); lab.custom_minimum_size.x = 96.0 * f; lab.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hb.add_child(lab); (rows[r] as HBoxContainer).size_flags_horizontal = Control.SIZE_EXPAND_FILL; hb.add_child(rows[r]); v.add_child(hb)
+	return v
 
 func _show_chapter(id: String) -> void:
 	chapter = id
@@ -194,6 +214,12 @@ func _fill_detail() -> void:
 		detail_box.add_child(Kit.label("   ".join(per), 15, Kit.TEXT_SOFT, true))
 	var brief := str(info["brief"]); var ld := LabInspector.lead(brief, 230 if not phone else 170)
 	detail_box.add_child(Kit.label(brief if _brief_full or not bool(ld[1]) else str(ld[0]), small, Kit.TEXT_SOFT, true))
+	if not _brief_full and bool(ld[1]):   # the pass rule stays in view, not behind More
+		var pl := LabInspector.pass_lines(brief, str(ld[0]), 230 if not phone else 150)
+		if pl != "":
+			var pr := HBoxContainer.new(); pr.add_theme_constant_override("separation", 8); detail_box.add_child(pr)
+			var pc := Kit.chip("PASS", Kit.GREEN, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
+			var pt := Kit.label(pl, small, Kit.TEXT, true); pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pr.add_child(pt)
 	if bool(ld[1]):
 		var mb := Kit.btn("Less" if _brief_full else "More…", func(): _brief_full = not _brief_full; _fill_detail(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; detail_box.add_child(mb)
 	if str(info.get("symptoms", "")) != "": detail_box.add_child(Kit.label("Patient: " + str(info["symptoms"]), small, Kit.TEXT, true))

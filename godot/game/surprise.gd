@@ -80,6 +80,26 @@ static func _analyse(bins: PackedFloat32Array, total: int) -> Dictionary:
 	res["found"] = best >= ACF_MIN and float(res["spikes_per_cycle"]) >= SPIKES_PER_CYCLE_MIN and float(res["on_fraction"]) <= ON_FRACTION_MAX
 	return res
 
+## True when the task's scheduled stimuli (Task::timeline(): [{t_ms, dur_ms, label}]) come at a regular pace (three or more at a nearly constant interval), or when the rhythm
+## found has the period of the gap between two of them (within 20 %): then the circuit is following the task, and "built a rhythm by accident" would be false.
+static func stimulus_is_periodic(timeline: Array, period_ms: float) -> bool:
+	var ts := []
+	for e in timeline: ts.append(float((e as Dictionary).get("t_ms", 0.0)))
+	ts.sort()
+	if ts.size() < 2: return false
+	var gaps := []
+	for i in range(1, ts.size()): gaps.append(float(ts[i]) - float(ts[i - 1]))
+	var mean := 0.0
+	for g in gaps: mean += float(g)
+	mean /= float(gaps.size())
+	if ts.size() >= 3 and mean > 0.0:
+		var sq := 0.0
+		for g in gaps: sq += (float(g) - mean) * (float(g) - mean)
+		if sqrt(sq / float(gaps.size())) / mean <= 0.3: return true
+	for g in gaps:
+		if period_ms > 0.0 and absf(float(g) - period_ms) <= 0.2 * period_ms: return true
+	return false
+
 ## The toast text for an oscillation found by `rhythm()` ({title, text}).
 static func oscillation_text(r: Dictionary) -> Dictionary:
 	var hz := 1000.0 / maxf(float(r["period_ms"]), 1.0)

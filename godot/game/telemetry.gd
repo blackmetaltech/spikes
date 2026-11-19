@@ -129,6 +129,9 @@ static func sanitized(c: Dictionary) -> Dictionary:
 	out["inputs"] = ins; out["outputs"] = outs
 	return out
 
+## Tasks whose brief says one of these motor channels is enough (the other may stay unconnected).
+const ONE_OF_MOTORS := {"worm": ["turn_left", "turn_right"]}
+
 ## What stops the task from being playable yet, in the player's words ("" when the circuit is wired from every sensor to every motor).
 func wiring_issue() -> String:
 	if task == null: return ""
@@ -138,11 +141,14 @@ func wiring_issue() -> String:
 		for ch in circuit.get("inputs", []):
 			if str(ch.get("name", "")) == str(s) and not (ch.get("targets", []) as Array).is_empty(): ok = true
 		if not ok: miss_in.append(str(s))
+	var any_wired := false   # the worm's brief: turning one way is enough, so one wired turn channel satisfies both (ONE_OF_MOTORS)
 	for m in task.motor_channels():
 		var ok := false
 		for ch in circuit.get("outputs", []):
 			if str(ch.get("name", "")) == str(m) and not (ch.get("neurons", []) as Array).is_empty(): ok = true
+		if ok and str(m) in ONE_OF_MOTORS.get(task_id, []): any_wired = true
 		if not ok: miss_out.append(str(m))
+	if any_wired: miss_out = miss_out.filter(func(m): return not (str(m) in ONE_OF_MOTORS.get(task_id, [])))
 	if n == 0:
 		return "Add a neuron, then connect %s to it and it to %s." % [_list(task.sensor_channels()), _list(task.motor_channels())]
 	var parts := []

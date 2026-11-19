@@ -93,12 +93,15 @@ func note_fail() -> void:
 	var tid := lab.task_id
 	if tid == "" or lab._is_reference() or Circuits.neuron_count(lab.circuit) == 0 or lab._is_dx(): return
 	var before := int(LabScreen._fails.get(tid, 0)); var was := HintPanel.available(lab.mode, before)
-	LabScreen._fails[tid] = before + 1
+	# One miss per circuit: the run that ended and a CHECK of the very same circuit are one missed attempt, not two (the ladder opens after UNLOCK_FAILS different attempts).
+	var fp := Circuits.fingerprint(lab.circuit) + "|" + lab.mode + "|" + lab.variant
+	if str(LabScreen._fail_fp.get(tid, "")) != fp: LabScreen._fails[tid] = before + 1
+	LabScreen._fail_fp[tid] = fp
 	var h := task_hints()
 	if not h.is_empty(): lab._hints_cache = h
 	verdict_show()
 	GameAudio.event("fail")
-	if lab.mode == "standard" and not was and HintPanel.available(lab.mode, before + 1) and lab.celebration != null:
+	if lab.mode == "standard" and not was and HintPanel.available(lab.mode, int(LabScreen._fails.get(tid, 0))) and lab.celebration != null:
 		lab.celebration.toast("Hints unlocked", "Two runs have missed. The “Hint” button on the bar now gives a nudge: first the idea, then the place, then a partial recipe.", Kit.AMBER, 6.0)
 	hint_btn_sync(); if hint_open: hint_render()
 
@@ -152,16 +155,15 @@ func check_start() -> void:
 	var tid := lab.task_id; var tele := lab.tele
 	if tid == "" or tele == null or tele.task == null or _check_job != 0: return
 	if Circuits.neuron_count(lab.circuit) == 0 or tele.wiring_issue() != "": lab._banner_raw(tele.wiring_issue() if tele != null and tele.wiring_issue() != "" else "Add a neuron first."); return
-	if not ClassDB.class_has_method("SpikeTask", "score_headless_async"):
+	# CHECK runs the task's quick episode (Task::quick_duration_ms, the same rules on a shorter run; tasks without one run their full episode). Older extensions fall back to the full run.
+	var quick := ClassDB.class_has_method("SpikeTask", "score_headless_quick_async")
+	if not quick and not ClassDB.class_has_method("SpikeTask", "score_headless_async"):
 		lab.celebration.toast("Instant check is not in this build", "Rebuild the extension (scripts/build-gd.sh) to get headless scoring.", Kit.RED, 4.0); return
 	_check_task = Campaign.make(tid)
 	if _check_task == null: return
 	var cseed := int(lab.circuit.get("seed", 1)); var cj := Circuits.to_json(Telemetry.sanitized(lab._live_circuit()))
-	var nargs := 0
-	for m in _check_task.get_method_list():
-		if str(m["name"]) == "score_headless_async": nargs = (m["args"] as Array).size()
-	if nargs >= 5: _check_job = int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed))   # extension with a circuit-seed argument: the live world and circuit seeds
-	else: _check_job = int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant))
+	_check_job = int(_check_task.score_headless_quick_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed)) if quick \
+		else int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed))
 	_check_t0 = Time.get_ticks_msec()
 	if _check_job == 0: _check_task = null; lab.celebration.toast("Check could not start", "The headless scorer refused the circuit.", Kit.RED, 4.0); return
 	var cb := lab.layout.check_btn
@@ -199,6 +201,7 @@ func check_poll() -> void:
 	if not bool(r.get("ok", false)): lab.celebration.toast("Check failed", str(r.get("error", "the headless run did not finish")), Kit.RED, 5.0); return
 	var passed := bool(r.get("passed", false)); var val := int(roundf(float(r.get("value", 0.0))))
 	var runs: Array = r.get("runs", []); var verdict := str((runs[0] as Dictionary).get("verdict", "")) if not runs.is_empty() else ""
+	verdict = Circuits.cap_verdict(verdict, lab.circuit, lab.task_id)
 	lab.celebration.toast(("Check: passed  %d" if passed else "Check: not passed  %d") % val, "%s  (%.1f s)" % [verdict, ms * 0.001], Kit.GREEN if passed else Kit.RED, 6.0)
 	GameAudio.event("pass" if passed else "fail")
 	if lab.score_card != null: lab.score_card.check_text = "check %d%s" % [val, "" if passed else " (miss)"]

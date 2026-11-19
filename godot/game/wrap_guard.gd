@@ -34,6 +34,7 @@ func _fit(c) -> void:   # untyped: the control may already be freed when the def
 	if not is_instance_valid(c) or not c.is_inside_tree(): return
 	var sc: ScrollContainer = null; var p: Node = c.get_parent()
 	while p != null:
+		if p.has_meta("nowrap"): return   # a strip that scrolls sideways on purpose (the phone's chapter tabs)
 		if p is ScrollContainer and (p as Control).size.x > 100.0: sc = p
 		p = p.get_parent()
 	if sc == null: return

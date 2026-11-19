@@ -81,9 +81,10 @@ func build() -> void:
 	if body_view and not phone: lab.raster.custom_minimum_size.y = 90.0; lab.traces.custom_minimum_size.y = 90.0   # the scopes give way to the body view and its timeline
 	lab.gauges = GaugeView.new(); lab.gauges.custom_minimum_size = Vector2(0, 40.0 + 30.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2)); scopes.add_child(lab.gauges)
 	if tid != "" and not (info.get("modulators", []) as Array).is_empty() and ModDials.available():   # task-driven neuromodulators: read-only gauges
-		lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false); scopes.add_child(lab.mod_dials)
+		lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false, tid); scopes.add_child(lab.mod_dials)
 	lab.banner = Kit.label("", 17, Kit.RED, true); lab.banner.visible = false; v.add_child(lab.banner)
 	lab.celebration = Celebration.new(); ov.add_child(lab.celebration)
+	lab.celebration.blocked = func() -> bool: return lab._overlay != null and is_instance_valid(lab._overlay)
 	lab.add_child(ov)
 
 # ---------- the top bar ----------
@@ -161,7 +162,9 @@ func fill_palette() -> void:
 func sync_connect_btn() -> void:
 	if connect_btn != null and is_instance_valid(connect_btn) and lab.editor != null: Kit.skin(connect_btn, "amber" if lab.editor.tool == "connect" else "panel", 12)
 
-func part_text() -> String: return "Parts: " + lab.part_card
+func part_text() -> String:   # the part the add button makes, by its title (not its catalogue id)
+	var t := str(Catalog.card(lab.part_card).get("title", ""))
+	return "Parts: " + (t.split(" (")[0] if t != "" else lab.part_card)
 
 func open_parts() -> void:
 	close_menu(); close_parts()
@@ -310,7 +313,7 @@ func _end_text() -> String:
 	if lab._is_reference():
 		parts.append("This is the reference circuit, or a copy of it: it earns no stars. Open More, press “Empty bench” and build your own.")
 	elif not passed:
-		if lab._test_result.is_empty(): parts.append(str(sc.get("verdict", "")))
+		if lab._test_result.is_empty(): parts.append(Circuits.cap_verdict(str(sc.get("verdict", "")), lab.circuit, tid))
 		if lab.mode == "researcher": parts.append("Researcher mode: no hints. Read the scopes and the lesion table.")
 		elif HintPanel.available(lab.mode, int(LabScreen._fails.get(tid, 0))): parts.append("The glowing part of the circuit is what the verdict is about. Press “Hint” for a nudge.")
 		else: parts.append("The glowing part of the circuit is what the verdict is about. Hints open after %d missed runs (%d so far)." % [HintPanel.UNLOCK_FAILS, int(LabScreen._fails.get(tid, 0))])

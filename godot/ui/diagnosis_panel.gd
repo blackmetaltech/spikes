@@ -8,6 +8,8 @@ extends VBoxContainer
 
 signal picked(cand: String)
 signal submit_pressed
+## Wrong submissions before "Reveal answer" is offered (one wrong pick is not a reason to give up).
+const REVEAL_AFTER := 2
 signal reveal_pressed
 signal lesion_lab_pressed
 
@@ -43,7 +45,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	if not done:
 		var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 8); add_child(br)
 		var sb := Kit.btn("SUBMIT DIAGNOSIS", func(): state["last_submitted"] = str(state.get("picked", "")); submit_pressed.emit(), "green", 20); sb.disabled = str(state.get("picked", "")) == ""; br.add_child(sb)
-		if int(state.get("tries", 0)) >= 1: br.add_child(Kit.btn("REVEAL ANSWER", func(): reveal_pressed.emit(), "panel", 18))
+		if int(state.get("tries", 0)) >= REVEAL_AFTER: br.add_child(Kit.btn("REVEAL ANSWER", func(): reveal_pressed.emit(), "panel", 18))   # not after the first wrong pick: probing comes first
 		if int(state.get("tries", 0)) >= 1:
 			var pk := str(state.get("last_submitted", ""))   # the wrong answer just submitted (not a pick made since)
 			var why := str(explain.get(pk, ""))
