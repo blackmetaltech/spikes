@@ -65,7 +65,7 @@ Spec spec()
     mech::PopSet on_path;
     for ( int p = 0; p < static_cast< int >( g.st.populations.size() ); ++p )
       if ( g.path( touch, { p }, +1, 4, true ) && g.path( { p }, rev, +1, 4, true ) ) on_path.insert( p );
-    if ( !mech::excitatory_loop( g.st, on_path ) )
+    if ( !mech::excitatory_loop( g.st, on_path, true ) )
       return "Nothing keeps the command going once the touch is over: the cells that drive 'reverse' must excite themselves or each other (positive feedback), "
              "otherwise the reversal ends with the touch.";
     if ( !stop.empty() && !g.path( stop, rev, -1, 4 ) )

@@ -92,9 +92,10 @@ inline bool path( const Structure& st, const PopSet& from, const PopSet& to, int
   return overlap( reach( st, from, parity, max_hops ), to );
 }
 
-/// Recurrent excitation: some population of `pops` lies on a cycle of excitatory projections that involves at least two cells (a group projecting
-/// to itself needs >= 2 cells and a rule other than one_to_one, which would only be autapses; a loop through other groups counts as it is).
-inline bool excitatory_loop( const Structure& st, const PopSet& pops )
+/// Recurrent excitation: some population of `pops` lies on a cycle of excitatory projections. By default a cycle needs at least two cells (a group
+/// projecting to itself needs >= 2 cells and a rule other than one_to_one, which would only be autapses; a loop through other groups counts as it is).
+/// `autapse_ok`: a cell that excites ITSELF (a self-loop, one cell or one_to_one) is a latch too, as in a real command neuron, and counts.
+inline bool excitatory_loop( const Structure& st, const PopSet& pops, bool autapse_ok = false )
 {
   for ( int p : pops )
   {
@@ -102,7 +103,7 @@ inline bool excitatory_loop( const Structure& st, const PopSet& pops )
     for ( const auto& pr : st.projections )
       if ( pr.n_edges > 0 and pr.sign > 0 and pr.pre_index == p )
       {
-        if ( pr.post_index == p and ( st.populations[ p ].n < 2 or pr.rule == "one_to_one" ) )
+        if ( not autapse_ok and pr.post_index == p and ( st.populations[ p ].n < 2 or pr.rule == "one_to_one" ) )
           continue;
         first.insert( pr.post_index );
       }
