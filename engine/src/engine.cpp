@@ -1351,6 +1351,12 @@ double Engine::output_value( const std::string& channel ) const
   return sum / static_cast< double >( m.spec.outputs[ it->second ].neurons.size() );
 }
 
+double Engine::input_value( const std::string& channel ) const
+{
+  auto it = impl_->in_idx.find( channel );
+  return it == impl_->in_idx.end() ? 0.0 : impl_->devs[ it->second ].value;
+}
+
 double Engine::input_weight( const std::string& channel ) const
 {
   for ( const auto& in : impl_->spec.inputs )

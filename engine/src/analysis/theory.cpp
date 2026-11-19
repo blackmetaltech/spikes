@@ -134,18 +134,22 @@ PhasePlane phase_plane( const std::string& model, const std::map< std::string, d
     r.v_peak = get( p, "V_th", 30.0 );
     r.v_reset = c;
     r.w_jump = d;
-    r.v_lo = -90;
-    r.v_hi = r.v_peak + 5;
+    r.fixed = izh_fixed( a, b, I );
+    r.v_lo = -85;
+    r.v_hi = -35;   // the window shows the nullclines near rest: the spike itself (up to V_th) runs off the right edge
+    for ( const auto& f : r.fixed )
+      r.v_hi = std::max( r.v_hi, std::min( f.v + 25.0, r.v_peak ) );
     for ( int i = 0; i <= N; ++i )
     {
       const double V = r.v_lo + ( r.v_hi - r.v_lo ) * i / N;
       r.v_null.push_back( { V, 0.04 * V * V + 5.0 * V + 140.0 + I } );
       r.w_null.push_back( { V, b * V } );
     }
-    r.fixed = izh_fixed( a, b, I );
-    double lo = 1e9, hi = -1e9;
+    double lo = 1e9, hi = -1e9, vcut = -35.0;   // the window follows the nullclines near the fixed points, not the far arm of the parabola
+    for ( const auto& f : r.fixed )
+      vcut = std::max( vcut, f.v + 20.0 );
     for ( const auto& q : r.v_null )
-      if ( q[ 0 ] >= -80 and q[ 0 ] <= 10 )
+      if ( q[ 0 ] >= -80 and q[ 0 ] <= vcut )
       {
         lo = std::min( lo, q[ 1 ] );
         hi = std::max( hi, q[ 1 ] );
@@ -172,9 +176,8 @@ PhasePlane phase_plane( const std::string& model, const std::map< std::string, d
   r.v_peak = m.Vpk;
   r.v_reset = m.Vr;
   r.w_jump = m.b;
-  r.v_lo = m.EL - 30.0;
-  r.v_hi = std::max( m.Vth + 10.0 * m.dT, m.EL + 15.0 );
-  r.v_hi = std::min( r.v_hi, m.Vpk );
+  r.v_lo = m.EL - 20.0;
+  r.v_hi = std::min( std::max( m.Vth + 8.0 * m.dT, m.EL + 15.0 ), m.Vpk );
   for ( int i = 0; i <= N; ++i )
   {
     const double V = r.v_lo + ( r.v_hi - r.v_lo ) * i / N;
@@ -230,30 +233,52 @@ Onset onset( const std::string& model, const std::map< std::string, double >& pa
   Onset o;
   if ( not phase_plane_supported( model ) )
     return o;
-  const FixedPoint* last = nullptr;
-  FixedPoint keep;
-  for ( int i = 0; i <= n; ++i )
-  {
-    const double I = i_lo + ( i_hi - i_lo ) * i / n;
+  auto stable_at = [ & ]( double I, FixedPoint& out ) {
     const PhasePlane pp = phase_plane( model, params, I );
     const FixedPoint* st = nullptr;
     for ( const auto& f : pp.fixed )
       if ( f.stable )
         st = &f;
-    if ( not st )
+    if ( st )
+      out = *st;
+    return st != nullptr;
+  };
+  FixedPoint keep;
+  double prev = i_lo;
+  bool have = false;
+  for ( int i = 0; i <= n; ++i )
+  {
+    const double I = i_lo + ( i_hi - i_lo ) * i / n;
+    FixedPoint f;
+    if ( not stable_at( I, f ) )
     {
-      if ( last )
+      if ( not have )
+        return o;
+      // refine: the current where the stable fixed point goes away lies between `prev` (stable) and `I`
+      double a = prev, b = I;
+      FixedPoint fa = keep;
+      for ( int k = 0; k < 40; ++k )
       {
-        o.found = true;
-        o.current = I;
-        o.kind = last->kind == "stable focus" ? "hopf" : "saddle-node";
-        const double q = last->det - 0.25 * last->trace * last->trace;   // omega^2 per ms^2: the rates are per ms in both models
-        o.freq_hz = q > 0 ? std::sqrt( q ) * 1000.0 / ( 2.0 * 3.14159265358979323846 ) : 0.0;
+        const double mid = 0.5 * ( a + b );
+        FixedPoint fm;
+        if ( stable_at( mid, fm ) )
+        {
+          a = mid;
+          fa = fm;
+        }
+        else
+          b = mid;
       }
+      o.found = true;
+      o.current = b;
+      o.kind = fa.kind == "stable focus" ? "hopf" : "saddle-node";
+      const double q = fa.det - 0.25 * fa.trace * fa.trace;   // omega^2 per ms^2: the rates are per ms in both models
+      o.freq_hz = q > 0 ? std::sqrt( q ) * 1000.0 / ( 2.0 * 3.14159265358979323846 ) : 0.0;
       return o;
     }
-    keep = *st;
-    last = &keep;
+    keep = f;
+    prev = I;
+    have = true;
   }
   return o;
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - 0.6 Theory wing, chapter 1: dynamics
+
+- New campaign wing "Theory" (third tab row, open from the start): `docs/DESIGN-THEORY.md`. First chapter, dynamics: `d_class` (class I and II, f-I onset), `d_phasic` (a stable fixed point that ends firing), `d_switch` (one neuron, two stable states, set and reset pulses).
+- New lab view: the V-w phase plane (nullclines from the cell's live parameters and current, fixed points, reset, live trajectory).
+- Engine, add-only: `Engine::neuron_state`, `input_weight`, `input_value`, `output_value`; input kinds `rate_drive`, `tuned_poisson`; output kind `rate_value`; rate neurons and `siegert_neuron` as populations with `rate_connection_*` and `diffusion_connection` (J, K) projections; `spike/theory.h` (phase plane, onset type, spike-triggered average); `spike-run --sample/--set/--phase`. See `docs/CIRCUIT-FORMAT.md`.
+- New citations (checked against PubMed): Ermentrout 1996, Rothman & Manis 2003, Touboul & Brette 2008, Naud 2008 and those of the later chapters.
+
 ## [Unreleased] - 0.5 playtest fixes (research/PLAYTEST-0.5.md)
 
 - **Reference lock:** a circuit counts as a copy of the reference only when it equals the reference file exactly (structure, editor positions, provenance, every number within a relative 1e-6) or the REFERENCE button filled the bench; hand-built circuits with round numbers are never flagged.

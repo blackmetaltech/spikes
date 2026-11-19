@@ -15,6 +15,7 @@
 //   the executable). Seeds default to 1. A lesion scales the weight of every projection pre->post (0 deletes it). Exit status: 0 ok, 1 load or run
 //   error, 2 usage, 3 the --require condition failed (any: at least one seed passed, all: every seed passed). Used by CI and scripts/smoke.sh.
 #include <cstdio>
+#include "spike/theory.h"
 #include <cerrno>
 #include <deque>
 #include <sys/wait.h>
@@ -392,6 +393,7 @@ int main( int argc, char** argv )
   int threads = 1;
   // 0.6 (dev aid, add-only): --sample key@neuron|out:name|mod:name[,..] --every ms prints {"t":..,"<what>":value,..} lines; --set t_ms:channel=value sets an input at that model time
   std::vector< std::string > sample;
+  std::string phase_arg;   // --phase neuron[:i_ext]: print the fixed points and the onset type of a 2-D cell, then run
   double every = 10.0;
   struct SetAt { double t; std::string ch; double v; bool done = false; };
   std::vector< SetAt > sets;
@@ -403,6 +405,8 @@ int main( int argc, char** argv )
       std::stringstream q( argv[ ++i ] );
       for ( std::string tok; std::getline( q, tok, ',' ); ) sample.push_back( tok );
     }
+    else if ( std::string( argv[ i ] ) == "--phase" and i + 1 < argc )
+      phase_arg = argv[ ++i ];
     else if ( std::string( argv[ i ] ) == "--every" and i + 1 < argc )
       every = std::atof( argv[ ++i ] );
     else if ( std::string( argv[ i ] ) == "--set" and i + 1 < argc )
@@ -439,6 +443,22 @@ int main( int argc, char** argv )
   {
     std::fprintf( stderr, "spike-run: %s\n", e.error().c_str() );
     return 1;
+  }
+  if ( not phase_arg.empty() )
+  {
+    const size_t c = phase_arg.find( ':' );
+    const int n = std::atoi( phase_arg.substr( 0, c ).c_str() );
+    const double ie = c == std::string::npos ? 0.0 : std::atof( phase_arg.substr( c + 1 ).c_str() );
+    const auto pp = spike::theory::phase_plane_of( e, n, ie );
+    std::fprintf( stderr, "phase plane of neuron %d (%s, I = %g): %s\n", n, pp.model.c_str(), pp.i_total, pp.ok ? "ok" : pp.note.c_str() );
+    for ( const auto& f : pp.fixed ) std::fprintf( stderr, "  fixed point V %.3f %s %.3f  %s (trace %.4g det %.4g)\n", f.v, pp.w_name.c_str(), f.w, f.kind.c_str(), f.trace, f.det );
+    if ( pp.ok )
+    {
+      std::map< std::string, double > p;
+      for ( const auto& k : spike::theory::phase_plane_params( pp.model ) ) p[ k ] = e.neuron_state( n, k );
+      const auto o = spike::theory::onset( pp.model, p, 0.0, pp.model == "izhikevich" ? 100.0 : 3000.0, 800 );
+      std::fprintf( stderr, "  onset: %s at %g (%s, rest resonance %.1f Hz)\n", o.found ? "found" : "none", o.current, o.kind.c_str(), o.freq_hz );
+    }
   }
   // 1 ms slices like the closed loop (identical spikes to one long run)
   const double res = e.resolution_ms();

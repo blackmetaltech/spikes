@@ -2,7 +2,9 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <cmath>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
 #include "bridge.h"
+#include "spike/theory.h"
 
 using namespace godot;
 
@@ -90,6 +92,49 @@ void SpikeSim::watch( int64_t n )
 double SpikeSim::output_rate( const String& name ) const
 {
   return owns() ? engine_->output_rate( to_std( name ) ) : 0.0;
+}
+double SpikeSim::neuron_state( int64_t n, const String& key ) const { return owns() ? engine_->neuron_state( int32_t( n ), to_std( key ) ) : std::nan( "" ); }
+double SpikeSim::input_value( const String& name ) const { return owns() ? engine_->input_value( to_std( name ) ) : 0.0; }
+double SpikeSim::output_value( const String& name ) const { return owns() ? engine_->output_value( to_std( name ) ) : 0.0; }
+double SpikeSim::input_weight( const String& name ) const { return owns() ? engine_->input_weight( to_std( name ) ) : 0.0; }
+Dictionary SpikeSim::phase_plane( int64_t n, double i_ext ) const
+{
+  Dictionary d;
+  if ( !owns() )
+  {
+    d[ "ok" ] = false;
+    return d;
+  }
+  const spike::theory::PhasePlane pp = spike::theory::phase_plane_of( *engine_, int32_t( n ), i_ext );
+  d[ "ok" ] = pp.ok;
+  d[ "note" ] = String::utf8( pp.note.c_str() );
+  d[ "model" ] = String::utf8( pp.model.c_str() );
+  d[ "w_name" ] = String::utf8( pp.w_name.c_str() );
+  d[ "v_lo" ] = pp.v_lo;
+  d[ "v_hi" ] = pp.v_hi;
+  d[ "w_lo" ] = pp.w_lo;
+  d[ "w_hi" ] = pp.w_hi;
+  d[ "v_reset" ] = pp.v_reset;
+  d[ "v_peak" ] = pp.v_peak;
+  d[ "w_jump" ] = pp.w_jump;
+  d[ "i_total" ] = pp.i_total;
+  PackedVector2Array vn, wn;
+  for ( const auto& q : pp.v_null ) vn.push_back( Vector2( real_t( q[ 0 ] ), real_t( q[ 1 ] ) ) );
+  for ( const auto& q : pp.w_null ) wn.push_back( Vector2( real_t( q[ 0 ] ), real_t( q[ 1 ] ) ) );
+  d[ "v_null" ] = vn;
+  d[ "w_null" ] = wn;
+  Array fx;
+  for ( const auto& f : pp.fixed )
+  {
+    Dictionary e;
+    e[ "v" ] = f.v;
+    e[ "w" ] = f.w;
+    e[ "kind" ] = String::utf8( f.kind.c_str() );
+    e[ "stable" ] = f.stable;
+    fx.push_back( e );
+  }
+  d[ "fixed" ] = fx;
+  return d;
 }
 double SpikeSim::output_angle( const String& name ) const { return owns() ? engine_->output_angle( to_std( name ) ) : 0.0; }
 double SpikeSim::output_strength( const String& name ) const { return owns() ? engine_->output_strength( to_std( name ) ) : 0.0; }
@@ -251,6 +296,11 @@ void SpikeSim::_bind_methods()
   ClassDB::bind_method( D_METHOD( "voltage", "i" ), &SpikeSim::voltage );
   ClassDB::bind_method( D_METHOD( "watch", "i" ), &SpikeSim::watch );
   ClassDB::bind_method( D_METHOD( "output_rate", "name" ), &SpikeSim::output_rate );
+  ClassDB::bind_method( D_METHOD( "neuron_state", "i", "key" ), &SpikeSim::neuron_state );
+  ClassDB::bind_method( D_METHOD( "output_value", "name" ), &SpikeSim::output_value );
+  ClassDB::bind_method( D_METHOD( "input_weight", "name" ), &SpikeSim::input_weight );
+  ClassDB::bind_method( D_METHOD( "input_value", "name" ), &SpikeSim::input_value );
+  ClassDB::bind_method( D_METHOD( "phase_plane", "i", "i_ext" ), &SpikeSim::phase_plane );
   ClassDB::bind_method( D_METHOD( "output_angle", "name" ), &SpikeSim::output_angle );
   ClassDB::bind_method( D_METHOD( "output_strength", "name" ), &SpikeSim::output_strength );
   ClassDB::bind_method( D_METHOD( "queue_spikes", "name", "times_ms" ), &SpikeSim::queue_spikes );

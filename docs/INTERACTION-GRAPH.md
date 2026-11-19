@@ -37,6 +37,7 @@ flowchart LR
   campaign_chapter_fly_compass("Campaign chapter tab: Bestiary: Fly compass")
   campaign_chapter_fly_mb("Campaign chapter tab: Bestiary: Fly mushroom body")
   campaign_chapter_crab("Campaign chapter tab: Bestiary: Crab")
+  campaign_chapter_dynamics("Campaign chapter tab: Theory: Dynamics")
   parts["Parts bin (browse the catalogue)"]
   notebook["Lab notebook, Notes tab"]
   notebook_concepts("Notebook, Concepts tab (glossary)")
@@ -226,6 +227,7 @@ flowchart LR
 | `campaign.chapter.fly_compass` | tab | Campaign chapter tab: Bestiary: Fly compass |  |
 | `campaign.chapter.fly_mb` | tab | Campaign chapter tab: Bestiary: Fly mushroom body |  |
 | `campaign.chapter.crab` | tab | Campaign chapter tab: Bestiary: Crab |  |
+| `campaign.chapter.dynamics` | tab | Campaign chapter tab: Theory: Dynamics |  |
 | `parts` | screen | Parts bin (browse the catalogue) | `BtnBack`, `BtnSandbox`, `PartsBin` |
 | `notebook` | screen | Lab notebook, Notes tab | `BtnBack`, `BtnWhatIsReal`, `TabNotes`, `TabConcepts` |
 | `notebook.concepts` | tab | Notebook, Concepts tab (glossary) |  |
@@ -279,5 +281,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 52 nodes, 112 edges, 8 guard checks.
+Counts: 53 nodes, 113 edges, 8 guard checks.
 <!-- END GENERATED -->

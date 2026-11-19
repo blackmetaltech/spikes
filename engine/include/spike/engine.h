@@ -186,6 +186,8 @@ public:
   double neuron_state( int32_t neuron, const std::string& key ) const;
   /// The synaptic weight (pA for a dc input) the circuit gives an input channel; 0 for an unknown name.
   double input_weight( const std::string& channel ) const;
+  /// The level last set on an input channel with set_input() (its initial `value` before that); 0 for an unknown name or a spike_generator.
+  double input_value( const std::string& channel ) const;
   double output_value( const std::string& name ) const;
 
   RunStats stats() const;

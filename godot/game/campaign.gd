@@ -27,7 +27,9 @@ const CHAPTERS := [
 	{"id": "aplysia", "title": "Bestiary: Sea slug", "organ": "bestiary", "wing": "bestiary", "blurb": "Aplysia: a reflex that habituates, recovers and is sensitised, all in one synapse."},
 	{"id": "fly_compass", "title": "Bestiary: Fly compass", "organ": "bestiary", "wing": "bestiary", "blurb": "Drosophila: a bump of activity on a ring of compass cells holds the heading in the dark and follows the fly's turns. After Turner-Evans/Hulse cell types, not synapse-level data."},
 	{"id": "fly_mb", "title": "Bestiary: Fly mushroom body", "organ": "bestiary", "wing": "bestiary", "blurb": "Drosophila: a sparse odour code, and a dopamine-gated depression that teaches the fly to avoid a punished odour. After the published cell types, not synapse-level data."},
-	{"id": "crab", "title": "Bestiary: Crab", "organ": "bestiary", "wing": "bestiary", "blurb": "The crab stomatogastric ganglion: a conductance-based pacemaker kernel and two rebound followers make the triphasic pyloric rhythm, and many different parameter sets give the same pattern."}]
+	{"id": "crab", "title": "Bestiary: Crab", "organ": "bestiary", "wing": "bestiary", "blurb": "The crab stomatogastric ganglion: a conductance-based pacemaker kernel and two rebound followers make the triphasic pyloric rhythm, and many different parameter sets give the same pattern."},
+	# v0.6 Theory wing (docs/DESIGN-THEORY.md): what a graduate comp-neuro course teaches. Open from the start like the Bestiary.
+	{"id": "dynamics", "title": "Theory: Dynamics", "organ": "bestiary", "wing": "theory", "blurb": "The phase plane: nullclines, fixed points and what happens to the resting state as the current grows. Class I and class II firing, a cell that reports only change, and a single neuron that remembers a pulse."}]
 
 ## Planned lineup per chapter: [id, title, node centre on the map (0..1, 0..1)].
 const PLANNED := {
@@ -42,6 +44,7 @@ const PLANNED := {
 	"aplysia": [["a_depress", "Getting used to a touch", Vector2(0.2, 0.62)], ["a_facilitate", "A shock to the tail", Vector2(0.5, 0.36)], ["aplysia_gill", "The gill-withdrawal reflex", Vector2(0.8, 0.62)]],
 	"fly_compass": [["c_ring", "A bump that stays", Vector2(0.2, 0.62)], ["c_shift", "Moving the bump", Vector2(0.5, 0.36)], ["fly_compass", "The compass in the dark", Vector2(0.8, 0.62)]],
 	"fly_mb": [["k_sparse", "A sparse odour code", Vector2(0.2, 0.62)], ["k_depress", "Learning to avoid an odour", Vector2(0.5, 0.36)], ["fly_mb", "The mushroom body learns", Vector2(0.8, 0.62)]],
+	"dynamics": [["d_class", "Where firing starts", Vector2(0.2, 0.62)], ["d_phasic", "Only the change counts", Vector2(0.5, 0.36)], ["d_switch", "A neuron that remembers a pulse", Vector2(0.8, 0.62)]],
 	"crab": [["s_pacemaker", "A pacemaker kernel", Vector2(0.2, 0.62)], ["s_phase", "Phase from rebound", Vector2(0.5, 0.36)], ["crab_pyloric", "The pyloric rhythm", Vector2(0.8, 0.62)]]}
 
 ## Extra slots for engine tasks that are not in PLANNED.
@@ -81,6 +84,9 @@ const CONCEPTS := {
 	"pacemaker_kernel": ["Pacemaker kernel", "A bursting cell coupled to partner cells that it drags into its rhythm. In the crab stomatogastric ganglion the anterior burster AB and the pyloric dilator cells PD burst together, about once a second, and pace the whole pyloric rhythm.", "Marder E, Bucher D (2001) Curr Biol 11:R986, doi:10.1016/s0960-9822(01)00581-4"],
 	"phase_lag": ["Phase from inhibition and rebound", "A follower cell that is inhibited by the pacemaker and fires by rebound when the inhibition lets go has its burst after the pacemaker's in the cycle. The delay comes from slow currents that wake up on release, and it fixes the follower's phase.", "Prinz AA et al. (2004) Nat Neurosci 7:1345, doi:10.1038/nn1352; Marder E, Bucher D (2001) Curr Biol 11:R986, doi:10.1016/s0960-9822(01)00581-4"],
 	"degeneracy": ["Degeneracy", "Very different sets of membrane conductances and synaptic strengths can give the same network pattern, so animals can differ a lot underneath and still behave alike. It also means that similar-looking lesions can come from different missing parts.", "Prinz AA, Bucher D, Marder E (2004) Nat Neurosci 7:1345, doi:10.1038/nn1352"],
+	"excitability_class": ["Excitability class (type I and II)", "How a neuron starts to fire as the current grows. Class I cells fire slowly at first and speed up smoothly; class II cells start at a clear rate at once. In the phase plane the resting state vanishes by colliding with a saddle (class I) or turns into an unstable spiral (class II).", "Hodgkin AL (1948) J Physiol 107:165, doi:10.1113/jphysiol.1948.sp004260; Ermentrout B (1996) Neural Comput 8:979, doi:10.1162/neco.1996.8.5.979"],
+	"stable_fixed_point": ["A stable fixed point (phasic firing)", "In the phase plane the point where the nullclines cross is the resting state. If it is still stable at the new current, a cell that was kicked across threshold spirals back into it and falls silent although the current stays on: it reports change, not level.", "Izhikevich EM (2003) IEEE Trans Neural Netw 14:1569, doi:10.1109/TNN.2003.820440; Rothman JS, Manis PB (2003) J Neurophysiol 89:3097, doi:10.1152/jn.00127.2002"],
+	"bistability": ["Bistability", "One cell, one current, two stable states: rest and repetitive firing, each with its own basin. A brief pulse that crosses the border between the basins flips the state and it stays flipped, so the cell stores one bit.", "Izhikevich EM (2003) IEEE Trans Neural Netw 14:1569, doi:10.1109/TNN.2003.820440; Touboul J, Brette R (2008) Biol Cybern 99:319, doi:10.1007/s00422-008-0267-4"],
 	"divergent_command": ["Divergent command", "One command cell fans out to many targets, so a single cue changes the whole body at once: the fight-or-flight response.", "Cannon WB (1915) Bodily Changes in Pain, Hunger, Fear and Rage; Janig W (2006) The Integrative Action of the Autonomic Nervous System"]}
 
 static var pending_variant := ""   # set by the map before app.open_lab(task) for a variant branch; the lab reads it and clears it ("" = the base task)
@@ -344,17 +350,22 @@ static func star_total(ch: String) -> Vector2i:
 static func _playable_chapters() -> Array:
 	var out := []
 	for c in CHAPTERS:
-		if is_bestiary(str(c["id"])): continue   # the Bestiary wing is outside the body chapters' unlock chain
+		if is_wing(str(c["id"])): continue   # the Bestiary and Theory wings are outside the body chapters' unlock chain
 		if installed_count(str(c["id"])) > 0: out.append(str(c["id"]))
 	return out
 
 ## True for the chapters of the Bestiary wing (v0.5): open from the start, never gating a body chapter.
 static func is_bestiary(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "bestiary"
+## v0.6: the Theory wing (dynamics, rates, memory, tuning): open from the start as well.
+static func is_theory(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "theory"
+static func is_wing(ch: String) -> bool: return is_bestiary(ch) or is_theory(ch)
+## "body", "bestiary" or "theory": the row of the campaign map the chapter's tab sits in.
+static func wing_of(ch: String) -> String: return "theory" if is_theory(ch) else ("bestiary" if is_bestiary(ch) else "body")
 
 ## A chapter opens when the spine of the previous chapter (that has levels) is passed, OR the spine of the chapter two before it is passed, so one stuck task
 ## never blocks the game. The first two chapters are open from the start. A task that sets on_spine false is a branch and never gates.
 static func chapter_open(ch: String) -> bool:
-	if unlock_all() or is_bestiary(ch): return true
+	if unlock_all() or is_wing(ch): return true
 	var pl := _playable_chapters(); var i := pl.find(ch)
 	if i < 2: return true   # (also true for a chapter with no levels yet)
 	return spine_passed(str(pl[i - 1])) or spine_passed(str(pl[i - 2]))

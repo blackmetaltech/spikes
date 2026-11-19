@@ -49,6 +49,28 @@ public:
   std::map< std::string, std::vector< float > > vx, vy;
   std::map< std::string, std::vector< std::pair< int, int > > > spk;  // (ms, circuit-level neuron) of every spike of the channels Spec::cells lists (distinct active cells)
   std::map< std::string, double > extra;               // facts the task chose for this episode (e.g. which wedge the landmark was at), set in its reset()
+  std::map< std::string, std::vector< float > > val;   // 0.6 (add-only): rate_value channel -> value at the end of every ms (Spec::vals)
+  /// Mean of a rate_value channel over [t0, t1) ms; and its smallest / largest value there.
+  double vmean( const std::string& ch, double t0, double t1 ) const
+  {
+    auto it = val.find( ch );
+    if ( it == val.end() ) return 0;
+    double s = 0;
+    long n = 0;
+    for ( long k = std::max( 0L, static_cast< long >( t0 ) ); k < static_cast< long >( t1 ) && k < static_cast< long >( it->second.size() ); ++k, ++n ) s += it->second[ static_cast< size_t >( k ) ];
+    return n ? s / n : 0.0;
+  }
+  double vmin( const std::string& ch, double t0, double t1 ) const { return vextreme( ch, t0, t1, false ); }
+  double vmax( const std::string& ch, double t0, double t1 ) const { return vextreme( ch, t0, t1, true ); }
+  double vextreme( const std::string& ch, double t0, double t1, bool hi ) const
+  {
+    auto it = val.find( ch );
+    if ( it == val.end() ) return 0;
+    double r = hi ? -1e30 : 1e30;
+    for ( long k = std::max( 0L, static_cast< long >( t0 ) ); k < static_cast< long >( t1 ) && k < static_cast< long >( it->second.size() ); ++k )
+      r = hi ? std::max( r, static_cast< double >( it->second[ static_cast< size_t >( k ) ] ) ) : std::min( r, static_cast< double >( it->second[ static_cast< size_t >( k ) ] ) );
+    return r;
+  }
   std::vector< Win > wins;
   double tol = 1.0;                                   // mode scale: 1.5 guided, 1 standard, 0.7 researcher (wider bands for larger)
   double dur = 0;
@@ -166,6 +188,7 @@ struct Spec
   std::string kind = "micro";                          // level_kind: "micro" | "task" | "diagnosis"
   std::function< Schedule( bool quick ) > schedule;
   std::function< std::string( const Graph& ) > mech;   // "" when the mechanism is there, else the sentence naming the missing part
+  std::function< std::string( const Graph&, Engine& ) > mech_e;  // 0.6 (add-only): the same, with the live engine (a cell's own parameters and phase plane); used instead of `mech` when set
   std::function< void( const Meas&, std::vector< Crit >&, std::map< std::string, double >& ) > judge;
   std::string ok_verdict;                              // said when everything passes
   std::string h1, h2, h2_target, h3, h3_target;        // hint tiers 1-3 (no numbers)
@@ -177,6 +200,8 @@ struct Spec
   bool spine = true;
   std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
   std::vector< std::string > cells;                    // motor channels whose individual cells are tracked (Meas::active / Meas::both)
+  std::function< void( Engine&, std::map< std::string, double >& ) > start;  // 0.6 (add-only): called once before the first slice with the live engine; may set the initial state of cells and fill the per-channel level scale
+  std::vector< std::string > vals;                     // 0.6 (add-only): rate_value motor channels recorded per ms in Meas::val (the mean `rate` of the units)
   std::function< std::vector< Task::Event >() > timeline;  // optional: the events shown under the world (default: one per input segment, labelled with its channel)
 };
 
@@ -212,12 +237,14 @@ public:
     for ( const auto& m : info_.motors ) meas_.cnt[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
     for ( const auto& m : info_.motors ) lp_[ m ].reset( 0 );
     meas_.spk.clear();
+    for ( const auto& m : s_.vals ) meas_.val[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
     for ( const auto& m : s_.vec )
     {
       meas_.vx[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
       meas_.vy[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
     }
     kicked_ = false;
+    scale_.clear();
   }
 
   std::vector< Hint > hints() const override
@@ -277,9 +304,10 @@ public:
   }
 
 protected:
-  void inspect( Engine& ) override
+  void inspect( Engine& e ) override
   {
-    if ( s_.mech && !g_.empty() ) mech_ = s_.mech( g_ );
+    if ( s_.mech_e && !g_.empty() ) mech_ = s_.mech_e( g_, e );
+    else if ( s_.mech && !g_.empty() ) mech_ = s_.mech( g_ );
   }
 
   void drive( Engine& e, double ) override
@@ -294,7 +322,8 @@ protected:
       double v = 0;
       for ( const auto& g : cur_.segs )
         if ( g.ch == ch && t_ >= g.t0 && t_ < g.t1 ) v = std::max( v, g.v );
-      e.set_input( ch, v * gain_ );
+      auto sc = scale_.find( ch );
+      e.set_input( ch, v * gain_ * ( sc == scale_.end() ? 1.0 : sc->second ) );
     }
   }
 
@@ -310,6 +339,8 @@ protected:
       lp_[ m ].tau_ms = 60;
       readouts_[ m + "_hz" ] = lp_[ m ].step( n / meas_.pool[ m ] * 1000.0 / dt, dt );
     }
+    for ( const auto& m : s_.vals )
+      if ( k >= 0 && k < static_cast< long >( meas_.val[ m ].size() ) ) meas_.val[ m ][ static_cast< size_t >( k ) ] = static_cast< float >( e.output_value( m ) );
     for ( const auto& m : s_.cells )
       for ( int32_t n : e.output_spiked( m ) )
         if ( k >= 0 ) meas_.spk[ m ].push_back( { static_cast< int >( k ), n } );
@@ -340,7 +371,10 @@ protected:
   }
 
   /// Hooks for levels that need a start-up action (a task that sets V_m) or extra live readouts.
-  virtual void on_start( Engine& ) {}
+  virtual void on_start( Engine& e )
+  {
+    if ( s_.start ) s_.start( e, scale_ );
+  }
   virtual void on_observe() {}
 
   bool finished() const { return t_ >= cur_.dur - 1e-6; }
@@ -356,6 +390,7 @@ protected:
   Meas meas_;
   double gain_ = 1;
   bool kicked_ = false;
+  std::map< std::string, double > scale_;   // 0.6 (add-only): per sensor channel, a factor on the schedule's level (a level whose stimulus is scaled to the cell, set in on_start)
   std::map< std::string, Lowpass > lp_;
 };
 
