@@ -59,6 +59,7 @@ func _commit(relayout := false) -> void:
 
 func _add_row(parent: Control, text: String, ctl: Control, hint := "") -> void:
 	if parent.get_child_count() > 1: parent.add_child(Kit.hsep())
+	if str(ctl.get_meta("sp", "")) in ["", "Stepper", "Toggle"]: Kit.ident(ctl, "Opt" + Kit.slug(text))   # the graph's id of a settings row
 	var r := Kit.row(text, ctl, hint); parent.add_child(r)
 	if _first == null and (ctl is Kit.Stepper or ctl is Button or ctl is HSlider or ctl.get_child_count() > 0): _first = _focus_of(ctl)
 

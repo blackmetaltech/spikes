@@ -254,6 +254,7 @@ func _draw() -> void:
 			var cp: PackedVector2Array = geo[pj]; if cp.size() < 4: continue
 			var pr: Dictionary = projs[pj]; var col := _kind_col("I" if Circuits.proj_weight(pr) < 0.0 else "E")
 			var trav := Telemetry.pulse_seconds(Circuits.proj_delay(pr))
+			if pj >= tele.pulses.size(): continue   # a new axon is drawn before the debounced reload has made its pulse list
 			var pa: PackedFloat64Array = tele.pulses[pj]
 			for birth in pa:
 				var u := (now - birth) / trav

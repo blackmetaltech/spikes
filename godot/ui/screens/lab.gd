@@ -89,7 +89,16 @@ func _init() -> void:
 	layout.lab = self; insp.lab = self; play.lab = self; les.lab = self
 
 func default_focus() -> Control: return back_btn
-func on_back() -> bool: return false
+## Esc / B closes the topmost modal (results card, parts bin, More menu, end card or test card) before it leaves the lab.
+func on_back() -> bool:
+	if layout.histo_ov != null and is_instance_valid(layout.histo_ov): layout.histo_hide(); return true
+	if layout.parts_ov != null and is_instance_valid(layout.parts_ov): layout.close_parts(); return true
+	if layout.menu != null and is_instance_valid(layout.menu): layout.close_menu(); return true
+	if _overlay != null and is_instance_valid(_overlay):
+		if not _test.is_empty(): _test_cancel()
+		else: _overlay_dismissed = true; layout.overlay_hide()
+		return true
+	return false
 
 func build() -> void:
 	ext_ok = ClassDB.class_exists("SpikeSim") and ClassDB.class_exists("SpikeTask")
@@ -100,7 +109,7 @@ func build() -> void:
 	_attach()
 	if OS.get_environment("SP_LABTAB") != "": tab = OS.get_environment("SP_LABTAB")
 	if layout.compact: layout.apply_tab()
-	_file_dlg = FileDialog.new(); _file_dlg.access = FileDialog.ACCESS_FILESYSTEM; _file_dlg.filters = PackedStringArray(["*.json ; Circuit JSON"]); _file_dlg.current_dir = ProjectSettings.globalize_path(Circuits.user_dir())
+	_file_dlg = FileDialog.new(); Kit.ident(_file_dlg, "FileDlg"); _file_dlg.access = FileDialog.ACCESS_FILESYSTEM; _file_dlg.filters = PackedStringArray(["*.json ; Circuit JSON"]); _file_dlg.current_dir = ProjectSettings.globalize_path(Circuits.user_dir())
 	add_child(_file_dlg)
 	if _is_dx(): _brief_forced = true
 	_build_inspector()

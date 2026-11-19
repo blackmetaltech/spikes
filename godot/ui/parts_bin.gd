@@ -17,7 +17,7 @@ var _scroll_keep := 0
 var _expanded := ""            # phone: the one card shown in full (every other part is a one-line row)
 
 func setup(m: String, sb: bool, current_card := "", for_task: Array = [], ref_cards: Array = []) -> PartsBin:
-	mode = m; reference = ref_cards.filter(func(id): return Catalog.has_card(id)); sandbox = sb; selected = current_card; featured = for_task.filter(func(id): return Catalog.has_card(id))
+	Kit.ident(self, "PartsBin"); mode = m; reference = ref_cards.filter(func(id): return Catalog.has_card(id)); sandbox = sb; selected = current_card; featured = for_task.filter(func(id): return Catalog.has_card(id))
 	size_flags_vertical = Control.SIZE_EXPAND_FILL; size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", int(10 * Kit.f()))
 	_build(); return self
@@ -79,7 +79,7 @@ func _row(m: String) -> Control:
 	elif not usable: sub = "unlocks in " + str(Campaign.chapter_def(Catalog.chapter_of(m))["title"])
 	var sl := Kit.label(sub, 14, Gfx.VIOLET if usable else Kit.TEXT_SOFT); sl.clip_text = true; v.add_child(sl)
 	var ser := Catalog.series(m, "fi"); var t := Thumb.new(); t.kind = "fi"; t.xs = ser[0]; t.ys = ser[1]; t.dim = not usable; t.custom_minimum_size = Vector2(120, 50); t.size_flags_vertical = Control.SIZE_SHRINK_CENTER; t.mouse_filter = Control.MOUSE_FILTER_IGNORE; h.add_child(t)
-	if usable: var b := Kit.btn("USE", func(): picked.emit(m), "amber", 17); b.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(b)
+	if usable: var b := Kit.btn("USE", func(): picked.emit(m), "amber", 17); Kit.ident(b, "Use_" + m); b.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(b)
 	return p
 
 func _restore_scroll() -> void:
@@ -139,8 +139,8 @@ func _card(m: String, f: float, phone: bool) -> Control:
 		if str(cd.get("source", "")) != "": v.add_child(Kit.label("Source: " + str(cd["source"]), 14, Kit.TEXT_SOFT, true))
 		if str(cd.get("error", "")) != "": v.add_child(Kit.label(str(cd["error"]), 14, Kit.RED, true))
 	if mode == "pick" and usable:
-		if is_sel: v.add_child(Kit.btn("USE THIS PART", func(): picked.emit(m), "amber", 20))
-		else: v.add_child(Kit.btn("SELECT", func(): _select(m), "panel", 18))
+		if is_sel: v.add_child(Kit.ident(Kit.btn("USE THIS PART", func(): picked.emit(m), "amber", 20), "Use_" + m))
+		else: v.add_child(Kit.ident(Kit.btn("SELECT", func(): _select(m), "panel", 18), "Select_" + m))
 	return p
 
 ## A small plot of an engine-rendered series: the f-I curve (rate against input current) or the V_m trace.

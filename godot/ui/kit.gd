@@ -279,8 +279,23 @@ static func _btn_style_set(kind: String, pad: int) -> Dictionary:
 
 ## A button: Fraunces lettering on a cut card. kind: amber (primary: ink-filled, sienna offset), panel (outlined card), ghost, cyan (Prussian blue),
 ## danger (vermilion), green (viridian). Labels in capitals get a little tracking, like engraved plate lettering.
+## The id of a control for the interaction graph (godot/tests/interaction_graph.json): "Btn" + the button's text in CamelCase ("Test x5" -> "BtnTestX5",
+## "More…" -> "BtnMoreEllipsis"). It is the node's name and its meta "sp"; the meta is what the graph looks up, because Godot renames a node whose name a
+## sibling already has. Callers give a control whose text changes (Run / Pause, Hint 1/2) an explicit id with `ident`.
+static func slug(t: String) -> String:
+	var re := RegEx.new(); re.compile("[^A-Za-z0-9]+")
+	var out := ""
+	for w in re.sub(t.replace("…", " Ellipsis "), " ", true).split(" ", false): out += w.substr(0, 1).to_upper() + w.substr(1).to_lower()
+	return out
+
+static func ident(c: Node, id: String) -> Variant:
+	if id == "": return c
+	c.name = id; c.set_meta("sp", id); return c
+
 static func btn(t: String, cb: Callable, kind := "amber", size := 26, min_size := Vector2.ZERO) -> Button:
 	var b := Button.new(); b.text = label_case(t); b.focus_mode = focus_mode()
+	var sl := slug(t)
+	if sl != "": ident(b, "Btn" + sl)
 	_btn_font(b, b.text, size)
 	skin(b, kind, int(size * 0.6))
 	b.custom_minimum_size = Vector2(min_size.x, maxf(min_size.y, maxf(size * 1.9, Layout.tap())))
@@ -385,7 +400,7 @@ static func fig_caption(n, text: String, size := 19, col: Color = TEXT_SOFT) -> 
 ## primary: ink-filled with a sienna offset; else a ruled line with leader dots.
 static func legend_item(numeral: String, text: String, sub: String, cb: Callable, primary := false, size := 34) -> Button:
 	var b := Button.new(); b.focus_mode = focus_mode(); b.text = ""
-	b.set_meta("legend", text); b.name = "Legend" + text.replace(" ", "")
+	b.set_meta("legend", text); ident(b, "Legend" + text.replace(" ", ""))
 	var h := float(size) * (2.15 if primary else 1.7)
 	b.custom_minimum_size = Vector2(0, maxf(h, Layout.tap())); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var pad := int(size * 0.8)
@@ -445,7 +460,7 @@ static func hsep() -> HSeparator:
 
 ## On / off switch: ink-filled "On" when on, an outlined "Off" when off.
 static func toggle(on_: bool, cb: Callable) -> Button:
-	var b := Button.new(); b.toggle_mode = true; b.button_pressed = on_; b.focus_mode = focus_mode(); b.custom_minimum_size = Vector2(120, maxf(46.0, Layout.tap()))
+	var b := Button.new(); ident(b, "Toggle"); b.toggle_mode = true; b.button_pressed = on_; b.focus_mode = focus_mode(); b.custom_minimum_size = Vector2(120, maxf(46.0, Layout.tap()))
 	_btn_font(b, "ON", 22)
 	var paint := func(v: bool):
 		b.text = "On" if v else "Off"; skin(b, "amber" if v else "panel", 10)
@@ -456,7 +471,7 @@ static func toggle(on_: bool, cb: Callable) -> Button:
 ## The control for a slider row: slider + percentage readout (Plex Mono). cb receives 0..1.
 static func slider(value: float, cb: Callable, width := 320.0) -> Control:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 14)
-	var s := HSlider.new(); s.min_value = 0.0; s.max_value = 1.0; s.step = 0.05; s.value = value; s.focus_mode = focus_mode()
+	var s := HSlider.new(); ident(s, "Slider"); s.min_value = 0.0; s.max_value = 1.0; s.step = 0.05; s.value = value; s.focus_mode = focus_mode()
 	s.custom_minimum_size = Vector2(width, maxf(34.0, Layout.tap())); s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var v := mono("%d%%" % roundi(value * 100.0), 20, TEXT); v.custom_minimum_size.x = 66; v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	s.value_changed.connect(func(x): v.text = "%d%%" % roundi(x * 100.0); cb.call(x))
@@ -477,6 +492,7 @@ class Stepper extends HBoxContainer:
 		add_theme_constant_override("separation", 0)
 		left = Kit.btn("‹", func(): step(-1), "panel", fsize + 4, Vector2(aw, 0)); right = Kit.btn("›", func(): step(1), "panel", fsize + 4, Vector2(aw, 0))
 		left.focus_mode = Control.FOCUS_NONE; right.focus_mode = Control.FOCUS_NONE
+		Kit.ident(self, "Stepper"); Kit.ident(left, "StepLeft"); Kit.ident(right, "StepRight")
 		_side(left, true); _side(right, false)
 		var chipp := PanelContainer.new()
 		var cs := StyleBoxFlat.new(); cs.bg_color = Kit.PANEL_HI; cs.border_color = Kit.TEXT; cs.border_width_top = Kit.OUTLINE; cs.border_width_bottom = Kit.OUTLINE
@@ -514,7 +530,7 @@ static func tabs(names: Array, current: String, cb: Callable) -> HBoxContainer:
 	for n in names:
 		var on_: bool = n == current
 		var b := btn(n, func(): cb.call(n), "amber" if on_ else "panel", 22 if Layout.phone else 24)
-		b.set_meta("tab", n); h.add_child(b)
+		b.set_meta("tab", n); ident(b, "Tab" + slug(str(n))); h.add_child(b)
 	return h
 
 ## Fade (+ slide) a control in. Reduced motion or smoke tests: no motion (reduced motion keeps a short fade).

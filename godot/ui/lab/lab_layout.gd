@@ -30,23 +30,23 @@ func build() -> void:
 	margin.add_theme_constant_override("margin_top", my); margin.add_theme_constant_override("margin_bottom", my); lab.add_child(margin)
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(10 * f) if not phone else 6); margin.add_child(v)
 	compact = phone or lab.get_viewport_rect().size.x < 1180.0
-	bar = HFlowContainer.new(); bar.add_theme_constant_override("h_separation", 8); bar.add_theme_constant_override("v_separation", 6); v.add_child(bar)
+	bar = HFlowContainer.new(); Kit.ident(bar, "TopBar"); bar.add_theme_constant_override("h_separation", 8); bar.add_theme_constant_override("v_separation", 6); v.add_child(bar)
 	fill_bar()
 	if compact and not phone: v.add_child(_tabs_row())
 	var body := HBoxContainer.new(); body.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(14 * f)); v.add_child(body)
 	# left: editor
 	var left := VBoxContainer.new(); left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left.size_flags_stretch_ratio = 1.55; left.add_theme_constant_override("separation", int(8 * f)); body.add_child(left)
 	lab.panels["circuit"] = left
-	palette_row = HFlowContainer.new(); palette_row.add_theme_constant_override("h_separation", 8); palette_row.add_theme_constant_override("v_separation", 6); left.add_child(palette_row)
+	palette_row = HFlowContainer.new(); Kit.ident(palette_row, "Palette"); palette_row.add_theme_constant_override("h_separation", 8); palette_row.add_theme_constant_override("v_separation", 6); left.add_child(palette_row)
 	fill_palette()
-	var editor := CircuitEditor.new(); lab.editor = editor; editor.size_flags_vertical = Control.SIZE_EXPAND_FILL; editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var editor := CircuitEditor.new(); Kit.ident(editor, "Editor"); lab.editor = editor; editor.size_flags_vertical = Control.SIZE_EXPAND_FILL; editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	editor.custom_minimum_size = Vector2(300, 200)
 	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.75), 1, 2, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
 	editor.structure_changed.connect(lab._on_structure); editor.moved.connect(func(): pass)
 	editor.selection_changed.connect(func(_s): lab._sel_audio(); lab._build_inspector())
 	editor.lesion_clicked.connect(lab.les.click)
 	editor.editable = not lab._is_dx()   # a diagnosis case is probed, never rebuilt
-	var inspector := PanelContainer.new(); lab.inspector = inspector; inspector.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 12 if phone else 14, false))
+	var inspector := PanelContainer.new(); Kit.ident(inspector, "Inspector"); lab.inspector = inspector; inspector.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 12 if phone else 14, false))
 	lab.insp_scroll = ScrollContainer.new(); lab.insp_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; inspector.add_child(lab.insp_scroll)
 	lab.insp_body = VBoxContainer.new(); lab.insp_body.add_theme_constant_override("separation", 8); lab.insp_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; lab.insp_scroll.add_child(lab.insp_body)
 	var ov := Control.new(); lab.ov = ov; ov.set_anchors_preset(Control.PRESET_FULL_RECT); ov.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -100,21 +100,21 @@ func fill_bar() -> void:
 	else:
 		for t in [["circuit", "Circuit"], ["world", "World"], ["scopes_only", "Scopes"]]:
 			var b := Kit.btn(t[1], func(): lab.tab = t[0]; apply_tab(), "panel", bs, Vector2(0, 0)); lab.tab_btns[t[0]] = b; bar.add_child(b)
-	lab.run_btn = Kit.btn("Pause", lab._toggle_run, "amber", bs, Vector2(120 if not phone else 92, 0)); bar.add_child(lab.run_btn)
+	lab.run_btn = Kit.btn("Pause", lab._toggle_run, "amber", bs, Vector2(120 if not phone else 92, 0)); Kit.ident(lab.run_btn, "BtnRun"); bar.add_child(lab.run_btn)
 	bar.add_child(Kit.btn("Reset", func(): lab._restart(), "panel", bs, Vector2(92 if not phone else 70, 0)))
 	check_btn = null; hint_btn = null
 	if tid != "" and not dxm:
 		check_btn = Kit.btn("Check", lab.play.check_start, "green", bs); bar.add_child(check_btn)
 		check_btn.tooltip_text = "Score the circuit now, headless, on this level's own seed."
 	if tid != "" and not phone:
-		hint_btn = Kit.btn("Hint", lab.play.hint_toggle, "amber", bs); bar.add_child(hint_btn)
+		hint_btn = Kit.btn("Hint", lab.play.hint_toggle, "amber", bs); Kit.ident(hint_btn, "BtnHint"); bar.add_child(hint_btn)
 		bar.add_child(Kit.btn("Case" if dxm else "Brief", func(): show_brief(), "ghost", bs, Vector2(84, 0)))
 		if not dxm and test_on_bar(): bar.add_child(Kit.btn("Test x5", lab._test_start, "green", bs, Vector2(110, 0)))
 	lab.status = Kit.label("", 17 if not phone else 15, Kit.TEXT_SOFT); lab.status.size_flags_vertical = Control.SIZE_SHRINK_CENTER; lab.status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lab.status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; lab.status.custom_minimum_size.x = 0; lab.status.clip_text = true
 	bar.add_child(lab.status)
 	if phone: lab.status.visible = false   # shown in the menu on a phone
-	var mb := Kit.btn("Menu" if phone else "More", toggle_menu, "cyan" if phone else "panel", bs, Vector2(84, 0)); mb.tooltip_text = "Speed, difficulty, tests, lesions, analysis, files"; bar.add_child(mb)
+	var mb := Kit.btn("Menu" if phone else "More", toggle_menu, "cyan" if phone else "panel", bs, Vector2(84, 0)); Kit.ident(mb, "BtnMore"); mb.tooltip_text = "Speed, difficulty, tests, lesions, analysis, files"; bar.add_child(mb)
 	lab.play.hint_btn_sync()
 	lab._sync_run_btn.call_deferred()
 
@@ -151,7 +151,7 @@ func fill_palette() -> void:
 	for c in palette_row.get_children(): palette_row.remove_child(c); c.queue_free()
 	var sz := 18; var tid := lab.task_id
 	parts_btn = null
-	if not Layout.phone and LabUnlocks.has(tid, "parts"): parts_btn = Kit.btn(part_text(), open_parts, "cyan", sz); palette_row.add_child(parts_btn)   # on a phone the parts button lives in the menu
+	if not Layout.phone and LabUnlocks.has(tid, "parts"): parts_btn = Kit.btn(part_text(), open_parts, "cyan", sz); Kit.ident(parts_btn, "BtnParts"); palette_row.add_child(parts_btn)   # on a phone the parts button lives in the menu
 	palette_row.add_child(Kit.btn("+ Excitatory", func(): lab._add_neuron("E"), "amber", sz))
 	if LabUnlocks.has(tid, "inhibitory"): palette_row.add_child(Kit.btn("+ Inhibitory", func(): lab._add_neuron("I"), "cyan", sz))
 	if LabUnlocks.has(tid, "noise"): palette_row.add_child(Kit.btn("+ Noise", lab._add_noise, "panel", sz))
@@ -168,7 +168,7 @@ func part_text() -> String:   # the part the add button makes, by its title (not
 
 func open_parts() -> void:
 	close_menu(); close_parts()
-	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); parts_ov = root
+	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); parts_ov = root; Kit.ident(root, "PartsModal")
 	var dim := ColorRect.new(); dim.color = Color(Kit.BENCH, 0.78); dim.set_anchors_preset(Control.PRESET_FULL_RECT); root.add_child(dim)
 	var phone := Layout.phone
 	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 16, 14 if phone else 20, true)); root.add_child(pn)
@@ -202,7 +202,7 @@ func open_menu() -> void:
 	close_menu()
 	var phone := Layout.phone; var tid := lab.task_id; var dxm := lab._is_dx()
 	var scrim := Button.new(); scrim.flat = true; scrim.set_anchors_preset(Control.PRESET_FULL_RECT); scrim.focus_mode = Control.FOCUS_NONE
-	scrim.pressed.connect(close_menu); lab.ov.add_child(scrim); menu = scrim
+	scrim.pressed.connect(close_menu); lab.ov.add_child(scrim); menu = scrim; Kit.ident(scrim, "MoreMenu")
 	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.plate_sb(Kit.PANEL, 14)); scrim.add_child(pn)
 	var mw := 470.0 if phone else 560.0
 	pn.set_anchors_preset(Control.PRESET_TOP_RIGHT); pn.grow_horizontal = Control.GROW_DIRECTION_BEGIN; pn.offset_right = -14.0; pn.offset_left = -14.0 - mw; pn.offset_top = 62.0 if phone else 70.0
@@ -224,23 +224,23 @@ func open_menu() -> void:
 			var pb := Kit.btn(part_text(), open_parts, "cyan", 18); pb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; v.add_child(pb)
 	# I. the run
 	var run: HFlowContainer = group.call("Run")
-	run.add_child(Kit.stepper(LabScreen.SPEEDS, String.num(lab.tele.speed), func(id): lab.tele.speed = float(id), 76.0 if not phone else 60.0, 20 if not phone else 18, 44.0 if not phone else 36.0))
+	run.add_child(Kit.ident(Kit.stepper(LabScreen.SPEEDS, String.num(lab.tele.speed), func(id): lab.tele.speed = float(id), 76.0 if not phone else 60.0, 20 if not phone else 18, 44.0 if not phone else 36.0), "StepSpeed"))
 	if tid != "": item.call(run, "Skip", lab.play.skip_event)
 	item.call(run, "Fit", func(): lab.editor.fit())
 	# II. the level
 	if tid != "":
 		var lv: HFlowContainer = group.call("Level")
-		lv.add_child(Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], lab.mode, func(m): lab.play.set_mode(str(m)), 250.0 if not phone else 220.0, 18, 40.0))
+		lv.add_child(Kit.ident(Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], lab.mode, func(m): lab.play.set_mode(str(m)), 250.0 if not phone else 220.0, 18, 40.0), "StepMode"))
 		var vs: Dictionary = Campaign.info(tid).get("variants", {})
 		if not vs.is_empty() and not dxm:
 			var opts := [["base", "Base task"]]
 			for k in vs: opts.append([str(k), str(vs[k])])
-			lv.add_child(Kit.stepper(opts, lab.variant if lab.variant != "" else "base", func(x): lab.play.set_variant("" if str(x) == "base" else str(x)), 320.0 if not phone else 260.0, 18, 40.0))
+			lv.add_child(Kit.ident(Kit.stepper(opts, lab.variant if lab.variant != "" else "base", func(x): lab.play.set_variant("" if str(x) == "base" else str(x)), 320.0 if not phone else 260.0, 18, 40.0), "StepVariant"))
 		var lv2 := HFlowContainer.new(); lv2.add_theme_constant_override("h_separation", 8); lv2.add_theme_constant_override("v_separation", 8); v.add_child(lv2)
 		if phone:
 			item.call(lv2, "Case" if dxm else "Brief", show_brief, "ghost")
 			if lab.mode != "researcher":
-				var hb: Button = item.call(lv2, HintPanel.button_text(lab.mode, int(LabScreen._fails.get(tid, 0)), int(LabScreen._hint_tier.get(tid, 0))), lab.play.hint_toggle, "amber")
+				var hb: Button = item.call(lv2, HintPanel.button_text(lab.mode, int(LabScreen._fails.get(tid, 0)), int(LabScreen._hint_tier.get(tid, 0))), lab.play.hint_toggle, "amber"); Kit.ident(hb, "BtnHint")
 				Kit.skin(hb, "amber" if HintPanel.available(lab.mode, int(LabScreen._fails.get(tid, 0))) else "ghost", 12)
 		if not dxm:
 			if phone or not test_on_bar(): item.call(lv2, "Test x5", lab._test_start, "green")
@@ -328,9 +328,9 @@ func _end_text() -> String:
 
 ## The card that rises when an episode ends (or a TEST runs): score, stars, best, what to try next, and the buttons that matter.
 func overlay_show(testing := false) -> void:
-	overlay_hide()
+	overlay_hide(); close_menu(); close_parts()   # one modal at a time: the card that rises when the run ends closes the More menu and the parts bin
 	var phone := Layout.phone; var tele := lab.tele; var tid := lab.task_id
-	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); lab._overlay = root
+	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); lab._overlay = root; Kit.ident(root, "TestCard" if testing else "EndCard")
 	var dim := ColorRect.new(); dim.color = Color(Kit.BENCH, 0.62); dim.set_anchors_preset(Control.PRESET_FULL_RECT); dim.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(dim)
 	var cc := CenterContainer.new(); cc.set_anchors_preset(Control.PRESET_FULL_RECT); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(cc)
 	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 16, 14 if phone else 24, true)); cc.add_child(pn)
@@ -363,7 +363,7 @@ func overlay_show(testing := false) -> void:
 	br.add_child(Kit.btn("Test x5", lab._test_start, "green", 20))
 	if passed and not ref: br.add_child(Kit.btn("Results", histo_show, "cyan", 20))
 	var fails := int(LabScreen._fails.get(tid, 0))
-	if not passed and lab.mode != "researcher" and lab._test_result.is_empty(): br.add_child(Kit.btn(HintPanel.button_text(lab.mode, fails, int(LabScreen._hint_tier.get(tid, 0))), func(): lab._overlay_dismissed = true; overlay_hide(); lab.play.hint_toggle(), "amber" if HintPanel.available(lab.mode, fails) else "ghost", 20))
+	if not passed and lab.mode != "researcher" and lab._test_result.is_empty(): br.add_child(Kit.ident(Kit.btn(HintPanel.button_text(lab.mode, fails, int(LabScreen._hint_tier.get(tid, 0))), func(): lab._overlay_dismissed = true; overlay_hide(); lab.play.hint_toggle(), "amber" if HintPanel.available(lab.mode, fails) else "ghost", 20), "BtnHint"))
 	var nx := Progress.next_task(tid)
 	if passed and nx != "": br.add_child(Kit.btn("Next task", func(): lab.app.open_lab(nx), "cyan", 20))
 	if lab._lesion_ok(): br.add_child(Kit.btn("Lesion lab", lab.les.open, "panel", 20))
@@ -413,7 +413,7 @@ func histo_show() -> void:
 	if tid == "" or lab.tele == null or lab._is_dx(): return
 	histo_hide(); close_menu(); overlay_hide(); lab._overlay_dismissed = true
 	var phone := Layout.phone
-	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); histo_ov = root
+	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); histo_ov = root; Kit.ident(root, "HistoCard")
 	var dim := ColorRect.new(); dim.color = Color(Kit.BENCH, 0.78); dim.set_anchors_preset(Control.PRESET_FULL_RECT); root.add_child(dim)
 	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 16, 12 if phone else 20, true)); root.add_child(pn)
 	pn.set_anchors_preset(Control.PRESET_FULL_RECT); var mg := 14 if phone else int(70 * Kit.f()); pn.offset_left = mg; pn.offset_right = -mg; pn.offset_top = mg * 0.5; pn.offset_bottom = -mg * 0.5

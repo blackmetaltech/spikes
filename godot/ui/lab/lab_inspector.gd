@@ -17,6 +17,8 @@ func build() -> void:
 	lab._autosave()
 	var sel := editor.sel if editor != null else {}
 	var small := 17 if not Layout.phone else 16
+	# what the inspector shows, for the interaction graph (godot/tests/interaction_graph.json): brief | dx | dxpick | lesion | pop | proj | in | out
+	lab.insp_body.set_meta("sp_view", "lesion" if lab.lesion_on else (("dx" if lab._is_dx() else "brief") if sel.is_empty() else ("dxpick" if lab._is_dx() else str(sel["t"]))))
 	if lab.lesion_on: lab.les.inspect(small)
 	elif sel.is_empty(): inspect_dx(small) if lab._is_dx() else inspect_brief(small)
 	elif lab._is_dx(): inspect_dx_pick(sel, small)
@@ -77,7 +79,7 @@ func inspect_brief(small: int) -> void:
 	var ld := lead(txt, BRIEF_LEAD if not Layout.phone else 200)
 	var short := not lab._brief_full and bool(ld[1])
 	if bool(ld[1]):   # More / Less sits in the header row, not under the text: a long brief (the bosses) never pushes it off the bottom of the screen
-		var mb := Kit.btn("More…" if short else "Less", func(): lab._brief_full = short; build(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_END
+		var mb: Button = Kit.ident(Kit.btn("More…" if short else "Less", func(): lab._brief_full = short; build(), "ghost", 16), "BtnBriefMore"); mb.size_flags_horizontal = Control.SIZE_SHRINK_END
 		hd.add_child(mb); hd.move_child(mb, 2 if not Layout.phone else hd.get_child_count() - 1)
 	add(Kit.label(str(ld[0]) if short else txt, small, Kit.TEXT if short else Kit.TEXT_SOFT, true))
 	if short and tid != "":   # the pass rule stays in view, not behind More
@@ -160,7 +162,7 @@ func inspect_pop(id: String, small: int) -> void:
 	add(nrow)
 	var info: String = str(presets[cur][2]) if cur >= 0 else "Custom parameters."
 	add(Kit.label(info + "  Drag the disc to move it, drag from its rim to connect.", small, Kit.TEXT_SOFT, true))
-	add(Kit.btn("Hide advanced" if lab._adv_open else "Advanced", func(): lab._adv_open = not lab._adv_open; build(), "ghost", 18))
+	add(Kit.ident(Kit.btn("Hide advanced" if lab._adv_open else "Advanced", func(): lab._adv_open = not lab._adv_open; build(), "ghost", 18), "BtnAdvanced"))
 	var adv := Circuits.advanced_of(model)
 	if lab._adv_open and not adv.is_empty():
 		var prm: Dictionary = p.get("params", {})
@@ -344,7 +346,7 @@ func inspect_channel(key: String, name: String, small: int) -> void:
 		for pp in circuit.get("populations", []):
 			if Circuits.pop_n(pp) == fnames.size():
 				var pid := str(pp.get("id", ""))
-				fr.add_child(Kit.btn("Wire %s (%d) to all" % [pid, fnames.size()] if not is_in else "Wire all to %s" % pid, func(): Circuits.wire_family(circuit, key, name, pid); lab._on_structure(); build(), "cyan", 18))
+				fr.add_child(Kit.ident(Kit.btn("Wire %s (%d) to all" % [pid, fnames.size()] if not is_in else "Wire all to %s" % pid, func(): Circuits.wire_family(circuit, key, name, pid); lab._on_structure(); build(), "cyan", 18), "BtnWireAll"))
 	if is_in:
 		var kind := str(ch.get("kind", "dc")); var unit := "pA" if kind == "dc" else "Hz"
 		add(Kit.stepper([["poisson", "Poisson spikes"], ["dc", "DC current"]], kind, func(k):
