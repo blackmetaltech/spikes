@@ -532,3 +532,8 @@ Practical plan for the Bestiary build
 | Decide engine feature: modulator row targeting a projection parameter (Aplysia sensitization) | Aplysia task |
 | Decide engine feature: population-vector (bump angle) metric | Central complex task |
 | Check whether the circuit loader accepts rate-neuron models | Graded-cell approximation for C. elegans/leech |
+
+### Resolved in 0.5 (step 3, see `docs/circuits/bestiary_b.md`)
+- Dopamine-gated depression: `stdp_dopamine_synapse` with `A_plus < 0` and `A_minus > 0` works (the sign needs both; the postsynaptic baseline firing supplies the pairs); no NESTML synapse needed.
+- Bump angle: the engine's `population_vector` output (0.5 step 1) is used; the task accumulates `count * strength * (cos, sin)` per step.
+- STG cell: a seven-current NESTML cell (`models/nestml/stg_cell.nestml`), its kinetic constants from memory of the published forms; reduced burster not needed.

@@ -183,17 +183,23 @@ func inspect_proj(i: int, small: int) -> void:
 	r1.add_child(Kit.btn("E / I", func(): Circuits.set_proj_weight(pr, -Circuits.proj_weight(pr)); lab._on_structure(); build(), "panel", 18))
 	r1.add_child(Kit.btn("Delete", func(): lab.editor.delete_selected(), "danger", 18))
 	if Campaign.chapter_of(lab.task_id) == "aplysia": _aplysia_synapse(pr, i, small)
+	if Campaign.chapter_of(lab.task_id) == "fly_mb": _mb_synapse(pr, i, small)
 	var pa_i := Circuits.pop_index(circuit, pre)
 	var na := Circuits.pop_n(circuit["populations"][pa_i]) if pa_i >= 0 else 1; var nb := Circuits.pop_n(circuit["populations"][pi]) if pi >= 0 else 1
 	if na > 1 and nb > 1:   # N4: segment wiring, neuron k to neuron k + offset, instead of every pair
 		var wr := HFlowContainer.new(); wr.add_theme_constant_override("h_separation", 10); wr.add_theme_constant_override("v_separation", 4); add(wr)
 		var wiring := Circuits.proj_wiring(pr); var off := Circuits.segment_offset(pr)
+		var ch_id := Campaign.chapter_of(lab.task_id); var ring := ch_id == "fly_compass"; var mb := ch_id == "fly_mb"
+		var modes := [["all", "every pair"], ["segment", "neuron k to k"]]
+		if mb: modes.append(["random", "random few inputs"])
 		wr.add_child(Kit.label("wiring", small, Kit.TEXT_SOFT))
-		wr.add_child(Kit.stepper([["all", "every pair"], ["segment", "neuron k to k"]], wiring, func(m): Circuits.set_wiring(circuit, pr, str(m), 0); lab._on_structure(); build(), 190.0 if not Layout.phone else 160.0, 18, 40.0))
+		wr.add_child(Kit.stepper(modes, wiring, func(m): Circuits.set_wiring(circuit, pr, str(m), 0, ring); lab._on_structure(); build(), 330.0 if not Layout.phone else 240.0, 18, 40.0))
 		if wiring == "segment":
 			wr.add_child(Kit.label("shift", small, Kit.TEXT_SOFT))
-			wr.add_child(Kit.stepper([[-2, "-2"], [-1, "-1"], [0, "0"], [1, "+1"], [2, "+2"]], str(off), func(o): Circuits.set_wiring(circuit, pr, "segment", int(o)); lab._on_structure(); build(), 64.0, 18, 40.0))
-		add(Kit.label("Segment wiring connects neuron k of %s to neuron k%s of %s, one synapse per segment, instead of all %d x %d pairs." % [pre, ("" if off == 0 else " %+d" % off), post, na, nb], small, Kit.TEXT_SOFT, true))
+			wr.add_child(Kit.stepper([[-2, "-2"], [-1, "-1"], [0, "0"], [1, "+1"], [2, "+2"]], str(off), func(o): Circuits.set_wiring(circuit, pr, "segment", int(o), ring); lab._on_structure(); build(), 64.0, 18, 40.0))
+		if wiring == "random": add(val_row("inputs per cell", 1.0, 12.0, 1.0, float(pr.get("indegree", 4)), "", func(x): pr["indegree"] = int(x); lab._on_structure(), 0))
+		if wiring == "random": add(Kit.label("Random sparse wiring: each cell of %s listens to just this many cells of %s, picked at random (a fresh draw for every circuit seed)." % [post, pre], small, Kit.TEXT_SOFT, true))
+		else: add(Kit.label("Segment wiring connects neuron k of %s to neuron k%s of %s, one synapse per segment%s, instead of all %d x %d pairs." % [pre, ("" if off == 0 else " %+d" % off), post, ("; the ends of a ring are joined" if ring else ""), na, nb], small, Kit.TEXT_SOFT, true))
 	add(val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); lab._on_structure(), -1, true))
 	add(val_row("delay", 0.0, Circuits.DELAY_MAX, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, maxf(0.1, snappedf(x, 0.1))); lab._on_structure(), -1, true))
 	if pr.get("synapse", {}).get("synapse_model", "static_synapse") != "gap_junction":
@@ -239,6 +245,36 @@ func _aplysia_synapse(pr: Dictionary, i: int, small: int) -> void:
 		add(Kit.label("The released modulator changes this synapse's %s." % str(row.get("param", param)), small, Kit.TEXT_SOFT, true))
 		add(val_row("per unit", 0.0, 8.0, 0.1, float(row.get(key, 1.0)), "", func(x): row[key] = x; lab._on_structure(), 1))
 		add(Kit.btn("Remove modulation", func(): Circuits.remove_mod_row(circuit, row_i); lab._on_structure(); build(), "panel", 18))
+
+## Fly mushroom body levels (v0.5): a connection can be a dopamine-gated depressing synapse (NEST stdp_dopamine_synapse used as depression: when its input was active and the dopamine source fires, it loses strength).
+## The source is a population of the circuit; the learning amplitude sets how much each pairing takes away (A_plus = -A, A_minus = +A).
+func _mb_synapse(pr: Dictionary, i: int, small: int) -> void:
+	var circuit := lab.circuit
+	var cur := str((pr.get("synapse", {}) as Dictionary).get("synapse_model", "static_synapse"))
+	var gated := cur == "stdp_dopamine_synapse"
+	add(Kit.label("Synapse type: a static synapse never changes; a dopamine-gated one weakens when its input was active and its dopamine source fires.", small, Kit.TEXT_SOFT, true))
+	add(Kit.stepper([["static_synapse", "static"], ["stdp_dopamine_synapse", "dopamine-gated"]], cur, func(m):
+		var sy: Dictionary = pr.get("synapse", {}); var w := absf(Circuits.proj_weight(pr))
+		if str(m) == "stdp_dopamine_synapse":
+			var src := ""
+			for pp in circuit.get("populations", []):
+				var id := str(pp.get("id", ""))
+				if id != Circuits.proj_pop(pr.get("pre", "")) and id != Circuits.proj_pop(pr.get("post", "")) and src == "": src = id
+			pr["synapse"] = {"synapse_model": "stdp_dopamine_synapse", "weight": maxf(w, 1.0), "delay": Circuits.proj_delay(pr), "A_plus": -1.0, "A_minus": 1.0, "Wmin": 0.0, "Wmax": maxf(w, 1.0) * 3.0, "tau_c": 30.0, "tau_n": 200.0, "b": 0.0, "tau_plus": 20.0}
+			pr["dopamine_source"] = src
+		else:
+			pr["synapse"] = {"synapse_model": "static_synapse", "weight": w, "delay": Circuits.proj_delay(pr)}; pr.erase("dopamine_source")
+		lab._on_structure(); build(), 330.0 if not Layout.phone else 240.0, 18, 40.0))
+	if gated:
+		var sy: Dictionary = pr.get("synapse", {})
+		var opts := []
+		for pp in circuit.get("populations", []): opts.append([str(pp.get("id", "")), str(pp.get("id", ""))])
+		add(Kit.label("Dopamine source: the cells whose spikes release dopamine onto this synapse.", small, Kit.TEXT_SOFT, true))
+		add(Kit.stepper(opts, str(pr.get("dopamine_source", "")), func(m): pr["dopamine_source"] = str(m); lab._on_structure(); build(), 420.0 if not Layout.phone else 300.0, 18, 40.0))
+		add(val_row("learning", 0.0, 3000.0, 1.0, absf(float(sy.get("A_minus", 1.0))), "", func(x): sy["A_minus"] = x; sy["A_plus"] = -x; pr["synapse"] = sy; lab._on_structure(), 1))
+		add(val_row("trace", 5.0, 500.0, 1.0, float(sy.get("tau_c", 30.0)), "ms", func(x): sy["tau_c"] = x; pr["synapse"] = sy; lab._on_structure(), 0))
+		add(val_row("max weight", 1.0, 10000.0, 10.0, float(sy.get("Wmax", 100.0)), "", func(x): sy["Wmax"] = x; pr["synapse"] = sy; lab._on_structure(), 0))
+		add(Kit.label("Learning: how much one pairing takes away (the sign is set so that the synapse depresses). Trace: how long a synapse stays eligible after its input fired. Max weight: the largest strength it can have.", small, Kit.TEXT_SOFT, true))
 
 func inspect_channel(key: String, name: String, small: int) -> void:
 	var circuit := lab.circuit; var tele := lab.tele
@@ -292,10 +328,20 @@ func inspect_output_kind(ch: Dictionary, small: int) -> void:
 		var kk := Circuits.task_channel_kinds(lab.task_id, tele.task); var wk: Dictionary = (kk["outputs"] as Dictionary).get(str(ch.get("name", "")), {})
 		if str(wk.get("kind", "rate")) == "modulator": wanted = str(wk.get("modulator", ""))
 	var r := HFlowContainer.new(); r.add_theme_constant_override("h_separation", 10); r.add_theme_constant_override("v_separation", 6); add(r)
-	r.add_child(Kit.stepper([["rate", "rate readout"], ["modulator", "releases modulator"]], kind, func(k):
+	var ring_task := false
+	if tele != null and tele.task != null:
+		var kk2 := Circuits.task_channel_kinds(lab.task_id, tele.task); var wk2: Dictionary = (kk2["outputs"] as Dictionary).get(str(ch.get("name", "")), {})
+		ring_task = str(wk2.get("kind", "rate")) == "population_vector"
+	var kinds := [["rate", "rate readout"], ["modulator", "releases modulator"]]
+	if ring_task: kinds = [["rate", "rate readout"], ["population_vector", "ring readout"]]
+	r.add_child(Kit.stepper(kinds, kind, func(k):
 		if str(k) == "modulator": Circuits.set_output_kind(ch, "modulator", wanted if wanted != "" else "NE")
+		elif str(k) == "population_vector": Circuits.set_output_kind(ch, "population_vector")
 		else: Circuits.set_output_kind(ch, "rate")
-		lab._on_structure(); build(), 270.0 if not Layout.phone else 220.0, 18, 40.0))
+		lab._on_structure(); build(), 330.0 if not Layout.phone else 240.0, 18, 40.0))
+	if kind == "population_vector":
+		add(Kit.label("Ring readout: the bump angle is the direction of the circular mean of the spikes of this channel's cells, taken in the order they were connected (cell k of N at 360 k / N degrees, cell 0 at the top). Connect the whole ring group, in order.", small, Kit.TEXT_SOFT, true))
+		return
 	if kind != "modulator":
 		if wanted != "": add(Kit.label("This task reads %s from this channel: switch it to \"releases modulator\" so the spikes of its neurons make %s." % [wanted, wanted], small, Kit.AMBER, true))
 		return

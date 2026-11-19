@@ -6,7 +6,7 @@ extends RefCounted
 ## draws the numbers: strip charts, the ECG (from the real beat times), the gauges of the dashboard. Everything draws onto a TaskView (a Control) `c`, inside
 ## rect `r`; history comes from Telemetry.hist.
 
-const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard"]
+const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass"]
 
 static func ro(t: Telemetry) -> Dictionary: return (t.body.get("readouts", {}) as Dictionary) if t != null else {}
 static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.get(k, dflt))
@@ -19,6 +19,7 @@ static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
 		"lungs": _lungs(c, t, r)
 		"eye": _eye(c, t, r)
 		"gut": _gut(c, t, r)
+		"compass": _compass(c, t, r)
 		_: _dashboard(c, t, r)
 
 # ---------------------------------------------------------------- readout names and units (G6)
@@ -509,6 +510,34 @@ static func _gut(c: Control, t: Telemetry, r: Rect2) -> void:
 		for kk in ["gut_motility", "bolus_vel", "ACh"]:
 			if d.has(kk): extra.append([kk, rv(d, kk)])
 		_strip(c, Rect2(r.position.x, r.end.y - 30.0, r.size.x, 28.0), extra)
+
+# ---------------------------------------------------------------- compass (v0.5, the fly heading ring)
+## A dial of the ring readout: the fly's true heading (ink needle, the heading the fly really has), the bump of the circuit (cyan needle, its length is how sharp the bump is) and the landmark (a mark on the rim while the
+## lights are on). Readouts: true_deg, bump_deg, bump_strength, landmark_deg, dark. Angles run clockwise from the top, like a compass.
+static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
+	var d := ro(t); var fz := Kit.fs(14)
+	if d.is_empty(): _empty(c, r, "No readouts from this task yet."); return
+	var y := r.position.y + _banner(c, t, r)
+	var area := Rect2(r.position.x, y, r.size.x, r.end.y - y - float(fz) - 8.0)
+	var rad := maxf(minf(area.size.x, area.size.y) * 0.42, 30.0); var cc := area.get_center()
+	var ang := func(deg: float) -> float: return deg_to_rad(deg) - PI * 0.5
+	c.draw_circle(cc, rad + 4.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true)
+	for k in 16:
+		var a: float = ang.call(22.5 * float(k)); var dv := Vector2(cos(a), sin(a))
+		c.draw_line(cc + dv * rad, cc + dv * (rad - (9.0 if k % 4 == 0 else 5.0)), Color(Kit.INK, 0.75), 1.4 if k % 4 == 0 else 1.0, true)
+	var lm := rv(d, "landmark_deg"); var dark := rv(d, "dark") > 0.5
+	if not dark:
+		var la: float = ang.call(lm); var lp := cc + Vector2(cos(la), sin(la)) * (rad + 10.0); c.draw_circle(lp, 6.0, Kit.AMBER); c.draw_arc(lp, 6.0, 0.0, TAU, 16, Kit.INK, 1.2, true)
+	var ta: float = ang.call(rv(d, "true_deg")); var td := Vector2(cos(ta), sin(ta))
+	c.draw_line(cc, cc + td * (rad - 6.0), Kit.INK, 3.0, true); c.draw_circle(cc + td * (rad - 6.0), 4.0, Kit.INK)
+	var st := clampf(rv(d, "bump_strength") / 0.8, 0.0, 1.0)
+	if st > 0.02:
+		var ba: float = ang.call(rv(d, "bump_deg")); var bd := Vector2(cos(ba), sin(ba))
+		c.draw_line(cc, cc + bd * ((rad - 6.0) * st), Kit.CYAN, 5.0, true); c.draw_circle(cc + bd * ((rad - 6.0) * st), 6.0, Kit.CYAN)
+	c.draw_circle(cc, 5.0, Kit.INK)
+	var err := absf(wrapf(rv(d, "bump_deg") - rv(d, "true_deg"), -180.0, 180.0)) if st > 0.02 else 180.0
+	var txt := "heading error %d deg   (ink: the fly's heading, cyan: the circuit's bump)" % int(roundf(err))
+	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- dashboard
 ## Gauges for every judged trace (the arc is the tolerance band, the needle the value, green inside it and red outside, with a sparkline of the last 20 s), then

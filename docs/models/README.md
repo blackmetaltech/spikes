@@ -5,6 +5,7 @@
 | `sa_node_pacemaker` | reduced Maltsev-Lakatta / Demir / Kurata rabbit SA node cell | one heartbeat (upstroke through 0 mV) | [sa_node_pacemaker.md](sa_node_pacemaker.md) |
 | `butera_burster` | Butera, Rinzel & Smith 1999, model 1 | one action potential in a preBotzinger burst | [butera_burster.md](butera_burster.md) |
 | `icc_slow_wave` | FitzHugh-Nagumo oscillator in gut units | one slow-wave onset | [icc_slow_wave.md](icc_slow_wave.md) |
+| `stg_cell` | crab stomatogastric neuron after Prinz et al. 2003 (kinetics from memory, game conductances) | one action potential in a burst | [stg_cell.md](stg_cell.md) |
 
 Sources are `models/nestml/*.nestml`. All three have exponential synaptic input (an `excitatory` and an `inhibitory` spike port, so a positive circuit weight excites and a negative one inhibits), a `continuous` current port (`dc` inputs) and the parameter `I_e`. `ach` and `ne` are plain parameters. In a circuit they are driven by the modulation table (`{"modulator":"NE","pop":"N","param":"ne","gain":1.0}`) or by `set_neuron_param`; PyNEST uses `SetStatus`.
 

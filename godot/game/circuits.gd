@@ -53,7 +53,8 @@ const ADVANCED := {
 	"iaf_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -70.0, "mV"], ["tau_m", "tau m", 2.0, 60.0, 0.5, 10.0, "ms"], ["V_th", "threshold", -60.0, -40.0, 0.5, -55.0, "mV"], ["I_e", "bias", -400.0, 800.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]],
 	"aeif_cond_alpha": [["V_m", "start V", -85.0, -45.0, 0.5, -70.6, "mV"], ["a", "a", -2.0, 10.0, 0.1, 4.0, "nS"], ["b", "b", 0.0, 200.0, 1.0, 80.5, "pA"], ["tau_w", "tau w", 5.0, 400.0, 1.0, 144.0, "ms"], ["I_e", "bias", -400.0, 1000.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 0.2, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]],
 	"izhikevich": [["V_m", "start V", -85.0, -45.0, 0.5, -65.0, "mV"], ["a", "a", 0.01, 0.15, 0.005, 0.02, ""], ["b", "b", 0.1, 0.3, 0.005, 0.2, ""], ["c", "c", -70.0, -45.0, 0.5, -65.0, "mV"], ["d", "d", 0.5, 10.0, 0.5, 8.0, ""], ["I_e", "bias", -10.0, 30.0, 0.5, 0.0, "pA"]],
-	"hh_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -65.0, "mV"], ["I_e", "bias", -100.0, 600.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]]}
+	"hh_psc_alpha": [["V_m", "start V", -85.0, -50.0, 0.5, -65.0, "mV"], ["I_e", "bias", -100.0, 600.0, 5.0, 0.0, "pA"], ["tau_syn_ex", "tau syn E", 0.2, 50.0, 0.1, 2.0, "ms"], ["tau_syn_in", "tau syn I", 0.2, 50.0, 0.1, 2.0, "ms"]],
+	"stg_cell": [["I_e", "bias", -200.0, 200.0, 1.0, 0.0, "pA"], ["g_Na", "g Na", 0.0, 300000.0, 100.0, 62800.0, "nS"], ["g_Kd", "g Kd", 0.0, 100000.0, 100.0, 62800.0, "nS"], ["g_CaT", "g CaT", 0.0, 5000.0, 10.0, 1570.0, "nS"], ["g_CaS", "g CaS", 0.0, 10000.0, 10.0, 3768.0, "nS"], ["g_A", "g A", 0.0, 60000.0, 100.0, 31400.0, "nS"], ["g_KCa", "g KCa", 0.0, 10000.0, 10.0, 3140.0, "nS"], ["g_H", "g H", 0.0, 100.0, 0.1, 6.28, "nS"], ["g_L", "g leak", 0.0, 50.0, 0.1, 6.28, "nS"]]}
 
 ## Default weight of a sensor / noise input onto a neuron of `model`: several internal synapses (weight_of), so a lone neuron wired straight from a
 ## 400 Hz sensor fires at once instead of sitting silent (as the old 1.2 x 250 pA did for iaf). Dc inputs keep their own scale (pA of drive).
@@ -236,6 +237,7 @@ static func task_channel_kinds(tid: String, task: Variant = null) -> Dictionary:
 ## starts at the documented defaults and the player tunes the release.
 static func _out_kind(ch: Dictionary, keep_tuning := true) -> Dictionary:
 	var k := str(ch.get("kind", "rate"))
+	if k == "population_vector": return {"kind": "population_vector"}
 	if k != "modulator": return {"kind": "rate"}
 	return {"kind": "modulator", "modulator": str(ch.get("modulator", "NE")), "gain": float(ch.get("gain", MOD_GAIN)) if keep_tuning else MOD_GAIN, "tau_ms": float(ch.get("tau_ms", MOD_TAU)) if keep_tuning else MOD_TAU}
 
@@ -273,6 +275,9 @@ static func _absorb_one(out: Dictionary, side: String, name: String, v: Variant)
 static func set_output_kind(ch: Dictionary, kind: String, modulator := "NE", gain := MOD_GAIN, tau_ms := MOD_TAU) -> void:
 	if kind == "modulator":
 		ch["kind"] = "modulator"; ch["modulator"] = modulator; ch["gain"] = gain; ch["tau_ms"] = tau_ms
+	elif kind == "population_vector":   # v0.5 ring readout: the bump angle over the cells in the order listed
+		ch["kind"] = "population_vector"
+		for k in ["modulator", "gain", "tau_ms"]: ch.erase(k)
 	else:
 		ch["kind"] = "rate"
 		for k in ["modulator", "gain", "tau_ms"]: ch.erase(k)
@@ -313,6 +318,7 @@ static func wire_family(c: Dictionary, key: String, name: String, pop: String) -
 # ---------- segment wiring and modulation rows ----------
 ## "all" (every pre neuron to every post neuron) or "segment" (neuron k to neuron k + offset: one_to_one or explicit edges).
 static func proj_wiring(pr: Dictionary) -> String:
+	if str(pr.get("rule", "")) == "fixed_indegree": return "random"
 	return "segment" if (str(pr.get("rule", "")) == "one_to_one" or pr.has("edges")) else "all"
 
 static func segment_offset(pr: Dictionary) -> int:
@@ -321,17 +327,20 @@ static func segment_offset(pr: Dictionary) -> int:
 	return 0
 
 ## Rewire projection `pr` of circuit `c` index-wise with an offset (post = pre + offset), or back to all-to-all. Weight and delay are kept.
-static func set_wiring(c: Dictionary, pr: Dictionary, wiring: String, offset := 0) -> void:
+static func set_wiring(c: Dictionary, pr: Dictionary, wiring: String, offset := 0, wrap := false) -> void:
 	var w := proj_weight(pr); var d := proj_delay(pr)
 	var syn: Dictionary = (pr.get("synapse", {}) as Dictionary).duplicate(); syn["weight"] = w; syn["delay"] = d
-	pr.erase("edges"); pr.erase("rule")
+	var keep_k := int(pr.get("indegree", 4))
+	pr.erase("edges"); pr.erase("rule"); pr.erase("indegree")
+	if wiring == "random": pr["rule"] = "fixed_indegree"; pr["indegree"] = keep_k; pr["synapse"] = syn; return   # v0.5 mushroom body: each cell of the target listens to k random cells of the source
 	if wiring != "segment": pr["rule"] = "all_to_all"; pr["synapse"] = syn; return
 	var pa := pop_index(c, proj_pop(pr.get("pre", ""))); var pb := pop_index(c, proj_pop(pr.get("post", "")))
 	var na := pop_n(c["populations"][pa]) if pa >= 0 else 1; var nb := pop_n(c["populations"][pb]) if pb >= 0 else 1
 	if offset == 0 and na == nb: pr["rule"] = "one_to_one"; pr["synapse"] = syn; return
 	var edges := []
 	for k in na:
-		if k + offset >= 0 and k + offset < nb: edges.append([k, k + offset, w, d])
+		if wrap and nb > 0: edges.append([k, posmod(k + offset, nb), w, d])   # a ring (fly compass): the last cell is next to the first
+		elif k + offset >= 0 and k + offset < nb: edges.append([k, k + offset, w, d])
 	pr["edges"] = edges; pr["synapse"] = {"synapse_model": str(syn.get("synapse_model", "static_synapse"))}
 
 ## Indices into c.modulation of the rows that act on population `pop`.

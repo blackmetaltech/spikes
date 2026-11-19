@@ -45,3 +45,5 @@ Tests: `engine/tests/test_structure.cpp` (new channel kinds: `test_spike_inputs.
 
 ## Additions in 0.5 (add-only)
 `ChannelStructure::modulator`: for an output of kind `modulator`, the engine channel it releases (`NE`, `ACh`, `DA`). `Structure::modulation`: the circuit's `modulation` table as `ModulationInfo { modulator, pop, param, pop_index, proj_index, amount, scale }` (exactly one of `pop_index`, `proj_index` is >= 0), so a task can ask whether a modulator reaches a synapse on a given path (`aplysia_gill`, `a_facilitate`).
+
+0.5, add-only: `ProjectionInfo::dopamine_index` / `dopamine_source` give the population that drives a `stdp_dopamine_synapse` projection (-1 / empty otherwise; `synapse_model` is the private copy `stdp_dopamine_synapse__p<k>`). `Engine::output_spiked(channel)` lists the circuit-level neurons of an output that spiked in the last step (one entry per spike), so a task can count distinct active cells.

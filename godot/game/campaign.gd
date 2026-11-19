@@ -24,7 +24,10 @@ const CHAPTERS := [
 	# v0.5 Bestiary wing (docs/DESIGN-0.5.md): one chapter per model organism. Open from the start, never counted by the unlock rule of the body chapters. No plate art yet (organ "bestiary").
 	{"id": "worm", "title": "Bestiary: Worm", "organ": "bestiary", "wing": "bestiary", "blurb": "C. elegans: touch the head and it backs up, touch the tail and it goes. The command switch, wired from the real touch circuit."},
 	{"id": "leech", "title": "Bestiary: Leech", "organ": "bestiary", "wing": "bestiary", "blurb": "The leech heartbeat: two cells that burst in turn, a half-centre with a slow cycle."},
-	{"id": "aplysia", "title": "Bestiary: Sea slug", "organ": "bestiary", "wing": "bestiary", "blurb": "Aplysia: a reflex that habituates, recovers and is sensitised, all in one synapse."}]
+	{"id": "aplysia", "title": "Bestiary: Sea slug", "organ": "bestiary", "wing": "bestiary", "blurb": "Aplysia: a reflex that habituates, recovers and is sensitised, all in one synapse."},
+	{"id": "fly_compass", "title": "Bestiary: Fly compass", "organ": "bestiary", "wing": "bestiary", "blurb": "Drosophila: a bump of activity on a ring of compass cells holds the heading in the dark and follows the fly's turns. After Turner-Evans/Hulse cell types, not synapse-level data."},
+	{"id": "fly_mb", "title": "Bestiary: Fly mushroom body", "organ": "bestiary", "wing": "bestiary", "blurb": "Drosophila: a sparse odour code, and a dopamine-gated depression that teaches the fly to avoid a punished odour. After the published cell types, not synapse-level data."},
+	{"id": "crab", "title": "Bestiary: Crab", "organ": "bestiary", "wing": "bestiary", "blurb": "The crab stomatogastric ganglion: a conductance-based pacemaker kernel and two rebound followers make the triphasic pyloric rhythm, and many different parameter sets give the same pattern."}]
 
 ## Planned lineup per chapter: [id, title, node centre on the map (0..1, 0..1)].
 const PLANNED := {
@@ -36,7 +39,10 @@ const PLANNED := {
 	# Bestiary placeholder layout (no plate yet): the three levels of a chapter on a gentle arc
 	"worm": [["w_latch", "Holding a reversal", Vector2(0.2, 0.62)], ["w_switch", "Forward or backward", Vector2(0.5, 0.36)], ["worm_touch", "Touch, reverse or go", Vector2(0.8, 0.62)]],
 	"leech": [["l_burst", "A cell that bursts", Vector2(0.2, 0.62)], ["l_rebound", "Rebound after inhibition", Vector2(0.5, 0.36)], ["leech_heart", "The heartbeat", Vector2(0.8, 0.62)]],
-	"aplysia": [["a_depress", "Getting used to a touch", Vector2(0.2, 0.62)], ["a_facilitate", "A shock to the tail", Vector2(0.5, 0.36)], ["aplysia_gill", "The gill-withdrawal reflex", Vector2(0.8, 0.62)]]}
+	"aplysia": [["a_depress", "Getting used to a touch", Vector2(0.2, 0.62)], ["a_facilitate", "A shock to the tail", Vector2(0.5, 0.36)], ["aplysia_gill", "The gill-withdrawal reflex", Vector2(0.8, 0.62)]],
+	"fly_compass": [["c_ring", "A bump that stays", Vector2(0.2, 0.62)], ["c_shift", "Moving the bump", Vector2(0.5, 0.36)], ["fly_compass", "The compass in the dark", Vector2(0.8, 0.62)]],
+	"fly_mb": [["k_sparse", "A sparse odour code", Vector2(0.2, 0.62)], ["k_depress", "Learning to avoid an odour", Vector2(0.5, 0.36)], ["fly_mb", "The mushroom body learns", Vector2(0.8, 0.62)]],
+	"crab": [["s_pacemaker", "A pacemaker kernel", Vector2(0.2, 0.62)], ["s_phase", "Phase from rebound", Vector2(0.5, 0.36)], ["crab_pyloric", "The pyloric rhythm", Vector2(0.8, 0.62)]]}
 
 ## Extra slots for engine tasks that are not in PLANNED.
 const SPARE := [Vector2(0.5, 0.2), Vector2(0.5, 0.86), Vector2(0.28, 0.5), Vector2(0.72, 0.5)]
@@ -72,6 +78,9 @@ const CONCEPTS := {
 	"path_integration": ["Path integration", "Adding up movement to keep track of position or heading. In the fly, left and right shifting cells (P-EN) push the compass bump one way or the other, so that it follows the animal's turns even in the dark.", "Turner-Evans D et al. (2017) eLife 6:e23496, doi:10.7554/eLife.23496; Green J et al. (2017) Nature 546:101, doi:10.1038/nature22343"],
 	"sparse_coding": ["Sparse coding", "Each Kenyon cell of the fly listens to a few projection neurons at random and fires only when several are active together, and one giant inhibitory neuron (APL) holds the number of active cells down. An odour becomes a small subset of cells, and different odours use mostly different cells.", "Aso Y et al. (2014) eLife 3:e04577, doi:10.7554/eLife.04577; Papadopoulou M et al. (2011) Science 332:721, doi:10.1126/science.1201835"],
 	"dopamine_gated_depression": ["Dopamine-gated depression", "A synapse that weakens only when its input was active and dopamine arrives afterwards. In the fly mushroom body pairing an odour with punishment depresses the synapses of that odour's Kenyon cells onto an output neuron, and leaves other odours alone.", "Hige T et al. (2015) Neuron 88:985, doi:10.1016/j.neuron.2015.11.003"],
+	"pacemaker_kernel": ["Pacemaker kernel", "A bursting cell coupled to partner cells that it drags into its rhythm. In the crab stomatogastric ganglion the anterior burster AB and the pyloric dilator cells PD burst together, about once a second, and pace the whole pyloric rhythm.", "Marder E, Bucher D (2001) Curr Biol 11:R986, doi:10.1016/s0960-9822(01)00581-4"],
+	"phase_lag": ["Phase from inhibition and rebound", "A follower cell that is inhibited by the pacemaker and fires by rebound when the inhibition lets go has its burst after the pacemaker's in the cycle. The delay comes from slow currents that wake up on release, and it fixes the follower's phase.", "Prinz AA et al. (2004) Nat Neurosci 7:1345, doi:10.1038/nn1352; Marder E, Bucher D (2001) Curr Biol 11:R986, doi:10.1016/s0960-9822(01)00581-4"],
+	"degeneracy": ["Degeneracy", "Very different sets of membrane conductances and synaptic strengths can give the same network pattern, so animals can differ a lot underneath and still behave alike. It also means that similar-looking lesions can come from different missing parts.", "Prinz AA, Bucher D, Marder E (2004) Nat Neurosci 7:1345, doi:10.1038/nn1352"],
 	"divergent_command": ["Divergent command", "One command cell fans out to many targets, so a single cue changes the whole body at once: the fight-or-flight response.", "Cannon WB (1915) Bodily Changes in Pain, Hunger, Fear and Rage; Janig W (2006) The Integrative Action of the Autonomic Nervous System"]}
 
 static var pending_variant := ""   # set by the map before app.open_lab(task) for a variant branch; the lab reads it and clears it ("" = the base task)
@@ -269,7 +278,7 @@ static func _build_nodes(ch: String) -> Array:
 
 ## The spine task a non-spine level hangs off: its declared parent, else the spine task of its chapter that shares most of its concepts, else the last spine
 ## task that comes before it in the play order, else the first spine task.
-const DX_PARENT := {"dx_worm": "worm_touch", "dx_leech": "leech_heart", "dx_aplysia": "aplysia_gill", "dx_clonus": "renshaw", "dx_vagal": "heart_autonomic", "dx_orthostatic": "baroreflex", "dx_apnoea": "breathing", "dx_horner": "pupil", "dx_achalasia": "peristalsis"}   # a diagnosis case hangs off the task whose circuit it is (DxSpec.inner)
+const DX_PARENT := {"dx_compass": "fly_compass", "dx_mb_apl": "fly_mb", "dx_mb_dan": "fly_mb", "dx_crab": "crab_pyloric", "dx_worm": "worm_touch", "dx_leech": "leech_heart", "dx_aplysia": "aplysia_gill", "dx_clonus": "renshaw", "dx_vagal": "heart_autonomic", "dx_orthostatic": "baroreflex", "dx_apnoea": "breathing", "dx_horner": "pupil", "dx_achalasia": "peristalsis"}   # a diagnosis case hangs off the task whose circuit it is (DxSpec.inner)
 static func _parent_of(id: String, in_ch: Array) -> String:
 	if DX_PARENT.has(id) and in_ch.has(DX_PARENT[id]): return str(DX_PARENT[id])
 	var d := info(id)
