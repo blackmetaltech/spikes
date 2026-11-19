@@ -147,7 +147,8 @@ int main( int argc, char** argv )
     // Size cap keeps levels readable and fast. Named exceptions only, each with its reason:
     // the fly mushroom body teaches sparse coding, which needs a large Kenyon-cell pool
     // (about 200 of the real ~2000); shrinking it to 60 would remove the idea the level teaches.
-    static const std::map< std::string, int > size_exceptions = { { "k_sparse", 240 }, { "fly_mb", 240 } };
+    // r_meanfield compares a spiking E-I network (200 + 50 cells) with its mean-field prediction: the mean field is a statement about many weak inputs, so the network cannot be 60 cells.
+    static const std::map< std::string, int > size_exceptions = { { "k_sparse", 240 }, { "fly_mb", 240 }, { "r_meanfield", 260 } };
     int cap = t->level_kind() == "boss" ? 120 : 60;
     if ( auto e = size_exceptions.find( id ); e != size_exceptions.end() ) cap = e->second;
     CHECK_MSG( neurons <= cap, id + " has " + std::to_string( neurons ) + " neurons" );
