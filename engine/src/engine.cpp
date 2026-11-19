@@ -135,6 +135,23 @@ struct Engine::Impl
     bool times_dirty = false;
     double amplitude = 0, freq_hz = 0, phase = 0;  // sinusoidal_poisson (value = rate); Hz, Hz, degrees
     bool extra_dirty = false;
+    // 0.6 (add-only): kind 3 "rate_drive" (no device: `param` = mu | mean written to every target), kind 4 "tuned_poisson" (one poisson_generator per target, in `gens`)
+    std::vector< size_t > gens, targets;   // kind 4: generator node ids and the (1-based) target node ids; kind 3: the target node ids
+    double weight = 1.0;                   // kinds 3: drive = weight * value
+    double rate_max = 50, rate_base = 0, kappa = 2, period_deg = 360;
+    /// kind 4: set every generator's rate for a stimulus angle (degrees): von Mises tuning around the preferred angle period_deg * k / N of target k
+    void apply_tuning( double angle_deg ) const
+    {
+      const size_t n = gens.size();
+      for ( size_t k = 0; k < n; ++k )
+      {
+        const double pref = period_deg * static_cast< double >( k ) / static_cast< double >( n );
+        const double c = std::cos( 2.0 * 3.14159265358979323846 * ( angle_deg - pref ) / period_deg );
+        Dictionary v;
+        v[ "rate" ] = rate_base + ( rate_max - rate_base ) * std::exp( kappa * ( c - 1.0 ) );
+        nest::set_node_status( gens[ k ], v );
+      }
+    }
   };
   std::vector< Dev > devs;
   std::map< std::string, size_t > in_idx, out_idx;
@@ -420,6 +437,46 @@ void Engine::Impl::build()
     std::string path = "inputs[" + std::to_string( i ) + "]";
     try
     {
+      if ( in.kind == "rate_drive" or in.kind == "tuned_poisson" )
+      {
+        // 0.6: no single device. rate_drive writes `mu` / `mean` of the targets between steps; tuned_poisson is one poisson_generator per target
+        Dev d{ "", 0, in.value, false };
+        d.weight = in.weight;
+        for ( int32_t t : in.targets )
+          d.targets.push_back( static_cast< size_t >( t ) + 1 );
+        if ( in.kind == "rate_drive" )
+        {
+          d.kind = 3;
+          d.param = "mu";
+          for ( const auto& q : spec.pops )
+            if ( not in.targets.empty() and in.targets.front() >= q.first and in.targets.front() < q.first + q.n and q.model == "siegert_neuron" )
+              d.param = "mean";
+          for ( size_t id : d.targets )
+          {
+            Dictionary v;
+            v[ d.param ] = in.weight * in.value;
+            nest::set_node_status( id, v );
+          }
+        }
+        else
+        {
+          d.kind = 4;
+          d.rate_max = in.rate_max;
+          d.rate_base = in.rate_base;
+          d.kappa = in.kappa;
+          d.period_deg = in.period_deg;
+          if ( not d.targets.empty() )
+          {
+            auto gc = nest::create( "poisson_generator", d.targets.size() );
+            for ( size_t k = 0; k < d.targets.size(); ++k )
+              d.gens.push_back( ( *gc )[ k ] );
+            d.apply_tuning( d.value );
+          }
+        }
+        in_idx[ in.name ] = devs.size();
+        devs.push_back( d );
+        continue;
+      }
       const char* model = in.kind == "dc" ? "dc_generator" : in.kind == "spike_generator" ? "spike_generator" : in.kind == "sinusoidal_poisson" ? "sinusoidal_poisson_generator" : "poisson_generator";
       auto nc = nest::create( model, 1 );
       Dev d{ in.kind == "dc" ? "amplitude" : "rate", ( *nc )[ 0 ], in.value, false };
@@ -594,7 +651,7 @@ void Engine::Impl::build()
         for ( size_t kx = 0; kx < keys.size(); ++kx )
           for ( size_t e = 0; e < n; ++e )
             vals[ e * keys.size() + kx ] = p.synapse[ keys[ kx ] ].get< double >();
-        nest::connect_arrays( src.data(), tgt.data(), w.data(), p.gap ? nullptr : d.data(), keys, vals.empty() ? nullptr : vals.data(), n, pr.model );
+        nest::connect_arrays( src.data(), tgt.data(), w.data(), ( p.gap or pr.model == "rate_connection_instantaneous" ) ? nullptr : d.data(), keys, vals.empty() ? nullptr : vals.data(), n, pr.model );
       }
       projs.push_back( pr );
     }
@@ -613,10 +670,16 @@ void Engine::Impl::build()
     syn[ "synapse_model" ] = std::string( "static_synapse" );
     syn[ "weight" ] = in.weight;
     syn[ "delay" ] = in.delay > 0 ? in.delay : spec.resolution_ms;
-    if ( in.targets.empty() )
-      continue;  // unwired channel: the device exists, nothing is connected
+    if ( in.targets.empty() or devs[ i ].kind == 3 )
+      continue;  // unwired channel: the device exists, nothing is connected (rate_drive writes a parameter instead)
     try
     {
+      if ( devs[ i ].kind == 4 )
+      {
+        rule[ "rule" ] = std::string( "one_to_one" );
+        nest::connect( nest::make_nodecollection( devs[ i ].gens ), nest::make_nodecollection( devs[ i ].targets ), rule, { syn } );
+        continue;
+      }
       nest::connect( nest::make_nodecollection( { devs[ i ].node_id } ), nest::make_nodecollection( node_ids( in.targets ) ), rule, { syn } );
     }
     catch ( const std::exception& e )
@@ -633,6 +696,19 @@ void Engine::Impl::build()
         ids.push_back( i );
     else
       ids = spec.record_neurons;
+    {  // rate neurons do not spike: they cannot be connected to the spike recorder
+      std::vector< int32_t > keep;
+      for ( int32_t n : ids )
+      {
+        bool rate = false;
+        for ( const auto& q : spec.pops )
+          if ( n >= q.first and n < q.first + q.n )
+            rate = is_rate_model( q.model );
+        if ( not rate )
+          keep.push_back( n );
+      }
+      ids.swap( keep );
+    }
     if ( not ids.empty() )
     {
       Dictionary rule, syn;
@@ -1120,6 +1196,22 @@ void Engine::step( double ms )
     const double now_ms = static_cast< double >( m.steps_done ) * res;
     for ( auto& d : m.devs )
     {
+      if ( d.dirty and d.kind == 3 )
+      {
+        for ( size_t id : d.targets )
+        {
+          Dictionary v;
+          v[ d.param ] = d.weight * d.value;
+          nest::set_node_status( id, v );
+        }
+        d.dirty = false;
+      }
+      else if ( d.dirty and d.kind == 4 )
+      {
+        d.apply_tuning( d.value );
+        d.dirty = false;
+        reprep = true;
+      }
       if ( d.dirty and d.kind != 1 )
       {
         Dictionary v;
@@ -1244,6 +1336,54 @@ double Engine::output_strength( const std::string& channel ) const
   return n > 0 ? std::min( 1.0, std::hypot( impl_->pv_x[ it->second ], impl_->pv_y[ it->second ] ) / n ) : 0.0;
 }
 
+double Engine::output_value( const std::string& channel ) const
+{
+  Impl& m = *impl_;
+  auto it = m.out_idx.find( channel );
+  if ( not m.loaded or it == m.out_idx.end() or m.spec.outputs[ it->second ].kind != "rate_value" or m.spec.outputs[ it->second ].neurons.empty() )
+    return 0.0;
+  double sum = 0;
+  for ( int32_t n : m.spec.outputs[ it->second ].neurons )
+  {
+    const double r = neuron_state( n, "rate" );
+    sum += std::isfinite( r ) ? r : 0.0;
+  }
+  return sum / static_cast< double >( m.spec.outputs[ it->second ].neurons.size() );
+}
+
+double Engine::input_weight( const std::string& channel ) const
+{
+  for ( const auto& in : impl_->spec.inputs )
+    if ( in.name == channel )
+      return in.weight;
+  return 0.0;
+}
+
+double Engine::neuron_state( int32_t neuron, const std::string& key ) const
+{
+  const Impl& m = *impl_;
+  if ( not m.loaded or neuron < 0 or neuron >= m.spec.n_neurons )
+    return std::numeric_limits< double >::quiet_NaN();
+  try
+  {
+    Dictionary d = nest::get_node_status( static_cast< size_t >( neuron ) + 1 );
+    if ( not d.known( key ) )
+      return std::numeric_limits< double >::quiet_NaN();
+    try
+    {
+      return d.get< double >( key );
+    }
+    catch ( ... )
+    {
+      return static_cast< double >( d.get< long >( key ) );
+    }
+  }
+  catch ( ... )
+  {
+  }
+  return std::numeric_limits< double >::quiet_NaN();
+}
+
 double Engine::output_rate( const std::string& channel ) const
 {
   return impl_->last_step_ms > 0 ? output_count( channel ) * 1000.0 / impl_->last_step_ms : 0.0;
@@ -1326,7 +1466,15 @@ bool Engine::set_weight( int32_t projection, int32_t edge, double weight )
       return false;
     }
     Dictionary d;
-    d[ "weight" ] = weight;
+    if ( pr.model == "diffusion_connection" )
+    {
+      // 0.6: the weight of a mean-field projection is J (mV); NEST wants drift_factor = tau_m K J / 1000 and diffusion_factor = tau_m K J^2 / 1000
+      const double K = ps.common.value( "K", 1.0 ), tau = ps.common.value( "tau_m", 10.0 );
+      d[ "drift_factor" ] = tau * 1e-3 * K * weight;
+      d[ "diffusion_factor" ] = tau * 1e-3 * K * weight * weight;
+    }
+    else
+      d[ "weight" ] = weight;
     ++m.weight_edits;
     nest::set_connection_status( std::deque< nest::ConnectionID >{ conns[ pick ] }, d );
     if ( ps.gap )
@@ -1461,7 +1609,8 @@ const Structure& Engine::Impl::structure_of()
     {
       for ( const auto& c : m.find_conns( m.projs[ k ], -1, -1 ) )
       {
-        const double w = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 ).get< double >( "weight" );
+        const Dictionary cs = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 );
+        const double w = ( m.projs[ k ].model == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );  // 0.6: a diffusion_connection has no weight: its sign is the drift's
         if ( n == 0 )
           pi.w_min = pi.w_max = w;
         pi.w_min = std::min( pi.w_min, w );

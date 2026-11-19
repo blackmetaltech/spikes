@@ -390,9 +390,28 @@ int main( int argc, char** argv )
     return 2;
   }
   int threads = 1;
+  // 0.6 (dev aid, add-only): --sample key@neuron|out:name|mod:name[,..] --every ms prints {"t":..,"<what>":value,..} lines; --set t_ms:channel=value sets an input at that model time
+  std::vector< std::string > sample;
+  double every = 10.0;
+  struct SetAt { double t; std::string ch; double v; bool done = false; };
+  std::vector< SetAt > sets;
   for ( int i = 3; i < argc; ++i )
     if ( std::string( argv[ i ] ) == "--threads" and i + 1 < argc )
       threads = std::atoi( argv[ ++i ] );
+    else if ( std::string( argv[ i ] ) == "--sample" and i + 1 < argc )
+    {
+      std::stringstream q( argv[ ++i ] );
+      for ( std::string tok; std::getline( q, tok, ',' ); ) sample.push_back( tok );
+    }
+    else if ( std::string( argv[ i ] ) == "--every" and i + 1 < argc )
+      every = std::atof( argv[ ++i ] );
+    else if ( std::string( argv[ i ] ) == "--set" and i + 1 < argc )
+    {
+      const std::string a = argv[ ++i ];
+      const size_t c1 = a.find( ':' ), c2 = a.find( '=' );
+      if ( c1 == std::string::npos or c2 == std::string::npos ) { std::fprintf( stderr, "spike-run: --set t_ms:channel=value\n" ); return 2; }
+      sets.push_back( { std::atof( a.substr( 0, c1 ).c_str() ), a.substr( c1 + 1, c2 - c1 - 1 ), std::atof( a.substr( c2 + 1 ).c_str() ) } );
+    }
     else
     {
       std::fprintf( stderr, "spike-run: unknown argument '%s'\n", argv[ i ] );
@@ -424,8 +443,15 @@ int main( int argc, char** argv )
   // 1 ms slices like the closed loop (identical spikes to one long run)
   const double res = e.resolution_ms();
   double done = 0;
+  double next_sample = 0;
   while ( done + 1e-9 < ms )
   {
+    for ( auto& st : sets )
+      if ( not st.done and st.t <= done + 1e-9 )
+      {
+        st.done = true;
+        e.set_input( st.ch, st.v );
+      }
     double dt = ms - done < 1.0 ? ms - done : 1.0;
     dt = std::max( res, std::round( dt / res ) * res );
     e.step( dt );
@@ -437,6 +463,21 @@ int main( int argc, char** argv )
     }
     for ( const auto& s : e.drain_spikes() )
       std::printf( "{\"neuron\":%d,\"t\":%.6f,\"step\":%lld}\n", s.neuron, s.t_ms, static_cast< long long >( std::llround( s.t_ms / res ) ) );
+    if ( not sample.empty() and done + 1e-9 >= next_sample )
+    {
+      next_sample += every;
+      std::printf( "{\"t\":%.3f", done );
+      for ( const auto& w : sample )
+      {
+        double v = 0;
+        if ( w.rfind( "out:", 0 ) == 0 ) v = e.output_value( w.substr( 4 ) );
+        else if ( w.rfind( "cnt:", 0 ) == 0 ) v = e.output_count( w.substr( 4 ) );
+        else if ( w.rfind( "mod:", 0 ) == 0 ) v = e.modulator( w.substr( 4 ) );
+        else { const size_t at = w.find( '@' ); v = e.neuron_state( std::atoi( w.substr( at + 1 ).c_str() ), w.substr( 0, at ) ); }
+        std::printf( ",\"%s\":%.6g", w.c_str(), v );
+      }
+      std::printf( "}\n" );
+    }
   }
   auto st = e.stats();
   std::fprintf( stderr, "spike-run: t=%.3f ms spikes=%llu checksum=%016llx dropped=%llu\n", st.t_ms, static_cast< unsigned long long >( st.spikes ),

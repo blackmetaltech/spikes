@@ -53,11 +53,15 @@ struct InputSpec
   // "sinusoidal_poisson" (value = rate in Hz, amplitude in Hz, freq_hz in Hz, phase in degrees, as NEST).
   std::vector< double > spike_times;
   double amplitude = 0.0, freq_hz = 0.0, phase = 0.0;
+  // 0.6 (add-only, "Theory" wing): kind "rate_drive" (value = drive, written to the targets' `mu` (rate neurons) or `mean` (siegert_neuron) as weight * value) and
+  // "tuned_poisson" (value = stimulus angle in degrees; target k of N has preferred angle period_deg * k / N and fires Poisson at
+  // rate_base + (rate_max - rate_base) * exp(kappa * (cos(2 pi (angle - pref) / period_deg) - 1)) Hz).
+  double rate_max = 50.0, rate_base = 0.0, kappa = 2.0, period_deg = 360.0;
 };
 
 struct OutputSpec
 {
-  std::string name, kind;                // kind: "rate" | "modulator" | "population_vector" (v0.5: neurons are in ring order, file order of the selectors)
+  std::string name, kind;                // kind: "rate" | "modulator" | "population_vector" (v0.5: neurons are in ring order, file order of the selectors) | "rate_value" (0.6: mean `rate` of rate neurons)
   std::vector< int32_t > neurons;
   std::string modulator;                 // kind "modulator": "NE" | "ACh" | "DA"
   double gain = 0.05, tau_ms = 1000.0;   // kind "modulator": concentration added per spike (a.u.), decay time constant (ms)
@@ -92,6 +96,10 @@ constexpr double kMaxConductanceNs = 500.0;
 constexpr double kMaxCurrentPa = 10000.0;
 /// The limit for synapses onto `neuron_model` and its unit ("nS" / "pA"); 0 (unit null) when the model has no limit.
 double weight_limit( const std::string& neuron_model, const char** unit = nullptr );
+
+/// 0.6: NEST rate-based models (lin_rate_ipn, tanh_rate_ipn, sigmoid_rate_gg_1998_ipn, threshold_lin_rate_ipn, gauss_rate_ipn, the _opn forms, rate_transformer_node, siegert_neuron):
+/// they do not spike, take rate_connection_* (siegert: diffusion_connection) and are driven by `mu` / `mean`, not by currents or spikes.
+bool is_rate_model( const std::string& model );
 
 /// Modulator names the engine knows (Engine::set_modulator).
 bool is_modulator_name( const std::string& s );

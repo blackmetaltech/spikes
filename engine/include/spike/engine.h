@@ -24,7 +24,7 @@ struct Spike
 struct ChannelInfo
 {
   std::string name;
-  std::string kind;              // "dc", "poisson", "spike_generator", "sinusoidal_poisson" for inputs; "rate", "modulator", "population_vector" for outputs
+  std::string kind;              // "dc", "poisson", "spike_generator", "sinusoidal_poisson", "rate_drive", "tuned_poisson" for inputs; "rate", "modulator", "population_vector", "rate_value" for outputs
   std::vector< int32_t > neurons; // circuit-level neuron indices it targets / reads
 };
 
@@ -178,6 +178,15 @@ public:
   const std::vector< int32_t >& output_spiked( const std::string& name ) const;
   double output_angle( const std::string& name ) const;
   double output_strength( const std::string& name ) const;
+
+  /// Additions (0.6, add-only, "Theory" wing). neuron_state(): any numeric (or integer) entry of the neuron's NEST status by name ("V_m", "w", "U_m", "rate", "a", "tau_w", ...);
+  /// NaN when the neuron or the key is unknown. output_value(): the mean `rate` of the neurons of a "rate_value" output (rate neurons and siegert_neurons, as of the last step);
+  /// 0 for any other kind or an unknown name. Input kinds "rate_drive" (value x weight is written to the targets' `mu`, or `mean` for a siegert_neuron) and "tuned_poisson"
+  /// (value = stimulus angle in degrees, each target fires at its von Mises tuning rate) are set with set_input(), like the other kinds.
+  double neuron_state( int32_t neuron, const std::string& key ) const;
+  /// The synaptic weight (pA for a dc input) the circuit gives an input channel; 0 for an unknown name.
+  double input_weight( const std::string& channel ) const;
+  double output_value( const std::string& name ) const;
 
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.
