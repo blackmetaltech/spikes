@@ -15,7 +15,7 @@ ENV LANG=C.UTF-8 TZ=UTC
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential cmake ninja-build git ca-certificates curl unzip zip pkg-config \
-      python3 python3-dev python3-venv python3-pip python3-numpy python3-pytest cython3 \
+      python3 python3-dev python3-venv python3-pip python3-numpy python3-pytest python3-networkx cython3 \
       libgsl-dev libltdl-dev libreadline-dev libtool bison flex \
       libfontconfig1 libx11-6 libxcursor1 libxi6 libxinerama1 libxrandr2 libgl1 libasound2t64 \
     && rm -rf /var/lib/apt/lists/*
