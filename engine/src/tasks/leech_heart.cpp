@@ -1,5 +1,5 @@
 // Task "leech_heart" (leech chapter): the heartbeat half-centre. Two heart interneurons (HN) inhibit each other and fire in alternating bursts; the rhythm has to come from the
-// circuit and its period must fall in a band. (docs/research/bestiary-a.md section 2.)
+// circuit and its period must fall in a band. (research/bestiary-a.md section 2.)
 //
 // WORLD (dc sensor 'drive', level 2.0 x sensor weight, on from t = 0; full episode 14 s, quick episode 9 s: the analysis window is (3000 ms, end])
 //   At t = 0 the task starts the 'left' output cells at V_m = -50 mV and the 'right' ones at -75 mV, and the cells that inhibit them the other way round, so that the symmetry between
@@ -16,7 +16,7 @@
 // the other silent for ever.
 // TIME: the real isolated heartbeat oscillator cycles over many seconds and varies between animals; the numbers here are for a game level that must check in a few seconds, so the
 // period band is a compressed one. It is a property of this level, not a measurement.
-// Biology: Calabrese lab models of the leech heartbeat timing network (Nadim et al. 1995; Olsen et al. 1995; Hill et al. 2001, 2002); see docs/research/bestiary-a.md.
+// Biology: Calabrese lab models of the leech heartbeat timing network (Nadim et al. 1995; Olsen et al. 1995; Hill et al. 2001, 2002); see research/bestiary-a.md.
 #include "bestiary_a.h"
 
 namespace spike::tasks

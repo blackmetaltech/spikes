@@ -1,4 +1,4 @@
-// Scaffolding for the Bestiary chapters of 0.5 (worm, leech, aplysia; docs/DESIGN-0.5.md, docs/research/bestiary-a.md).
+// Scaffolding for the Bestiary chapters of 0.5 (worm, leech, aplysia; docs/DESIGN-0.5.md, research/bestiary-a.md).
 // Every level of these chapters is a SCRIPTED WORLD: a schedule of input levels on the sensors, a list of measurement windows on the motor channels,
 // a mechanism check on the circuit structure, and a judge that turns the window counts into acceptance criteria. The base class does the rest (wiring
 // check, spike counting at 1 ms, live readouts, the verdict: the first failing criterion speaks, partial credit, three hint tiers, modes).
@@ -44,6 +44,9 @@ class Meas
 public:
   std::map< std::string, std::vector< float > > cnt;  // channel -> spikes in [k, k+1) ms (summed over the pool)
   std::map< std::string, double > pool;               // channel -> number of neurons
+  // 0.5 chapter B (add-only): population_vector outputs: per ms, count * strength * (cos, sin) of the bump angle of that step (Spec::vec lists the channels)
+  std::map< std::string, std::vector< float > > vx, vy;
+  std::map< std::string, double > extra;               // facts the task chose for this episode (e.g. which wedge the landmark was at), set in its reset()
   std::vector< Win > wins;
   double tol = 1.0;                                   // mode scale: 1.5 guided, 1 standard, 0.7 researcher (wider bands for larger)
   double dur = 0;
@@ -67,6 +70,31 @@ public:
   {
     const Win* w = win( key );
     return w ? sum( ch, w->t0, w->t1 ) : 0.0;
+  }
+  /// Bump direction (degrees in [0, 360)) of a population_vector channel over [t0, t1): the circular mean of its spikes; strength is the length of that mean vector per spike (0..1, 0 = no spike or no preference).
+  double vec_deg( const std::string& ch, double t0, double t1 ) const
+  {
+    double x = 0, y = 0;
+    vsum( ch, t0, t1, x, y );
+    double a = std::atan2( y, x ) * 180.0 / 3.14159265358979323846;
+    return a < 0 ? a + 360.0 : a;
+  }
+  double vec_strength( const std::string& ch, double t0, double t1 ) const
+  {
+    double x = 0, y = 0;
+    vsum( ch, t0, t1, x, y );
+    const double n = sum( ch, t0, t1 );
+    return n > 0 ? std::sqrt( x * x + y * y ) / n : 0.0;
+  }
+  void vsum( const std::string& ch, double t0, double t1, double& x, double& y ) const
+  {
+    auto a = vx.find( ch ), b = vy.find( ch );
+    if ( a == vx.end() || b == vy.end() ) return;
+    for ( long k = std::max( 0L, static_cast< long >( t0 ) ); k < static_cast< long >( t1 ) && k < static_cast< long >( a->second.size() ); ++k )
+    {
+      x += a->second[ static_cast< size_t >( k ) ];
+      y += b->second[ static_cast< size_t >( k ) ];
+    }
   }
   /// Spikes per cell in the window (a response that does not depend on how many cells the player gave the motor pool).
   double c( const std::string& ch, const std::string& key ) const
@@ -118,6 +146,7 @@ struct Spec
   std::string concept_extra;
   std::vector< std::string > readouts;                 // motor channels shown live (default: every motor)
   bool spine = true;
+  std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
 };
 
 class Scripted : public micro::MicroBase
@@ -150,6 +179,11 @@ public:
     meas_.wins = cur_.wins;
     for ( const auto& m : info_.motors ) meas_.cnt[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
     for ( const auto& m : info_.motors ) lp_[ m ].reset( 0 );
+    for ( const auto& m : s_.vec )
+    {
+      meas_.vx[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
+      meas_.vy[ m ].assign( static_cast< size_t >( cur_.dur ) + 2, 0.0f );
+    }
     kicked_ = false;
   }
 
@@ -242,6 +276,13 @@ protected:
       if ( k >= 0 && k < static_cast< long >( v.size() ) ) v[ static_cast< size_t >( k ) ] += static_cast< float >( n );
       lp_[ m ].tau_ms = 60;
       readouts_[ m + "_hz" ] = lp_[ m ].step( n / meas_.pool[ m ] * 1000.0 / dt, dt );
+    }
+    for ( const auto& m : s_.vec )
+    {
+      const double n = e.output_count( m ), a = e.output_angle( m ), st = e.output_strength( m );
+      if ( k < 0 || k >= static_cast< long >( meas_.vx[ m ].size() ) || n <= 0 ) continue;
+      meas_.vx[ m ][ static_cast< size_t >( k ) ] += static_cast< float >( n * st * std::cos( a ) );
+      meas_.vy[ m ][ static_cast< size_t >( k ) ] += static_cast< float >( n * st * std::sin( a ) );
     }
     on_observe();
   }
