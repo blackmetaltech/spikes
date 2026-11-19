@@ -516,7 +516,7 @@ Method: `curl -I` or small GET through the session proxy, 12-20 s timeout, nothi
 | **neuPrint hemibrain** | neuPrint server (Neo4j) via `neuprint-python`: `NeuronCriteria(type='EPG')`, `fetch_adjacencies`, `fetch_simple_connections` | Token required (Google login to get one) [mem] | CC BY 4.0 [mem], check dataset page | `fetch_adjacencies(sources=NeuronCriteria(type='EPG'), targets=NeuronCriteria(type='PEN_a'))` returns a compact table; 10-50 cells is a few KB. Server blocked here |
 
 Practical plan for the Bestiary build
-1. Do extractions off-sandbox (developer machine) and commit only the small derived tables (cell, type, signed weight) under `docs/research/data/` with the source, release and licence in a header.
+1. Do extractions off-sandbox (developer machine) and commit only the small derived tables (cell, type, signed weight) under `research/data/` with the source, release and licence in a header.
 2. For the worm, the cheapest route that stays inside this sandbox: `add_repo` `openworm/ConnectomeToolbox`, or request `pip install cect` (pypi reachable, wheel 13.6 MB).
 3. FlyWire and hemibrain need an allowlist request for `codex.flywire.ai`/`cave.flywire.ai` and `neuprint.janelia.org` plus a user-supplied token (use `request_credential`), or an off-sandbox export.
 
