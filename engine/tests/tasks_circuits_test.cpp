@@ -144,7 +144,13 @@ int main( int argc, char** argv )
     for ( auto& m : t->motor_channels() ) CHECK_MSG( out_ch.count( m ), id + " output " + m );
     int neurons = 0;
     for ( auto& p : c[ "populations" ] ) neurons += p[ "n" ].get< int >();
-    CHECK_MSG( neurons <= ( t->level_kind() == "boss" ? 120 : 60 ), id + " has " + std::to_string( neurons ) + " neurons" );
+    // Size cap keeps levels readable and fast. Named exceptions only, each with its reason:
+    // the fly mushroom body teaches sparse coding, which needs a large Kenyon-cell pool
+    // (about 200 of the real ~2000); shrinking it to 60 would remove the idea the level teaches.
+    static const std::map< std::string, int > size_exceptions = { { "k_sparse", 240 }, { "fly_mb", 240 } };
+    int cap = t->level_kind() == "boss" ? 120 : 60;
+    if ( auto e = size_exceptions.find( id ); e != size_exceptions.end() ) cap = e->second;
+    CHECK_MSG( neurons <= cap, id + " has " + std::to_string( neurons ) + " neurons" );
     std::printf( "%s (%d neurons)\n", id.c_str(), neurons );
     double sum = 0;
     for ( uint64_t seed : { 1, 2, 3 } )
