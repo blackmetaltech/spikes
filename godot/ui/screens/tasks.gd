@@ -6,7 +6,7 @@ extends Screen
 ## task's sensors and motors); Reference (the reference circuit already wired) appears only once the level is passed, or in Guided mode. Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
-const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic"}
+const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
 var first: Control
@@ -76,7 +76,7 @@ func _tabs(f: float, phone: bool) -> Control:
 		ci += 1
 		var id: String = c["id"]; var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id)
 		var st := Campaign.star_total(id)
-		var txt := (str(SHORT[id]) if phone else "%s. %s" % [["I", "II", "III", "IV", "V", "VI", "VII"][mini(ci - 1, 6)], str(c["title"])])
+		var txt := (str(SHORT[id]) if phone else "%s. %s" % [["I", "II", "III", "IV", "V", "VI", "VII", "VIII"][mini(ci - 1, 7)], str(c["title"])])
 		if not open and not phone: txt += "  (locked)"
 		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0))
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL

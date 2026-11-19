@@ -182,6 +182,7 @@ func inspect_proj(i: int, small: int) -> void:
 	if cur_syn != "static_synapse": r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; lab._on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
 	r1.add_child(Kit.btn("E / I", func(): Circuits.set_proj_weight(pr, -Circuits.proj_weight(pr)); lab._on_structure(); build(), "panel", 18))
 	r1.add_child(Kit.btn("Delete", func(): lab.editor.delete_selected(), "danger", 18))
+	if Campaign.chapter_of(lab.task_id) == "aplysia": _aplysia_synapse(pr, i, small)
 	var pa_i := Circuits.pop_index(circuit, pre)
 	var na := Circuits.pop_n(circuit["populations"][pa_i]) if pa_i >= 0 else 1; var nb := Circuits.pop_n(circuit["populations"][pi]) if pi >= 0 else 1
 	if na > 1 and nb > 1:   # N4: segment wiring, neuron k to neuron k + offset, instead of every pair
@@ -198,6 +199,46 @@ func inspect_proj(i: int, small: int) -> void:
 	if pr.get("synapse", {}).get("synapse_model", "static_synapse") != "gap_junction":
 		add(val_row("spread", 0.0, 100.0, 1.0, float(pr.get("weight_cv", 0.0)) * 100.0, "%", func(x): Circuits.set_proj_spread(pr, snappedf(x, 1.0) * 0.01); lab._on_structure(), 0))
 		add(Kit.label("Spread: each synapse of this axon gets its own weight, varying by this much around the value above (fixed by the circuit seed; “Test x5” draws it again for every seed). A circuit that only works with identical weights fails here.", small, Kit.TEXT_SOFT, true))
+
+## Aplysia levels (v0.5): a connection can be a depressing synapse (NEST tsodyks2: it runs out of transmitter with use and recovers slowly) and can be strengthened by a released
+## modulator (a row of the circuit's modulation table that acts on this connection: its release probability U for a depressing synapse, its weight for a static one).
+func _aplysia_synapse(pr: Dictionary, i: int, small: int) -> void:
+	var circuit := lab.circuit
+	var cur := Circuits.proj_model(pr)
+	add(Kit.label("Synapse type: a static synapse answers every spike alike; a depressing one loses strength with use and recovers.", small, Kit.TEXT_SOFT, true))
+	add(Kit.stepper([["static_synapse", "static"], ["tsodyks2_synapse", "depressing"]], cur, func(m):
+		var sy: Dictionary = pr.get("synapse", {})
+		if str(m) == "tsodyks2_synapse": sy["synapse_model"] = "tsodyks2_synapse"; sy["U"] = 0.2; sy["u"] = 0.2; sy["x"] = 1.0; sy["tau_rec"] = 1000.0; sy["tau_fac"] = 0.0
+		else:
+			for k in ["U", "u", "x", "tau_rec", "tau_fac"]: sy.erase(k)
+			sy["synapse_model"] = "static_synapse"
+		pr["synapse"] = sy
+		# a modulation row aimed at the old parameter no longer fits: drop it, the player adds it again
+		var rows: Array = circuit.get("modulation", [])
+		for r in range(rows.size() - 1, -1, -1):
+			if rows[r].has("projection") and int(rows[r]["projection"]) == i: Circuits.remove_mod_row(circuit, r)
+		lab._on_structure(); build(), 260.0 if not Layout.phone else 200.0, 18, 40.0))
+	if cur == "tsodyks2_synapse":
+		var sy: Dictionary = pr.get("synapse", {})
+		add(val_row("U", 0.01, 1.0, 0.01, float(sy.get("U", 0.2)), "", func(x): sy["U"] = x; sy["u"] = x; pr["synapse"] = sy; lab._on_structure(), 2))
+		add(val_row("recovery", 50.0, 5000.0, 50.0, float(sy.get("tau_rec", 1000.0)), "ms", func(x): sy["tau_rec"] = x; pr["synapse"] = sy; lab._on_structure(), 0))
+		add(Kit.label("U: the share of the available transmitter released by each spike (larger = deeper depression). Recovery: how long the synapse takes to refill.", small, Kit.TEXT_SOFT, true))
+	var rows2: Array = circuit.get("modulation", []); var row_i := -1
+	for r in rows2.size():
+		if rows2[r].has("projection") and int(rows2[r]["projection"]) == i: row_i = r
+	var param := "U" if cur == "tsodyks2_synapse" else "weight"
+	if row_i < 0:
+		add(Kit.btn("Strengthen with serotonin (NE channel)", func():
+			var rr: Array = circuit.get("modulation", [])
+			var row := {"modulator": "NE", "projection": i, "param": param}
+			if param == "U": row["gain"] = 1.0; row["min"] = 0.0; row["max"] = 1.0
+			else: row["scale_per_unit"] = 2.0
+			rr.append(row); circuit["modulation"] = rr; lab._on_structure(); build(), "cyan", 18))
+	else:
+		var row: Dictionary = rows2[row_i]; var key := "scale_per_unit" if row.has("scale_per_unit") else "gain"
+		add(Kit.label("The released modulator changes this synapse's %s." % str(row.get("param", param)), small, Kit.TEXT_SOFT, true))
+		add(val_row("per unit", 0.0, 8.0, 0.1, float(row.get(key, 1.0)), "", func(x): row[key] = x; lab._on_structure(), 1))
+		add(Kit.btn("Remove modulation", func(): Circuits.remove_mod_row(circuit, row_i); lab._on_structure(); build(), "panel", 18))
 
 func inspect_channel(key: String, name: String, small: int) -> void:
 	var circuit := lab.circuit; var tele := lab.tele
