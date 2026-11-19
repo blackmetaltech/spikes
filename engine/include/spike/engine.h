@@ -66,6 +66,17 @@ struct ChannelStructure
   std::string name, kind;                     // kind: "dc" / "poisson" / "spike_generator" / "sinusoidal_poisson" (inputs); "rate" / "modulator" / "population_vector" (outputs)
   std::vector< std::string > pops;            // populations touched (target pops of an input, source pops of an output), file order, unique
   std::vector< int32_t > neurons;             // circuit-level neuron indices
+  std::string modulator;                      // 0.5, add-only: outputs of kind "modulator": "NE" | "ACh" | "DA" (empty otherwise)
+};
+
+/// 0.5, add-only: one row of the circuit's `modulation` table (docs/CIRCUIT-FORMAT.md "The modulation table"), so a task can ask whether a modulator
+/// reaches a neuron parameter (pop_index >= 0) or a synapse parameter (proj_index >= 0).
+struct ModulationInfo
+{
+  std::string modulator, pop, param;
+  int32_t pop_index = -1, proj_index = -1;    // exactly one is >= 0
+  double amount = 0;                          // gain, or scale_per_unit
+  bool scale = false;                         // true: scale_per_unit (multiplicative)
 };
 
 struct Structure
@@ -73,6 +84,7 @@ struct Structure
   std::vector< PopulationInfo > populations;  // file order
   std::vector< ProjectionInfo > projections;  // file order
   std::vector< ChannelStructure > inputs, outputs;
+  std::vector< ModulationInfo > modulation;   // 0.5, add-only: the modulation table (file order; the implicit rows of ne/ach cells are included)
   /// Position of a population id in `populations`, -1 if unknown.
   int population_index( const std::string& id ) const;
   const PopulationInfo* population( const std::string& id ) const;

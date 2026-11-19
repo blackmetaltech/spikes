@@ -1486,9 +1486,21 @@ const Structure& Engine::Impl::structure_of()
     return v;
   };
   for ( const auto& in : sp.inputs )
-    s.inputs.push_back( { in.name, in.kind, pops_of( in.targets ), in.targets } );
+    s.inputs.push_back( { in.name, in.kind, pops_of( in.targets ), in.targets, std::string() } );
   for ( const auto& o : sp.outputs )
-    s.outputs.push_back( { o.name, o.kind, pops_of( o.neurons ), o.neurons } );
+    s.outputs.push_back( { o.name, o.kind, pops_of( o.neurons ), o.neurons, o.kind == "modulator" ? o.modulator : std::string() } );
+  for ( const auto& r : sp.modulation )
+  {
+    ModulationInfo mi;
+    mi.modulator = r.modulator;
+    mi.pop = r.pop;
+    mi.param = r.param;
+    mi.pop_index = r.proj_index >= 0 ? -1 : r.pop_index;
+    mi.proj_index = r.proj_index;
+    mi.amount = r.amount;
+    mi.scale = r.scale;
+    s.modulation.push_back( mi );
+  }
   m.st = std::move( s );
   m.st_steps = m.steps_done;
   m.st_edits = m.weight_edits;

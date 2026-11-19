@@ -42,3 +42,6 @@ if (!e.has_loop("MN", 2, -1)) verdict = "No inhibitory feedback loop onto the mo
 ```
 
 Tests: `engine/tests/test_structure.cpp` (new channel kinds: `test_spike_inputs.cpp`, `test_population_vector.cpp`). Format notes: `docs/CIRCUIT-FORMAT.md` ("Structure").
+
+## Additions in 0.5 (add-only)
+`ChannelStructure::modulator`: for an output of kind `modulator`, the engine channel it releases (`NE`, `ACh`, `DA`). `Structure::modulation`: the circuit's `modulation` table as `ModulationInfo { modulator, pop, param, pop_index, proj_index, amount, scale }` (exactly one of `pop_index`, `proj_index` is >= 0), so a task can ask whether a modulator reaches a synapse on a given path (`aplysia_gill`, `a_facilitate`).
