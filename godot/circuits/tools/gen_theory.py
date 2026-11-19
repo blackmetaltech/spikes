@@ -115,7 +115,34 @@ def r_meanfield():
           [out("net", ["E"]), out("mf", ["SE"], "rate_value")]))
 
 
-BUILD = {"d_class": d_class, "d_phasic": d_phasic, "d_switch": d_switch, "r_oscillate": r_oscillate, "r_choose": r_choose, "r_meanfield": r_meanfield}
+def h_complete():
+    w = 400.0
+    write("h_complete", circuit("Recalling a whole from a part", "h_complete",
+          [pop("C", "iaf_psc_alpha", 3, {}, (180, 120)), pop("R", "iaf_psc_alpha", 5, {}, (180, 260))],
+          [proj("C", "C", w), proj("C", "R", w), proj("R", "C", w), proj("R", "R", w)],
+          [inp("cue", "poisson", 1500.0, ["C"], 0.0)], [out("memory", ["C", "R"])]))
+
+
+def h_two():
+    write("h_two", circuit("Two memories, no blends", "h_two",
+          [pop("A", "iaf_psc_alpha", 4, {}, (160, 120)), pop("B", "iaf_psc_alpha", 4, {}, (160, 280))],
+          [proj("A", "A", 375.0), proj("B", "B", 375.0), proj("A", "B", -500.0), proj("B", "A", -500.0)],
+          [inp("cue_a", "poisson", 1500.0, ["A"], 0.0), inp("cue_b", "poisson", 1500.0, ["B"], 0.0)], [out("a", ["A"]), out("b", ["B"])]))
+
+
+def h_learn():
+    st = {"synapse_model": "stdp_synapse", "lambda": 0.0015, "alpha": 0.5, "Wmax": 800.0}
+    def pj(a, b):
+        p = proj(a, b, 80.0, 2.0, syn="stdp_synapse")
+        p["synapse"].update({"lambda": 0.0015, "alpha": 0.5, "Wmax": 800.0, "tau_plus": 20.0})
+        return p
+    write("h_learn", circuit("Writing a memory with plasticity", "h_learn",
+          [pop("C", "iaf_psc_alpha", 3, {}, (180, 120)), pop("R", "iaf_psc_alpha", 5, {}, (180, 260))],
+          [pj("C", "C"), pj("C", "R"), pj("R", "C"), pj("R", "R")],
+          [inp("cue", "poisson", 1500.0, ["C"], 0.0), inp("show", "poisson", 1500.0, ["C", "R"], 0.0)], [out("memory", ["C", "R"])]))
+
+
+BUILD = {"d_class": d_class, "d_phasic": d_phasic, "d_switch": d_switch, "r_oscillate": r_oscillate, "r_choose": r_choose, "r_meanfield": r_meanfield, "h_complete": h_complete, "h_two": h_two, "h_learn": h_learn}
 
 if __name__ == "__main__":
     for k in (sys.argv[1:] or list(BUILD)):

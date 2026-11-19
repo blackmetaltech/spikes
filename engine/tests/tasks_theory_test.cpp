@@ -90,7 +90,8 @@ struct Level
   const char* kind;
 };
 const Level kLevels[] = { { "d_class", "dynamics", "micro" }, { "d_phasic", "dynamics", "micro" }, { "d_switch", "dynamics", "task" },
-  { "r_oscillate", "rates", "micro" }, { "r_choose", "rates", "micro" }, { "r_meanfield", "rates", "task" } };
+  { "r_oscillate", "rates", "micro" }, { "r_choose", "rates", "micro" }, { "r_meanfield", "rates", "task" },
+  { "h_complete", "memory", "micro" }, { "h_two", "memory", "micro" }, { "h_learn", "memory", "task" } };
 
 std::set< std::string > glossary_ids()
 {
@@ -226,6 +227,7 @@ int main( int argc, char** argv )
   // the campaign order: a chapter's micro-puzzles come before its task
   CHECK( pos( "d_class" ) < pos( "d_phasic" ) && pos( "d_phasic" ) < pos( "d_switch" ) );
   CHECK( pos( "r_oscillate" ) < pos( "r_choose" ) && pos( "r_choose" ) < pos( "r_meanfield" ) );
+  CHECK( pos( "h_complete" ) < pos( "h_two" ) && pos( "h_two" ) < pos( "h_learn" ) );
 
   // ---- no numbers in verdicts or hint tiers 1-3 (honesty contract rule 2)
   // (extra circuits so that many verdicts are produced: the empty bench and one cell of each level)

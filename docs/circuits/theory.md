@@ -26,3 +26,16 @@ Levels in `engine/src/tasks/` on the Bestiary scaffolding (`bestiary_a.h`, plus 
 * Rate units are NEST `threshold_lin_rate_ipn` with a ceiling (`alpha` 1) and no noise (`sigma` 0): `tau dr/dt = -r + mu + min(max(g (sum_j w_j r_j - theta), 0), alpha)`. The drive writes `mu`, so it passes the unit's nonlinearity unrectified; this is why the winner-take-all window of `r_choose` is narrow and the level asks for a held choice, not a flip-flop at equal strength.
 * `r_meanfield` compares the mean rate of the spiking E cells (`net`, Hz per cell) with the rate of the siegert unit it is wired to predict (`mf`). The reference recurrence is strong enough that the prediction without the inhibition is off by a factor of two or more, so a prediction that ignores the loop fails; the rows of `cheap_rows_f.inc` pin that for K and J mismatches.
 * The agreement band is 15 % of the larger rate plus 1.5 Hz (guided 25 %, researcher 10 %). With 200 cells the spiking rates carry a sampling error of about 2 %.
+
+## Attractor memory (`memory`)
+
+| Level | Teaches | Mechanism the check demands | Reference |
+|---|---|---|---|
+| `h_complete` | a partial cue recalls the pattern | several cells with recurrent excitation, a cue that reaches some but not all, roughly symmetric weights; behaviour: silent before the cue, then the whole pattern (including the uncued cells) fires and stays lit | groups C (3, cued) and R (5), all to all +400 |
+| `h_two` | two patterns, no blends | disjoint patterns, each with recurrent excitation, inhibition both ways, symmetric weights; behaviour: cue A lights only A, cue B overwrites it, both cues at once end in exactly one | groups A and B (4 cells each): +375 inside, -500 between |
+| `h_learn` | storage by plasticity | recurrent excitation through `stdp_synapse` among the pattern's cells, symmetric at the start, `show` reaching every cell, `cue` only some; behaviour: no completion before the exposure, weights grown at least 1.5 x, completion after | C and R as above, stdp weight 80, lambda 0.0015, alpha 0.5, Wmax 800 |
+
+* A pattern is a group (or two): the weight matrix is block-structured, not an outer-product rule over +1 / -1 vectors. The lab connects groups all to all (or with random sparse wiring).
+* "Symmetric" is checked between groups: every projection has a partner back of about the same mean weight (within a factor of two). `h_learn` checks it at the start; plasticity is free to break it later.
+* Persistent activity is at 100 Hz or more (no balanced inhibition, no adaptation): it is an attractor, not a model of delay activity.
+* `h_learn`: learning is compressed (a 1.2 s exposure at 60 Hz, lambda 0.0015); with lambda 0.0025 the 200 ms cue itself writes the pattern and `naive` fails (a cheap row pins this at lambda 0.03).

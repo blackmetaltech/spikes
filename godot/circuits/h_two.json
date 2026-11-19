@@ -1,0 +1,152 @@
+{
+ "schema_version": 1,
+ "name": "Two memories, no blends",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "A",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     160,
+     120
+    ],
+    [
+     188,
+     120
+    ],
+    [
+     216,
+     120
+    ],
+    [
+     244,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "B",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     160,
+     280
+    ],
+    [
+     188,
+     280
+    ],
+    [
+     216,
+     280
+    ],
+    [
+     244,
+     280
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "A",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 375.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "B",
+   "post": "B",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 375.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "A",
+   "post": "B",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -500.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "B",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -500.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "cue_a",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "A"
+    }
+   ],
+   "weight": 1500.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue_b",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "B"
+    }
+   ],
+   "weight": 1500.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "a",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "A"
+    }
+   ]
+  },
+  {
+   "name": "b",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "B"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "h_two",
+  "notes": "docs/circuits/theory.md"
+ }
+}

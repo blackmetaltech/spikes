@@ -39,6 +39,7 @@ flowchart LR
   campaign_chapter_crab("Campaign chapter tab: Bestiary: Crab")
   campaign_chapter_dynamics("Campaign chapter tab: Theory: Dynamics")
   campaign_chapter_rates("Campaign chapter tab: Theory: Rate models")
+  campaign_chapter_memory("Campaign chapter tab: Theory: Attractor memory")
   parts["Parts bin (browse the catalogue)"]
   notebook["Lab notebook, Notes tab"]
   notebook_concepts("Notebook, Concepts tab (glossary)")
@@ -230,6 +231,7 @@ flowchart LR
 | `campaign.chapter.crab` | tab | Campaign chapter tab: Bestiary: Crab |  |
 | `campaign.chapter.dynamics` | tab | Campaign chapter tab: Theory: Dynamics |  |
 | `campaign.chapter.rates` | tab | Campaign chapter tab: Theory: Rate models |  |
+| `campaign.chapter.memory` | tab | Campaign chapter tab: Theory: Attractor memory |  |
 | `parts` | screen | Parts bin (browse the catalogue) | `BtnBack`, `BtnSandbox`, `PartsBin` |
 | `notebook` | screen | Lab notebook, Notes tab | `BtnBack`, `BtnWhatIsReal`, `TabNotes`, `TabConcepts` |
 | `notebook.concepts` | tab | Notebook, Concepts tab (glossary) |  |
@@ -283,5 +285,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 54 nodes, 114 edges, 8 guard checks.
+Counts: 55 nodes, 115 edges, 8 guard checks.
 <!-- END GENERATED -->

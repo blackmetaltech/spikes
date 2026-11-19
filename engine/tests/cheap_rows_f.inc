@@ -108,4 +108,59 @@
   CHEAP_ROW( "r_meanfield", "the siegert drive not wired", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext_mf", 0.0 ) ) );
   CHEAP_ROW( "r_meanfield", "network driven at half the rate (ext weight x0.5)", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext", 0.5 ) ) );
   CHEAP_ROW( "r_meanfield", "network connections far weaker than the prediction's (E > E, E > I x0.2)", cheap::from_ref( "r_meanfield", cheap::both( cut_f( "E", "E", 0.2 ), cut_f( "E", "I", 0.2 ) ) ) );
+
+  // ---- memory ----
+  for ( const char* t : { "h_complete", "h_two", "h_learn" } )
+  {
+    CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
+    CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
+    CHEAP_ROW( t, "one tonic cell, I_e 450, every weight 0", cheap::tonic( t, 450 ) );
+    if ( std::string( t ) != "h_learn" ) CHEAP_ROW( t, "reference with every weight 0", zero_f( t ) );   // (a plastic synapse of weight 0 is refused at load: excitatory only)
+  }
+  CHEAP_ROW( "h_learn", "reference with the sensors cut (every input weight 0)", cheap::from_ref( "h_learn", cheap::scale_all_inputs( 0.0 ) ) );
+  // every projection of the reference gets this change
+  auto all_proj = [ & ]( std::function< void( json& ) > f ) -> cheap::Mut { return [ = ]( json& c ) { for ( auto& p : c[ "projections" ] ) f( p ); }; };
+  auto add_target = [ & ]( const std::string& input, const std::string& pop ) -> cheap::Mut {
+    return [ = ]( json& c ) { for ( auto& i : c[ "inputs" ] ) if ( i[ "name" ] == input ) i[ "targets" ].push_back( { { "pop", pop } } ); };
+  };
+  CHEAP_ROW_V( "h_complete", "reference minus the recurrent excitation", "excite each other", cheap::from_ref( "h_complete", cheap::all( cut_f( "C", "C" ), cut_f( "C", "R" ), cut_f( "R", "C" ), cut_f( "R", "R" ) ) ) );
+  CHEAP_ROW_V( "h_complete", "the cue reaches every cell of the pattern", "every cell", cheap::from_ref( "h_complete", add_target( "cue", "R" ) ) );
+  CHEAP_ROW_V( "h_complete", "asymmetric weights (R > C four times C > R)", "symmetric", cheap::from_ref( "h_complete", cut_f( "R", "C", 4.0 ) ) );
+  CHEAP_ROW( "h_complete", "recurrent weights far too weak (x0.25)", cheap::from_ref( "h_complete", all_proj( []( json& p ) { p[ "synapse" ][ "weight" ] = p[ "synapse" ][ "weight" ].get< double >() * 0.25; } ) ) );
+  CHEAP_ROW( "h_complete", "every cell biased to fire on its own (I_e 450)", cheap::from_ref( "h_complete", cheap::both( cheap::set_params( "C", { { "I_e", 450.0 } } ), cheap::set_params( "R", { { "I_e", 450.0 } } ) ) ) );
+  CHEAP_ROW_V( "h_complete", "'memory' reads only the three cued cells", "several cells", [] {
+    json c = cheap::reference( "h_complete" );
+    c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "C" } } } );
+    return c;
+  }() );
+  CHEAP_ROW_V( "h_complete", "a pattern of one cell", "several cells", [] {
+    cheap::Bench b = cheap::channels( "h_complete", { "N1" }, { "N1" } );
+    b.pop( "N1", "iaf_psc_alpha" ).proj( "N1", "N1", 400.0 );
+    return b.c;
+  }() );
+
+  CHEAP_ROW_V( "h_two", "reference minus the inhibition between the patterns", "separates", cheap::from_ref( "h_two", cheap::both( cut_f( "A", "B" ), cut_f( "B", "A" ) ) ) );
+  CHEAP_ROW_V( "h_two", "reference minus B > A (one-way inhibition)", "separates", cheap::from_ref( "h_two", cut_f( "B", "A" ) ) );
+  CHEAP_ROW_V( "h_two", "inhibition asymmetric (A > B x0.3)", "symmetric", cheap::from_ref( "h_two", cut_f( "A", "B", 0.3 ) ) );
+  CHEAP_ROW( "h_two", "inhibition too strong: the first pattern can never be overwritten (x2)", cheap::from_ref( "h_two", cheap::both( cut_f( "A", "B", 2.0 ), cut_f( "B", "A", 2.0 ) ) ) );
+  CHEAP_ROW_V( "h_two", "reference minus the self-excitation", "excite each other", cheap::from_ref( "h_two", cheap::both( cut_f( "A", "A" ), cut_f( "B", "B" ) ) ) );
+  CHEAP_ROW_V( "h_two", "'a' and 'b' read the same cells", "same cells", [] {
+    json c = cheap::reference( "h_two" );
+    c[ "outputs" ][ 1 ][ "neurons" ] = c[ "outputs" ][ 0 ][ "neurons" ];
+    return c;
+  }() );
+  CHEAP_ROW( "h_two", "inhibition far too weak (x0.1): both patterns light together", cheap::from_ref( "h_two", cheap::both( cut_f( "A", "B", 0.1 ), cut_f( "B", "A", 0.1 ) ) ) );
+
+  CHEAP_ROW_V( "h_learn", "static weights of 80 (nothing can be learned)", "fixed", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ] = { { "synapse_model", "static_synapse" }, { "weight", 80.0 }, { "delay", 2.0 } }; } ) ) );
+  CHEAP_ROW( "h_learn", "static weights of 400 (built in, recalls from the start)", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ] = { { "synapse_model", "static_synapse" }, { "weight", 400.0 }, { "delay", 2.0 } }; } ) ) );
+  CHEAP_ROW( "h_learn", "plastic but strong from the start (weight 400)", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ][ "weight" ] = 400.0; } ) ) );
+  CHEAP_ROW( "h_learn", "learning far too slow (lambda 0.0001)", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ][ "lambda" ] = 0.0001; } ) ) );
+  CHEAP_ROW( "h_learn", "learning so fast that the cue itself writes the pattern (lambda 0.03)", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ][ "lambda" ] = 0.03; } ) ) );
+  CHEAP_ROW( "h_learn", "no learning at all (lambda 0)", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ][ "lambda" ] = 0.0; } ) ) );
+  CHEAP_ROW( "h_learn", "weight ceiling just above the start (Wmax 100)", cheap::from_ref( "h_learn", all_proj( []( json& p ) { p[ "synapse" ][ "Wmax" ] = 100.0; } ) ) );
+  CHEAP_ROW_V( "h_learn", "'show' reaches only the cued cells", "every cell of the pattern", cheap::from_ref( "h_learn", [ & ]( json& c ) {
+    for ( auto& i : c[ "inputs" ] ) if ( i[ "name" ] == "show" ) i[ "targets" ] = json::array( { { { "pop", "C" } } } );
+  } ) );
+  CHEAP_ROW_V( "h_learn", "asymmetric start (R > C four times C > R)", "symmetric", cheap::from_ref( "h_learn", cut_f( "R", "C", 4.0 ) ) );
+  CHEAP_ROW_V( "h_learn", "the cue reaches every cell", "every cell", cheap::from_ref( "h_learn", add_target( "cue", "R" ) ) );
 }
