@@ -1,0 +1,182 @@
+{
+ "schema_version": 1,
+ "name": "Patient circuit: aplysia",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "SN",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     120,
+     80
+    ],
+    [
+     148,
+     80
+    ],
+    [
+     176,
+     80
+    ],
+    [
+     204,
+     80
+    ],
+    [
+     232,
+     80
+    ],
+    [
+     260,
+     80
+    ]
+   ]
+  },
+  {
+   "id": "MN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     340,
+     80
+    ]
+   ]
+  },
+  {
+   "id": "TSN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     120,
+     250
+    ]
+   ]
+  },
+  {
+   "id": "FN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     340,
+     250
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "SN",
+   "post": "MN",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "tsodyks2_synapse",
+    "weight": 2500.0,
+    "delay": 2.0,
+    "U": 0.1,
+    "u": 0.1,
+    "x": 1.0,
+    "tau_rec": 1000.0,
+    "tau_fac": 0.0
+   }
+  },
+  {
+   "pre": "TSN",
+   "post": "MN",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1500.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "TSN",
+   "post": "FN",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 0.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "touch",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "SN"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  },
+  {
+   "name": "shock",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "TSN"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "gill",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN"
+    }
+   ]
+  },
+  {
+   "name": "serotonin",
+   "kind": "modulator",
+   "neurons": [
+    {
+     "pop": "FN"
+    }
+   ],
+   "modulator": "NE",
+   "gain": 0.05,
+   "tau_ms": 1000.0
+  }
+ ],
+ "modulation": [
+  {
+   "modulator": "NE",
+   "projection": 0,
+   "param": "U",
+   "gain": 1.5,
+   "min": 0.0,
+   "max": 1.0
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "dx_aplysia",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}

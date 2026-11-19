@@ -1,0 +1,108 @@
+{
+ "schema_version": 1,
+ "name": "Worm: forward or backward",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "R",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     140
+    ]
+   ]
+  },
+  {
+   "id": "F",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     140
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "R",
+   "post": "F",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -4000.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "F",
+   "post": "R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -4000.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "push_rev",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "R"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  },
+  {
+   "name": "push_fwd",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "F"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "reverse",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "R"
+    }
+   ]
+  },
+  {
+   "name": "forward",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "F"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "w_switch",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}

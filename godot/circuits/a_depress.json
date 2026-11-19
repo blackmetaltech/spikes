@@ -1,0 +1,83 @@
+{
+ "schema_version": 1,
+ "name": "Aplysia: getting used to a touch",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "SN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     140
+    ]
+   ]
+  },
+  {
+   "id": "MN",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     140
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "SN",
+   "post": "MN",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "tsodyks2_synapse",
+    "weight": 8000.0,
+    "delay": 2.0,
+    "U": 0.2,
+    "u": 0.2,
+    "x": 1.0,
+    "tau_rec": 1500.0,
+    "tau_fac": 0.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "touch",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "SN"
+    }
+   ],
+   "weight": 1000.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "gill",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MN"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "a_depress",
+  "notes": "docs/circuits/bestiary_a.md"
+ }
+}

@@ -3982,6 +3982,241 @@
     "docs/body/heart.md",
     "godot/catalog/citations.json"
    ]
+  },
+  {
+   "id": "chalfie1985",
+   "authors": [
+    "Chalfie M",
+    "Sulston JE",
+    "White JG",
+    "Southgate E",
+    "Thomson JN",
+    "Brenner S"
+   ],
+   "year": 1985,
+   "title": "The neural circuit for touch sensitivity in Caenorhabditis elegans",
+   "journal": "J Neurosci",
+   "volume": "5",
+   "pages": "956-964",
+   "doi": "10.1523/JNEUROSCI.05-04-00956.1985",
+   "pmid": "3981252",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 3981252): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Chalfie (?:M, Sulston|et al\\.?,? \\(?1985)|Chalfie 1985",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "cook2019",
+   "authors": [
+    "Cook SJ",
+    "Jarrell TA",
+    "Brittin CA",
+    "Wang Y",
+    "Bloniarz AE",
+    "Yakovlev MA",
+    "Nguyen KCQ",
+    "Tang LT",
+    "Bayer EA",
+    "Duerr JS",
+    "Bülow HE",
+    "Hobert O",
+    "Hall DH",
+    "Emmons SW"
+   ],
+   "year": 2019,
+   "title": "Whole-animal connectomes of both Caenorhabditis elegans sexes",
+   "journal": "Nature",
+   "volume": "571",
+   "pages": "63-71",
+   "doi": "10.1038/s41586-019-1352-7",
+   "pmid": "31270481",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 31270481): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Cook SJ|Cook et al\\.? \\(?2019|Cook 2019",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "nadim1995",
+   "authors": [
+    "Nadim F",
+    "Olsen OH",
+    "De Schutter E",
+    "Calabrese RL"
+   ],
+   "year": 1995,
+   "title": "Modeling the leech heartbeat elemental oscillator. I. Interactions of intrinsic and synaptic currents",
+   "journal": "J Comput Neurosci",
+   "volume": "2",
+   "pages": "215-235",
+   "doi": "10.1007/BF00961435",
+   "pmid": "8521288",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 8521288): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Nadim F|Nadim et al\\.? \\(?1995",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "olsen1995",
+   "authors": [
+    "Olsen OH",
+    "Nadim F",
+    "Calabrese RL"
+   ],
+   "year": 1995,
+   "title": "Modeling the leech heartbeat elemental oscillator. II. Exploring the parameter space",
+   "journal": "J Comput Neurosci",
+   "volume": "2",
+   "pages": "237-257",
+   "doi": "10.1007/BF00961436",
+   "pmid": "8521289",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 8521289): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Olsen OH|Olsen,? Nadim",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "hill2001",
+   "authors": [
+    "Hill AA",
+    "Lu J",
+    "Masino MA",
+    "Olsen OH",
+    "Calabrese RL"
+   ],
+   "year": 2001,
+   "title": "A model of a segmental oscillator in the leech heartbeat neuronal network",
+   "journal": "J Comput Neurosci",
+   "volume": "10",
+   "pages": "281-302",
+   "doi": "10.1023/a:1011216131638",
+   "pmid": "11443286",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 11443286): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Hill AA, Lu|Hill et al\\.? \\(?2001",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "hill2002",
+   "authors": [
+    "Hill AAV",
+    "Masino MA",
+    "Calabrese RL"
+   ],
+   "year": 2002,
+   "title": "Model of intersegmental coordination in the leech heartbeat neuronal network",
+   "journal": "J Neurophysiol",
+   "volume": "87",
+   "pages": "1586-1602",
+   "doi": "10.1152/jn.00337.2001",
+   "pmid": "11877528",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 11877528): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Hill AAV|Hill et al\\.? \\(?2002",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "castellucci1970",
+   "authors": [
+    "Castellucci V",
+    "Pinsker H",
+    "Kupfermann I",
+    "Kandel ER"
+   ],
+   "year": 1970,
+   "title": "Neuronal mechanisms of habituation and dishabituation of the gill-withdrawal reflex in Aplysia",
+   "journal": "Science",
+   "volume": "167",
+   "pages": "1745-1748",
+   "doi": "10.1126/science.167.3926.1745",
+   "pmid": "5416543",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 5416543): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Castellucci V, Pinsker|Castellucci et al\\.? \\(?1970|Castellucci 1970",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "byrne1978",
+   "authors": [
+    "Byrne JH",
+    "Castellucci VF",
+    "Carew TJ",
+    "Kandel ER"
+   ],
+   "year": 1978,
+   "title": "Stimulus-response relations and stability of mechanoreceptor and motor neurons mediating defensive gill-withdrawal reflex in Aplysia",
+   "journal": "J Neurophysiol",
+   "volume": "41",
+   "pages": "402-417",
+   "doi": "10.1152/jn.1978.41.2.402",
+   "pmid": "650274",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 650274): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Byrne JH|Byrne et al\\.? \\(?1978",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
+  },
+  {
+   "id": "hawkins2006",
+   "authors": [
+    "Hawkins RD",
+    "Kandel ER",
+    "Bailey CH"
+   ],
+   "year": 2006,
+   "title": "Molecular mechanisms of memory storage in Aplysia",
+   "journal": "Biol Bull",
+   "volume": "210",
+   "pages": "174-191",
+   "doi": "10.2307/4134556",
+   "pmid": "16801493",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-19 (PMID 16801493): title, authors, journal, year, volume, pages and DOI match",
+   "match": "Hawkins RD|Hawkins,? Kandel",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks",
+    "docs/WHAT-IS-REAL.md",
+    "docs/research/bestiary-a.md"
+   ]
   }
  ]
 }
