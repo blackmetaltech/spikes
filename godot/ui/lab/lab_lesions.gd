@@ -143,7 +143,7 @@ func inspect(small: int) -> void:
 	var sw := Kit.btn("Sweep" if Layout.phone else "Sweep all singles", sweep, "cyan", 18); sw.disabled = running; br.add_child(sw)
 	var cl := Kit.btn("Clear" if Layout.phone else "Clear set", func(): lab.lesions.clear(); lab.editor.queue_redraw(); lab._dirty = 0.0; lab._build_inspector(), "panel", 18); cl.disabled = lesions.is_empty() or running; br.add_child(cl)
 	if Layout.phone and not running and not rows.is_empty():
-		br.add_child(Kit.btn(("Hide table" if lab._lesion_open else "Table (%d)" % rows.size()), func(): lab._lesion_open = not lab._lesion_open; lab._build_inspector(), "green" if not lab._lesion_open else "panel", 18))
+		br.add_child(Kit.ident(Kit.btn(("Hide table" if lab._lesion_open else "Table (%d)" % rows.size()), func(): lab._lesion_open = not lab._lesion_open; lab._build_inspector(), "green" if not lab._lesion_open else "panel", 18), "BtnTable"))
 	br.add_child(Kit.btn("Exit", toggle, "ghost", 18))
 	if running:
 		var pl := Kit.label("Starting...", small, Kit.exc(), true); pl.name = "LesionProg"; I.add(pl)

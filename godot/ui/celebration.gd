@@ -54,7 +54,7 @@ func _pump() -> void:
 	_show_toast(str(q["title"]), str(q["text"]), q["col"], float(q["life"]))
 
 func _show_toast(title: String, text: String, col: Color, life: float) -> void:
-	var pn := PanelContainer.new(); pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pn := PanelContainer.new(); Kit.ident(pn, "Toast"); pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, col, 2, 12, 12 if Layout.phone else 16, true))
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 2); v.mouse_filter = Control.MOUSE_FILTER_IGNORE; pn.add_child(v)
 	v.add_child(Kit.shout(title, 26 if not Layout.phone else 20, col))
@@ -71,7 +71,7 @@ func first_pass(editor: CircuitEditor, tele: Telemetry, path: Array, note: Dicti
 	_editor = editor; _tele = tele; _note = note; _note_shown = false; _t = 0.0
 	GameAudio.event("celebrate")
 	if _banner == null:
-		_banner = StampMark.new(); _banner.mouse_filter = Control.MOUSE_FILTER_IGNORE; add_child(_banner)
+		_banner = StampMark.new(); Kit.ident(_banner, "FirstPassStamp"); _banner.mouse_filter = Control.MOUSE_FILTER_IGNORE; add_child(_banner)
 	var side := 260.0 if not Layout.phone else 170.0
 	_banner.size = Vector2(side, side); _banner.score = int(roundf(float(tele.score.get("value", 100.0))))
 	_banner.visible = true; _banner.modulate.a = 0.0

@@ -15,6 +15,7 @@ signal lesion_lab_pressed
 
 func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: bool) -> DiagnosisPanel:
 	for c in get_children(): remove_child(c); c.queue_free()
+	Kit.ident(self, "DxPanel")
 	add_theme_constant_override("separation", 6 if Layout.phone else 8)
 	var fs := 17 if not Layout.phone else 15
 	var done := bool(state.get("solved", false)) or bool(state.get("gave_up", false))
@@ -25,7 +26,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	sv.add_child(Kit.label(str(dx.get("symptoms", "No symptoms recorded.")), fs, Kit.TEXT, true))
 	# probes
 	var pr := HFlowContainer.new(); pr.add_theme_constant_override("h_separation", 8); pr.add_theme_constant_override("v_separation", 6); add_child(pr)
-	pr.add_child(Kit.btn("LEAVE LESION LAB" if lesion_lab_on else "LESION LAB", func(): lesion_lab_pressed.emit(), "amber" if lesion_lab_on else "cyan", 18))
+	pr.add_child(Kit.ident(Kit.btn("LEAVE LESION LAB" if lesion_lab_on else "LESION LAB", func(): lesion_lab_pressed.emit(), "amber" if lesion_lab_on else "cyan", 18), "BtnLesionLab"))
 	pr.add_child(Kit.label("Scopes on the right; click a group to trace it." if Layout.phone else "Probes: every candidate connection is drawn, but one of them is dead. Watch which groups fire and which do not answer; or open the lesion lab and cut a suspected connection: a working one changes the symptoms or the activity downstream, the dead one changes nothing. Then name the lesion.", fs - 1, Kit.TEXT_SOFT, true))
 	# candidates
 	add_child(Kit.label("Which connection is missing or lesioned?", fs, Kit.TEXT))
@@ -39,7 +40,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 		if done and cs == answer: kind = "green"
 		elif is_pick: kind = "amber"
 		var plain := str(labels.get(cs, ""))
-		var b := Kit.btn(_cap(plain) if plain != "" else _cap(Circuits.candidate_text(cs)), func(): picked.emit(cs), kind, 17); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; b.disabled = done and cs != answer and not is_pick
+		var b := Kit.btn(_cap(plain) if plain != "" else _cap(Circuits.candidate_text(cs)), func(): picked.emit(cs), kind, 17); Kit.ident(b, "Cand_" + cs); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; b.disabled = done and cs != answer and not is_pick
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT; row.add_child(b)
 	# submit and reveal
 	if not done:

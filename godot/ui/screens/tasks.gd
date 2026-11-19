@@ -36,10 +36,10 @@ func build() -> void:
 	(head.get_node("PageTitle") as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mode_step = Kit.stepper([["guided", "Guided"], ["standard", "Standard"], ["researcher", "Researcher"]], Progress.mode(), func(id): _on_mode(str(id)), 170.0 if not phone else 112.0, int(24 * f) if not phone else 15, 44.0 if not phone else 32.0)
 	mode_step.tooltip_text = "Difficulty. Switch any time. Guided: recipe in the brief. Standard: “Show recipe” costs the third star. Researcher: no recipe, a pass needs “Test x5”."
-	head.add_child(mode_step)
-	head.add_child(Kit.btn("Notebook" if not phone else "Notes", func(): app.show_screen("notebook"), "panel", bs))
-	head.add_child(Kit.btn("Parts bin" if not phone else "Parts", func(): app.show_screen("parts"), "panel", bs))
-	head.add_child(Kit.btn("Sandbox" if not phone else "Lab", func(): app.open_lab(""), "ghost", bs))
+	Kit.ident(mode_step, "StepMode"); head.add_child(mode_step)
+	head.add_child(Kit.ident(Kit.btn("Notebook" if not phone else "Notes", func(): app.show_screen("notebook"), "panel", bs), "BtnNotebook"))
+	head.add_child(Kit.ident(Kit.btn("Parts bin" if not phone else "Parts", func(): app.show_screen("parts"), "panel", bs), "BtnPartsBin"))
+	head.add_child(Kit.ident(Kit.btn("Sandbox" if not phone else "Lab", func(): app.open_lab(""), "ghost", bs), "BtnSandbox"))
 	if not Campaign.ext_ok():
 		v.add_child(Kit.label("The spike-gd GDExtension is not loaded. Run scripts/build-gd.sh.", 22, Kit.RED, true)); return
 	if chapter == "": chapter = app.campaign_chapter if app != null and app.campaign_chapter != "" else _default_chapter()
@@ -50,7 +50,7 @@ func build() -> void:
 	map = MapCanvas.new(); map.screen = self; map.size_flags_vertical = Control.SIZE_EXPAND_FILL; map.size_flags_horizontal = Control.SIZE_EXPAND_FILL; mp.add_child(map)
 	var dp := Kit.panel(Kit.PANEL, int(20 * f) if not phone else 10); dp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; dp.size_flags_stretch_ratio = 1.0; dp.size_flags_vertical = Control.SIZE_EXPAND_FILL; body.add_child(dp)
 	detail_scroll = ScrollContainer.new(); detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; dp.add_child(detail_scroll)
-	detail_box = VBoxContainer.new(); detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL; detail_box.add_theme_constant_override("separation", int(10 * f) if not phone else 6); detail_scroll.add_child(detail_box)
+	detail_box = VBoxContainer.new(); Kit.ident(detail_box, "DetailBox"); detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL; detail_box.add_theme_constant_override("separation", int(10 * f) if not phone else 6); detail_scroll.add_child(detail_box)
 	_show_chapter(chapter)
 
 ## The player switched the difficulty mode: save it, and relabel everything that shows stars.
@@ -83,7 +83,7 @@ func _tabs(f: float, phone: bool) -> Control:
 		var wing := "bestiary" if Campaign.is_bestiary(id) else "body"
 		var txt := str(SHORT[id]) if phone else (("%s. %s" % [roman[mini(ci - 1, roman.size() - 1)], str(c["title"])]) if wing == "body" else str(c["title"]).trim_prefix("Bestiary: "))
 		if not open and not phone: txt += "  (locked)"
-		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0))
+		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0)); Kit.ident(b, "Chapter_" + id)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not phone else Control.SIZE_SHRINK_BEGIN
 		b.clip_text = false
 		b.tooltip_text = ("%s: %d of %d levels passed, %d of %d stars" % [c["title"], Campaign.passed_count(id), n, st.x, st.y]) if n > 0 else ("%s: no tasks installed yet" % c["title"])
@@ -189,7 +189,7 @@ func _fill_detail() -> void:
 	var sid := tid; var vid := str(node["variant"]); var synth := bool(info.get("synthetic", false))
 	var go := func(ref: bool):
 		Campaign.pending_variant = vid; app.open_lab(sid, ref)   # the lab logs the visit (Playlog.level_start), once
-	var b := Kit.btn("Build" if open else "Locked", func(): if open and not synth: go.call(false), "amber" if open else "panel", int(24 * f) if not phone else 19); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
+	var b := Kit.btn("Build" if open else "Locked", func(): if open and not synth: go.call(false), "amber" if open else "panel", int(24 * f) if not phone else 19); Kit.ident(b, "BtnBuild"); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; bt.add_child(b)
 	if not open or synth: b.disabled = true
 	if not is_var and (done or Progress.mode() == "guided"):   # the reference circuit is the solution: only after a pass, or in Guided mode
 		var rb := Kit.btn("Reference", func(): if not synth: go.call(true), "panel", int(24 * f) if not phone else 19); rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rb.disabled = synth; bt.add_child(rb)
@@ -474,7 +474,7 @@ class MapCanvas extends Control:
 		if overlay.get_parent() != null: remove_child(overlay)
 		for i in ns.size():
 			var n: Dictionary = ns[i]
-			var c := NodeCard.new(); c.node = n; c.idx = i; c.screen = screen; c.pressed.connect(func(): screen.select_node(str(n["id"])))
+			var c := NodeCard.new(); Kit.ident(c, "Pin_" + str(n["id"])); c.node = n; c.idx = i; c.screen = screen; c.pressed.connect(func(): screen.select_node(str(n["id"])))
 			c.tooltip_text = ""; c.mouse_entered.connect(overlay.queue_redraw); c.mouse_exited.connect(overlay.queue_redraw); add_child(c); cards.append(c)
 		add_child(overlay); queue_redraw()
 	func _notification(what: int) -> void:

@@ -27,12 +27,12 @@ static func button_text(mode: String, fails: int, shown: int) -> String:
 ## `hints`: [{tier, text, target}] from Task::hints(); `shown`: highest tier revealed (0 = none).
 func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel:
 	for c in get_children(): remove_child(c); c.queue_free()
-	add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.AMBER, 1, 12, 12 if Layout.phone else 16, true))
+	add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.AMBER, 1, 12, 12 if Layout.phone else 16, true)); Kit.ident(self, "HintCard")
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6 if Layout.phone else 8); add_child(v)
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 10); v.add_child(hd)
 	var t := Kit.shout("Hints", 26 if not Layout.phone else 20, Kit.TEXT); t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hd.add_child(t)
 	hd.add_child(Kit.chip(mode.to_upper(), Kit.AMBER if mode != "guided" else Kit.GREEN, 14))
-	hd.add_child(Kit.btn("X", func(): close_pressed.emit(), "panel", 16))
+	hd.add_child(Kit.ident(Kit.btn("X", func(): close_pressed.emit(), "panel", 16), "BtnHintClose"))
 	var fs := 17 if not Layout.phone else 15
 	if mode == "researcher":
 		v.add_child(Kit.label("Researcher mode has no hints. Switch to Standard or Guided (the More menu, or the campaign header) to get them.", fs, Kit.TEXT_SOFT, true)); return self
@@ -59,6 +59,6 @@ func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel
 		var l := Kit.label(txt, fs, Kit.TEXT, true); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(l)
 	var nxt := shown + 1
 	while nxt <= 3 and not by.has(nxt): nxt += 1
-	if nxt <= 3: v.add_child(Kit.btn("Show hint %d: %s" % [nxt, str(TIER_NAMES[nxt]).to_lower()], func(): next_pressed.emit(), "amber", 18))
+	if nxt <= 3: v.add_child(Kit.ident(Kit.btn("Show hint %d: %s" % [nxt, str(TIER_NAMES[nxt]).to_lower()], func(): next_pressed.emit(), "amber", 18), "BtnHintNext"))
 	else: v.add_child(Kit.label("That is every hint. Hint use is recorded, never punished.", fs - 1, Kit.TEXT_SOFT, true))
 	return self

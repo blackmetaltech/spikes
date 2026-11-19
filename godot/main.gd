@@ -6,10 +6,10 @@ extends Node
 ##             SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
 ##             SP_SCREEN=title|tasks|parts|lab|analysis|settings|credits|notebook|real   SP_CHAPTER=<chapter id> + SP_NODE=<task id> (campaign map)   SP_MOCK=1 (synthetic body-system tasks; debug builds only)
 ##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
-##             SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
+##             SP_UIGRAPH=1 (walk the interaction graph, tests/interaction_graph.json, print UIGRAPH OK, quit)   SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
 const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd", "notebook": "res://ui/screens/notebook.gd", "real": "res://ui/screens/real.gd"}
-const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title", "parts": "tasks", "notebook": "tasks"}
+const BACK_TO := {"settings": "title", "tasks": "title", "lab": "tasks", "credits": "title", "parts": "tasks", "notebook": "tasks"}   # the fallback; Back normally goes to the screen this one was opened from (`origin`)
 
 ## Hand-over between screens: which task the lab opens, whether it starts from the reference circuit, circuits kept between lab visits, and what the analysis shows.
 var lab_task := ""
@@ -20,6 +20,7 @@ var analysis_tele: Telemetry = null
 var analysis_task := ""
 var campaign_chapter := ""    # the campaign map remembers its chapter and node between visits
 var campaign_node := ""
+var origin := {}               # screen id -> the screen it was last opened from (forward navigation): Back returns there, whichever of several doors it came through
 var real_back := "title"      # where Back on the "What is real" page goes (it opens from the title, the credits and the notebook)
 
 var ui: CanvasLayer
@@ -52,6 +53,7 @@ func _ready() -> void:
 	_update_metrics()
 	if OS.get_environment("SP_PAD") != "": pad.set_active(true)
 	if OS.get_environment("SP_CHECK_EXPORT") != "": Settings.no_save = true; await CheckExport.run(self); return   # scripts/package.sh: CHECK from the exported zip
+	if OS.get_environment("SP_UIGRAPH") != "": Settings.no_save = true; await UiGraphTest.run(self); return   # tests/ui_graph_test.gd walks tests/interaction_graph.json (scripts/ui_graph_test.sh)
 	if OS.get_environment("SP_SMOKE") != "": Kit.instant = true; Settings.no_save = true; await _smoke(); return
 	if OS.get_environment("SP_SHOT") != "": Kit.instant = true   # screenshots show the settled frame, not a transition
 	if OS.get_environment("SP_CHAPTER") != "": campaign_chapter = OS.get_environment("SP_CHAPTER")
@@ -133,6 +135,7 @@ func show_hint() -> bool: return screen == null or screen.wants_hint()
 ## Show a screen with a slide + fade. `back` slides the other way; `snap` skips the animation.
 func show_screen(id: String, back := false, snap := false) -> void:
 	if id == cur or not SCREENS.has(id): return
+	if not back and cur != "": origin[id] = cur
 	var old := screen
 	var s: Screen = load(SCREENS[id]).new(); s.app = self; s.name = id.capitalize() + "Screen"
 	if id == "settings" and OS.get_environment("SP_TAB") != "": s.tab = OS.get_environment("SP_TAB")
@@ -163,6 +166,7 @@ func back() -> void:
 	if screen != null and screen.on_back(): return
 	if cur == "analysis": open_lab(analysis_task, false, true); return
 	if cur == "real": show_screen(real_back if SCREENS.has(real_back) else "title", true); return
+	if origin.has(cur) and SCREENS.has(origin[cur]) and origin[cur] != cur: show_screen(origin[cur], true); return
 	if BACK_TO.has(cur): show_screen(BACK_TO[cur], true)
 
 ## Open the lab on a task ("" = free run), empty bench or with the reference circuit.

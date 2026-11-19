@@ -182,7 +182,7 @@ func check_progress(on: bool) -> void:
 		if _check_toast != null and is_instance_valid(_check_toast): _check_toast.queue_free()
 		_check_toast = null; _check_lbl = null; return
 	if _check_toast == null or not is_instance_valid(_check_toast):
-		_check_toast = PanelContainer.new(); _check_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_check_toast = PanelContainer.new(); Kit.ident(_check_toast, "CheckToast"); _check_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_check_toast.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.CYAN, 2, 12, 12 if Layout.phone else 16, true))
 		_check_lbl = Kit.label("", 17 if not Layout.phone else 15, Kit.TEXT, true); _check_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE; _check_toast.add_child(_check_lbl)
 		lab.ov.add_child(_check_toast); _check_toast.z_index = 61
