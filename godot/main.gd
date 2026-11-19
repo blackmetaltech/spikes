@@ -247,8 +247,8 @@ func _extension_checks() -> void:
 		_check(sp.size() % 2 == 0, "%s: drain_spikes gave an odd array" % id)
 		_check(absf(float(st.get("t_ms", 0.0)) - 1000.0) < 1.0, "%s: model time %s after 1000 slices" % [id, st.get("t_ms", 0)])
 		var finite_v := false   # a model without a membrane (a relay, a generator-like cell) reports NaN: some neuron among the first few must report a voltage
-		for vi in mini(int(sim.neuron_count()), 12): finite_v = finite_v or is_finite(sim.voltage(vi))
-		_check(finite_v, "%s: no neuron among the first 12 reports a finite voltage" % id)
+		for vi in mini(int(sim.neuron_count()), 400): finite_v = finite_v or is_finite(sim.voltage(vi)) or is_finite(sim.neuron_state(vi, "rate"))   # v0.6: a rate unit has a rate, not a voltage; the afferents of a tuning level are relays, the cells after them have one
+		_check(finite_v, "%s: no neuron reports a finite voltage" % id)
 		var b: Dictionary = t.body(); var poly := str(t.view()) == "polyline" if t.has_method("view") else true
 		_check(b.has("points") and (not poly or (b["points"] as PackedVector2Array).size() > 1), "%s: body has no points" % id)
 		_check(t.score().has("value"), "%s: score has no value" % id); _check(t.bounds().size.x > 0.0, "%s: empty bounds" % id)
