@@ -198,8 +198,7 @@ protected:
     rec.recipe = "Drive the contraction and the inhibition only from dist1 and dist2, not from tone.";
     crits.push_back( rec );
 
-    pass_msg = "Bolus at segment 1: seg0 " + fmt( b[ 0 ] ) + " -> " + fmt( w1[ 0 ] ) + " spikes/s (contracts), seg2 " + fmt( b[ 2 ] ) + " -> " + fmt( w1[ 2 ] ) +
-               " (relaxes); bolus at segment 2: seg1 " + fmt( b[ 1 ] ) + " -> " + fmt( w2[ 1 ] ) + ". Excitation up, inhibition down: the wave has a direction.";
+    pass_msg = "With the bolus on a segment, the segment above contracts and the segment below relaxes, and it moves on with the bolus: excitation up, inhibition down, so the wave has a direction.";
   }
 
 private:

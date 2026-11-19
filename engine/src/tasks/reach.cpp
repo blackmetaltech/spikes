@@ -193,7 +193,7 @@ public:
     else if ( m.good < m.done )
       o << "The worst reach ends too far from the target: the hold command does not match the target.";
     else
-      o << ( done ? "All reaches good: " : "Good so far: " ) << m.reach_ms << " ms, overshoot " << m.overshoot * 100 << "%.";
+      o << ( done ? "All reaches good: fast, with little overshoot, and settling on the target." : "Good so far." );
     s.verdict = o.str();
     return s;
   }

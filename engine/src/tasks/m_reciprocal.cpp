@@ -190,8 +190,7 @@ protected:
     rec.recipe = "Keep the inhibition driven only by 'ia_flexor' (not by tone), so that it ends with the stretch.";
     crits.push_back( rec );
 
-    pass_msg = "The flexor rose from " + fmt( bf ) + " to " + fmt( sf ) + " spikes/s while the extensor fell from " + fmt( be ) + " to " + fmt( se ) +
-               " and came back to " + fmt( re ) + ": reciprocal inhibition.";
+    pass_msg = "The flexor sped up while the extensor fell quiet and then came back: reciprocal inhibition.";
   }
 
 private:

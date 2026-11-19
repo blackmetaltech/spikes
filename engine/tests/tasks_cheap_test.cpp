@@ -304,12 +304,13 @@ struct Row
 struct Result
 {
   Score score;
+  std::vector< Task::Hint > hints;  // the hint ladder after the run
   bool loaded = false;
   std::string error;
 };
 
 // Runs the quick episode, exactly as spike-run --quick does (the game's CHECK).
-Result run_circuit( const std::string& id, const json& circuit_in, uint64_t seed, bool quick = true, const std::string& mode = "standard" )
+Result run_circuit( const std::string& id, const json& circuit_in, uint64_t seed, bool quick = true, const std::string& mode = "standard", double frac = 1.0 )
 {
   Result r;
   Engine e;
@@ -325,11 +326,43 @@ Result run_circuit( const std::string& id, const json& circuit_in, uint64_t seed
   t->set_mode( mode );
   t->set_quick( quick );
   t->reset( seed );
-  const long steps = static_cast< long >( quick ? t->quick_duration_ms() : t->duration_ms() );
+  const long steps = static_cast< long >( frac * ( quick ? t->quick_duration_ms() : t->duration_ms() ) );
   for ( long s = 0; s < steps; ++s )
     t->step( e, 1.0 );
   r.score = t->score();
+  r.hints = t->hints();
   return r;
+}
+
+// The honesty contract, rule 2: no digit in any verdict (pass or fail) or hint of tiers 1-3, in any task. Numbers live in score parts, gauges and recipe().
+std::set< std::string > g_digit_texts;  // every offending text, once, with the task that said it
+int g_scanned = 0;
+void scan_text( const std::string& task, const std::string& what, const std::string& text )
+{
+  ++g_scanned;
+  // Not numbers: the names of the task's own channels ('seg0', 'dist1', 'b2': they are identifiers the player reads off the bench) and the formula CO2.
+  std::string t = text;
+  auto erase_all = [ & ]( const std::string& w ) {
+    for ( size_t at = t.find( w ); !w.empty() && at != std::string::npos; at = t.find( w, at ) ) t.replace( at, w.size(), "#" );
+  };
+  if ( auto k = make_task( task ) )
+  {
+    for ( const auto& c : k->sensor_channels() ) erase_all( c );
+    for ( const auto& c : k->motor_channels() ) erase_all( c );
+  }
+  erase_all( "CO2" );
+  for ( unsigned char ch : t )
+    if ( std::isdigit( ch ) )
+    {
+      g_digit_texts.insert( task + " " + what + ": " + text );
+      return;
+    }
+}
+void scan_result( const std::string& task, const Result& r )
+{
+  scan_text( task, "verdict", r.score.verdict );
+  for ( const auto& h : r.hints )
+    if ( h.tier <= 3 ) scan_text( task, "hint " + std::to_string( h.tier ), h.text );
 }
 
 std::string lower( std::string s )
@@ -419,6 +452,7 @@ int main( int argc, char** argv )
       Result r = run_circuit( row.task, row.circuit, seed );
       CHECK_MSG( r.loaded, row.task + " / " + row.label + ": circuit does not load: " + r.error );
       if ( !r.loaded ) break;
+      scan_result( row.task, r );
       if ( seed == 1 )
         std::printf( "%-22s %-52s %5.1f  %s\n", row.task.c_str(), row.label.c_str(), r.score.value, r.score.verdict.substr( 0, 110 ).c_str() );
       CHECK_MSG( !r.score.passed, row.task + " / " + row.label + " PASSES (seed " + std::to_string( seed ) + "): " + r.score.verdict );
@@ -434,9 +468,13 @@ int main( int argc, char** argv )
   {
     if ( !make_task( task ) ) continue;
     Result r = run_circuit( task, cheap::reference( task ), 1 );
+    scan_result( task, r );  // the passing verdict
+    scan_result( task, run_circuit( task, cheap::reference( task ), 1, true, "standard", 0.4 ) );  // and the verdict while the run is still going
     std::printf( "  %-22s %3d rows  reference %s\n", task.c_str(), n, r.score.passed ? "passes" : "FAILS" );
     CHECK_MSG( r.loaded && r.score.passed, task + ": the reference must pass the harness: " + r.score.verdict );
   }
+  for ( const auto& t : g_digit_texts ) CHECK_MSG( false, "a verdict or hint (tiers 1-3) carries a digit: " + t );
+  std::printf( "%d verdicts and hints scanned for digits, %zu distinct offenders\n", g_scanned, g_digit_texts.size() );
   std::printf( "%.1f s\n", std::chrono::duration< double >( std::chrono::steady_clock::now() - t0 ).count() );
   return chk::finish( "tasks_cheap_test" );
 }

@@ -283,24 +283,24 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: the bolus got to segment " << gut_.bolus_pos << " of 7.)";
+      o << mech_.missing();
     else if ( s.passed )
-      o << "The bolus reached the end in " << arrival_ms_ / 1000.0 << " s.";
+      o << "The bolus reached the end in time.";
     else if ( arrived )
-      o << "The bolus arrived, but after " << arrival_ms_ / 1000.0 << " s (limit " << deadline() / 1000.0 << " s)."
-        << ( !has_no_ ? " Add 'no0..7' inhibitory outputs (descending interneurons -> motoneurons ahead of the bolus): relaxing the segments ahead makes it much faster." : "" );
+      o << "The bolus arrived, but too late."
+        << ( !has_no_ ? " Add the 'no' inhibitory outputs (descending interneurons -> motoneurons ahead of the bolus): relaxing the segments ahead makes it much faster." : "" );
     else if ( spikes_ex_ < 1 )
-      o << "The excitatory motoneurons (ach0..7) never fire" << yet << " Nothing squeezes behind the bolus.";
+      o << "The excitatory motoneurons (the 'ach' outputs) never fire" << yet << " Nothing squeezes behind the bolus.";
     else if ( has_icc_ && cycles < 1 )
-      o << "No slow waves: the icc0..7 cells never fire" << yet << " Without the ICC clock the muscle never reaches contraction threshold.";
+      o << "No slow waves: the 'icc' cells never fire" << yet << " Without the ICC clock the muscle never reaches contraction threshold.";
     else if ( gut_.distance < -0.5 )
-      o << "The bolus was pushed back toward the mouth (" << gut_.distance << " segments): the wrong side is contracting.";
+      o << "The bolus was pushed back toward the mouth: the wrong side is contracting.";
     else if ( !done )
-      o << "The bolus is at segment " << gut_.bolus_pos << " of 7" << yet;
+      o << "The bolus is still on its way" << yet;
     else
-      o << "The bolus only got to segment " << gut_.bolus_pos << " of 7 (net " << gut_.distance << ")."
-        << ( !has_no_ ? " No 'no0..7' outputs: nothing relaxes the segments ahead of the bolus (add inhibitory motoneurons from the descending interneurons)."
-                   : ( spikes_inh_ < 1 ? " The inhibitory motoneurons (no0..7) never fire: nothing relaxes the segments ahead." : "" ) );
+      o << "The bolus did not get to the end."
+        << ( !has_no_ ? " No 'no' outputs: nothing relaxes the segments ahead of the bolus (add inhibitory motoneurons from the descending interneurons)."
+                   : ( spikes_inh_ < 1 ? " The inhibitory motoneurons (the 'no' outputs) never fire: nothing relaxes the segments ahead." : "" ) );
     s.verdict = o.str();
     return s;
   }
@@ -319,11 +319,11 @@ private:
       no = mech::unite( no, mech::out_pops( st, no_ch_[ i ] ) );
     }
     if ( !mech::path( st, dist, ach, +1 ) )
-      return "No ascending excitatory chain: the stretch sensors (dist0..7) must excite, through interneurons, the motoneurons that squeeze behind the bolus (ach0..7).";
+      return "No ascending excitatory chain: the stretch sensors (the 'dist' inputs) must excite, through interneurons, the motoneurons that squeeze behind the bolus (the 'ach' outputs).";
     if ( no.empty() )
-      return "No descending inhibitory chain: nothing relaxes the gut ahead of the bolus. Add a second chain from the stretch sensors to inhibitory motoneurons, read out as no0..7: squeeze behind, open ahead.";
+      return "No descending inhibitory chain: nothing relaxes the gut ahead of the bolus. Add a second chain from the stretch sensors to inhibitory motoneurons, read out as the 'no' outputs: squeeze behind, open ahead.";
     if ( !mech::path( st, dist, no, +1 ) )
-      return "The inhibitory motoneurons (no0..7) are not driven by the stretch sensors: the descending chain must carry the distension signal to them.";
+      return "The inhibitory motoneurons (the 'no' outputs) are not driven by the stretch sensors: the descending chain must carry the distension signal to them.";
     if ( mech::overlap( ach, no ) )
       return "The excitatory and the inhibitory motor outputs read the same cells: the ascending and the descending chain need separate motoneurons.";
     return "";

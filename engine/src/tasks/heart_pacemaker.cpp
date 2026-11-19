@@ -289,21 +289,19 @@ public:
     else if ( spikes_ < 1 )
       o << "No beats: sa_beat has not fired" << yet << " Check that the cells are SA-node pacemaker cells and that sa_beat reads them.";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: " << ( pool_ >= 2 ? "several cells" : "one cell" ) << ", " << a.hr << " beats/min, variation " << 100 * a.cv << " %.)";
+      o << mech_.missing();
     else if ( !enough )
-      o << "Too few beats (" << static_cast< int >( a.n ) << " in the scored window, 12 needed): the node is pausing or has stopped"
+      o << "Too few beats in the scored window: the node is pausing or has stopped"
         << yet;
     else if ( a.hr < rate_lo() )
-      o << "Bradycardia: " << a.hr << " beats/min, below the " << rate_lo() << "-" << rate_hi() << " target.";
+      o << "Bradycardia: the node beats too slowly.";
     else if ( a.hr > rate_hi() )
-      o << "Tachycardia: " << a.hr << " beats/min, above the " << rate_lo() << "-" << rate_hi() << " target"
+      o << "Tachycardia: the node beats too fast"
         << ( pool_ >= 2 && a.chi < 0.6 ? " (the cells are not locked together, so extra beats get through)." : "." );
     else if ( !cv_ok )
-      o << "Rate is fine (" << a.hr << "/min) but the rhythm is irregular: beat-to-beat variation " << 100 * a.cv
-        << " % (needs under " << 100 * cv_max() << " %)" << ( pool_ >= 2 && a.chi < 0.6 ? "; the cells fire out of step." : "." );
+      o << "The rate is fine but the rhythm is irregular: the beat-to-beat interval varies too much" << ( pool_ >= 2 && a.chi < 0.6 ? "; the cells fire out of step." : "." );
     else
-      o << ( done ? "Sinus rhythm" : "Sinus rhythm so far" ) << ": " << a.hr << " beats/min, variation " << 100 * a.cv << " %, "
-        << "cluster synchrony " << a.chi << ".";
+      o << ( done ? "Sinus rhythm" : "Sinus rhythm so far" ) << ": a steady, regular beat from a cluster of cells that hold one rhythm together.";
     s.verdict = o.str();
     return s;
   }

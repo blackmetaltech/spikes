@@ -393,33 +393,31 @@ public:
     else if ( spikes_[ 0 ] < 1 )
       o << "The pacemaker never fired: no heartbeat. Check 'sa_beat'.";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: heart rate " << heart_.hr_bpm << " bpm, pupil " << eye_.diameter_mm << " mm, " << ok_all << " of 12 conditions met.)";
+      o << mech_.missing();
     else if ( spikes_[ 1 ] >= 1 && ne_max_ < 1e-6 )
       o << "'sympathetic' fires but releases no noradrenaline: make it a modulator output (NE), not a rate output. The heart reads NE and ACh, not rates.";
     else if ( spikes_[ 2 ] >= 1 && ach_max_ < 1e-6 )
       o << "'vagal' fires but releases no acetylcholine: make it a modulator output (ACh), not a rate output.";
     else if ( t_ < sch_.thr_b * 1000.0 )
-      o << "At rest so far: HR " << heart_.hr_bpm << " bpm, MAP " << heart_.map_smooth << " mmHg, pupil " << eye_.diameter_mm << " mm.";
+      o << "At rest so far.";
     else
     {
       std::string bad;
       for ( int k = 0; k < 4 && bad.empty(); ++k )
         if ( ( ok_[ k ] & 1 ) == 0 )
-          bad = std::string( "Resting " ) + kLabel[ k ] + " is " + num( rest[ k ] ) + ", outside its band " + num( blo( k ) ) + "-" + num( bhi( k ) ) + ".";
+          bad = std::string( "Resting " ) + kLabel[ k ] + " is too " + ( rest[ k ] < blo( k ) ? "low" : "high" ) + ".";
       for ( int k = 0; k < 4 && bad.empty(); ++k )
         if ( ( ok_[ k ] & 2 ) == 0 )
-          bad = std::string( "The threat did not raise the " ) + kLabel[ k ] + " enough (" + num( rest[ k ] ) + " -> " + num( thr[ k ] ) + "; needs " +
-                ( k == VENT ? "x" + num( need_rise( k ) ) : "+" + num( need_rise( k ) ) ) + ").";
+          bad = std::string( "The threat did not raise the " ) + kLabel[ k ] + " enough.";
       for ( int k = 0; k < 4 && bad.empty() && done; ++k )
         if ( ( ok_[ k ] & 4 ) == 0 )
-          bad = std::string( "The " ) + kLabel[ k ] + " did not recover after the threat (rest " + num( rest[ k ] ) + ", end " + num( rec[ k ] ) + ").";
+          bad = std::string( "The " ) + kLabel[ k ] + " did not recover after the threat.";
       if ( !bad.empty() )
         o << bad;
       else if ( !done )
-        o << "Threat response is right (HR " << rest[ HR ] << " -> " << thr[ HR ] << " bpm, MAP " << rest[ MAP ] << " -> " << thr[ MAP ] << " mmHg); recovery still to be judged.";
+        o << "The threat response is right; the recovery is still to be judged.";
       else
-        o << "HR " << rest[ HR ] << " -> " << thr[ HR ] << " -> " << rec[ HR ] << " bpm, MAP " << rest[ MAP ] << " -> " << thr[ MAP ] << " -> " << rec[ MAP ]
-          << " mmHg, pupil " << rest[ PUPIL ] << " -> " << thr[ PUPIL ] << " -> " << rec[ PUPIL ] << " mm, ventilation x" << thr[ VENT ] / std::max( 0.1, rest[ VENT ] ) << ".";
+        o << "Fight or flight: the threat raised heart rate, pressure, pupil and ventilation together, and everything recovered.";
     }
     s.verdict = o.str();
     return s;

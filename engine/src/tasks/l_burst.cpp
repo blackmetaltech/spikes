@@ -96,8 +96,14 @@ Spec spec()
     p[ "in_bursts_pct" ] = 100.0 * frac;
     p[ "longest_gap_ms" ] = longest_gap;
     c.push_back( { "pre", pre <= 1, 1.0 - ramp( pre, 1, 20 ), "The cell fires before any drive: it must be silent until the drive comes." } );
-    c.push_back( { "bursts", nb >= std::ceil( 5 / m.tol ), ramp( nb, 0, 5 ), tot < 3 ? "The cell hardly fires: the drive does not make it fire. Strengthen the drive."
-                                                                               : "The cell never fires bursts of several spikes together. It fires spike by spike: a plain cell cannot burst; its recovery after a spike is too fast to group spikes." } );
+    int longest_run = 0;
+    for ( int r : runs ) longest_run = std::max( longest_run, r );
+    // the sentence follows what was measured: no firing, spike-by-spike firing, pairs only, or a few runs that never repeat
+    const std::string bursts_fail = tot < 3 ? "The cell hardly fires: the drive does not make it fire. Strengthen the drive."
+      : nb == 0 && longest_run < 2 ? "The cell fires spike by spike, evenly: its recovery after a spike is too fast to group spikes. A burst needs a slow variable that outlasts a single spike."
+      : nb == 0 ? "The cell groups its spikes only in pairs: a burst holds several spikes before the slow variable ends it."
+      : "The cell bursts too few times: a slow variable has to end each burst and release the next, so that bursts repeat through the drive.";
+    c.push_back( { "bursts", nb >= std::ceil( 5 / m.tol ), ramp( nb, 0, 5 ), bursts_fail } );
     c.push_back( { "in_bursts", frac >= 0.8 / std::sqrt( m.tol ), ramp( frac, 0.3, 0.8 ), "Many spikes fall outside bursts: the cell fires as a mixture of bursts and single spikes. A bursting cell groups nearly all of its spikes." } );
     c.push_back( { "gaps", longest_gap >= 40, ramp( longest_gap, 0, 40 ), "There are no clear silent gaps between the bursts: a slow variable must end each burst and keep the cell silent for a while." } );
   };

@@ -131,7 +131,7 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
-      o << "Running: " << fmt( early_.rate_hz() ) << " spikes/s at the start, " << fmt( rate_now_ ) << " now.";
+      o << "Running.";
     else if ( !mech_.empty() )
       o << mech_;
     else if ( total_ < 1 )

@@ -146,7 +146,7 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
-      o << "Running: " << static_cast< int >( hits ) << " of 2 target patterns answered so far.";
+      o << "Running.";
     else if ( !mech_.empty() )
       o << mech_;
     else if ( !a && other == 0 )

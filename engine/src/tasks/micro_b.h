@@ -156,7 +156,7 @@ public:
     if ( !wiring_.ok() )
       s.verdict = "Not wired: " + wiring_.message() + ".";
     else if ( !done() )
-      s.verdict = "Running: " + fmt( t_ / 1000.0, 1 ) + " s of " + fmt( info_.duration_ms / 1000.0, 1 ) + " s.";
+      s.verdict = "Running.";
     else if ( bad )
       s.verdict = bad->fail;
     else

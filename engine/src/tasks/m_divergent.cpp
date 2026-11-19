@@ -240,8 +240,7 @@ protected:
     rc.recipe = "Links run from the alarm outward only; keep tone onto the gut group.";
     crits.push_back( rc );
 
-    pass_msg = "The alarm reached heart " + fmt( act[ 0 ] ) + ", pupil " + fmt( act[ 1 ] ) + " and sweat " + fmt( act[ 2 ] ) + " spikes/s within " + fmt( spread ) +
-               " ms of each other while the gut fell from " + fmt( rest[ 3 ] ) + " to " + fmt( act[ 3 ] ) + ": one command, many effectors.";
+    pass_msg = "The alarm reached the heart, the pupil and the sweat glands together, in the right strengths, while the gut fell quiet: one command, many effectors.";
   }
 
 private:

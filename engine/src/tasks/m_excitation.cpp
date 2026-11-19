@@ -142,7 +142,7 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
-      o << "Running: " << static_cast< int >( st.src ) << " source spikes, " << static_cast< int >( st.echoes ) << " echoes so far.";
+      o << "Running.";
     else if ( !a )
       o << "The source cell hardly fired: the taps are too weak to drive it. Strengthen the tap input.";
     else if ( !mech_.empty() )

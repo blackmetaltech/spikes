@@ -216,7 +216,7 @@ protected:
     g.recipe = "A small chemo weight in the middle of the cell's bursting window: the rest level should burst slowly and the stale level should burst clearly faster.";
     crits.push_back( g );
 
-    pass_msg = "Rest: " + fmt( fa, 1 ) + " bursts/s; after the CO2 rise: " + fmt( fb, 1 ) + " bursts/s (x" + fmt( fa > 0 ? fb / fa : 0, 2 ) + "): a rhythm tuned by a sensor.";
+    pass_msg = "The rhythm is steady at rest and speeds up after the CO2 rise: a rhythm tuned by a sensor.";
   }
 
 private:

@@ -83,7 +83,7 @@ public:
       { 2, "plus drives the output cell directly; minus drives a second, inhibitory neuron that connects to the same output cell. Look at "
            "the weight of that last link: with the default it barely dents the drive.", "diff" },
       { 3, "plus > out cell > diff. minus > cell B (inhibitory) > the same out cell. Make the inhibitory link several times the default: "
-           "too weak and equal inputs still fire, too strong and plus 3 against minus 2 goes quiet. The verdict says which way you are off.", "diff" } };
+           "too weak and equal inputs still fire, too strong and a plus that is only a little stronger than minus goes quiet. The verdict says which way you are off.", "diff" } };
   }
 
   std::map< std::string, Metric > metrics() const override
@@ -138,16 +138,16 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
-      o << "Running: " << static_cast< int >( fire_ok ) << " of 3 firing segments and " << static_cast< int >( silent_ok ) << " of 4 quiet ones right so far.";
+      o << "Running.";
     else if ( !mech_.empty() )
       o << mech_;
     else if ( fire_ok == 0 && n_[ 1 ] == 0 )
-      o << "Silent even for plus 3 against minus 0. plus must excite the output cell, and its current must be over the rheobase.";
+      o << "Silent even when only plus is on. plus must excite the output cell, and its current must be over the rheobase.";
     else if ( !b && a )
-      o << "Fired when plus " << fmt( kPlus[ bad_silent ] ) << ", minus " << fmt( kMinus[ bad_silent ] )
+      o << "Fired in a segment where minus should have cancelled plus"
         << ": the minus input does not cancel the plus. Make the inhibitory link from the minus cell stronger.";
     else if ( !a && b )
-      o << "Silent when plus " << fmt( kPlus[ bad_fire ] ) << ", minus " << fmt( kMinus[ bad_fire ] )
+      o << "Silent in a segment where plus was stronger than minus"
         << ": the inhibition is too strong. It should cancel equal inputs, not subtract more than minus carries. Weaken the inhibitory link a little.";
     else if ( !a && !b )
       o << "Neither right: some segments that should fire do not and some that should be quiet fire. Check that plus reaches the output cell and that "

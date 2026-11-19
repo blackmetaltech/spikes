@@ -2,6 +2,8 @@
 // Nothing here touches NEST; the worlds are plain C++ and are the same on every platform.
 #pragma once
 #include <algorithm>
+#include <cctype>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <map>
@@ -122,17 +124,38 @@ public:
     check( e.outputs(), motors, "motor" );
   }
   bool ok() const { return unwired_.empty(); }
-  /// "sensor 'touch' is not connected to any neuron" etc. (empty when everything is wired)
+  /// "sensor 'touch' is not connected to any neuron" etc. (empty when everything is wired). A family of numbered channels ('cue0', 'cue1', ...) is named once
+  /// as a family ("the 'cue' sensors"): the message carries no numbers.
   std::string message() const
   {
+    std::vector< std::string > items;
+    std::vector< std::string > seen_family;
+    for ( const auto& u : unwired_ )
+    {
+      const size_t q = u.find( " '" );
+      const std::string kind = u.substr( 0, q ), name = u.substr( q + 2, u.size() - q - 3 );
+      size_t e = name.size();
+      while ( e > 0 && std::isdigit( static_cast< unsigned char >( name[ e - 1 ] ) ) ) --e;
+      if ( e == name.size() || e == 0 )
+      {
+        items.push_back( u );
+        continue;
+      }
+      const std::string fam = kind + " '" + name.substr( 0, e ) + "'";
+      if ( std::find( seen_family.begin(), seen_family.end(), fam ) != seen_family.end() ) continue;
+      seen_family.push_back( fam );
+      items.push_back( "the '" + name.substr( 0, e ) + "' " + kind + "s" );
+    }
     std::string m;
-    for ( size_t i = 0; i < unwired_.size(); ++i )
+    bool plural = false;
+    for ( size_t i = 0; i < items.size(); ++i )
     {
       if ( i ) m += "; ";
-      m += unwired_[ i ];
+      m += items[ i ];
+      if ( items[ i ].rfind( "the '", 0 ) == 0 ) plural = true;
     }
     if ( m.empty() ) return m;
-    return m + ( unwired_.size() > 1 ? " are" : " is" ) + " not connected to any neuron";
+    return m + ( items.size() > 1 || plural ? " are" : " is" ) + " not connected to any neuron";
   }
 
 private:

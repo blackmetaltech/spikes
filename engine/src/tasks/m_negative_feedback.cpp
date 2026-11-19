@@ -194,8 +194,7 @@ protected:
     c2.recipe = "Keep 'tone' at its default weight, so the effort cells have room to be turned down, and make the inhibitory feedback strong.";
     crits.push_back( c2 );
 
-    pass_msg = "The level held at " + fmt( y0, 2 ) + " / " + fmt( y1, 2 ) + " / " + fmt( y2, 2 ) + " (target 0.50) before, during the push down and during the push up: "
-               "negative feedback.";
+    pass_msg = "The level held before, during the push down and during the push up: negative feedback.";
   }
 
 private:

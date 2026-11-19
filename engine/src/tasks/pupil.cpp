@@ -126,7 +126,7 @@ public:
     }
     else
     {
-      h.push_back( make_hint( 1, "A reflex arc has a latency made of synaptic and conduction delays; a human pupil answers in 200-250 ms.", "" ) );
+      h.push_back( make_hint( 1, "A reflex arc has a latency made of synaptic and conduction delays; a human pupil answers within a fraction of a second.", "" ) );
       h.push_back( make_hint( 2, "The constriction latency is outside the window: look at the delays along the parasympathetic chain.", "sphincter" ) );
       h.push_back( make_hint( 3, "Lengthen the synaptic delay along the reflex arm if the pupil answers too fast, shorten it if too slow.", "" ) );
     }
@@ -241,29 +241,29 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: constriction " << con << " mm, dark pupil " << dim2 << " mm, fright " << fright << " mm.)";
+      o << mech_.missing();
     else if ( spikes_s_ < 1 && spikes_d_ < 1 )
       o << "Both motor pools are silent" << yet << " Check the reflex arc from 'retina' and the sympathetic arm.";
     else if ( t_ < kBrightOff )
-      o << "Pupil " << eye_.diameter_mm << " mm; the light tests are still running.";
+      o << "The light tests are still running.";
     else if ( spikes_d_ < 1 )
       o << "The dilator never fires: no sympathetic drive, so the pupil cannot open in the dark or when frightened.";
     else if ( con < amp_min() )
-      o << "The pupil only constricted " << con << " mm in bright light (need " << amp_min() << "): " << ( spikes_s_ < 1 ? "the sphincter never fires." : "the parasympathetic arm is too weak or the dilator is not switched off." );
+      o << "The pupil does not constrict enough in bright light: " << ( spikes_s_ < 1 ? "the sphincter never fires." : "the parasympathetic arm is too weak or the dilator is not switched off." );
     else if ( bright > bright_max() )
-      o << "Bright-light pupil is " << bright << " mm (needs " << bright_max() << " or less).";
+      o << "The pupil stays too wide in bright light.";
     else if ( lat_c < 0 )
-      o << "No clean constriction onset after the light step (the diameter never settled past 20 % of the way to its bright-light value).";
+      o << "No clean constriction onset after the light step (the diameter never settled most of the way to its bright-light value).";
     else if ( lat_c < lat_lo() || lat_c > lat_hi() )
-      o << "Constriction latency " << lat_c << " ms is outside " << lat_lo() << "-" << lat_hi() << " ms (human: 200-250 ms).";
+      o << ( lat_c < lat_lo() ? "The pupil constricts too early after the light step: a reflex arc has longer delays than that." : "The pupil constricts too late after the light step: shorten the delays of the arc." );
     else if ( red < amp_min() || dim2 < dark_min() )
-      o << "Back in the dark the pupil only reopened to " << dim2 << " mm: the sympathetic dilator is too weak.";
+      o << "Back in the dark the pupil does not reopen far enough: the sympathetic dilator is too weak.";
     else if ( t_ < kThreatOff )
-      o << "Light reflex works (" << con << " mm in " << lat_c << " ms, reopens to " << dim2 << " mm); the fright cue is still to come.";
+      o << "The light reflex works; the fright cue is still to come.";
     else if ( fright < fright_min() )
-      o << "The fright cue dilated the pupil only " << fright << " mm (need " << fright_min() << "): the sympathetic arm from 'threat' is not wired or too weak.";
+      o << "The fright cue dilates the pupil too little: the sympathetic arm from 'threat' is not wired or too weak.";
     else
-      o << "Constricts " << con << " mm in " << lat_c << " ms, reopens " << red << " mm, fright adds " << fright << " mm.";
+      o << "The pupil constricts to light with a reflex latency, reopens in the dark and dilates to fright.";
     s.verdict = o.str();
     return s;
   }

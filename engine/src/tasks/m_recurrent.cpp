@@ -189,8 +189,7 @@ protected:
     kc.recipe = "Raise both weights of the Renshaw loop a little further, or add Renshaw cells, until the larger kick is held down as well.";
     crits.push_back( kc );
 
-    pass_msg = "The rate went " + fmt( ra ) + " -> " + fmt( rb ) + " -> " + fmt( rc ) + " spikes/s: the kicks added only " + fmt( db ) + " and " + fmt( dc ) +
-               " spikes/s, far less than an unbraked cell would add: the Renshaw loop is a gain control.";
+    pass_msg = "The kicks added far less than an unbraked cell would add: the Renshaw loop is a gain control.";
   }
 
 private:

@@ -212,7 +212,7 @@ public:
     else if ( m.rms > tol_max( mode_, 0.17, 1.25, 0.92 ) )
       o << "The limb wanders too much from the target overall: more reflex stiffness is needed.";
     else
-      o << ( done ? "Holding" : "Holding so far" ) << ": rms error " << m.rms << " rad, worst " << m.mx << " rad, sag " << m.offset << " rad.";
+      o << ( done ? "Holding: the limb stays close to its target under every push, without sagging." : "Holding so far." );
     s.verdict = o.str();
     return s;
   }
