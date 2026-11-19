@@ -21,7 +21,8 @@ std::vector< Edge > edges_from_engine( const Engine& engine )
   for ( size_t id = 1; id <= total; ++id )
   {
     const Dictionary st = nest::get_node_status( id );
-    if ( st.known( "element_type" ) && st.get< std::string >( "element_type" ) == "neuron" )
+    // (the circuit's neurons are the first neuron-type nodes; a circuit with a dopamine-gated synapse also holds one engine-made parrot_neuron after them, which is no circuit cell)
+    if ( static_cast< int32_t >( index_of.size() ) < engine.neuron_count() && st.known( "element_type" ) && st.get< std::string >( "element_type" ) == "neuron" )
       index_of.emplace( static_cast< long >( id ), static_cast< int32_t >( index_of.size() ) );
   }
   if ( static_cast< int32_t >( index_of.size() ) != engine.neuron_count() )

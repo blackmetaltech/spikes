@@ -1,12 +1,20 @@
 # Changelog
 
+## [Unreleased] - 0.5 Bestiary, step 3: fly compass, fly mushroom body, crab
+
+- Thirteen levels in three more chapters of the Bestiary wing: fly compass (`c_ring`, `c_shift`, `fly_compass`, `dx_compass`), fly mushroom body (`k_sparse`, `k_depress`, `fly_mb`, `dx_mb_apl`, `dx_mb_dan`), crab (`s_pacemaker`, `s_phase`, `crab_pyloric`, `dx_crab`). Notes: `docs/circuits/bestiary_b.md`.
+- New NESTML cell `stg_cell` (Na, Kd, CaT, CaS, A, KCa, H, leak and calcium; after the Liu/Prinz model family, game conductances), with a parts-bin card.
+- Engine, add-only: `ProjectionInfo::dopamine_source`, `Engine::output_spiked`. Lab: ring readout output kind, ring-closing segment wiring, random sparse wiring, dopamine-gated synapse with source and learning, compass dial.
+- The compass is wired after Turner-Evans/Hulse cell types, not synapse-level data; the mushroom body after the published cell types; STG kinetics are from memory of the published forms and the parameter sets are not the published ones (`docs/WHAT-IS-REAL.md`).
+- Scripted levels: a half-wired circuit (a sensor or motor not connected) no longer passes.
+
 ## [Unreleased] - 0.5 Bestiary, step 2: worm, leech, sea slug
 
 - Twelve levels in three new campaign chapters (wing "Bestiary", open from the start, never gating the body chapters): worm (`w_latch`, `w_switch`, `worm_touch`, `dx_worm`), leech (`l_burst`, `l_rebound`, `leech_heart`, `dx_leech`), aplysia (`a_depress`, `a_facilitate`, `aplysia_gill`, `dx_aplysia`). Design: `docs/DESIGN-0.5.md`; notes: `docs/circuits/bestiary_a.md`.
 - `worm_touch` is wired from the real touch circuit (Cook et al. 2019 synapse counts through the OpenWorm ConnectomeToolbox `cect`, `tools/connectome/worm.py`).
 - Engine, add-only: `Structure::modulation` and `ChannelStructure::modulator`. Lab: the Aplysia levels offer depressing synapses and a modulation row on a synapse.
 - What is real: worm and leech cells are spiking stand-ins for graded cells; the leech cycle is time-compressed.
-- Known gaps: no plate art for the Bestiary map; deleting a connection in the lab does not renumber a synapse modulation row; `tools/citations/check.py` still reports the unverified references of the research sheets `docs/research/bestiary-*.md`.
+- Known gaps: no plate art for the Bestiary map; deleting a connection in the lab does not renumber a synapse modulation row; `tools/citations/check.py` still reports the unverified references of the research sheets `research/bestiary-*.md`.
 
 ## [0.4.0] - 2026-11-18 — Honest puzzles, shippable game
 

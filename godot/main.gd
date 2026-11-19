@@ -280,7 +280,7 @@ func _v02_checks() -> void:
 	for id in ids:
 		var d := Campaign.info(id)
 		_check(Campaign.CHAPTERS.any(func(c): return c["id"] == d["chapter"]), "task %s has an unknown chapter '%s'" % [id, d["chapter"]])
-		_check(["polyline", "limb", "heart", "lungs", "eye", "gut", "dashboard"].has(str(d["view"])), "task %s has an unknown view '%s'" % [id, d["view"]])
+		_check(["polyline", "limb", "heart", "lungs", "eye", "gut", "dashboard", "compass"].has(str(d["view"])), "task %s has an unknown view '%s'" % [id, d["view"]])
 	for c in Campaign.CHAPTERS: _check(not Campaign.nodes(c["id"]).is_empty() or true, "chapter %s" % c["id"])
 	_check(Campaign.unlocked(str(Campaign.order()[0])), "the first campaign task is open")
 	# the catalogue: cards from the engine, thumbnails read in every shape
@@ -344,7 +344,7 @@ func _v02_checks() -> void:
 	print("V02 OK chapters=%d tasks=%d cards=%d" % [Campaign.CHAPTERS.size(), Campaign.installed().size(), Catalog.cards().size()])
 
 ## What each body view needs in Task::body().readouts before it can draw (anything else shows a "Waiting for ..." placeholder; keep in step with body_views.gd).
-const VIEW_NEEDS := {"limb": [["theta_deg", "theta_rad", "angle_deg"]], "heart": [["hr_bpm"]], "lungs": [["volume"]], "eye": [["pupil_mm"]], "gut": [["bolus"]], "dashboard": [], "polyline": []}
+const VIEW_NEEDS := {"limb": [["theta_deg", "theta_rad", "angle_deg"]], "heart": [["hr_bpm"]], "lungs": [["volume"]], "eye": [["pupil_mm"]], "gut": [["bolus"]], "dashboard": [], "compass": [["bump_deg"]], "polyline": []}
 
 ## C1, per real task (no mock tasks): the empty bench the lab builds declares the channel kinds the reference circuit declares; a minimal circuit made with the
 ## editor API (one driven neuron wired to every channel) runs 2 s and moves each modulator the task names; the real body view has its readouts after 1 s.
