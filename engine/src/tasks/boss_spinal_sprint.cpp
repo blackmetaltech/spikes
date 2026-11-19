@@ -48,6 +48,11 @@ constexpr double kScoreFrom = 1500, kScoreTo = 38000, kQuiet0 = 900, kQuiet1 = 1
 constexpr int kNP = 9, kNR = 3;
 constexpr double kPushT[ kNP ] = { 2200, 4200, 7700, 12500, 15000, 19000, 20800, 24000, 28000 };
 constexpr double kGoT[ kNR ] = { 6500, 11000, 17500 };
+// The quick check (the game's CHECK): the same four jobs, compressed. One push at the base posture, then all THREE reaches with a push in the hold of each, back to back
+// (each go as soon as the arm has come back and settled from the one before). A full run has nine pushes and long calm stretches between.
+constexpr int kNPQ = 4;
+constexpr double kPushTQ[ kNPQ ] = { 1700, 4700, 8200, 11700 };
+constexpr double kGoTQ[ kNR ] = { 3500, 7000, 10500 };
 constexpr double kAmp[ kNR ] = { 0.30, 0.40, 0.25 };
 
 class SprintTask : public LimbTaskBase
@@ -80,9 +85,9 @@ public:
   }
   std::vector< std::string > motor_channels() const override { return { "ag_motor", "ant_motor", "gamma_motor" }; }
   double duration_ms() const override { return kDuration; }
-  /// Quick check: posture, the first two reaches and the pushes up to the one during the second reach's hold (with its ringing window); the same rules
-  /// as the full episode on a shorter run. A full run judges all three reaches and all nine pushes.
-  double quick_duration_ms() const override { return kPushT[ 3 ] + kJitter + kQuiet1; }
+  /// Quick check: posture, all three reaches and a push in the hold of each, with a compressed schedule (kPushTQ / kGoTQ); the same rules as the full episode on a
+  /// shorter run. A full run has nine pushes and the long calm stretches between.
+  double quick_duration_ms() const override { return kPushTQ[ kNPQ - 1 ] + kJitter + kQuiet1; }
   int par_neurons() const override { return 80; }
   std::string level_kind() const override { return "boss"; }
   bool on_spine() const override { return true; }
@@ -94,7 +99,7 @@ public:
   std::vector< Event > timeline() const override
   {
     std::vector< Event > ev;
-    for ( int k = 0; k < kNP; ++k )
+    for ( int k = 0; k < np_; ++k )
       ev.push_back( { push_t_[ k ], 2 * kRamp + kHold, push_amp_[ k ] > 0 ? "push up" : "push down" } );
     for ( int k = 0; k < kNR; ++k )
       ev.push_back( { go_[ k ], kShow, "reach to target" } );
@@ -110,14 +115,15 @@ public:
   void reset( uint64_t seed ) override
   {
     Rng rng( seed ^ 0x737072696E74ULL );
-    for ( int k = 0; k < kNP; ++k )
+    np_ = quick_ ? kNPQ : kNP;
+    for ( int k = 0; k < np_; ++k )
     {
-      push_t_[ k ] = kPushT[ k ] + rng.uniform( 0, kJitter );
+      push_t_[ k ] = ( quick_ ? kPushTQ[ k ] : kPushT[ k ] ) + rng.uniform( 0, kJitter );
       const double a = rng.uniform( 1.0, 1.6 );
       push_amp_[ k ] = rng.uniform() < 0.5 ? a : -a;
     }
     for ( int k = 0; k < kNR; ++k )
-      go_[ k ] = kGoT[ k ] + rng.uniform( 0, kJitter );
+      go_[ k ] = ( quick_ ? kGoTQ[ k ] : kGoT[ k ] ) + rng.uniform( 0, kJitter );
     LimbRigConfig c;
     c.rmax_hz = 100;
     c.joint.mass_kg = kMass;
@@ -132,7 +138,7 @@ public:
   {
     Score s;
     Metrics m = analyse();
-    const bool done = t_ >= quick_duration_ms() - 1e-6;  // the quick check's length: two reaches (a full run has three)
+    const bool done = t_ >= ( quick_ ? quick_duration_ms() : duration_ms() ) - 1e-6;  // the quick check's length (compressed, see kPushTQ); the full run ends at 40 s
     const mechb::Issue* mech = mech_bad();
     s.parts[ "hold_rms_rad" ] = m.rms;
     s.parts[ "hold_max_rad" ] = m.mx;
@@ -156,7 +162,7 @@ public:
       s.value = std::min( s.value, 20.0 );
     if ( mech )
       s.value = std::min( s.value, 40.0 );  // behaviour without the mechanisms the level teaches is not a solution (docs/REQ-0.4.md rule 1)
-    s.passed = done && wiring_.ok() && !mech && m.done >= 2 && m.good >= m.done && m.rms <= 0.23 * tol() && m.mx <= 0.40 * tol() && !m.osc_flag && m.creep <= 0.10;
+    s.passed = done && wiring_.ok() && !mech && m.done >= kNR && m.good >= m.done && m.rms <= 0.23 * tol() && m.mx <= 0.40 * tol() && !m.osc_flag && m.creep <= 0.10;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 2 );
     const char* yet = done ? "." : " yet.";
@@ -183,8 +189,7 @@ public:
     else if ( m.rms > 0.23 * tol() )
       o << "The arm sags or drifts from its target between pushes.";
     else
-      o << ( done ? "Held and reached: " : "Good so far: " ) << "rms " << m.rms << " rad, worst " << m.mx << " rad, reaches " << std::setprecision( 0 )
-        << m.reach_ms << " ms.";
+      o << ( done ? "Held and reached: the arm holds its posture under pushes and reaches every target without ringing or creeping." : "Good so far." );
     s.verdict = o.str();
     return s;
   }
@@ -242,7 +247,7 @@ protected:
   double torque( double t ) const override
   {
     double tq = 0;
-    for ( int k = 0; k < kNP; ++k )
+    for ( int k = 0; k < np_; ++k )
       tq += push_amp_[ k ] * push_profile( t, push_t_[ k ], kHold, kRamp );
     return tq;
   }
@@ -364,7 +369,7 @@ private:
     if ( nr > 0 )
       m.reach_ms = sr / nr;
     // ringing after each push whose quiet window lies in a hold; deflection of the pushes that arrive during a displayed target
-    for ( int k = 0; k < kNP; ++k )
+    for ( int k = 0; k < np_; ++k )
     {
       const double q0 = push_t_[ k ] + kQuiet0, q1 = push_t_[ k ] + kQuiet1;
       if ( t_ < q1 )
@@ -389,6 +394,7 @@ private:
   }
 
   double push_t_[ kNP ] = {}, push_amp_[ kNP ] = {}, go_[ kNR ] = {};
+  int np_ = kNP;
   std::vector< double > th_;
 };
 

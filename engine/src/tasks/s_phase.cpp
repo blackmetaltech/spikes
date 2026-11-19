@@ -54,6 +54,7 @@ Spec spec()
     c.wins = { { "all", 1500, 6500 } };
     return c;
   };
+  s.gauges = { { "lp_first_spike_phase", { "first_spike_phase", 1.0 } } };
   s.mech = []( const Graph& g ) -> std::string {
     const auto f = g.out_pops( "lp" ), p = g.in_pops( "pd" );
     if ( f.empty() || p.empty() ) return "";

@@ -54,15 +54,15 @@ namespace
 {
 
 constexpr double kDuration = 120000, kExRamp = 3000, kThrRamp = 500;
-// The scripted day (ms) and the scoring windows (s). The quick check runs the same day with shorter stretches (stand up at 12 s, 14 s of exercise,
-// 12 s of threat, 6-8 s windows) and a gas exchange clock 1.5 times faster to match, scored by the same 19 conditions.
+// The scripted day (ms) and the scoring windows (s). The quick check (the game's CHECK, about 5 s of wall time in the lab) runs the same day with shorter stretches (stand up at 7 s, 10 s of exercise,
+// 8 s of threat, 2-5 s windows) and a gas exchange clock 2.3 times faster to match, scored by the same 19 conditions: every phase, every organ, compressed.
 struct Sched
 {
   double stand, ex0, ex1, thr0, thr1, end, lung_scale;
   double w[ 5 ][ 2 ];
 };
 constexpr Sched kFull{ 15000, 50000, 70000, 85000, 100000, kDuration, 3.0, { { 8, 15 }, { 38, 48 }, { 62, 70 }, { 92, 100 }, { 110, 120 } } };
-constexpr Sched kQuick{ 12000, 36000, 50000, 56000, 68000, 82000, 4.5, { { 8, 12 }, { 28, 34 }, { 43, 50 }, { 62, 68 }, { 74, 82 } } };
+constexpr Sched kQuick{ 7000, 20000, 30000, 34000, 42000, 52000, 7.0, { { 5, 7 }, { 13, 18 }, { 26, 30 }, { 38, 42 }, { 47, 52 } } };
 constexpr double kThreatHz = 250, kExerciseHz = 100, kDilRef = 40, kSphRef = 40, kVentRef = 40, kLum = 30, kSymGain = 0.5, kChemoPerHz = 4.0;
 // windows in s
 
@@ -337,7 +337,7 @@ public:
     else if ( spikes_[ 0 ] < 1 )
       o << "The pacemaker never fired: no heartbeat. Check 'sa_beat'.";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: " << ok_n << " of " << cs.size() << " conditions met.)";
+      o << mech_.missing();
     else if ( spikes_[ 1 ] >= 1 && ne_max_ < 1e-6 )
       o << "'sympathetic' fires but releases no noradrenaline: make it a modulator output (NE).";
     else if ( spikes_[ 2 ] >= 1 && ach_max_ < 1e-6 )
@@ -351,10 +351,9 @@ public:
       if ( !bad.empty() )
         o << bad;
       else if ( !done )
-        o << "So far so good (" << heart_.hr_bpm << " bpm, MAP " << heart_.map_smooth << " mmHg, pupil " << eye_.diameter_mm << " mm).";
+        o << "So far so good.";
       else
-        o << "The whole day held: HR " << m[ 0 ][ HR ] << " rest, " << m[ 1 ][ HR ] << " standing, " << m[ 2 ][ HR ] << " exercise, " << m[ 3 ][ HR ]
-          << " threat; MAP " << m[ 1 ][ MAP ] << " standing, " << m[ 3 ][ MAP ] << " in the threat.";
+        o << "The whole day held: rest, standing, exercise and the threat each had the right heart rate, pressure, pupil and breathing, and the recovery came back.";
     }
     s.verdict = o.str();
     return s;
@@ -452,18 +451,13 @@ private:
     std::string text( const char* ph, const char* what, double v, double ref ) const
     {
       std::ostringstream o;
-      o << std::fixed << std::setprecision( 1 );
-      o << "In the " << ph << " phase the " << what << " is " << v;
+      o << "In the " << ph << " phase the " << what << " is ";
       if ( kind == 0 )
-        o << ", outside " << a << "-" << b << ".";
-      else if ( kind == 1 )
-        o << ", more than " << a << " from the standing value " << ref << ".";
-      else if ( kind == 2 )
-        o << " (standing " << ref << "): it needs to rise by " << a << (a > 0 && ph[ 0 ] != 'e' ? "" : "") << ".";
-      else if ( kind == 3 )
-        o << " (standing " << ref << "): it needs to be x" << a << " the standing value.";
+        o << ( v < a ? "too low." : "too high." );
+      else if ( kind == 1 || kind == 4 )
+        o << ( v < ref ? "too far below" : "too far above" ) << " its standing value.";
       else
-        o << ", more than x" << a << " from the standing value " << ref << ".";
+        o << "not far enough above its standing value: it needs to rise more.";
       return o.str();
     }
   };
