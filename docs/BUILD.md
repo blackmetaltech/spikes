@@ -49,6 +49,7 @@ The look is the "Cajal Plate" identity ([docs/IDENTITY.md](docs/IDENTITY.md)): i
 ```
 ctest --test-dir build            # engine, tasks, goldens, and pytest for python/
 scripts/smoke.sh                  # headless Godot smoke test
+scripts/ui_graph_test.sh          # walk the UI interaction graph (ctest: ui_graph; skips without godot or the extension), see docs/INTERACTION-GRAPH.md
 GOLDEN_UPDATE=1 build/engine/test_golden   # deliberately regenerate golden checksums
 ```
 The `python_pytest` ctest sets `SPIKE_REQUIRE_NEST=1`, so a missing PyNEST fails instead of skipping. Plain `pytest python` skips the PyNEST tests when it is absent.

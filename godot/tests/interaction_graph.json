@@ -1,0 +1,1961 @@
+{
+ "schema": 1,
+ "about": "The interaction graph of the game: every screen, modal, panel and toast as a node, every user action that moves between them as an edge. It is the source of truth for the UI and tests/ui_graph_test.gd walks it. See docs/INTERACTION-GRAPH.md.",
+ "entry": "title",
+ "layout": "desktop",
+ "fixtures": {
+  "$first": "the first level of the campaign (open from the start)",
+  "$locked": "a level that is locked in a fresh save",
+  "$dx": "the first diagnosis case"
+ },
+ "ignore": [
+  {
+   "under_class": "Stepper",
+   "why": "The two arrow buttons of a stepper are part of the stepper, which is listed by its own id."
+  },
+  {
+   "class": "HSlider",
+   "under": "Inspector",
+   "why": "Value sliders of the parameter rows: they edit a number, they do not navigate."
+  },
+  {
+   "class": "LineEdit",
+   "under": "Inspector",
+   "why": "The number box beside each value slider."
+  },
+  {
+   "class": "HSlider",
+   "under_class": "ModDials",
+   "why": "Read-only neuromodulator gauges drawn as sliders."
+  },
+  {
+   "under_class": "FileDialog",
+   "why": "The built-in widgets of Godot's FileDialog; the dialog itself is the node lab.filedlg."
+  }
+ ],
+ "nodes": {
+  "title": {
+   "kind": "screen",
+   "label": "Title (Plate I)",
+   "detect": {
+    "screen": "title"
+   },
+   "controls": [
+    "LegendPlay",
+    "LegendLaboratory",
+    "LegendWhatisreal",
+    "LegendSettings",
+    "LegendCredits",
+    "LegendQuit"
+   ],
+   "scope_root": true
+  },
+  "campaign": {
+   "kind": "screen",
+   "label": "Campaign map (default chapter)",
+   "detect": {
+    "screen": "tasks"
+   },
+   "controls": [
+    "BtnBack",
+    "StepMode",
+    "BtnNotebook",
+    "BtnPartsBin",
+    "BtnSandbox",
+    "Chapter_*",
+    "Pin_*",
+    "BtnBuild"
+   ],
+   "optional": [
+    "BtnReference",
+    "BtnMoreEllipsis"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "campaign.chapter.invertebrates": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Invertebrates",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "invertebrates"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.spinal": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Spinal cord",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "spinal"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.heart": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Heart",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "heart"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.breathing": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Breathing",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "breathing"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.autonomic": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Autonomic",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "autonomic"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.worm": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Bestiary: Worm",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "worm"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.leech": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Bestiary: Leech",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "leech"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.aplysia": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Bestiary: Sea slug",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "aplysia"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.fly_compass": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Bestiary: Fly compass",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "fly_compass"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.fly_mb": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Bestiary: Fly mushroom body",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "fly_mb"
+   },
+   "state_of": "campaign"
+  },
+  "campaign.chapter.crab": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Bestiary: Crab",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "crab"
+   },
+   "state_of": "campaign"
+  },
+  "parts": {
+   "kind": "screen",
+   "label": "Parts bin (browse the catalogue)",
+   "detect": {
+    "screen": "parts"
+   },
+   "controls": [
+    "BtnBack",
+    "BtnSandbox",
+    "PartsBin"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "notebook": {
+   "kind": "screen",
+   "label": "Lab notebook, Notes tab",
+   "detect": {
+    "screen": "notebook",
+    "tab": "Notes"
+   },
+   "controls": [
+    "BtnBack",
+    "BtnWhatIsReal",
+    "TabNotes",
+    "TabConcepts"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "notebook.concepts": {
+   "kind": "tab",
+   "label": "Notebook, Concepts tab (glossary)",
+   "detect": {
+    "screen": "notebook",
+    "tab": "Concepts"
+   },
+   "state_of": "notebook"
+  },
+  "real": {
+   "kind": "screen",
+   "label": "What is real",
+   "detect": {
+    "screen": "real"
+   },
+   "controls": [
+    "BtnBack"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "settings": {
+   "kind": "screen",
+   "label": "Settings, Display tab",
+   "detect": {
+    "screen": "settings",
+    "tab": "Display"
+   },
+   "controls": [
+    "BtnBack",
+    "TabDisplay",
+    "TabAudio",
+    "TabControls",
+    "TabGame",
+    "OptWindowMode",
+    "OptVSync",
+    "OptFrameCap",
+    "OptLayout",
+    "OptUiScale",
+    "OptTextSize",
+    "OptReducedMotion",
+    "OptColourBlindSafeColours",
+    "BtnCredits"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "settings.audio": {
+   "kind": "tab",
+   "label": "Settings, Audio tab",
+   "detect": {
+    "screen": "settings",
+    "tab": "Audio"
+   },
+   "controls": [
+    "OptMaster",
+    "OptSpikeClicks",
+    "OptBodyAndUi",
+    "OptAmbience"
+   ],
+   "state_of": "settings"
+  },
+  "settings.controls": {
+   "kind": "tab",
+   "label": "Settings, Controls tab (read-only key list)",
+   "detect": {
+    "screen": "settings",
+    "tab": "Controls"
+   },
+   "state_of": "settings"
+  },
+  "settings.game": {
+   "kind": "tab",
+   "label": "Settings, Game tab (difficulty, play log)",
+   "detect": {
+    "screen": "settings",
+    "tab": "Game"
+   },
+   "controls": [
+    "OptMode",
+    "OptRecordMyPlay",
+    "BtnExportJson",
+    "BtnClear"
+   ],
+   "state_of": "settings"
+  },
+  "credits": {
+   "kind": "screen",
+   "label": "Credits",
+   "detect": {
+    "screen": "credits"
+   },
+   "controls": [
+    "BtnBack",
+    "BtnWhatIsReal"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "analysis": {
+   "kind": "screen",
+   "label": "Analysis, 3-node motifs",
+   "detect": {
+    "screen": "analysis",
+    "tab": 0
+   },
+   "controls": [
+    "BtnBack",
+    "StepTab",
+    "StepLevel",
+    "StepSign",
+    "StepNull"
+   ],
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "analysis.4node": {
+   "kind": "tab",
+   "label": "Analysis, 4-node motifs tab",
+   "detect": {
+    "screen": "analysis",
+    "tab": 1
+   },
+   "state_of": "analysis"
+  },
+  "analysis.hrv": {
+   "kind": "tab",
+   "label": "Analysis, HRV tab",
+   "detect": {
+    "screen": "analysis",
+    "tab": 2
+   },
+   "controls": [
+    "StepPop",
+    "StepRec",
+    "BtnRecord"
+   ],
+   "state_of": "analysis"
+  },
+  "analysis.prc": {
+   "kind": "tab",
+   "label": "Analysis, PRC tab",
+   "detect": {
+    "screen": "analysis",
+    "tab": 3
+   },
+   "controls": [
+    "StepPop",
+    "StepRec",
+    "BtnRecord"
+   ],
+   "state_of": "analysis"
+  },
+  "analysis.bursts": {
+   "kind": "tab",
+   "label": "Analysis, bursts tab",
+   "detect": {
+    "screen": "analysis",
+    "tab": 4
+   },
+   "controls": [
+    "StepPop",
+    "StepRec",
+    "BtnRecord"
+   ],
+   "state_of": "analysis"
+  },
+  "analysis.energy": {
+   "kind": "tab",
+   "label": "Analysis, energy tab",
+   "detect": {
+    "screen": "analysis",
+    "tab": 5
+   },
+   "state_of": "analysis"
+  },
+  "lab": {
+   "kind": "frame",
+   "label": "Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state)",
+   "detect": {
+    "screen": "lab"
+   },
+   "controls": [
+    "BtnBack",
+    "BtnRun",
+    "BtnReset",
+    "BtnMore",
+    "Editor"
+   ],
+   "optional": [
+    "BtnConnect",
+    "BtnExcitatory"
+   ],
+   "abstract": true,
+   "back": {
+    "control": "BtnBack",
+    "key": "Escape"
+   }
+  },
+  "lab.sandbox": {
+   "kind": "screen",
+   "label": "Sandbox (free bench, no task)",
+   "detect": {
+    "screen": "lab",
+    "task": "none"
+   },
+   "controls": [
+    "BtnParts",
+    "BtnInhibitory",
+    "BtnNoise",
+    "BtnConnect",
+    "BtnExcitatory"
+   ],
+   "state_of": "lab",
+   "co": [
+    "lab.insp.brief"
+   ]
+  },
+  "lab.task": {
+   "kind": "screen",
+   "label": "Lab on a level",
+   "detect": {
+    "screen": "lab",
+    "task": "level"
+   },
+   "controls": [
+    "BtnCheck",
+    "BtnConnect",
+    "BtnExcitatory"
+   ],
+   "optional": [
+    "BtnHint",
+    "BtnBrief",
+    "BtnTestX5",
+    "BtnParts",
+    "BtnInhibitory",
+    "BtnNoise"
+   ],
+   "state_of": "lab",
+   "co": [
+    "lab.insp.brief"
+   ]
+  },
+  "lab.dx": {
+   "kind": "screen",
+   "label": "Lab on a diagnosis case (read-only patient circuit)",
+   "detect": {
+    "screen": "lab",
+    "task": "dx"
+   },
+   "controls": [
+    "BtnCase"
+   ],
+   "optional": [
+    "BtnHint"
+   ],
+   "state_of": "lab",
+   "co": [
+    "lab.insp.dx"
+   ]
+  },
+  "lab.insp.brief": {
+   "kind": "panel",
+   "label": "Inspector: the brief, recipe and pass rule",
+   "detect": {
+    "screen": "lab",
+    "view": "brief"
+   },
+   "optional": [
+    "BtnBriefMore",
+    "BtnShowRecipe"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.pop": {
+   "kind": "panel",
+   "label": "Inspector: a neuron group selected",
+   "detect": {
+    "screen": "lab",
+    "view": "pop"
+   },
+   "controls": [
+    "BtnTrace",
+    "BtnEI",
+    "BtnDelete",
+    "BtnAdvanced",
+    "Stepper"
+   ],
+   "optional": [
+    "BtnResetParameters",
+    "BtnAddRow"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.proj": {
+   "kind": "panel",
+   "label": "Inspector: an axon (projection) selected",
+   "detect": {
+    "screen": "lab",
+    "view": "proj"
+   },
+   "controls": [
+    "BtnEI",
+    "BtnDelete"
+   ],
+   "optional": [
+    "Stepper"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.in": {
+   "kind": "panel",
+   "label": "Inspector: a sensor / noise input selected",
+   "detect": {
+    "screen": "lab",
+    "view": "in"
+   },
+   "controls": [
+    "BtnDisconnectAll"
+   ],
+   "optional": [
+    "Stepper",
+    "BtnWireAll",
+    "BtnRemoveInput"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.out": {
+   "kind": "panel",
+   "label": "Inspector: a motor output selected",
+   "detect": {
+    "screen": "lab",
+    "view": "out"
+   },
+   "controls": [
+    "BtnDisconnectAll"
+   ],
+   "optional": [
+    "Stepper",
+    "BtnWireAll"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.lesion": {
+   "kind": "panel",
+   "label": "Lesion lab (after a pass): cut, silence, re-run, sweep",
+   "detect": {
+    "screen": "lab",
+    "view": "lesion"
+   },
+   "controls": [
+    "BtnRunLesion",
+    "BtnSweepAllSingles",
+    "BtnClearSet",
+    "BtnExit"
+   ],
+   "optional": [
+    "BtnTable",
+    "BtnCancel",
+    "BtnCopyMarkdown",
+    "BtnCopyCsv",
+    "BtnSaveFiles"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.dx": {
+   "kind": "panel",
+   "label": "Diagnosis case card: symptoms, candidates, submit",
+   "detect": {
+    "screen": "lab",
+    "view": "dx"
+   },
+   "controls": [
+    "BtnLesionLab",
+    "Cand_*",
+    "BtnSubmitDiagnosis"
+   ],
+   "optional": [
+    "BtnRevealAnswer"
+   ],
+   "state_of": "lab"
+  },
+  "lab.insp.dxpick": {
+   "kind": "panel",
+   "label": "Diagnosis: a group or axon picked (read-only facts)",
+   "detect": {
+    "screen": "lab",
+    "view": "dxpick"
+   },
+   "controls": [
+    "BtnBackToTheCase"
+   ],
+   "optional": [
+    "BtnTrace"
+   ],
+   "state_of": "lab"
+  },
+  "lab.dx.wrong": {
+   "kind": "state",
+   "label": "Diagnosis: a wrong answer was submitted",
+   "detect": {
+    "screen": "lab",
+    "dx": "wrong"
+   },
+   "state_of": "lab"
+  },
+  "lab.dx.solved": {
+   "kind": "state",
+   "label": "Diagnosis: solved (CORRECT card, notebook entry)",
+   "detect": {
+    "screen": "lab",
+    "dx": "solved"
+   },
+   "state_of": "lab"
+  },
+  "lab.dx.revealed": {
+   "kind": "state",
+   "label": "Diagnosis: answer revealed after two wrong tries",
+   "detect": {
+    "screen": "lab",
+    "dx": "revealed"
+   },
+   "state_of": "lab"
+  },
+  "lab.more": {
+   "kind": "modal",
+   "label": "More menu (speed, level, tools)",
+   "detect": {
+    "find": "MoreMenu"
+   },
+   "controls": [
+    "MoreMenu",
+    "StepSpeed",
+    "BtnFit",
+    "StepMode",
+    "BtnEmptyBench"
+   ],
+   "optional": [
+    "BtnSkip",
+    "StepVariant",
+    "BtnTestX5",
+    "BtnResults",
+    "BtnReference",
+    "BtnLesions",
+    "BtnLeaveLesions",
+    "BtnAnalysis",
+    "BtnLoad",
+    "BtnSave"
+   ],
+   "scope": "MoreMenu",
+   "modal": true,
+   "back": {
+    "control": "MoreMenu",
+    "key": "Escape"
+   }
+  },
+  "lab.parts_modal": {
+   "kind": "modal",
+   "label": "Parts bin (pick the next neuron's type)",
+   "detect": {
+    "find": "PartsModal"
+   },
+   "controls": [
+    "BtnClose",
+    "PartsBin",
+    "Use_*",
+    "Select_*"
+   ],
+   "scope": "PartsModal",
+   "modal": true,
+   "back": {
+    "control": "BtnClose",
+    "key": "Escape"
+   }
+  },
+  "lab.endcard": {
+   "kind": "modal",
+   "label": "End-of-episode card (score, stars, next steps)",
+   "detect": {
+    "find": "EndCard"
+   },
+   "controls": [
+    "BtnRunAgain",
+    "BtnTestX5",
+    "BtnClose"
+   ],
+   "optional": [
+    "BtnResults",
+    "BtnHint",
+    "BtnNextTask",
+    "BtnLesionLab",
+    "BtnAnalysis"
+   ],
+   "scope": "EndCard",
+   "modal": true,
+   "back": {
+    "control": "BtnClose",
+    "key": "Escape"
+   }
+  },
+  "lab.testcard": {
+   "kind": "modal",
+   "label": "Testing x5 progress card",
+   "detect": {
+    "find": "TestCard"
+   },
+   "controls": [
+    "BtnCancel"
+   ],
+   "scope": "TestCard",
+   "modal": true,
+   "back": {
+    "control": "BtnCancel",
+    "key": "Escape"
+   }
+  },
+  "lab.histo": {
+   "kind": "modal",
+   "label": "Results card: your circuit against generated variants",
+   "detect": {
+    "find": "HistoCard"
+   },
+   "controls": [
+    "BtnClose"
+   ],
+   "optional": [
+    "BtnPinATarget"
+   ],
+   "scope": "HistoCard",
+   "modal": true,
+   "back": {
+    "control": "BtnClose",
+    "key": "Escape"
+   }
+  },
+  "lab.filedlg": {
+   "kind": "modal",
+   "label": "Load / Save file dialog",
+   "detect": {
+    "find": "FileDlg"
+   },
+   "scope": "FileDlg",
+   "modal": true,
+   "back": {
+    "call": "hide"
+   }
+  },
+  "lab.hint": {
+   "kind": "panel",
+   "label": "Hint ladder card (idea, place, partial recipe)",
+   "detect": {
+    "find": "HintCard"
+   },
+   "controls": [
+    "BtnHintClose"
+   ],
+   "optional": [
+    "BtnHintNext",
+    "BtnAskAgain"
+   ],
+   "scope": "HintCard",
+   "back": {
+    "control": "BtnHintClose"
+   }
+  },
+  "lab.toast": {
+   "kind": "toast",
+   "label": "Toast (Check verdict, Skip, hints unlocked, notebook entry)",
+   "detect": {
+    "toast": true
+   }
+  },
+  "lab.stamp": {
+   "kind": "overlay",
+   "label": "First-pass celebration: FIRST PASS stamp, trail, notebook toast",
+   "detect": {
+    "screen": "lab",
+    "celebrating": true
+   }
+  }
+ },
+ "edges": [
+  {
+   "id": "title.play",
+   "from": "title",
+   "to": "campaign",
+   "control": "LegendPlay",
+   "returns": true
+  },
+  {
+   "id": "title.lab",
+   "from": "title",
+   "to": "lab.sandbox",
+   "control": "LegendLaboratory",
+   "returns": true
+  },
+  {
+   "id": "title.real",
+   "from": "title",
+   "to": "real",
+   "control": "LegendWhatisreal",
+   "returns": true
+  },
+  {
+   "id": "title.settings",
+   "from": "title",
+   "to": "settings",
+   "control": "LegendSettings",
+   "returns": true
+  },
+  {
+   "id": "title.credits",
+   "from": "title",
+   "to": "credits",
+   "control": "LegendCredits",
+   "returns": true
+  },
+  {
+   "id": "title.quit",
+   "from": "title",
+   "to": "title",
+   "control": "LegendQuit",
+   "action": "terminal",
+   "note": "Quits the game; the walk checks that the entry exists and is enabled but never presses it."
+  },
+  {
+   "id": "campaign.notebook",
+   "from": "campaign",
+   "to": "notebook",
+   "control": "BtnNotebook",
+   "returns": true
+  },
+  {
+   "id": "campaign.parts",
+   "from": "campaign",
+   "to": "parts",
+   "control": "BtnPartsBin",
+   "returns": true
+  },
+  {
+   "id": "campaign.sandbox",
+   "from": "campaign",
+   "to": "lab.sandbox",
+   "control": "BtnSandbox",
+   "returns": true
+  },
+  {
+   "id": "campaign.tab.invertebrates",
+   "from": "campaign",
+   "to": "campaign.chapter.invertebrates",
+   "control": "Chapter_invertebrates",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.spinal",
+   "from": "campaign",
+   "to": "campaign.chapter.spinal",
+   "control": "Chapter_spinal",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.heart",
+   "from": "campaign",
+   "to": "campaign.chapter.heart",
+   "control": "Chapter_heart",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.breathing",
+   "from": "campaign",
+   "to": "campaign.chapter.breathing",
+   "control": "Chapter_breathing",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.autonomic",
+   "from": "campaign",
+   "to": "campaign.chapter.autonomic",
+   "control": "Chapter_autonomic",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.worm",
+   "from": "campaign",
+   "to": "campaign.chapter.worm",
+   "control": "Chapter_worm",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.leech",
+   "from": "campaign",
+   "to": "campaign.chapter.leech",
+   "control": "Chapter_leech",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.aplysia",
+   "from": "campaign",
+   "to": "campaign.chapter.aplysia",
+   "control": "Chapter_aplysia",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.fly_compass",
+   "from": "campaign",
+   "to": "campaign.chapter.fly_compass",
+   "control": "Chapter_fly_compass",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.fly_mb",
+   "from": "campaign",
+   "to": "campaign.chapter.fly_mb",
+   "control": "Chapter_fly_mb",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.crab",
+   "from": "campaign",
+   "to": "campaign.chapter.crab",
+   "control": "Chapter_crab",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.pin",
+   "from": "campaign",
+   "to": "campaign",
+   "control": "Pin_*",
+   "action": "select",
+   "note": "Selecting a pin shows the level's brief, stars and Build button in the detail panel."
+  },
+  {
+   "id": "campaign.mode",
+   "from": "campaign",
+   "to": "campaign",
+   "control": "StepMode",
+   "action": "step",
+   "expect": {
+    "mode_changes": true
+   },
+   "note": "Difficulty mode: Guided / Standard / Researcher."
+  },
+  {
+   "id": "campaign.build",
+   "from": "campaign",
+   "to": "lab.task",
+   "control": "BtnBuild",
+   "setup": {
+    "level": "$first"
+   },
+   "plain_entry": true,
+   "returns": true,
+   "note": "Build opens an empty bench with the level's sensor and motor cards. Disabled while the level is locked."
+  },
+  {
+   "id": "campaign.reference",
+   "from": "campaign",
+   "to": "lab.task",
+   "control": "BtnReference",
+   "setup": {
+    "level": "$first",
+    "mode": "guided"
+   },
+   "reference_entry": true,
+   "returns": true,
+   "guard": "Guided mode, or the level passed",
+   "note": "The reference circuit, already wired. Earns no stars."
+  },
+  {
+   "id": "campaign.build_dx",
+   "from": "campaign",
+   "to": "lab.dx",
+   "control": "BtnBuild",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "returns": true,
+   "note": "A diagnosis case opens the patient's circuit.",
+   "dx_only": true
+  },
+  {
+   "id": "parts.sandbox",
+   "from": "parts",
+   "to": "lab.sandbox",
+   "control": "BtnSandbox",
+   "returns": true
+  },
+  {
+   "id": "notebook.real",
+   "from": "notebook",
+   "to": "real",
+   "control": "BtnWhatIsReal",
+   "returns": true
+  },
+  {
+   "id": "notebook.tab.concepts",
+   "from": "notebook",
+   "to": "notebook.concepts",
+   "control": "TabConcepts"
+  },
+  {
+   "id": "notebook.tab.notes",
+   "from": "notebook.concepts",
+   "to": "notebook",
+   "control": "TabNotes"
+  },
+  {
+   "id": "credits.real",
+   "from": "credits",
+   "to": "real",
+   "control": "BtnWhatIsReal",
+   "returns": true
+  },
+  {
+   "id": "settings.credits",
+   "from": "settings",
+   "to": "credits",
+   "control": "BtnCredits",
+   "returns": true,
+   "note": "The About row: Credits and licences."
+  },
+  {
+   "id": "settings.tab.audio",
+   "from": "settings",
+   "to": "settings.audio",
+   "control": "TabAudio"
+  },
+  {
+   "id": "settings.tab.controls",
+   "from": "settings.audio",
+   "to": "settings.controls",
+   "control": "TabControls"
+  },
+  {
+   "id": "settings.tab.game",
+   "from": "settings.controls",
+   "to": "settings.game",
+   "control": "TabGame"
+  },
+  {
+   "id": "settings.tab.display",
+   "from": "settings.game",
+   "to": "settings",
+   "control": "TabDisplay"
+  },
+  {
+   "id": "settings.reduced_motion",
+   "from": "settings",
+   "to": "settings",
+   "control": "OptReducedMotion",
+   "action": "toggle",
+   "expect": {
+    "setting": "reduced_motion"
+   }
+  },
+  {
+   "id": "settings.mode",
+   "from": "settings.game",
+   "to": "settings.game",
+   "control": "OptMode",
+   "action": "step",
+   "expect": {
+    "mode_changes": true
+   }
+  },
+  {
+   "id": "settings.record_play",
+   "from": "settings.game",
+   "to": "settings.game",
+   "control": "OptRecordMyPlay",
+   "action": "toggle",
+   "expect": {
+    "setting": "telemetry"
+   }
+  },
+  {
+   "id": "lab.run",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnRun",
+   "expect": {
+    "text": {
+     "BtnRun": "Run"
+    }
+   },
+   "note": "Run / Pause toggles the live run."
+  },
+  {
+   "id": "lab.reset",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnReset"
+  },
+  {
+   "id": "lab.more",
+   "from": "lab.task",
+   "to": "lab.more",
+   "control": "BtnMore",
+   "returns": true
+  },
+  {
+   "id": "lab.sandbox.more",
+   "from": "lab.sandbox",
+   "to": "lab.more",
+   "control": "BtnMore",
+   "returns": true,
+   "sandbox_only": true
+  },
+  {
+   "id": "lab.add_e",
+   "from": "lab.task",
+   "to": "lab.insp.pop",
+   "control": "BtnExcitatory",
+   "note": "Adds a neuron and selects it."
+  },
+  {
+   "id": "lab.sandbox.add_e",
+   "from": "lab.sandbox",
+   "to": "lab.insp.pop",
+   "control": "BtnExcitatory",
+   "sandbox_only": true
+  },
+  {
+   "id": "lab.add_i",
+   "from": "lab.task",
+   "to": "lab.insp.pop",
+   "control": "BtnInhibitory",
+   "setup": {
+    "unlock_all": true
+   },
+   "guard": "from the level that first needs inhibition (always in the sandbox)"
+  },
+  {
+   "id": "lab.add_noise",
+   "from": "lab.task",
+   "to": "lab.insp.in",
+   "control": "BtnNoise",
+   "setup": {
+    "unlock_all": true
+   },
+   "guard": "from the level that first needs noise (always in the sandbox)"
+  },
+  {
+   "id": "lab.connect",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnConnect",
+   "expect": {
+    "editor_tool": "connect"
+   },
+   "note": "Connect mode: click a source, then a target."
+  },
+  {
+   "id": "lab.parts",
+   "from": "lab.task",
+   "to": "lab.parts_modal",
+   "control": "BtnParts",
+   "setup": {
+    "unlock_all": true
+   },
+   "returns": true,
+   "guard": "from the level that first uses another cell type (always in the sandbox)"
+  },
+  {
+   "id": "lab.sandbox.parts",
+   "from": "lab.sandbox",
+   "to": "lab.parts_modal",
+   "control": "BtnParts",
+   "returns": true,
+   "sandbox_only": true
+  },
+  {
+   "id": "lab.check",
+   "from": "lab.task",
+   "to": "lab.toast",
+   "control": "BtnCheck",
+   "wait": 60,
+   "setup": {
+    "level": "$first",
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "note": "Instant headless score of the circuit on the level's own seed; the verdict arrives as a toast (a short progress card shows while it runs). Needs a wired circuit."
+  },
+  {
+   "id": "lab.hint_open",
+   "from": "lab.task",
+   "to": "lab.hint",
+   "control": "BtnHint",
+   "setup": {
+    "mode": "guided"
+   },
+   "guard": "Guided, or Standard after two missed runs; never in Researcher"
+  },
+  {
+   "id": "lab.hint_open_standard",
+   "from": "lab.task",
+   "to": "lab.hint",
+   "control": "BtnHint",
+   "setup": {
+    "mode": "standard",
+    "misses": 2
+   },
+   "guard": "Standard after two missed runs"
+  },
+  {
+   "id": "lab.hint_close",
+   "from": "lab.hint",
+   "to": "lab.task",
+   "control": "BtnHintClose",
+   "setup": {
+    "mode": "guided"
+   }
+  },
+  {
+   "id": "lab.testx5_bar",
+   "from": "lab.task",
+   "to": "lab.testcard",
+   "control": "BtnTestX5",
+   "setup": {
+    "mode": "researcher",
+    "passed": true
+   },
+   "needs_reference": true,
+   "returns": true,
+   "guard": "level passed, or Researcher mode",
+   "may_finish_to": "lab.endcard"
+  },
+  {
+   "id": "lab.brief",
+   "from": "lab.insp.pop",
+   "to": "lab.insp.brief",
+   "control": "BtnBrief",
+   "note": "Brief puts the level's brief back in the inspector."
+  },
+  {
+   "id": "lab.select_pop",
+   "from": "lab.task",
+   "to": "lab.insp.pop",
+   "control": "Editor",
+   "action": "select:pop",
+   "note": "Clicking a neuron group selects it."
+  },
+  {
+   "id": "lab.select_in",
+   "from": "lab.task",
+   "to": "lab.insp.in",
+   "control": "Editor",
+   "action": "select:in",
+   "note": "Clicking a sensor card selects it."
+  },
+  {
+   "id": "lab.select_out",
+   "from": "lab.task",
+   "to": "lab.insp.out",
+   "control": "Editor",
+   "action": "select:out",
+   "note": "Clicking a motor card selects it."
+  },
+  {
+   "id": "lab.select_proj",
+   "from": "lab.task",
+   "to": "lab.insp.proj",
+   "control": "Editor",
+   "action": "link",
+   "note": "Dragging from one neuron's rim to another makes an axon and selects it."
+  },
+  {
+   "id": "lab.deselect",
+   "from": "lab.insp.pop",
+   "to": "lab.insp.brief",
+   "control": "Editor",
+   "action": "select:none",
+   "note": "Clicking empty canvas clears the selection."
+  },
+  {
+   "id": "lab.pop.delete",
+   "from": "lab.insp.pop",
+   "to": "lab.insp.brief",
+   "control": "BtnDelete"
+  },
+  {
+   "id": "lab.pop.trace",
+   "from": "lab.insp.pop",
+   "to": "lab.insp.pop",
+   "control": "BtnTrace"
+  },
+  {
+   "id": "lab.pop.ei",
+   "from": "lab.insp.pop",
+   "to": "lab.insp.pop",
+   "control": "BtnEI"
+  },
+  {
+   "id": "lab.pop.advanced",
+   "from": "lab.insp.pop",
+   "to": "lab.insp.pop",
+   "control": "BtnAdvanced",
+   "expect": {
+    "text": {
+     "BtnAdvanced": "Hide advanced"
+    }
+   }
+  },
+  {
+   "id": "lab.proj.delete",
+   "from": "lab.insp.proj",
+   "to": "lab.insp.brief",
+   "control": "BtnDelete"
+  },
+  {
+   "id": "lab.in.disconnect",
+   "from": "lab.insp.in",
+   "to": "lab.insp.in",
+   "control": "BtnDisconnectAll"
+  },
+  {
+   "id": "lab.out.disconnect",
+   "from": "lab.insp.out",
+   "to": "lab.insp.out",
+   "control": "BtnDisconnectAll"
+  },
+  {
+   "id": "more.fit",
+   "from": "lab.more",
+   "to": "lab.task",
+   "control": "BtnFit"
+  },
+  {
+   "id": "more.skip",
+   "from": "lab.more",
+   "to": "lab.toast",
+   "control": "BtnSkip",
+   "note": "Skip to the next scripted event (or says there is none).",
+   "needs_reference": true,
+   "setup": {
+    "mode": "guided"
+   }
+  },
+  {
+   "id": "more.speed",
+   "from": "lab.more",
+   "to": "lab.more",
+   "control": "StepSpeed",
+   "action": "step",
+   "expect": {
+    "speed_changes": true
+   }
+  },
+  {
+   "id": "more.mode",
+   "from": "lab.more",
+   "to": "lab.more",
+   "control": "StepMode",
+   "action": "step",
+   "expect": {
+    "mode_changes": true
+   }
+  },
+  {
+   "id": "more.test",
+   "from": "lab.more",
+   "to": "lab.testcard",
+   "control": "BtnTestX5",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "returns": true,
+   "may_finish_to": "lab.endcard",
+   "returns_to": "lab.task"
+  },
+  {
+   "id": "more.results",
+   "from": "lab.more",
+   "to": "lab.histo",
+   "control": "BtnResults",
+   "setup": {
+    "passed": true
+   },
+   "returns": true,
+   "guard": "level passed",
+   "returns_to": "lab.task",
+   "needs_reference": true
+  },
+  {
+   "id": "more.reference",
+   "from": "lab.more",
+   "to": "lab.task",
+   "control": "BtnReference",
+   "setup": {
+    "mode": "guided"
+   },
+   "guard": "Guided, or the level passed",
+   "expect": {
+    "reference": true
+   }
+  },
+  {
+   "id": "more.empty",
+   "from": "lab.more",
+   "to": "lab.task",
+   "control": "BtnEmptyBench"
+  },
+  {
+   "id": "more.lesions",
+   "from": "lab.more",
+   "to": "lab.insp.lesion",
+   "control": "BtnLesions",
+   "setup": {
+    "passed": true
+   },
+   "guard": "after a pass",
+   "needs_reference": true
+  },
+  {
+   "id": "more.analysis",
+   "from": "lab.more",
+   "to": "analysis",
+   "control": "BtnAnalysis",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "returns": true,
+   "guard": "from chapter II",
+   "returns_to": "lab.task"
+  },
+  {
+   "id": "more.load",
+   "from": "lab.more",
+   "to": "lab.filedlg",
+   "control": "BtnLoad",
+   "setup": {
+    "unlock_all": true
+   },
+   "returns": true,
+   "guard": "from chapter II",
+   "returns_to": "lab.task"
+  },
+  {
+   "id": "more.save",
+   "from": "lab.more",
+   "to": "lab.filedlg",
+   "control": "BtnSave",
+   "setup": {
+    "unlock_all": true
+   },
+   "returns": true,
+   "guard": "from chapter II",
+   "returns_to": "lab.task"
+  },
+  {
+   "id": "parts.use",
+   "from": "lab.parts_modal",
+   "to": "lab.task",
+   "control": "Use_*",
+   "note": "Picks the cell type the next added neuron is made from."
+  },
+  {
+   "id": "lab.episode_end",
+   "from": "lab.task",
+   "to": "lab.endcard",
+   "control": "",
+   "action": "event:episode_end",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "note": "The episode ran to its end.",
+   "returns": true
+  },
+  {
+   "id": "lab.episode_end_fail",
+   "from": "lab.task",
+   "to": "lab.endcard",
+   "control": "",
+   "action": "event:episode_end_failing",
+   "note": "A circuit that does not pass runs to its end.",
+   "returns": true,
+   "needs_reference": true,
+   "setup": {
+    "mode": "guided"
+   }
+  },
+  {
+   "id": "lab.test_done",
+   "from": "lab.testcard",
+   "to": "lab.endcard",
+   "control": "",
+   "action": "event:test_done",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "slow": true,
+   "note": "After the fifth seed the card turns into the end card with the 5-seed verdict."
+  },
+  {
+   "id": "end.run_again",
+   "from": "lab.endcard",
+   "to": "lab.task",
+   "control": "BtnRunAgain",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "end.test",
+   "from": "lab.endcard",
+   "to": "lab.testcard",
+   "control": "BtnTestX5",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "returns": true,
+   "may_finish_to": "lab.endcard",
+   "returns_to": "lab.task"
+  },
+  {
+   "id": "end.next",
+   "from": "lab.endcard",
+   "to": "lab.task",
+   "control": "BtnNextTask",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "guard": "the level passed and a next level exists"
+  },
+  {
+   "id": "end.lesion",
+   "from": "lab.endcard",
+   "to": "lab.insp.lesion",
+   "control": "BtnLesionLab",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "guard": "after a pass"
+  },
+  {
+   "id": "end.analysis",
+   "from": "lab.endcard",
+   "to": "analysis",
+   "control": "BtnAnalysis",
+   "setup": {
+    "mode": "guided",
+    "unlock_all": true
+   },
+   "needs_reference": true,
+   "guard": "from chapter II"
+  },
+  {
+   "id": "end.hint",
+   "from": "lab.endcard",
+   "to": "lab.hint",
+   "control": "BtnHint",
+   "setup": {
+    "mode": "guided"
+   },
+   "guard": "not passed; Guided, or Standard after two misses",
+   "needs_reference": true,
+   "path_avoid": [
+    "lab.episode_end",
+    "lab.test_done"
+   ]
+  },
+  {
+   "id": "test.cancel",
+   "from": "lab.testcard",
+   "to": "lab.task",
+   "control": "BtnCancel",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "lab.first_pass",
+   "from": "lab.task",
+   "to": "lab.stamp",
+   "control": "",
+   "action": "event:first_pass",
+   "setup": {
+    "mode": "guided"
+   },
+   "needs_reference": true,
+   "note": "Passing a level for the first time (the event calls the same celebration)."
+  },
+  {
+   "id": "lab.stamp_done",
+   "from": "lab.stamp",
+   "to": "lab.task",
+   "control": "",
+   "action": "event:celebration_ends",
+   "needs_reference": true,
+   "setup": {
+    "mode": "guided"
+   }
+  },
+  {
+   "id": "lab.toast_expires",
+   "from": "lab.toast",
+   "to": "lab.task",
+   "control": "",
+   "action": "event:toast_expires",
+   "needs_reference": true,
+   "setup": {
+    "mode": "guided"
+   }
+  },
+  {
+   "id": "lesion.exit",
+   "from": "lab.insp.lesion",
+   "to": "lab.task",
+   "control": "BtnExit",
+   "setup": {
+    "passed": true
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "lesion.pick",
+   "from": "lab.insp.lesion",
+   "to": "lab.insp.lesion",
+   "control": "Editor",
+   "action": "lesion_pick",
+   "setup": {
+    "passed": true
+   },
+   "expect": {
+    "enabled": "BtnRunLesion"
+   },
+   "note": "In the lesion lab a click on a group, axon or sensor toggles its lesion.",
+   "needs_reference": true
+  },
+  {
+   "id": "lesion.clear",
+   "from": "lab.insp.lesion",
+   "to": "lab.insp.lesion",
+   "control": "BtnClearSet",
+   "action": "press_after:lesion_pick",
+   "setup": {
+    "passed": true
+   },
+   "expect": {
+    "disabled": "BtnClearSet"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "lesion.sweep",
+   "from": "lab.insp.lesion",
+   "to": "lab.insp.lesion",
+   "control": "BtnSweepAllSingles",
+   "setup": {
+    "passed": true
+   },
+   "expect": {
+    "visible": "BtnCancel"
+   },
+   "note": "A sweep re-runs every single lesion; Cancel stops it.",
+   "needs_reference": true
+  },
+  {
+   "id": "lesion.cancel",
+   "from": "lab.insp.lesion",
+   "to": "lab.insp.lesion",
+   "control": "BtnCancel",
+   "action": "press_after:BtnSweepAllSingles",
+   "setup": {
+    "passed": true
+   },
+   "expect": {
+    "gone": "BtnCancel"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "lesion.run",
+   "from": "lab.insp.lesion",
+   "to": "lab.insp.lesion",
+   "control": "BtnRunLesion",
+   "action": "press_after:lesion_pick",
+   "setup": {
+    "passed": true
+   },
+   "expect": {
+    "visible": "BtnCancel"
+   },
+   "note": "Re-runs the episode on several seeds with the lesion (Cancel shows while it runs; the table appears when it is done, which the walk does not wait for).",
+   "needs_reference": true
+  },
+  {
+   "id": "dx.pick",
+   "from": "lab.insp.dx",
+   "to": "lab.insp.dx",
+   "control": "Cand_*",
+   "action": "select",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "expect": {
+    "enabled": "BtnSubmitDiagnosis"
+   },
+   "dx_only": true
+  },
+  {
+   "id": "dx.wrong",
+   "from": "lab.insp.dx",
+   "to": "lab.dx.wrong",
+   "control": "BtnSubmitDiagnosis",
+   "action": "dx:wrong",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "dx_only": true
+  },
+  {
+   "id": "dx.right",
+   "from": "lab.insp.dx",
+   "to": "lab.dx.solved",
+   "control": "BtnSubmitDiagnosis",
+   "action": "dx:right",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "dx_only": true
+  },
+  {
+   "id": "dx.reveal",
+   "from": "lab.dx.wrong",
+   "to": "lab.dx.revealed",
+   "control": "BtnRevealAnswer",
+   "action": "dx:reveal",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "guard": "after two wrong answers",
+   "dx_only": true
+  },
+  {
+   "id": "dx.lesion",
+   "from": "lab.insp.dx",
+   "to": "lab.insp.lesion",
+   "control": "BtnLesionLab",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "dx_only": true
+  },
+  {
+   "id": "dx.pick_group",
+   "from": "lab.insp.dx",
+   "to": "lab.insp.dxpick",
+   "control": "Editor",
+   "action": "select:pop",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "note": "Clicking a group shows read-only facts.",
+   "dx_only": true
+  },
+  {
+   "id": "dx.back_to_case",
+   "from": "lab.insp.dxpick",
+   "to": "lab.insp.dx",
+   "control": "BtnBackToTheCase",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "dx_only": true
+  },
+  {
+   "id": "dx.case_button",
+   "from": "lab.insp.dxpick",
+   "to": "lab.insp.dx",
+   "control": "BtnCase",
+   "setup": {
+    "level": "$dx",
+    "unlock_all": true
+   },
+   "dx_only": true
+  },
+  {
+   "id": "tab:analysis.4node",
+   "from": "analysis",
+   "to": "analysis.4node",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "tab:analysis.hrv",
+   "from": "analysis.4node",
+   "to": "analysis.hrv",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "tab:analysis.prc",
+   "from": "analysis.hrv",
+   "to": "analysis.prc",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "tab:analysis.bursts",
+   "from": "analysis.prc",
+   "to": "analysis.bursts",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "tab:analysis.energy",
+   "from": "analysis.bursts",
+   "to": "analysis.energy",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  }
+ ],
+ "negatives": [
+  {
+   "id": "campaign.reference.hidden",
+   "node": "campaign",
+   "control": "BtnReference",
+   "expect": "absent",
+   "setup": {
+    "level": "$first",
+    "mode": "standard"
+   },
+   "why": "The reference circuit is hidden until the level is passed (Standard) and always offered in Guided."
+  },
+  {
+   "id": "campaign.build.locked",
+   "node": "campaign",
+   "control": "BtnBuild",
+   "expect": "disabled",
+   "setup": {
+    "level": "$locked"
+   },
+   "why": "A locked level cannot be built."
+  },
+  {
+   "id": "lab.hint.hidden_standard",
+   "node": "lab.task",
+   "control": "BtnHint",
+   "expect": "absent",
+   "setup": {
+    "mode": "standard",
+    "misses": 0
+   },
+   "why": "Hints open after two missed runs in Standard."
+  },
+  {
+   "id": "lab.hint.hidden_researcher",
+   "node": "lab.task",
+   "control": "BtnHint",
+   "expect": "absent",
+   "setup": {
+    "mode": "researcher",
+    "misses": 5
+   },
+   "why": "Researcher mode has no hints."
+  },
+  {
+   "id": "lab.testx5.hidden",
+   "node": "lab.task",
+   "control": "BtnTestX5",
+   "expect": "absent",
+   "setup": {
+    "mode": "standard"
+   },
+   "why": "Test x5 sits on the bar only once the level is passed (always in Researcher)."
+  },
+  {
+   "id": "lab.analysis.locked",
+   "node": "lab.more",
+   "control": "BtnAnalysis",
+   "expect": "absent",
+   "setup": {
+    "mode": "standard"
+   },
+   "why": "Analysis opens from chapter II."
+  },
+  {
+   "id": "lab.lesions.locked",
+   "node": "lab.more",
+   "control": "BtnLesions",
+   "expect": "absent",
+   "setup": {
+    "mode": "standard"
+   },
+   "why": "The lesion lab opens after a pass."
+  },
+  {
+   "id": "lab.results.locked",
+   "node": "lab.more",
+   "control": "BtnResults",
+   "expect": "absent",
+   "setup": {
+    "mode": "standard"
+   },
+   "why": "Results opens after a pass."
+  }
+ ]
+}
