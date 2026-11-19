@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build NEST (pinned) as static libraries for embedding: no MPI, Python/Cython only needed at build time.
 #   scripts/build-nest.sh            static libs for the engine (third_party/nest-build)
-#   scripts/build-nest.sh --pynest   additionally build and install NEST with PyNEST into third_party/nest-install
+#   scripts/build-nest.sh --pynest   additionally build and install NEST with PyNEST into third_party/nest-install (this NEST always builds PyNEST; there is no with-python option)
 #                                    (same pinned commit; needs python3, cython, numpy; python/tests find it there)
 # Env: NEST_REF (commit), SPIKE_OPENMP=ON|OFF (use the same value for the engine and PyNEST for spike parity).
 set -euo pipefail
@@ -17,7 +17,7 @@ git -C "$SRC" checkout -q "$NEST_REF"
 if [ "$PYNEST" = 1 ]; then
   PYBUILD="$ROOT/third_party/nest-build-py"; mkdir -p "$PYBUILD"; cd "$PYBUILD"
   cmake "$SRC" -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_BUILD_TYPE=Release \
-    -Dwith-mpi=OFF -Dwith-openmp="$OPENMP" -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON -Dwith-python=ON >/dev/null
+    -Dwith-mpi=OFF -Dwith-openmp="$OPENMP" -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON >/dev/null
   make -j"$(nproc)" install
   echo "PyNEST installed under: $(ls -d "$PREFIX"/lib/python3*/site-packages 2>/dev/null)"
   echo "Use: export SPIKE_PYNEST=<that dir>  (python/tests also find it automatically)"
