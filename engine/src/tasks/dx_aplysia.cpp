@@ -18,7 +18,7 @@ DxSpec spec()
   s.vignette = "(A laboratory animal.) A sea slug from a breeding line is tested for the two simple kinds of learning of its gill-withdrawal reflex. You are given the circuit of the reflex: the "
                "siphon sensory cells and the gill motor neuron, and the tail pathway with its facilitating interneuron.";
   s.symptoms = "The reflex is normal: a siphon touch gives a clear withdrawal, repeated touches make it smaller, and after a rest it is back. A shock to the tail still makes the gill twitch by itself. "
-               "But the touch after a tail shock is no stronger than the touch before it: the reflex does not sensitise. The facilitating interneuron is silent during the shock.";
+               "But the touch after a tail shock is no stronger than the touch before it: the reflex does not sensitise.";
   s.candidates = { "SN>MN", "TSN>MN", "TSN>FN", "TSN>MN+TSN>FN" };
   s.answer = "TSN>FN";
   s.labels = {

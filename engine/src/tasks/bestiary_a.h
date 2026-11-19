@@ -149,9 +149,20 @@ struct Crit
 };
 inline double ramp( double x, double lo_x, double hi_x ) { return hi_x > lo_x ? clampd( ( x - lo_x ) / ( hi_x - lo_x ), 0.0, 1.0 ) : ( x >= hi_x ? 1.0 : 0.0 ); }
 
+/// A live gauge fed from a score part: the readout `band` (a name of Info::bands) follows the part while the episode runs, so the gauge is never unfed. `scale` converts the part's unit
+/// (ms -> s); `skip_zero`: a part of 0 means "not measurable yet" and sets no readout (the game then shows a dash); `from_ms`: nothing before this model time.
+struct GaugeFeed
+{
+  std::string part;
+  double scale = 1.0;
+  bool skip_zero = true;
+  double from_ms = 0;
+};
+
 struct Spec
 {
   micro::MicroBase::Info info;
+  std::map< std::string, GaugeFeed > gauges;           // band name -> the part that feeds it
   std::string kind = "micro";                          // level_kind: "micro" | "task" | "diagnosis"
   std::function< Schedule( bool quick ) > schedule;
   std::function< std::string( const Graph& ) > mech;   // "" when the mechanism is there, else the sentence naming the missing part
@@ -310,6 +321,22 @@ protected:
       meas_.vy[ m ][ static_cast< size_t >( k ) ] += static_cast< float >( n * st * std::sin( a ) );
     }
     on_observe();
+    if ( !s_.gauges.empty() && s_.judge && static_cast< long >( t_ ) % 250 == 0 ) feed_gauges();
+  }
+  /// Evaluate the judge on what has been measured so far and copy the parts the gauges name into the readouts.
+  void feed_gauges()
+  {
+    std::vector< Crit > cr;
+    std::map< std::string, double > parts;
+    Meas m = measure();
+    m.dur = t_;  // so far
+    s_.judge( m, cr, parts );
+    for ( const auto& [ band, f ] : s_.gauges )
+    {
+      auto it = parts.find( f.part );
+      if ( it == parts.end() || t_ < f.from_ms || ( f.skip_zero && std::fabs( it->second ) < 1e-9 ) ) continue;
+      readouts_[ band ] = it->second * f.scale;
+    }
   }
 
   /// Hooks for levels that need a start-up action (a task that sets V_m) or extra live readouts.

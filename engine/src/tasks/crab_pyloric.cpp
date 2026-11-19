@@ -60,6 +60,7 @@ Spec spec()
     c.wins = { { "window", kFrom, c.dur } };
     return c;
   };
+  s.gauges = { { "period_s", { "period_ms", 0.001 } }, { "pd_duty", { "pd_duty", 1.0 } } };
   s.mech = []( const Graph& g ) -> std::string {
     const auto pd = g.out_pops( "pd" ), lp = g.out_pops( "lp" ), py = g.out_pops( "py" );
     if ( pd.empty() || lp.empty() || py.empty() ) return "";

@@ -169,6 +169,12 @@ def write_dx(name):
     ref, lid = DX[name]
     c = json.load(open(os.path.join(OUT, ref)))
     c = lesion(c, lid)
+    if name == "dx_leech":
+        # the patient's right interneuron adapts a little less than the reference cell (b 4 instead of 5 pA): with the reference value it sits on the edge of
+        # adaptation block, and on about a third of the seeds it falls silent in the scored window and the right motor neuron fires too, contradicting the findings
+        for p in c["populations"]:
+            if p["id"] == "HN_R":
+                p["params"]["b"] = 4.0
     c["name"] = "Patient circuit: " + name[3:]
     c["meta"] = {"author": "spike", "task": name, "notes": "docs/circuits/bestiary_a.md"}
     with open(os.path.join(OUT, name + ".json"), "w") as f:

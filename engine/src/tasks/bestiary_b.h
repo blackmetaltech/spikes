@@ -92,6 +92,12 @@ protected:
     readouts_[ "bump_deg" ] = meas_.vec_deg( "heading", std::max( 0.0, t_ - 100 ), t_ );
     readouts_[ "bump_strength" ] = meas_.vec_strength( "heading", std::max( 0.0, t_ - 100 ), t_ );
     readouts_[ "dark" ] = t_ > 500 ? 1.0 : 0.0;
+    if ( readouts_[ "bump_strength" ] >= 0.05 )   // the compass gauges: the bump's distance from the fly's true heading, and from the landmark (how far a turn has moved it)
+    {
+      auto wrap = []( double a ) { return std::fabs( std::fmod( std::fmod( a, 360.0 ) + 540.0, 360.0 ) - 180.0 ); };
+      readouts_[ "heading_error_deg" ] = wrap( readouts_[ "bump_deg" ] - readouts_[ "true_deg" ] );
+      readouts_[ "bump_shift_deg" ] = wrap( readouts_[ "bump_deg" ] - lm );
+    }
   }
   int wedge_ = 0;
   std::function< double( double, bool ) > truth_;
@@ -122,7 +128,7 @@ inline std::string ring_readout_missing( const Graph& g, const std::string& ch )
   if ( h.empty() ) return "";
   if ( chan_kind( g, g.st.outputs, ch ) != "population_vector" )
     return "'" + ch + "' is read as a plain rate. A compass needs a ring readout: set the channel to read the bump angle (population vector) over the ring cells, in ring order.";
-  if ( g.cells( h ) < 4 ) return "The ring has too few cells to hold a bump anywhere but on top of itself: give the ring several cells (8 or more) in order around the circle.";
+  if ( g.cells( h ) < 4 ) return "The ring has too few cells to hold a bump anywhere but on top of itself: give the ring several cells (several) in order around the circle.";
   return "";
 }
 /// "" when the ring cells excite each other in a loop and inhibit each other broadly, else the sentence.

@@ -88,6 +88,7 @@ Spec spec()
     c.wins = { { "window", kFrom, 8000 } };
     return c;
   };
+  s.gauges = { { "period_s", { "period_ms", 0.001, true, kFrom + 500 } } };
   s.mech = []( const Graph& g ) -> std::string {
     const auto ab = g.out_pops( "ab" ), pd = g.out_pops( "pd" );
     if ( ab.empty() || pd.empty() ) return "";

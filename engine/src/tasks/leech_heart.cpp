@@ -144,6 +144,7 @@ Spec spec()
     c.wins = { { "window", kW0, c.dur } };
     return c;
   };
+  s.gauges = { { "period_s", { "period_ms", 0.001, true, kW0 + 500 } }, { "overlap_pct", { "overlap_pct", 1.0, false, kW0 + 500 } } };
   s.mech = []( const Graph& g ) -> std::string {
     const auto l = g.out_pops( "left" ), r = g.out_pops( "right" );
     if ( l.empty() || r.empty() ) return "";

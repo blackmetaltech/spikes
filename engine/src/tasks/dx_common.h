@@ -150,7 +150,7 @@ public:
     s.value = ok ? 100.0 : 0.0;
     s.passed = ok;
     if ( !sub )
-      s.verdict = "No diagnosis submitted yet. Run the circuit, probe it, then name the missing connection. (The patient's own run: " + in.verdict + ")";
+      s.verdict = "No diagnosis submitted yet. Run the circuit, probe it, then pick a candidate from the list.";
     else if ( !known )
       s.verdict = "'" + variant_ + "' is not one of the candidates.";
     else if ( ok )
