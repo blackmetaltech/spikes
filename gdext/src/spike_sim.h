@@ -30,6 +30,11 @@ public:
   void watch( int64_t neuron );
   double output_rate( const String& name ) const;
   /// 0.5 (add-only): population_vector outputs (bump angle in radians [0, 2 pi) and strength 0..1 over the last step), and the spike-train inputs.
+  double neuron_state( int64_t n, const String& key ) const;   // 0.6: any numeric NEST status entry of a neuron (NaN if unknown)
+  double output_value( const String& name ) const;              // 0.6: mean rate of a rate_value output
+  double input_weight( const String& name ) const;
+  double input_value( const String& name ) const;
+  Dictionary phase_plane( int64_t n, double i_ext ) const;     // 0.6: nullclines, fixed points, reset of a 2-D cell (spike/theory.h)
   double output_angle( const String& name ) const;
   double output_strength( const String& name ) const;
   /// Append spikes (absolute model time, ms, on the resolution grid, after the time reached) to a "spike_generator" input.

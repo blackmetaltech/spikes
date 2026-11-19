@@ -174,6 +174,15 @@
    },
    "state_of": "campaign"
   },
+  "campaign.chapter.dynamics": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Theory: Dynamics",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "dynamics"
+   },
+   "state_of": "campaign"
+  },
   "parts": {
    "kind": "screen",
    "label": "Parts bin (browse the catalogue)",
@@ -937,6 +946,13 @@
    "from": "campaign",
    "to": "campaign.chapter.crab",
    "control": "Chapter_crab",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.dynamics",
+   "from": "campaign",
+   "to": "campaign.chapter.dynamics",
+   "control": "Chapter_dynamics",
    "note": "A tab shows a chapter's map; locked chapters can be looked at."
   },
   {

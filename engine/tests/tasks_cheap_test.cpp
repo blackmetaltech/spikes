@@ -1,6 +1,6 @@
 // Negative tests for the honesty contract (docs/REQ-0.4.md rule 3): cheap or degenerate circuits must FAIL every level.
 //
-//   tasks_cheap_test [a|b|c|d|e]             the CTest (tasks_cheap_test_a/_b/_c/_d in CTest, one per rows file; no argument = all four; _d = the Bestiary chapters): every row of cheap_rows_{a,b,c}.inc fails on seeds 1 and 2 (the game's CHECK uses the quick
+//   tasks_cheap_test [a|b|c|d|e]             the CTest (tasks_cheap_test_a/_b/_c/_d in CTest, one per rows file; no argument = all four; _d = the Bestiary chapters A, _f = the Theory wing): every row of cheap_rows_{a,b,c}.inc fails on seeds 1 and 2 (the game's CHECK uses the quick
 //                                            episode, Task::quick_duration_ms(), so the rows run it too); every task that has rows also has its
 //                                            reference circuit pass the same harness once (a control: a broken harness would "fail" everything)
 //   tasks_cheap_test run <task> <circuit.json> [seed=1]    tuning aid: score one circuit, print parts and verdict
@@ -408,6 +408,12 @@ void rows( std::vector< Row >& R, const std::string& part )
 #include "cheap_rows_e.inc"
     }
   catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_e.inc threw: " ) + ex.what() ); }
+  if ( part.empty() || part == "f" )
+    try
+    {
+#include "cheap_rows_f.inc"
+    }
+  catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_f.inc threw: " ) + ex.what() ); }
 #undef CHEAP_ROW
 #undef CHEAP_ROW_V
 }

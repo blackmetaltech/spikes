@@ -1,0 +1,59 @@
+{
+ "schema_version": 1,
+ "name": "Only the change counts",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N",
+   "model": "izhikevich",
+   "n": 1,
+   "params": {
+    "a": 0.02,
+    "b": 0.25,
+    "c": -65.0,
+    "d": 6.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     140
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "current",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N"
+    }
+   ],
+   "weight": 0.5,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "spikes",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "d_phasic",
+  "notes": "docs/circuits/theory.md"
+ }
+}

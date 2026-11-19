@@ -6,7 +6,7 @@ extends RefCounted
 ## draws the numbers: strip charts, the ECG (from the real beat times), the gauges of the dashboard. Everything draws onto a TaskView (a Control) `c`, inside
 ## rect `r`; history comes from Telemetry.hist.
 
-const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass"]
+const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase"]
 
 static func ro(t: Telemetry) -> Dictionary: return (t.body.get("readouts", {}) as Dictionary) if t != null else {}
 static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.get(k, dflt))
@@ -20,6 +20,7 @@ static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
 		"eye": _eye(c, t, r)
 		"gut": _gut(c, t, r)
 		"compass": _compass(c, t, r)
+		"phase": _phase(c, t, r)
 		_: _dashboard(c, t, r)
 
 # ---------------------------------------------------------------- readout names and units (G6)
@@ -541,6 +542,79 @@ static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
 	var err := absf(wrapf(rv(d, "bump_deg") - rv(d, "true_deg"), -180.0, 180.0)) if st > 0.02 else 180.0
 	var txt := "heading error %d deg   (ink: the fly's heading, cyan: the circuit's bump)" % int(roundf(err))
 	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+
+# ---------------------------------------------------------------- phase plane (v0.6, Theory wing)
+## The V-w phase plane of the first cell the level's motor channel reads (an Izhikevich or adaptive exponential cell): the two nullclines computed by the engine from the cell's own
+## parameters and the constant current it gets now (SpikeSim.phase_plane), its fixed points (filled: stable, hollow: unstable, cross: saddle), the reset, and the live trajectory from the
+## cell's V_m and recovery variable. Nothing here is a task readout: it asks the running simulation.
+static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
+	var fz := Kit.fs(14)
+	if t == null or t.sim == null: _empty(c, r, "Build a cell: the phase plane appears when there is one."); return
+	var motors: Array = t.task.motor_channels() if t.task != null else []
+	var cell := -1
+	for o in t.sim.outputs():
+		if not motors.is_empty() and str(o["name"]) == str(motors[0]) and (o["neurons"] as PackedInt32Array).size() > 0: cell = int((o["neurons"] as PackedInt32Array)[0])
+	if cell < 0: _empty(c, r, "Connect the motor channel to a cell to see its phase plane."); return
+	var i_ext := 0.0
+	for ch in t.sim.inputs():
+		if str(ch["kind"]) == "dc" and (ch["neurons"] as PackedInt32Array).has(cell): i_ext += float(t.sim.input_weight(str(ch["name"]))) * float(t.sim.input_value(str(ch["name"])))
+	var pp: Dictionary = t.sim.phase_plane(cell, i_ext)
+	if not bool(pp.get("ok", false)): _empty(c, r, str(pp.get("note", "This cell has no phase plane."))); return
+	var y0 := r.position.y + _banner(c, t, r)
+	var P := Rect2(r.position.x + 56.0, y0 + 8.0, r.size.x - 70.0, r.end.y - y0 - 8.0 - float(fz) * 3.0 - 22.0)
+	if P.size.x < 60.0 or P.size.y < 40.0: return
+	var v_lo := float(pp["v_lo"]); var v_hi := float(pp["v_hi"]); var w_lo := float(pp["w_lo"]); var w_hi := float(pp["w_hi"])
+	var to := func(v: float, w: float) -> Vector2: return Vector2(P.position.x + (v - v_lo) / maxf(v_hi - v_lo, 1e-6) * P.size.x, P.end.y - (w - w_lo) / maxf(w_hi - w_lo, 1e-6) * P.size.y)
+	c.draw_rect(P, Color(Gfx.SHEET, 0.9)); c.draw_rect(P, Kit.INK, false, 1.4)
+	var wn := str(pp["w_name"])
+	for k in 5:   # ticks and numbers
+		var v := v_lo + (v_hi - v_lo) * float(k) / 4.0; var w := w_lo + (w_hi - w_lo) * float(k) / 4.0
+		var px: float = (to.call(v, w_lo) as Vector2).x; var py: float = (to.call(v_lo, w) as Vector2).y
+		c.draw_line(Vector2(px, P.end.y), Vector2(px, P.end.y + 4.0), Kit.INK, 1.0); c.draw_line(Vector2(P.position.x - 4.0, py), Vector2(P.position.x, py), Kit.INK, 1.0)
+		c.draw_string(Fonts.regular, Vector2(px - 14.0, P.end.y + float(fz) + 4.0), "%d" % int(roundf(v)), HORIZONTAL_ALIGNMENT_LEFT, 40.0, fz, Kit.TEXT_SOFT)
+		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Fonts.regular, Vector2(P.end.x - 90.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 86.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Fonts.regular, Vector2(P.position.x + 6.0, P.position.y + float(fz) + 2.0), "%s (%s)" % [wn, "pA" if wn == "w" else "recovery"], HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
+	var line := func(pts: PackedVector2Array, col: Color) -> void:
+		var q := PackedVector2Array()
+		for p in pts:
+			var m: Vector2 = to.call(p.x, p.y)
+			if m.y >= P.position.y - 2.0 and m.y <= P.end.y + 2.0: q.append(Vector2(m.x, clampf(m.y, P.position.y, P.end.y)))
+			elif q.size() >= 2: c.draw_polyline(q, col, 2.4, true); q = PackedVector2Array()
+			else: q = PackedVector2Array()
+		if q.size() >= 2: c.draw_polyline(q, col, 2.4, true)
+	line.call(pp["v_null"], Kit.exc()); line.call(pp["w_null"], Kit.inh())
+	var vr := float(pp["v_reset"])   # the reset: a dashed vertical line
+	if vr > v_lo and vr < v_hi:
+		var x: float = (to.call(vr, w_lo) as Vector2).x
+		var yy := P.position.y
+		while yy < P.end.y - 4.0: c.draw_line(Vector2(x, yy), Vector2(x, yy + 5.0), Color(Kit.INK, 0.45), 1.0); yy += 10.0
+		c.draw_string(Fonts.italic, Vector2(x + 3.0, P.end.y - 6.0), "reset", HORIZONTAL_ALIGNMENT_LEFT, 60.0, fz, Kit.TEXT_SOFT)
+	var stable_kind := ""
+	for f in pp["fixed"]:
+		var m: Vector2 = to.call(float(f["v"]), float(f["w"]))
+		if m.x < P.position.x or m.x > P.end.x or m.y < P.position.y or m.y > P.end.y: continue
+		var k := str(f["kind"])
+		if bool(f["stable"]): c.draw_circle(m, 6.0, Kit.INK); stable_kind = k
+		elif k == "saddle": c.draw_line(m + Vector2(-5, -5), m + Vector2(5, 5), Kit.INK, 2.0); c.draw_line(m + Vector2(-5, 5), m + Vector2(5, -5), Kit.INK, 2.0)
+		else: c.draw_arc(m, 6.0, 0.0, TAU, 16, Kit.INK, 2.0, true)
+	# the live trajectory
+	var wkey := "U_m" if wn == "U" else "w"
+	var v_now := float(t.sim.neuron_state(cell, "V_m")); var w_now := float(t.sim.neuron_state(cell, wkey))
+	var trail: PackedVector2Array = t.get_meta("phase_trail", PackedVector2Array())
+	if int(t.get_meta("phase_ep", -1)) != t.episode: trail = PackedVector2Array(); t.set_meta("phase_ep", t.episode)
+	if is_finite(v_now) and is_finite(w_now):
+		if trail.is_empty() or trail[trail.size() - 1] != Vector2(v_now, w_now): trail.append(Vector2(v_now, w_now))
+		if trail.size() > 700: trail = trail.slice(trail.size() - 700)
+		t.set_meta("phase_trail", trail)
+		var tq := PackedVector2Array()
+		for p in trail: tq.append(to.call(clampf(p.x, v_lo, v_hi), clampf(p.y, w_lo, w_hi)))
+		if tq.size() >= 2: c.draw_polyline(tq, Color(Kit.CYAN, 0.8), 1.6, true)
+		var hd: Vector2 = to.call(clampf(v_now, v_lo, v_hi), clampf(w_now, w_lo, w_hi)); c.draw_circle(hd, 5.0, Kit.CYAN); c.draw_arc(hd, 5.0, 0.0, TAU, 16, Kit.INK, 1.2, true)
+	var ty := P.end.y + float(fz) * 2.0 + 6.0
+	c.draw_string(Fonts.regular, Vector2(P.position.x, ty), "sienna: voltage nullcline    blue: %s nullcline    filled point: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT_SOFT)
+	var txt := ("resting state: " + stable_kind) if stable_kind != "" else "no stable resting state at this current"
+	c.draw_string(Fonts.bold, Vector2(P.position.x, ty + float(fz) + 4.0), "current now %.3g pA   %s" % [float(pp["i_total"]), txt], HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT)
 
 # ---------------------------------------------------------------- dashboard
 ## Gauges for every judged trace (the arc is the tolerance band, the needle the value, green inside it and red outside, with a sparkline of the last 20 s), then

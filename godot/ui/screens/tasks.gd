@@ -6,7 +6,7 @@ extends Screen
 ## task's sensors and motors); Reference (the reference circuit already wired) appears only once the level is passed, or in Guided mode. Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
-const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab"}
+const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
 var first: Control
@@ -74,14 +74,14 @@ func _default_chapter() -> String:
 func _tabs(f: float, phone: bool) -> Control:
 	var roman := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV"]
 	var ci := 0
-	var rows := {"body": HBoxContainer.new(), "bestiary": HBoxContainer.new()}
+	var rows := {"body": HBoxContainer.new(), "bestiary": HBoxContainer.new(), "theory": HBoxContainer.new()}
 	for r in rows: (rows[r] as HBoxContainer).add_theme_constant_override("separation", 10 if not phone else 6)
 	for c in Campaign.CHAPTERS:
 		ci += 1
 		var id: String = c["id"]; var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id)
 		var st := Campaign.star_total(id)
-		var wing := "bestiary" if Campaign.is_bestiary(id) else "body"
-		var txt := str(SHORT[id]) if phone else (("%s. %s" % [roman[mini(ci - 1, roman.size() - 1)], str(c["title"])]) if wing == "body" else str(c["title"]).trim_prefix("Bestiary: "))
+		var wing := Campaign.wing_of(id)
+		var txt := str(SHORT[id]) if phone else (("%s. %s" % [roman[mini(ci - 1, roman.size() - 1)], str(c["title"])]) if wing == "body" else str(c["title"]).trim_prefix("Bestiary: ").trim_prefix("Theory: "))
 		if not open and not phone: txt += "  (locked)"
 		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0)); Kit.ident(b, "Chapter_" + id)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not phone else Control.SIZE_SHRINK_BEGIN
@@ -92,15 +92,15 @@ func _tabs(f: float, phone: bool) -> Control:
 		var sc := ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 		sc.custom_minimum_size.y = 44.0; sc.set_meta("nowrap", true)   # WrapGuard must not turn this strip into a wrapping flow: it scrolls sideways on purpose
 		var one := HBoxContainer.new(); one.add_theme_constant_override("separation", 6)
-		for r in ["body", "bestiary"]:
+		for r in ["body", "bestiary", "theory"]:
 			for k in (rows[r] as HBoxContainer).get_children().duplicate(): (rows[r] as HBoxContainer).remove_child(k); one.add_child(k)
 		for r in rows: (rows[r] as Node).free()   # the two row containers were only a place to collect the tabs (never in the tree)
 		sc.add_child(one)
 		return sc
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6)
-	for r in ["body", "bestiary"]:
+	for r in ["body", "bestiary", "theory"]:
 		var hb := HBoxContainer.new(); hb.add_theme_constant_override("separation", 12)
-		var lab := Kit.small_caps("BODY" if r == "body" else "BESTIARY", int(15 * f), Kit.TEXT_SOFT); lab.custom_minimum_size.x = 96.0 * f; lab.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var lab := Kit.small_caps("BODY" if r == "body" else ("BESTIARY" if r == "bestiary" else "THEORY"), int(15 * f), Kit.TEXT_SOFT); lab.custom_minimum_size.x = 96.0 * f; lab.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		hb.add_child(lab); (rows[r] as HBoxContainer).size_flags_horizontal = Control.SIZE_EXPAND_FILL; hb.add_child(rows[r]); v.add_child(hb)
 	return v
 

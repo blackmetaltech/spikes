@@ -1,0 +1,81 @@
+{
+ "schema_version": 1,
+ "name": "A neuron that remembers a pulse",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N",
+   "model": "izhikevich",
+   "n": 1,
+   "params": {
+    "a": 0.02,
+    "b": 0.2,
+    "c": -50.0,
+    "d": 0.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     140
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "hold",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N"
+    }
+   ],
+   "weight": 2.5,
+   "value": 0.0
+  },
+  {
+   "name": "set",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N"
+    }
+   ],
+   "weight": 10.0,
+   "value": 0.0
+  },
+  {
+   "name": "reset",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N"
+    }
+   ],
+   "weight": 10.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "spikes",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "d_switch",
+  "notes": "docs/circuits/theory.md"
+ }
+}

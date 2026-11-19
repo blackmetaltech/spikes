@@ -1,0 +1,59 @@
+{
+ "schema_version": 1,
+ "name": "Where firing starts",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N",
+   "model": "izhikevich",
+   "n": 1,
+   "params": {
+    "a": 0.1,
+    "b": 0.26,
+    "c": -65.0,
+    "d": 2.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     140
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "current",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "spikes",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "d_class",
+  "notes": "docs/circuits/theory.md"
+ }
+}
