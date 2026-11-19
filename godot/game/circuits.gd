@@ -78,7 +78,7 @@ static func parse(json: String) -> Dictionary:
 	return v if v is Dictionary else {}
 
 ## Godot's JSON reads every number as a float and would write 1 as 1.0, which the engine rejects for integer fields (schema_version, n, seed ...): restore them.
-const INT_KEYS := ["schema_version", "n", "seed", "indegree", "outdegree", "idx", "pos"]
+const INT_KEYS := ["schema_version", "n", "seed", "indegree", "outdegree", "idx", "pos", "projection"]
 static func to_json(c: Dictionary) -> String: return JSON.stringify(_norm(c, ""), "  ")
 
 static func _norm(v: Variant, key: String) -> Variant:

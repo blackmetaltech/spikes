@@ -20,7 +20,11 @@ const CHAPTERS := [
 	{"id": "spinal", "title": "Spinal cord", "organ": "spine", "blurb": "Stretch, hold and reach: muscle spindles, motor neurons, Renshaw cells."},
 	{"id": "heart", "title": "Heart", "organ": "heart", "blurb": "A pacemaker cell sets the beat; the autonomic nerves and the baroreflex steer it."},
 	{"id": "breathing", "title": "Breathing", "organ": "lungs", "blurb": "A bursting pacemaker network in the brainstem drives the diaphragm, tuned by CO2."},
-	{"id": "autonomic", "title": "Autonomic", "organ": "autonomic", "blurb": "Pupil, gut and the whole fight-or-flight response: two opposing nerves, one body."}]
+	{"id": "autonomic", "title": "Autonomic", "organ": "autonomic", "blurb": "Pupil, gut and the whole fight-or-flight response: two opposing nerves, one body."},
+	# v0.5 Bestiary wing (docs/DESIGN-0.5.md): one chapter per model organism. Open from the start, never counted by the unlock rule of the body chapters. No plate art yet (organ "bestiary").
+	{"id": "worm", "title": "Bestiary: Worm", "organ": "bestiary", "wing": "bestiary", "blurb": "C. elegans: touch the head and it backs up, touch the tail and it goes. The command switch, wired from the real touch circuit."},
+	{"id": "leech", "title": "Bestiary: Leech", "organ": "bestiary", "wing": "bestiary", "blurb": "The leech heartbeat: two cells that burst in turn, a half-centre with a slow cycle."},
+	{"id": "aplysia", "title": "Bestiary: Sea slug", "organ": "bestiary", "wing": "bestiary", "blurb": "Aplysia: a reflex that habituates, recovers and is sensitised, all in one synapse."}]
 
 ## Planned lineup per chapter: [id, title, node centre on the map (0..1, 0..1)].
 const PLANNED := {
@@ -28,7 +32,11 @@ const PLANNED := {
 	"spinal": [["stretch_reflex", "Stretch reflex", Vector2(0.15, 0.3)], ["renshaw", "Renshaw inhibition", Vector2(0.38, 0.7)], ["posture", "Posture", Vector2(0.62, 0.3)], ["reach", "Reach", Vector2(0.85, 0.7)]],
 	"heart": [["heart_pacemaker", "Heart pacemaker", Vector2(0.17, 0.36)], ["heart_autonomic", "Autonomic heart rate", Vector2(0.5, 0.74)], ["baroreflex", "Baroreflex", Vector2(0.83, 0.36)]],
 	"breathing": [["breathing", "Breathing rhythm", Vector2(0.5, 0.5)]],
-	"autonomic": [["pupil", "Pupil light reflex", Vector2(0.17, 0.34)], ["peristalsis", "Peristalsis", Vector2(0.5, 0.72)], ["fight_or_flight", "Fight or flight", Vector2(0.83, 0.34)]]}
+	"autonomic": [["pupil", "Pupil light reflex", Vector2(0.17, 0.34)], ["peristalsis", "Peristalsis", Vector2(0.5, 0.72)], ["fight_or_flight", "Fight or flight", Vector2(0.83, 0.34)]],
+	# Bestiary placeholder layout (no plate yet): the three levels of a chapter on a gentle arc
+	"worm": [["w_latch", "Holding a reversal", Vector2(0.2, 0.62)], ["w_switch", "Forward or backward", Vector2(0.5, 0.36)], ["worm_touch", "Touch, reverse or go", Vector2(0.8, 0.62)]],
+	"leech": [["l_burst", "A cell that bursts", Vector2(0.2, 0.62)], ["l_rebound", "Rebound after inhibition", Vector2(0.5, 0.36)], ["leech_heart", "The heartbeat", Vector2(0.8, 0.62)]],
+	"aplysia": [["a_depress", "Getting used to a touch", Vector2(0.2, 0.62)], ["a_facilitate", "A shock to the tail", Vector2(0.5, 0.36)], ["aplysia_gill", "The gill-withdrawal reflex", Vector2(0.8, 0.62)]]}
 
 ## Extra slots for engine tasks that are not in PLANNED.
 const SPARE := [Vector2(0.5, 0.2), Vector2(0.5, 0.86), Vector2(0.28, 0.5), Vector2(0.72, 0.5)]
@@ -54,6 +62,12 @@ const CONCEPTS := {
 	"rhythm_gating": ["Rhythm and sensory gating", "A rhythm generator keeps the beat, and sensory input such as CO2 tunes its rate and amplitude without having to create it.", "Smith JC et al. (1991) Science 254:726, doi:10.1126/science.1683005; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232, doi:10.1038/nrn1871"],
 	"travelling_waves": ["Travelling waves and polarity", "Excitation behind and inhibition ahead make activity move in one direction along a chain of segments, as in gut peristalsis.", "Bayliss WM, Starling EH (1899) J Physiol 24:99"],
 	"diagnosis": ["Diagnosis: from symptom to lesion", "Working backwards. The symptoms tell you what the circuit stopped doing; probing it with the scopes and lesions tells you where it was damaged.", "Rorden C, Karnath HO (2004) Nat Rev Neurosci 5:813, doi:10.1038/nrn1521"],
+	"persistence": ["Persistence: positive feedback holds a state", "Cells that excite each other keep each other firing after the input that started them has gone. A brief touch can start a state, a reversal for instance, that holds itself until something inhibits it.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
+	"command_switch": ["Command switch (winner takes all)", "Two command groups that inhibit each other cannot both be active. Each is driven by its own inputs, and when both are driven the stronger wins and silences the other: forward or backward, never both.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
+	"bursting": ["Bursting", "Some neurons turn a steady drive into bursts of spikes with silent gaps. A slow variable inside the cell builds up during a burst, ends it, and decays during the gap. Leech heart interneurons are bursters.", "Nadim F et al. (1995) J Comput Neurosci 2:215, doi:10.1007/BF00961435; Hill AA et al. (2001) J Comput Neurosci 10:281, doi:10.1023/a:1011216131638"],
+	"rebound": ["Post-inhibitory rebound", "A cell that has been held silent by inhibition can fire when the inhibition ends, because slow currents pushed the other way during the inhibition. Rebound lets a silenced half of an oscillator come back.", "Nadim F et al. (1995) J Comput Neurosci 2:215, doi:10.1007/BF00961435; Olsen OH et al. (1995) J Comput Neurosci 2:237, doi:10.1007/BF00961436"],
+	"synaptic_depression": ["Short-term synaptic depression", "A synapse that is used hard releases less each time, and refills slowly. In the Aplysia gill-withdrawal reflex this makes the response shrink with repeated touch (habituation) while the sensory cells keep firing the same.", "Castellucci V et al. (1970) Science 167:1745, doi:10.1126/science.167.3926.1745"],
+	"heterosynaptic_facilitation": ["Heterosynaptic facilitation", "Activity in one pathway changes the strength of a synapse in another, through a released modulator. A shock to the tail of Aplysia releases serotonin that strengthens the siphon's sensory synapses: the reflex is sensitised.", "Castellucci V et al. (1970) Science 167:1745, doi:10.1126/science.167.3926.1745; Hawkins RD et al. (2006) Biol Bull 210:174, doi:10.2307/4134556"],
 	"divergent_command": ["Divergent command", "One command cell fans out to many targets, so a single cue changes the whole body at once: the fight-or-flight response.", "Cannon WB (1915) Bodily Changes in Pain, Hunger, Fear and Rage; Janig W (2006) The Integrative Action of the Autonomic Nervous System"]}
 
 static var pending_variant := ""   # set by the map before app.open_lab(task) for a variant branch; the lab reads it and clears it ("" = the base task)
@@ -251,7 +265,7 @@ static func _build_nodes(ch: String) -> Array:
 
 ## The spine task a non-spine level hangs off: its declared parent, else the spine task of its chapter that shares most of its concepts, else the last spine
 ## task that comes before it in the play order, else the first spine task.
-const DX_PARENT := {"dx_clonus": "renshaw", "dx_vagal": "heart_autonomic", "dx_orthostatic": "baroreflex", "dx_apnoea": "breathing", "dx_horner": "pupil", "dx_achalasia": "peristalsis"}   # a diagnosis case hangs off the task whose circuit it is (DxSpec.inner)
+const DX_PARENT := {"dx_worm": "worm_touch", "dx_leech": "leech_heart", "dx_aplysia": "aplysia_gill", "dx_clonus": "renshaw", "dx_vagal": "heart_autonomic", "dx_orthostatic": "baroreflex", "dx_apnoea": "breathing", "dx_horner": "pupil", "dx_achalasia": "peristalsis"}   # a diagnosis case hangs off the task whose circuit it is (DxSpec.inner)
 static func _parent_of(id: String, in_ch: Array) -> String:
 	if DX_PARENT.has(id) and in_ch.has(DX_PARENT[id]): return str(DX_PARENT[id])
 	var d := info(id)
@@ -317,13 +331,17 @@ static func star_total(ch: String) -> Vector2i:
 static func _playable_chapters() -> Array:
 	var out := []
 	for c in CHAPTERS:
+		if is_bestiary(str(c["id"])): continue   # the Bestiary wing is outside the body chapters' unlock chain
 		if installed_count(str(c["id"])) > 0: out.append(str(c["id"]))
 	return out
+
+## True for the chapters of the Bestiary wing (v0.5): open from the start, never gating a body chapter.
+static func is_bestiary(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "bestiary"
 
 ## A chapter opens when the spine of the previous chapter (that has levels) is passed, OR the spine of the chapter two before it is passed, so one stuck task
 ## never blocks the game. The first two chapters are open from the start. A task that sets on_spine false is a branch and never gates.
 static func chapter_open(ch: String) -> bool:
-	if unlock_all(): return true
+	if unlock_all() or is_bestiary(ch): return true
 	var pl := _playable_chapters(); var i := pl.find(ch)
 	if i < 2: return true   # (also true for a chapter with no levels yet)
 	return spine_passed(str(pl[i - 1])) or spine_passed(str(pl[i - 2]))
