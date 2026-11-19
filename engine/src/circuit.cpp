@@ -241,6 +241,45 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
     }
   }
 
+  if ( model == "diffusion_connection" )
+  {
+    // mean-field projection between siegert_neurons (0.6): weight = J (mV, the postsynaptic amplitude of one spike of the spiking network it stands for), K = the number
+    // of such inputs per cell. NEST's drift_factor = tau_m K J / 1000 and diffusion_factor = tau_m K J^2 / 1000 (Hahne et al. 2017, eqs. 28-29, tau_m of the target in ms; rates in 1/s).
+    if ( a.model != "siegert_neuron" or b.model != "siegert_neuron" )
+      fail( sub( spath, "synapse_model" ), "diffusion_connection joins siegert_neurons (the mean-field cell); '" + a.id + "' is " + a.model + ", '" + b.id + "' is " + b.model );
+    if ( pr.synapse.contains( "delay" ) )
+      fail( sub( spath, "delay" ), "a diffusion_connection is instantaneous: remove 'delay'" );
+    if ( pr.has_edges )
+      fail( path, "a diffusion_connection projection uses a rule (all_to_all or one_to_one), not edges" );
+    double J = 0, K = 1;
+    if ( not opt_number( pr.synapse, "weight", spath, J ) )
+      fail( sub( spath, "weight" ), "give weight: J, the postsynaptic amplitude in mV (negative for inhibition)" );
+    opt_number( pr.synapse, "K", spath, K );
+    if ( not( K > 0 ) )
+      fail( sub( spath, "K" ), "K, the number of inputs per cell, must be > 0" );
+    double tau_m = 10.0;  // NEST default of siegert_neuron
+    if ( b.params.is_object() and b.params.contains( "tau_m" ) and b.params[ "tau_m" ].is_number() )
+      tau_m = b.params[ "tau_m" ].get< double >();
+    pr.common[ "J" ] = J;
+    pr.common[ "K" ] = K;
+    pr.common[ "tau_m" ] = tau_m;
+    pr.synapse.erase( "weight" );
+    pr.synapse.erase( "K" );
+    pr.synapse[ "drift_factor" ] = tau_m * 1e-3 * K * J;
+    pr.synapse[ "diffusion_factor" ] = tau_m * 1e-3 * K * J * J;
+    return;
+  }
+  if ( model == "rate_connection_instantaneous" or model == "rate_connection_delayed" )
+  {
+    if ( not is_rate_model( a.model ) or not is_rate_model( b.model ) or a.model == "siegert_neuron" or b.model == "siegert_neuron" )
+      fail( sub( spath, "synapse_model" ), model + " joins rate neurons (lin_rate_ipn, tanh_rate_ipn, ...); '" + a.id + "' is " + a.model + ", '" + b.id + "' is " + b.model );
+    if ( model == "rate_connection_instantaneous" and pr.synapse.contains( "delay" ) )
+      fail( sub( spath, "delay" ), "rate_connection_instantaneous has no delay (use rate_connection_delayed)" );
+    return;
+  }
+  if ( is_rate_model( a.model ) or is_rate_model( b.model ) )
+    fail( sub( spath, "synapse_model" ), "rate neurons are joined by rate_connection_instantaneous / rate_connection_delayed (siegert_neuron: diffusion_connection), not " + model );
+
   if ( model == "gap_junction" )
   {
     pr.gap = true;
@@ -378,6 +417,8 @@ bool vm_init_range( const std::string& model, double e_l, double v_th, double& l
   hi = v_th;
   return v_th > e_l;
 }
+
+bool is_rate_model( const std::string& m ) { return m == "siegert_neuron" or m.find( "rate" ) != std::string::npos; }
 
 bool is_modulator_name( const std::string& s ) { return s == "NE" or s == "ACh" or s == "DA"; }
 
@@ -575,16 +616,32 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         const json& p = ( *it )[ i ];
         std::string path = at( "inputs", i );
         require_object( p, path );
-        check_keys( p, { "name", "kind", "targets", "weight", "value", "delay", "spike_times", "rate", "amplitude", "freq_hz", "phase" }, path );
+        check_keys( p, { "name", "kind", "targets", "weight", "value", "delay", "spike_times", "rate", "amplitude", "freq_hz", "phase", "rate_max", "rate_base", "kappa", "period_deg" }, path );
         InputSpec in;
         in.name = get_string( p, "name", path, true );
         if ( in.name.empty() or not names.insert( in.name ).second )
           fail( sub( path, "name" ), "must be non-empty and unique among inputs" );
         in.kind = get_string( p, "kind", path, true );
-        if ( in.kind != "dc" and in.kind != "poisson" and in.kind != "spike_generator" and in.kind != "sinusoidal_poisson" )
-          fail( sub( path, "kind" ), "unsupported input kind '" + in.kind + "' (supported: dc, poisson, spike_generator, sinusoidal_poisson)" );
+        if ( in.kind != "dc" and in.kind != "poisson" and in.kind != "spike_generator" and in.kind != "sinusoidal_poisson" and in.kind != "rate_drive" and in.kind != "tuned_poisson" )
+          fail( sub( path, "kind" ), "unsupported input kind '" + in.kind + "' (supported: dc, poisson, spike_generator, sinusoidal_poisson, rate_drive, tuned_poisson)" );
         parse_selector_list( c, need( p, "targets", path ), sub( path, "targets" ), in.targets );
         sort_unique( in.targets );
+        {  // rate neurons take only rate_drive; every other kind needs spiking (or current-driven) targets
+          auto pop_of = [ & ]( int32_t n ) -> const PopSpec& {
+            for ( const auto& q : c.pops )
+              if ( n >= q.first and n < q.first + q.n )
+                return q;
+            return c.pops.front();
+          };
+          for ( int32_t n : in.targets )
+          {
+            const bool rate = is_rate_model( pop_of( n ).model );
+            if ( rate and in.kind != "rate_drive" )
+              fail( sub( path, "targets" ), "'" + pop_of( n ).id + "' is a rate population: it takes input kind \"rate_drive\", not " + in.kind );
+            if ( not rate and in.kind == "rate_drive" )
+              fail( sub( path, "targets" ), "'" + pop_of( n ).id + "' is not a rate population: \"rate_drive\" drives rate neurons only" );
+          }
+        }
         in.weight = get_number( p, "weight", path, 1.0 );
         in.value = get_number( p, "value", path, 0.0 );
         in.delay = get_number( p, "delay", path, -1.0 );
@@ -598,6 +655,22 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           fail( sub( path, "value" ), sg ? "a spike_generator has no value: give \"spike_times\" (ms)" : "a sinusoidal_poisson input has no value: give \"rate\" (mean, Hz), \"amplitude\" (Hz), \"freq_hz\" and \"phase\" (degrees)" );
         if ( in.kind == "poisson" and in.value < 0 )
           fail( sub( path, "value" ), "rate must be >= 0" );
+        for ( const char* k : { "rate_max", "rate_base", "kappa", "period_deg" } )
+          if ( in.kind != "tuned_poisson" and p.contains( k ) )
+            fail( sub( path, k ), "only valid for kind \"tuned_poisson\"" );
+        if ( in.kind == "tuned_poisson" )
+        {
+          in.rate_max = get_number( p, "rate_max", path, in.rate_max );
+          in.rate_base = get_number( p, "rate_base", path, in.rate_base );
+          in.kappa = get_number( p, "kappa", path, in.kappa );
+          in.period_deg = get_number( p, "period_deg", path, in.period_deg );
+          if ( not( in.rate_base >= 0 and in.rate_max >= in.rate_base ) )
+            fail( sub( path, "rate_max" ), "need 0 <= rate_base <= rate_max (Hz)" );
+          if ( not( in.kappa >= 0 ) )
+            fail( sub( path, "kappa" ), "kappa (tuning sharpness) must be >= 0" );
+          if ( not( in.period_deg > 0 ) )
+            fail( sub( path, "period_deg" ), "period_deg must be > 0 (360 for a direction, 180 for an orientation)" );
+        }
         if ( sg )
         {
           if ( auto it = p.find( "spike_times" ); it != p.end() )
@@ -655,8 +728,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         if ( o.name.empty() or not names.insert( o.name ).second )
           fail( sub( path, "name" ), "must be non-empty and unique among outputs" );
         o.kind = get_string( p, "kind", path, false, "rate" );
-        if ( o.kind != "rate" and o.kind != "modulator" and o.kind != "population_vector" )
-          fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate, modulator, population_vector)" );
+        if ( o.kind != "rate" and o.kind != "modulator" and o.kind != "population_vector" and o.kind != "rate_value" )
+          fail( sub( path, "kind" ), "unsupported output kind '" + o.kind + "' (supported: rate, modulator, population_vector, rate_value)" );
         if ( o.kind == "modulator" )
         {
           o.modulator = get_string( p, "modulator", path, true );
@@ -682,6 +755,11 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         }
         else
           sort_unique( o.neurons );
+        if ( o.kind == "rate_value" )
+          for ( int32_t n : o.neurons )
+            for ( const auto& q : c.pops )
+              if ( n >= q.first and n < q.first + q.n and not is_rate_model( q.model ) )
+                fail( sub( path, "neurons" ), "rate_value reads rate neurons; '" + q.id + "' is " + q.model );
         c.outputs.push_back( std::move( o ) );
       }
     }
