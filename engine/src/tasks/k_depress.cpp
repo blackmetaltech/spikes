@@ -59,6 +59,7 @@ Spec spec()
     mb_windows( c );
     return c;
   };
+  s.timeline = []() -> std::vector< Task::Event > { return { { 500, 400, "odour A" }, { 1100, 400, "odour B" }, { 1900, 400, "odour A + punishment" }, { 2500, 400, "odour A + punishment" }, { 3300, 400, "odour A" }, { 3900, 400, "odour B" } }; };
   s.mech = []( const Graph& g ) -> std::string { return dopamine_gate_missing( g, "punish", "avoid", "odor_a" ); };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) { mb_judge( m, c, p, "avoid" ); };
   s.ok_verdict = "A memory: odour A, paired with punishment, now excites the avoidance cells much less, while odour B still excites them as before, through a dopamine-gated depression of the synapses of the odour that was active.";

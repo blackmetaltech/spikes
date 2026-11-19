@@ -91,8 +91,9 @@ struct Level
   const char* kind;
 };
 const Level kLevels[] = { { "c_ring", "fly_compass", "micro" }, { "c_shift", "fly_compass", "micro" }, { "fly_compass", "fly_compass", "task" },
-  { "k_sparse", "fly_mb", "micro" }, { "k_depress", "fly_mb", "micro" }, { "fly_mb", "fly_mb", "task" } };
-const char* kDx[][2] = { { "dx_compass", "fly_compass" }, { "dx_mb_apl", "fly_mb" }, { "dx_mb_dan", "fly_mb" } };
+  { "k_sparse", "fly_mb", "micro" }, { "k_depress", "fly_mb", "micro" }, { "fly_mb", "fly_mb", "task" },
+  { "s_pacemaker", "crab", "micro" }, { "s_phase", "crab", "micro" }, { "crab_pyloric", "crab", "task" } };
+const char* kDx[][2] = { { "dx_compass", "fly_compass" }, { "dx_mb_apl", "fly_mb" }, { "dx_mb_dan", "fly_mb" }, { "dx_crab", "crab" } };
 
 std::set< std::string > glossary_ids()
 {
@@ -140,7 +141,7 @@ void contract( const Level& L, const std::set< std::string >& gloss, bool is_dx 
     CHECK_MSG( !t->metrics().empty(), std::string( L.id ) + ": a quality metric" );
     if ( std::string( L.kind ) == "micro" )
     {
-      CHECK_MSG( t->duration_ms() <= 5000, std::string( L.id ) + ": micro episode <= 5 s" );
+      CHECK_MSG( t->duration_ms() <= 8000, std::string( L.id ) + ": micro episode <= 8 s (the crab rhythm needs several one-second cycles)" );
       CHECK_MSG( t->concepts_new().size() == 1, std::string( L.id ) + ": one new concept" );
     }
   }
@@ -228,6 +229,21 @@ int main( int argc, char** argv )
   // the campaign order: a chapter's micro-puzzles come before its task, the diagnosis case after
   CHECK( pos( "c_ring" ) < pos( "c_shift" ) && pos( "c_shift" ) < pos( "fly_compass" ) && pos( "fly_compass" ) < pos( "dx_compass" ) );
   CHECK( pos( "k_sparse" ) < pos( "k_depress" ) && pos( "k_depress" ) < pos( "fly_mb" ) && pos( "fly_mb" ) < pos( "dx_mb_apl" ) && pos( "dx_mb_apl" ) < pos( "dx_mb_dan" ) );
+  CHECK( pos( "s_pacemaker" ) < pos( "s_phase" ) && pos( "s_phase" ) < pos( "crab_pyloric" ) && pos( "crab_pyloric" ) < pos( "dx_crab" ) );
+
+  // ---- degeneracy: the second hand-picked parameter set gives the same pyloric pattern (docs/circuits/bestiary_b.md)
+  {
+    const json b = json::parse( chk::slurp( std::string( SPIKE_SOURCE_DIR ) + "/circuits/crab_pyloric_b.json" ) );
+    const json a = load_circuit( "crab_pyloric" );
+    CHECK_MSG( a[ "populations" ][ 2 ][ "params" ] != b[ "populations" ][ 2 ][ "params" ], "the degenerate set must differ from the reference in the LP parameters" );
+    for ( const char* mode : { "guided", "standard", "researcher" } )
+      for ( uint64_t seed = 1; seed <= 5; ++seed )
+      {
+        Result r = run_circuit( "crab_pyloric", b, seed, mode, false );
+        CHECK_MSG( r.loaded && r.score.passed, std::string( "crab_pyloric_b / " ) + mode + " seed " + std::to_string( seed ) + ": the degenerate parameter set fails: " + r.score.verdict );
+      }
+    std::printf( "crab_pyloric_b: the second parameter set passes too (degeneracy)\n" );
+  }
 
   // ---- diagnosis cases
   for ( const auto& d : kDx )

@@ -80,6 +80,10 @@ void Engine::step( double ms )
 }
 std::vector< Spike > Engine::drain_spikes() { return {}; }
 uint64_t Engine::dropped() const { return 0; }
+double Engine::output_count( const std::string& ) const { return 0.0; }   // stubs for the ring and distinct-cell readouts of the Bestiary B tasks (never driven here)
+double Engine::output_angle( const std::string& ) const { return 0.0; }
+double Engine::output_strength( const std::string& ) const { return 0.0; }
+const std::vector< int32_t >& Engine::output_spiked( const std::string& ) const { static const std::vector< int32_t > none; return none; }
 double Engine::output_rate( const std::string& ch ) const { auto it = impl_->out.find( ch ); return it == impl_->out.end() ? 0.0 : it->second; }
 void Engine::watch( int32_t ) {}
 double Engine::voltage( int32_t ) const { return 0; }

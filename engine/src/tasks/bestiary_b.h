@@ -70,7 +70,8 @@ constexpr int kWedges = 16;
 class Landmark : public Scripted
 {
 public:
-  using Scripted::Scripted;
+  /// `truth`: the fly's heading change (degrees) since the start at a time (ms) and for the quick (true) or full episode, for the compass gauge (readouts bump_deg, true_deg, bump_strength); empty = the heading stays at the landmark.
+  explicit Landmark( Spec s, std::function< double( double, bool ) > truth = nullptr ) : Scripted( std::move( s ) ), truth_( std::move( truth ) ) {}
   void reset( uint64_t seed ) override
   {
     Scripted::reset( seed );
@@ -83,7 +84,17 @@ public:
   }
 
 protected:
+  void on_observe() override
+  {
+    const double lm = 360.0 * wedge_ / kWedges;
+    readouts_[ "landmark_deg" ] = lm;
+    readouts_[ "true_deg" ] = std::fmod( lm + ( truth_ ? truth_( t_, quick_ ) : 0.0 ) + 7200.0, 360.0 );
+    readouts_[ "bump_deg" ] = meas_.vec_deg( "heading", std::max( 0.0, t_ - 100 ), t_ );
+    readouts_[ "bump_strength" ] = meas_.vec_strength( "heading", std::max( 0.0, t_ - 100 ), t_ );
+    readouts_[ "dark" ] = t_ > 500 ? 1.0 : 0.0;
+  }
   int wedge_ = 0;
+  std::function< double( double, bool ) > truth_;
 };
 inline std::vector< std::string > cue_family()
 {
@@ -234,5 +245,77 @@ inline void mb_judge( const Meas& m, std::vector< Crit >& c, std::map< std::stri
   c.push_back( { "specific", b0 > 0 && b1 >= sp * b0, b0 > 0 ? ramp( b1 / b0, 0, sp ) : 0.0,
     "The avoidance cells also answer odour B less after training: the memory is not specific to the punished odour. Only the synapses of the odour that was active may weaken: the odours' codes must not overlap (sparse code), and the dopamine alone must not weaken silent inputs." } );
 }
+
+
+// ---------------------------------------------------------------- the pyloric rhythm: bursts, cycles and phases
+struct Burst
+{
+  double t0, t1;  // first and last spike (ms)
+  int n;          // spikes
+};
+/// Bursts of a channel in [from, to) ms: runs of spikes separated by gaps of at most `gap` ms.
+inline std::vector< Burst > burst_list( const std::vector< float >& c, double from, double to, double gap )
+{
+  std::vector< Burst > out;
+  double last = -1e9;
+  for ( long k = static_cast< long >( from ); k < static_cast< long >( to ) && k < static_cast< long >( c.size() ); ++k )
+  {
+    const int n = static_cast< int >( c[ static_cast< size_t >( k ) ] + 0.5f );
+    if ( n <= 0 ) continue;
+    if ( out.empty() || static_cast< double >( k ) - last > gap ) out.push_back( { static_cast< double >( k ), static_cast< double >( k ), 0 } );
+    out.back().t1 = static_cast< double >( k );
+    out.back().n += n;
+    last = static_cast< double >( k );
+  }
+  return out;
+}
+/// Cycle statistics of the three-phase pattern: cycles are the intervals between successive onsets of the first channel's bursts; in each, the phases (onset and duty, as fractions of the cycle)
+/// of the other channels' bursts. `ok` cycles hold exactly one burst of each follower.
+struct Pyloric
+{
+  int cycles = 0, ok = 0;
+  double period = 0, period_cv = 0;
+  double duty_a = 0, on_b = 0, duty_b = 0, on_c = 0, duty_c = 0;
+};
+inline Pyloric pyloric_stats( const Meas& m, const std::string& a, const std::string& b, const std::string& c, double from, double to, double gap = 120 )
+{
+  Pyloric r;
+  auto ia = m.cnt.find( a ), ib = m.cnt.find( b ), ic = m.cnt.find( c );
+  if ( ia == m.cnt.end() || ib == m.cnt.end() || ic == m.cnt.end() ) return r;
+  const auto A = burst_list( ia->second, from, to, gap ), B = burst_list( ib->second, from, to, gap ), C = burst_list( ic->second, from, to, gap );
+  if ( A.size() < 3 ) return r;
+  std::vector< double > per;
+  for ( size_t i = 0; i + 1 < A.size(); ++i ) per.push_back( A[ i + 1 ].t0 - A[ i ].t0 );
+  double sum = 0, sq = 0;
+  for ( double x : per ) sum += x;
+  r.period = sum / static_cast< double >( per.size() );
+  for ( double x : per ) sq += ( x - r.period ) * ( x - r.period );
+  r.period_cv = r.period > 0 ? std::sqrt( sq / static_cast< double >( per.size() ) ) / r.period : 0.0;
+  r.cycles = static_cast< int >( per.size() );
+  for ( size_t i = 0; i + 1 < A.size(); ++i )
+  {
+    const double t0 = A[ i ].t0, t1 = A[ i + 1 ].t0, T = t1 - t0;
+    const Burst* pb = nullptr;
+    const Burst* pc = nullptr;
+    int nb = 0, nc = 0;
+    for ( const auto& x : B ) if ( x.t0 >= t0 && x.t0 < t1 ) { pb = &x; ++nb; }
+    for ( const auto& x : C ) if ( x.t0 >= t0 && x.t0 < t1 ) { pc = &x; ++nc; }
+    if ( nb != 1 || nc != 1 ) continue;
+    ++r.ok;
+    r.duty_a += ( A[ i ].t1 - A[ i ].t0 + 10 ) / T;
+    r.on_b += ( pb->t0 - t0 ) / T;
+    r.duty_b += ( pb->t1 - pb->t0 + 10 ) / T;
+    r.on_c += ( pc->t0 - t0 ) / T;
+    r.duty_c += ( pc->t1 - pc->t0 + 10 ) / T;
+  }
+  if ( r.ok > 0 )
+  {
+    const double n = r.ok;
+    r.duty_a /= n; r.on_b /= n; r.duty_b /= n; r.on_c /= n; r.duty_c /= n;
+  }
+  return r;
+}
+/// Models that cannot burst or rebound on their own (no slow currents).
+inline bool plain_cell( const std::string& m ) { return is_one_of( m, { "iaf_psc_alpha", "iaf_psc_exp", "iaf_psc_delta", "iaf_cond_alpha", "iaf_cond_exp", "parrot_neuron" } ); }
 
 }  // namespace spike::tasks::bestiary

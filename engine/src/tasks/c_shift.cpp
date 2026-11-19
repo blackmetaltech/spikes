@@ -33,6 +33,7 @@ Spec spec()
             "the fly is still, move to the right during a turn to the right, and move back during a turn to the left. A shifting group that listened only to the turn sensor would "
             "push everywhere on the ring; it must also need the bump, so that the push acts where the bump is.";
   i.chapter = "fly_compass";
+  i.view = "compass";
   i.sensors = cue_family();
   i.sensors.push_back( "turn_left" );
   i.sensors.push_back( "turn_right" );
@@ -63,6 +64,7 @@ Spec spec()
     c.wins = { { "cal", 350, 500 }, { "still", 1300, 1500 }, { "right", 2400, 2600 }, { "left", 3900, 4100 } };
     return c;
   };
+  s.timeline = []() -> std::vector< Task::Event > { return { { 0, 500, "landmark" }, { 1500, 700, "turn right" }, { 3000, 700, "turn left" } }; };
   s.mech = []( const Graph& g ) -> std::string {
     std::string r = ring_readout_missing( g, "heading" );
     if ( !r.empty() ) return r;
@@ -118,7 +120,7 @@ Spec spec()
 }
 }  // namespace
 
-std::unique_ptr< Task > make_c_shift() { return std::make_unique< Landmark >( spec() ); }
+std::unique_ptr< Task > make_c_shift() { return std::make_unique< Landmark >( spec(), []( double t, bool ) { return heading_change( { { 1500, 2200, 150 }, { 3000, 3700, -150 } }, t ); } ); }
 
 }  // namespace spike::tasks
 

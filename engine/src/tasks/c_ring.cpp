@@ -33,6 +33,7 @@ Spec spec()
             "the bump must still be there, in the same place. Cells that excite their neighbours keep each other firing; but excitation alone spreads round the whole ring. A cell "
             "that the ring excites, and that inhibits every ring cell, makes the bump compete with itself: one bump wins.";
   i.chapter = "fly_compass";
+  i.view = "compass";
   i.sensors = cue_family();
   i.motors = { "heading" };
   i.duration_ms = 3000;
@@ -58,6 +59,7 @@ Spec spec()
     c.wins = { { "form", 250, 400 }, { "hold1", 900, 1400 }, { "hold2", 2400, 2900 } };
     return c;
   };
+  s.timeline = []() -> std::vector< Task::Event > { return { { 0, 400, "landmark" }, { 1000, 0, "dark: hold" } }; };
   s.mech = []( const Graph& g ) -> std::string {
     std::string r = ring_readout_missing( g, "heading" );
     if ( !r.empty() ) return r;
