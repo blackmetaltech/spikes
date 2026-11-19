@@ -6,7 +6,7 @@ extends RefCounted
 ## draws the numbers: strip charts, the ECG (from the real beat times), the gauges of the dashboard. Everything draws onto a TaskView (a Control) `c`, inside
 ## rect `r`; history comes from Telemetry.hist.
 
-const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase"]
+const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase", "rates"]
 
 static func ro(t: Telemetry) -> Dictionary: return (t.body.get("readouts", {}) as Dictionary) if t != null else {}
 static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.get(k, dflt))
@@ -21,6 +21,7 @@ static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
 		"gut": _gut(c, t, r)
 		"compass": _compass(c, t, r)
 		"phase": _phase(c, t, r)
+		"rates": _rates(c, t, r)
 		_: _dashboard(c, t, r)
 
 # ---------------------------------------------------------------- readout names and units (G6)
@@ -615,6 +616,54 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 	c.draw_string(Fonts.regular, Vector2(P.position.x, ty), "sienna: voltage nullcline    blue: %s nullcline    filled point: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT_SOFT)
 	var txt := ("resting state: " + stable_kind) if stable_kind != "" else "no stable resting state at this current"
 	c.draw_string(Fonts.bold, Vector2(P.position.x, ty + float(fz) + 4.0), "current now %.3g pA   %s" % [float(pp["i_total"]), txt], HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT)
+
+# ---------------------------------------------------------------- rate units (v0.6, Theory wing)
+## The motor channels of a rate level as scrolling traces on one shared scale: a `rate_value` channel is the mean rate of rate units (arbitrary units, or spikes per second for a siegert
+## unit), an ordinary `rate` channel the smoothed firing rate of a spiking pool (Hz). History is kept here (telemetry meta), a sample every 5 ms of model time.
+static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
+	var fz := Kit.fs(14)
+	if t == null or t.sim == null or t.task == null: _empty(c, r, "Build the units: their rates appear here."); return
+	var motors: Array = t.task.motor_channels(); var kinds := {}
+	for o in t.sim.outputs(): kinds[str(o["name"])] = str(o["kind"])
+	if int(t.get_meta("rates_ep", -1)) != t.episode: t.set_meta("rates_ep", t.episode); t.set_meta("rates_h", {}); t.set_meta("rates_t", PackedFloat32Array())
+	var hist: Dictionary = t.get_meta("rates_h", {}); var ts: PackedFloat32Array = t.get_meta("rates_t", PackedFloat32Array())
+	if ts.is_empty() or t.t_ms - ts[ts.size() - 1] >= 5.0:
+		ts.append(t.t_ms)
+		for m in motors:
+			var v := float(t.sim.output_value(str(m))) if kinds.get(str(m), "") == "rate_value" else float(t.rates.get(str(m), 0.0))
+			var a: PackedFloat32Array = hist.get(str(m), PackedFloat32Array()); a.append(v); hist[str(m)] = a
+		if ts.size() > 1200:
+			ts = ts.slice(ts.size() - 1200)
+			for m in hist: hist[m] = (hist[m] as PackedFloat32Array).slice((hist[m] as PackedFloat32Array).size() - 1200)
+		t.set_meta("rates_h", hist); t.set_meta("rates_t", ts)
+	var y0 := r.position.y + _banner(c, t, r)
+	var P := Rect2(r.position.x + 56.0, y0 + 8.0, r.size.x - 70.0, r.end.y - y0 - 8.0 - float(fz) * 2.0 - 20.0)
+	if P.size.x < 60.0 or P.size.y < 40.0: return
+	var win := 3000.0; var t1 := t.t_ms; var t0 := t1 - win
+	var mx := 0.0; var mn := 0.0
+	for m in hist:
+		for v in (hist[m] as PackedFloat32Array): mx = maxf(mx, v); mn = minf(mn, v)
+	mx = maxf(mx * 1.1, 1.0 if mx < 1.5 else 0.0)
+	c.draw_rect(P, Color(Gfx.SHEET, 0.9)); c.draw_rect(P, Kit.INK, false, 1.4)
+	for k in 5:
+		var vv := mn + (mx - mn) * float(k) / 4.0; var py := P.end.y - (vv - mn) / maxf(mx - mn, 1e-6) * P.size.y
+		c.draw_line(Vector2(P.position.x, py), Vector2(P.end.x, py), Color(Kit.INK, 0.12), 1.0)
+		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), ("%d" % int(roundf(vv))) if mx >= 20.0 else ("%.1f" % vv), HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
+	var cols := [Kit.exc(), Kit.inh(), Kit.CYAN, Kit.AMBER]; var lx := P.position.x
+	var ly := P.end.y + float(fz) + 6.0
+	for mi in motors.size():
+		var m := str(motors[mi]); var a: PackedFloat32Array = hist.get(m, PackedFloat32Array()); var col: Color = cols[mi % cols.size()]
+		var q := PackedVector2Array()
+		for j in ts.size():
+			if ts[j] < t0 or j >= a.size(): continue
+			q.append(Vector2(P.position.x + (ts[j] - t0) / win * P.size.x, P.end.y - clampf((a[j] - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
+		if q.size() >= 2: c.draw_polyline(q, col, 2.4, true)
+		var cur := a[a.size() - 1] if not a.is_empty() else 0.0
+		var lab := "%s %s" % [m, ("%d Hz" % int(roundf(cur))) if (kinds.get(m, "") != "rate_value" or mx >= 20.0) else "%.2f" % cur]
+		c.draw_line(Vector2(lx, ly - 5.0), Vector2(lx + 22.0, ly - 5.0), col, 3.0)
+		c.draw_string(Fonts.bold, Vector2(lx + 28.0, ly), lab, HORIZONTAL_ALIGNMENT_LEFT, 220.0, fz, Kit.TEXT)
+		lx += 28.0 + Fonts.bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 22.0
+	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 330.0, ly), "last 3 s, rate units in arbitrary units", HORIZONTAL_ALIGNMENT_RIGHT, 326.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- dashboard
 ## Gauges for every judged trace (the arc is the tolerance band, the needle the value, green inside it and red outside, with a sparkline of the last 20 s), then

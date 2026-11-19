@@ -39,11 +39,11 @@ static void test_static_data()
     CHECK_MSG( ids.insert( m.id ).second, "duplicate id " + m.id );
     CHECK_MSG( not m.title.empty() and m.summary.size() > 60 and not m.examples.empty() and not m.source.empty(), m.id );
     CHECK_MSG( m.ei == "excitatory" or m.ei == "inhibitory" or m.ei == "either", m.id );
-    CHECK_MSG( m.input_weight != 0 and m.drive.levels.size() >= 5 and ( m.drive.kind == "dc" or m.drive.kind == "poisson" ), m.id );
+    CHECK_MSG( m.input_weight != 0 and m.drive.levels.size() >= 5 and ( m.drive.kind == "dc" or m.drive.kind == "poisson" or m.drive.kind == "rate_drive" ), m.id );
     // default weight: a measured value with a unit (the parrot relay repeats every spike whatever the weight, so it is unit-free)
-    CHECK_MSG( m.id == "parrot_neuron" or m.weight_unit == "pA" or m.weight_unit == "nS" or m.weight_unit == "mV" or m.weight_unit == "x g_peak", m.id + ": weight unit" );
+    CHECK_MSG( m.id == "parrot_neuron" or m.drive.kind == "rate_drive" or m.weight_unit == "pA" or m.weight_unit == "nS" or m.weight_unit == "mV" or m.weight_unit == "x g_peak", m.id + ": weight unit" );
     if ( m.model == "izhikevich" or m.nestml )
-      CHECK_MSG( m.input_weight != 1.0 or m.id == "pp_psc_delta", m.id + ": placeholder default weight" );
+      CHECK_MSG( m.input_weight != 1.0 or m.id == "pp_psc_delta" or m.id == "iaf_psc_delta" or m.drive.kind == "rate_drive", m.id + ": placeholder default weight" );
     for ( const CatalogParam& p : m.params )
       CHECK_MSG( p.lo <= p.def and p.def <= p.hi and not p.desc.empty(), m.id + "." + p.name );
   }
@@ -103,6 +103,17 @@ static void test_cards_behave()
   {
     if ( m.nestml )
       continue;
+    if ( m.drive.kind == "rate_drive" )
+    {
+      // a rate card: the steady rate grows with the drive level (siegert: the drive level is its own `mean`)
+      CHECK_MSG( e.load( catalog_circuit_json( m, m.drive.levels.back() ) ), m.id + ": " + e.error() );
+      for ( int i = 0; i < 400; ++i ) e.step( 1.0 );
+      CHECK_MSG( e.output_value( "out" ) > 0.05, m.id + ": no rate at the top drive level" );
+      CHECK_MSG( e.load( catalog_circuit_json( m, 0.0 ) ), m.id + ": " + e.error() );
+      for ( int i = 0; i < 400; ++i ) e.step( 1.0 );
+      CHECK_MSG( std::fabs( e.output_value( "out" ) ) < 0.05, m.id + ": rate with no drive" );
+      continue;
+    }
     const double top = m.drive.levels.back();
     auto hi = spike_times( e, m, top, 1000 );
     CHECK_MSG( hi.size() > 5, m.id + ": no firing at the top drive level" );

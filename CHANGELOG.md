@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] - 0.6 Theory wing, chapter 2: rate models and mean field
+
+- Three levels: `r_oscillate` (Wilson-Cowan pair), `r_choose` (winner take all with a held choice), `r_meanfield` (a spiking E-I network and its siegert mean-field prediction, scored on agreement at three drive levels).
+- Rate units in the lab: parts-bin cards (`threshold_lin_rate_ipn`, `tanh_rate_ipn`, `siegert_neuron`, `iaf_psc_delta`), rate connections with no delay, a mean-field projection with J and K, rate-readout channels, a rate-strip raster instead of spikes for a circuit of rate units, a rates chart as the level view.
+- Catalog probe for rate cards (steady rate against drive); `test_catalog` knows them. Lab: random sparse wiring (fixed in-degree up to 100) in the rates and memory chapters.
+
 ## [Unreleased] - 0.6 Theory wing, chapter 1: dynamics
 
 - New campaign wing "Theory" (third tab row, open from the start): `docs/DESIGN-THEORY.md`. First chapter, dynamics: `d_class` (class I and II, f-I onset), `d_phasic` (a stable fixed point that ends firing), `d_switch` (one neuron, two stable states, set and reset pulses).

@@ -30,6 +30,30 @@ std::string catalog_probe_json( const std::string& id )
   try
   {
     Engine e;
+    if ( m->drive.kind == "rate_drive" )
+    {
+      // rate models: the "f-I" points are the steady rate (rate_value) at each drive level; there is no voltage trace
+      json rfi = json::array();
+      for ( double level : m->drive.levels )
+      {
+        if ( not e.load( catalog_circuit_json( *m, level ) ) )
+        {
+          out[ "error" ] = e.error();
+          return out.dump();
+        }
+        e.step( kRunMs );
+        if ( not e.last_step_ok() )
+        {
+          out[ "error" ] = e.error();
+          return out.dump();
+        }
+        rfi.push_back( { { "level", level }, { "rate_hz", round_to( e.output_value( "out" ), 0.001 ) } } );
+      }
+      out[ "fi" ] = rfi;
+      out[ "trace" ] = { { "level", m->drive.levels.empty() ? 0.0 : m->drive.levels.back() }, { "t0_ms", kSkipMs }, { "dt_ms", kTraceDt }, { "v_mV", json::array() }, { "spikes_ms", json::array() } };
+      out[ "available" ] = true;
+      return out.dump();
+    }
     json fi = json::array();
     double best = 1e18, best_level = m->drive.levels.empty() ? 0.0 : m->drive.levels.back();
     for ( double level : m->drive.levels )

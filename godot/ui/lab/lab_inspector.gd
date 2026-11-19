@@ -226,7 +226,8 @@ func inspect_proj(i: int, small: int) -> void:
 	var unit := Catalog.unit_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else "pA"
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); add(r1)
 	var cur_syn := Circuits.proj_model(pr)
-	if cur_syn != "static_synapse": r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; lab._on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
+	var rate_syn := ["rate_connection_instantaneous", "rate_connection_delayed", "diffusion_connection"].has(cur_syn)
+	if cur_syn != "static_synapse" and not rate_syn: r1.add_child(Kit.stepper([["static_synapse", "static"], [cur_syn, cur_syn.replace("_synapse", "")]], cur_syn, func(m): var s: Dictionary = pr.get("synapse", {}); s["synapse_model"] = str(m); pr["synapse"] = s; lab._on_structure(), 190.0 if not Layout.phone else 150.0, 18, 40.0))
 	r1.add_child(Kit.btn("E / I", func(): Circuits.set_proj_weight(pr, -Circuits.proj_weight(pr)); lab._on_structure(); build(), "panel", 18))
 	r1.add_child(Kit.btn("Delete", func(): lab.editor.delete_selected(), "danger", 18))
 	if Campaign.chapter_of(lab.task_id) == "aplysia": _aplysia_synapse(pr, i, small)
@@ -238,18 +239,21 @@ func inspect_proj(i: int, small: int) -> void:
 		var wiring := Circuits.proj_wiring(pr); var off := Circuits.segment_offset(pr)
 		var ch_id := Campaign.chapter_of(lab.task_id); var ring := ch_id == "fly_compass"; var mb := ch_id == "fly_mb"
 		var modes := [["all", "every pair"], ["segment", "neuron k to k"]]
-		if mb: modes.append(["random", "random few inputs"])
+		if mb or ch_id == "rates" or ch_id == "memory": modes.append(["random", "random few inputs"])
 		wr.add_child(Kit.label("wiring", small, Kit.TEXT_SOFT))
 		wr.add_child(Kit.stepper(modes, wiring, func(m): Circuits.set_wiring(circuit, pr, str(m), 0, ring); lab._on_structure(); build(), 330.0 if not Layout.phone else 240.0, 18, 40.0))
 		if wiring == "segment":
 			wr.add_child(Kit.label("shift", small, Kit.TEXT_SOFT))
 			wr.add_child(Kit.stepper([[-2, "-2"], [-1, "-1"], [0, "0"], [1, "+1"], [2, "+2"]], str(off), func(o): Circuits.set_wiring(circuit, pr, "segment", int(o), ring); lab._on_structure(); build(), 64.0, 18, 40.0))
-		if wiring == "random": add(val_row("inputs per cell", 1.0, 12.0, 1.0, float(pr.get("indegree", 4)), "", func(x): pr["indegree"] = int(x); lab._on_structure(), 0))
+		if wiring == "random": add(val_row("inputs per cell", 1.0, 100.0 if Campaign.chapter_of(lab.task_id) == "rates" else 12.0, 1.0, float(pr.get("indegree", 4)), "", func(x): pr["indegree"] = int(x); lab._on_structure(), 0))
 		if wiring == "random": add(Kit.label("Random sparse wiring: each cell of %s listens to just this many cells of %s, picked at random (a fresh draw for every circuit seed)." % [post, pre], small, Kit.TEXT_SOFT, true))
 		else: add(Kit.label("Segment wiring connects neuron k of %s to neuron k%s of %s, one synapse per segment%s, instead of all %d x %d pairs." % [pre, ("" if off == 0 else " %+d" % off), post, ("; the ends of a ring are joined" if ring else ""), na, nb], small, Kit.TEXT_SOFT, true))
 	add(val_row("weight", 0.0, wmax, wmax / 200.0, absf(w), unit, func(x): Circuits.set_proj_weight(pr, x * (-1.0 if Circuits.proj_weight(pr) < 0.0 else 1.0)); lab._on_structure(), -1, true))
-	add(val_row("delay", 0.0, Circuits.DELAY_MAX, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, maxf(0.1, snappedf(x, 0.1))); lab._on_structure(), -1, true))
-	if pr.get("synapse", {}).get("synapse_model", "static_synapse") != "gap_junction":
+	if cur_syn == "diffusion_connection":   # v0.6 mean-field projection: weight is J (mV), K the number of such inputs per cell
+		add(val_row("K inputs", 1.0, 200.0, 1.0, float(pr.get("synapse", {}).get("K", 1.0)), "per cell", func(x): var sy: Dictionary = pr.get("synapse", {}); sy["K"] = maxf(1.0, snappedf(x, 1.0)); pr["synapse"] = sy; lab._on_structure(), 0))
+		add(Kit.label("A mean-field projection: J (the weight) is the size of one input in mV of the spiking network it stands for (negative for inhibition), K how many such inputs each cell gets. The mean input grows with J K r, its variance with J squared K r.", small, Kit.TEXT_SOFT, true))
+	if not rate_syn: add(val_row("delay", 0.0, Circuits.DELAY_MAX, 0.1, Circuits.proj_delay(pr), "ms", func(x): Circuits.set_proj_delay(pr, maxf(0.1, snappedf(x, 0.1))); lab._on_structure(), -1, true))
+	if cur_syn != "gap_junction" and not rate_syn:
 		add(val_row("spread", 0.0, 100.0, 1.0, float(pr.get("weight_cv", 0.0)) * 100.0, "%", func(x): Circuits.set_proj_spread(pr, snappedf(x, 1.0) * 0.01); lab._on_structure(), 0))
 		add(Kit.label("Spread: each synapse of this axon gets its own weight, varying by this much around the value above (fixed by the circuit seed; “Test x5” draws it again for every seed). A circuit that only works with identical weights fails here.", small, Kit.TEXT_SOFT, true))
 
@@ -349,14 +353,18 @@ func inspect_channel(key: String, name: String, small: int) -> void:
 				fr.add_child(Kit.ident(Kit.btn("Wire %s (%d) to all" % [pid, fnames.size()] if not is_in else "Wire all to %s" % pid, func(): Circuits.wire_family(circuit, key, name, pid); lab._on_structure(); build(), "cyan", 18), "BtnWireAll"))
 	if is_in:
 		var kind := str(ch.get("kind", "dc")); var unit := "pA" if kind == "dc" else "Hz"
-		add(Kit.stepper([["poisson", "Poisson spikes"], ["dc", "DC current"]], kind, func(k):
-			ch["kind"] = str(k); var tm0 := "iaf_psc_alpha"
-			if not tg.is_empty():
-				var tp0 := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
-				if tp0 >= 0: tm0 = str(circuit["populations"][tp0].get("model", tm0))
-			ch["weight"] = Circuits.input_weight(tm0, str(k)); lab._on_structure(); build(), 250.0 if not Layout.phone else 200.0, 18, 40.0))
-		var wunit := "pA"; var wmax := Circuits.input_wmax_for("", kind, lab.task_id) if kind == "dc" else maxf(1500.0, Circuits.input_wmax_for("", kind, lab.task_id))   # a dc input is a current: pA of drive per unit of value, whatever the cell
-		if not tg.is_empty() and kind != "dc":
+		if kind == "rate_drive": add(Kit.label("A rate drive: the level the task sets is written to the drive of the rate units it reaches (times the weight below).", small, Kit.TEXT_SOFT, true))
+		elif kind == "tuned_poisson": add(Kit.label("A tuned input: the task sets a stimulus angle, and each cell it reaches fires at a rate that depends on how far its preferred angle is from the stimulus.", small, Kit.TEXT_SOFT, true))
+		else:
+			add(Kit.stepper([["poisson", "Poisson spikes"], ["dc", "DC current"]], kind, func(k):
+				ch["kind"] = str(k); var tm0 := "iaf_psc_alpha"
+				if not tg.is_empty():
+					var tp0 := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
+					if tp0 >= 0: tm0 = str(circuit["populations"][tp0].get("model", tm0))
+				ch["weight"] = Circuits.input_weight(tm0, str(k)); lab._on_structure(); build(), 250.0 if not Layout.phone else 200.0, 18, 40.0))
+		var wunit := "pA"; var wmax := Circuits.input_wmax_for("", kind, lab.task_id) if kind == "dc" else maxf(1500.0, Circuits.input_wmax_for("", kind, lab.task_id))
+		if kind == "rate_drive": wunit = ""; wmax = 5.0   # a dc input is a current: pA of drive per unit of value, whatever the cell
+		if not tg.is_empty() and kind != "dc" and kind != "rate_drive":
 			var tpi := Circuits.pop_index(circuit, Circuits.proj_pop(tg[0]))
 			if tpi >= 0:
 				var tm := str(circuit["populations"][tpi].get("model", ""))
@@ -376,6 +384,9 @@ func inspect_output_kind(ch: Dictionary, small: int) -> void:
 	if tele != null and tele.task != null:
 		var kk := Circuits.task_channel_kinds(lab.task_id, tele.task); var wk: Dictionary = (kk["outputs"] as Dictionary).get(str(ch.get("name", "")), {})
 		if str(wk.get("kind", "rate")) == "modulator": wanted = str(wk.get("modulator", ""))
+	if kind == "rate_value":   # v0.6: the mean rate of rate units; nothing to choose
+		add(Kit.label("Rate readout: the mean rate of the rate units connected to this channel (arbitrary units, or spikes per second for a mean-field unit).", small, Kit.TEXT_SOFT, true))
+		return
 	var r := HFlowContainer.new(); r.add_theme_constant_override("h_separation", 10); r.add_theme_constant_override("v_separation", 6); add(r)
 	var ring_task := false
 	if tele != null and tele.task != null:

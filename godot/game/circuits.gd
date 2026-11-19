@@ -313,6 +313,7 @@ static func task_channel_kinds(tid: String, task: Variant = null) -> Dictionary:
 static func _out_kind(ch: Dictionary, keep_tuning := true) -> Dictionary:
 	var k := str(ch.get("kind", "rate"))
 	if k == "population_vector": return {"kind": "population_vector"}
+	if k == "rate_value": return {"kind": "rate_value"}
 	if k != "modulator": return {"kind": "rate"}
 	return {"kind": "modulator", "modulator": str(ch.get("modulator", "NE")), "gain": float(ch.get("gain", MOD_GAIN)) if keep_tuning else MOD_GAIN, "tau_ms": float(ch.get("tau_ms", MOD_TAU)) if keep_tuning else MOD_TAU}
 
@@ -352,6 +353,9 @@ static func set_output_kind(ch: Dictionary, kind: String, modulator := "NE", gai
 		ch["kind"] = "modulator"; ch["modulator"] = modulator; ch["gain"] = gain; ch["tau_ms"] = tau_ms
 	elif kind == "population_vector":   # v0.5 ring readout: the bump angle over the cells in the order listed
 		ch["kind"] = "population_vector"
+		for k in ["modulator", "gain", "tau_ms"]: ch.erase(k)
+	elif kind == "rate_value":   # v0.6: the mean rate of rate units (population rates, no spikes)
+		ch["kind"] = "rate_value"
 		for k in ["modulator", "gain", "tau_ms"]: ch.erase(k)
 	else:
 		ch["kind"] = "rate"
@@ -489,9 +493,14 @@ static func add_noise(c: Dictionary) -> String:
 	c["inputs"].append({"name": name, "kind": "poisson", "targets": [], "weight": input_weight("iaf_psc_alpha", "poisson") * 0.5, "value": 30.0})
 	return name
 
+## v0.6: NEST rate models and the siegert mean-field unit (engine/src/circuit.cpp is_rate_model): population rates, no spikes.
+static func is_rate_model(model: String) -> bool: return model == "siegert_neuron" or model.contains("rate")
+
 static func default_weight(c: Dictionary, pre: String, post: String) -> float:
 	var pi := pop_index(c, post); var model := "iaf_psc_alpha"
 	if pi >= 0: model = str(c["populations"][pi].get("model", model))
+	if model == "siegert_neuron": return -0.1 if str(kinds(c).get(pre, "E")) == "I" else 0.1   # J in mV
+	if is_rate_model(model): return -1.0 if str(kinds(c).get(pre, "E")) == "I" else 1.0         # gain of one unit onto another
 	var w: float = weight_of(model)
 	return -w if str(kinds(c).get(pre, "E")) == "I" else w
 
@@ -499,6 +508,14 @@ static func add_projection(c: Dictionary, pre: String, post: String) -> int:
 	for i in c["projections"].size():   # one projection per ordered pair in the editor
 		var p: Dictionary = c["projections"][i]
 		if proj_pop(p.get("pre", "")) == pre and proj_pop(p.get("post", "")) == post: return i
+	var a := pop_index(c, pre); var b := pop_index(c, post)
+	var ma := str(c["populations"][a].get("model", "")) if a >= 0 else ""; var mb := str(c["populations"][b].get("model", "")) if b >= 0 else ""
+	if is_rate_model(ma) and is_rate_model(mb):   # rate units are joined by rate connections (siegert units by a mean-field projection of weight J and K inputs per cell), which have no delay
+		var syn := {"synapse_model": "diffusion_connection", "weight": default_weight(c, pre, post), "K": 1.0} if ma == "siegert_neuron" and mb == "siegert_neuron" else {"synapse_model": "rate_connection_instantaneous", "weight": default_weight(c, pre, post)}
+		var pr := {"pre": pre, "post": post, "rule": "all_to_all", "synapse": syn}
+		if pre == post: pr["allow_autapses"] = true
+		c["projections"].append(pr)
+		return c["projections"].size() - 1
 	c["projections"].append({"pre": pre, "post": post, "rule": "all_to_all", "synapse": {"synapse_model": "static_synapse", "weight": default_weight(c, pre, post), "delay": 2.0}})
 	return c["projections"].size() - 1
 
@@ -547,13 +564,14 @@ static func set_n(c: Dictionary, id: String, n: int) -> void:
 ## Every neuron the circuit's voltage list names (global indices), else the first neuron of each population (at most 4).
 static func default_watch(c: Dictionary) -> Array:
 	var out := []
+	var rate_pop := func(pi: int) -> bool: return is_rate_model(str(c["populations"][pi].get("model", "")))   # rate units have no membrane voltage to trace
 	for v in c.get("record", {}).get("voltage", []):
 		var pi := pop_index(c, proj_pop(v)); if pi < 0: continue
 		var idx: Array = v.get("idx", [0]) if v is Dictionary else [0]
 		for k in idx: out.append(pop_first(c, pi) + int(k))
 	if out.is_empty():
 		for pi in c.get("populations", []).size():
-			out.append(pop_first(c, pi))
+			if not rate_pop.call(pi): out.append(pop_first(c, pi))
 	return out.slice(0, 4)
 
 # ---------- v0.3: the critical path, candidate lesions, the guilty element ----------

@@ -68,4 +68,60 @@ inline std::string need_two_variables()
 }
 /// The largest current the onset scan looks at (in the model's own current unit: pA for aeif, the model's units for Izhikevich).
 inline double scan_max( const std::string& model ) { return model == "izhikevich" ? 100.0 : 3000.0; }
+
+// ---------------------------------------------------------------- rate units (rates chapter)
+inline bool is_rate_model( const std::string& m ) { return m == "siegert_neuron" || m.find( "rate" ) != std::string::npos; }
+inline bool all_rate( const Graph& g, const std::vector< int >& pops )
+{
+  if ( pops.empty() ) return false;
+  for ( int p : pops )
+    if ( !is_rate_model( g.pop( p ).model ) ) return false;
+  return true;
+}
+inline std::string need_rate_units( const std::string& what )
+{
+  return "This level is about " + what + ", so the cells have to be rate units (a population as one number), not spiking cells: add a rate unit from the parts bin and read the motor channels from it.";
+}
+/// Times (ms, linearly interpolated) at which the series `v` over [t0, t1) crosses `mid` upwards, with a hysteresis of `hyst` so that ripple does not count.
+inline std::vector< double > up_crossings( const std::vector< float >& v, double t0, double t1, double mid, double hyst )
+{
+  std::vector< double > out;
+  bool low = false;
+  for ( long k = std::max( 0L, static_cast< long >( t0 ) ) + 1; k < static_cast< long >( t1 ) && k < static_cast< long >( v.size() ); ++k )
+  {
+    if ( v[ static_cast< size_t >( k ) ] < mid - hyst ) low = true;
+    if ( low && v[ static_cast< size_t >( k - 1 ) ] < mid && v[ static_cast< size_t >( k ) ] >= mid )
+    {
+      const double a = v[ static_cast< size_t >( k - 1 ) ], b = v[ static_cast< size_t >( k ) ];
+      out.push_back( static_cast< double >( k - 1 ) + ( b > a ? ( mid - a ) / ( b - a ) : 0.0 ) );
+      low = false;
+    }
+  }
+  return out;
+}
+/// The lag (ms, 0 .. max_lag) at which series `y` best follows series `x` over [t0, t1): the maximum of the correlation of x(t - lag) with y(t).
+inline double best_lag( const std::vector< float >& x, const std::vector< float >& y, double t0, double t1, double max_lag )
+{
+  double best = -2, bl = 0;
+  const long a = static_cast< long >( t0 ) + static_cast< long >( max_lag ), b = std::min( static_cast< long >( t1 ), static_cast< long >( std::min( x.size(), y.size() ) ) );
+  if ( b <= a + 10 ) return 0;
+  for ( long lag = 0; lag <= static_cast< long >( max_lag ); ++lag )
+  {
+    double mx = 0, my = 0;
+    for ( long k = a; k < b; ++k ) { mx += x[ static_cast< size_t >( k - lag ) ]; my += y[ static_cast< size_t >( k ) ]; }
+    mx /= static_cast< double >( b - a );
+    my /= static_cast< double >( b - a );
+    double sxy = 0, sxx = 0, syy = 0;
+    for ( long k = a; k < b; ++k )
+    {
+      const double dx = x[ static_cast< size_t >( k - lag ) ] - mx, dy = y[ static_cast< size_t >( k ) ] - my;
+      sxy += dx * dy;
+      sxx += dx * dx;
+      syy += dy * dy;
+    }
+    const double c = sxx > 1e-12 && syy > 1e-12 ? sxy / std::sqrt( sxx * syy ) : 0.0;
+    if ( c > best ) { best = c; bl = static_cast< double >( lag ); }
+  }
+  return bl;
+}
 }  // namespace spike::tasks::tl

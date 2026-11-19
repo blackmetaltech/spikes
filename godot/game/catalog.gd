@@ -14,7 +14,8 @@ const UNLOCK := {"iaf_psc_alpha": "invertebrates", "aeif_cond_alpha": "invertebr
 	"izhikevich_RS": "invertebrates", "izhikevich_FS": "invertebrates", "izhikevich_IB": "invertebrates", "izhikevich_CH": "invertebrates", "izhikevich_LTS": "spinal", "izhikevich_TC": "breathing", "izhikevich_RZ": "breathing",
 	"iaf_cond_exp": "spinal", "iaf_cond_exp_sfa_rr": "spinal", "aeif_cond_exp": "spinal", "hh_cond_exp_traub": "spinal", "mat2_psc_exp": "spinal", "gif_cond_exp": "spinal", "spindle_afferent": "spinal",
 	"sa_node_pacemaker": "heart", "sa_node": "heart", "pp_psc_delta": "heart", "hh_psc_alpha_gap": "heart", "hh_cond_beta_gap_traub": "heart",
-	"ht_neuron": "breathing", "butera_burster": "breathing", "pbc_burster": "breathing", "icc_slow_wave": "autonomic", "stg_cell": "crab"}
+	"ht_neuron": "breathing", "butera_burster": "breathing", "pbc_burster": "breathing", "icc_slow_wave": "autonomic", "stg_cell": "crab",
+	"iaf_psc_delta": "rates", "threshold_lin_rate_ipn": "rates", "tanh_rate_ipn": "rates", "siegert_neuron": "rates"}
 
 ## Built-in cards for an extension that has no catalog_json(): model -> {title, desc, examples, params [[label, value, unit]]}. Values are NEST's defaults.
 const CARDS := {
@@ -161,6 +162,8 @@ static func input_weight_of(model: String) -> float:
 static func unit_of(model: String) -> String:
 	for c in cards_of(model):
 		if str(c["weight_unit"]) != "": return str(c["weight_unit"])
+	if model == "siegert_neuron": return "mV"   # the J of a mean-field projection
+	if Circuits.is_rate_model(model): return ""
 	return "nS" if model.contains("cond") else "pA"
 
 ## "Advanced" parameter rows from the first card of `model`: [key, label, min, max, step, default, unit], as Circuits.ADVANCED has them.
