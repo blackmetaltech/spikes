@@ -1,0 +1,117 @@
+{
+ "schema_version": 1,
+ "name": "Two populations that make a rhythm",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "E",
+   "model": "threshold_lin_rate_ipn",
+   "n": 1,
+   "params": {
+    "tau": 10.0,
+    "sigma": 0.0,
+    "g": 1.0,
+    "theta": 0.0,
+    "alpha": 1.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     220,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "I",
+   "model": "threshold_lin_rate_ipn",
+   "n": 1,
+   "params": {
+    "tau": 20.0,
+    "sigma": 0.0,
+    "g": 1.0,
+    "theta": 0.0,
+    "alpha": 1.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     120
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "E",
+   "post": "E",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": 5.0
+   },
+   "allow_autapses": true
+  },
+  {
+   "pre": "E",
+   "post": "I",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": 0.8
+   }
+  },
+  {
+   "pre": "I",
+   "post": "E",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": -6.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "drive",
+   "kind": "rate_drive",
+   "targets": [
+    {
+     "pop": "E"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.2
+  }
+ ],
+ "outputs": [
+  {
+   "name": "e",
+   "kind": "rate_value",
+   "neurons": [
+    {
+     "pop": "E"
+    }
+   ]
+  },
+  {
+   "name": "i",
+   "kind": "rate_value",
+   "neurons": [
+    {
+     "pop": "I"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "r_oscillate",
+  "notes": "docs/circuits/theory.md"
+ }
+}

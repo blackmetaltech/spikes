@@ -49,4 +49,63 @@
   CHEAP_ROW( "d_switch", "'reset' pulse far too weak (x0.05)", cheap::from_ref( "d_switch", cheap::scale_input( "reset", 0.05 ) ) );
   CHEAP_ROW( "d_switch", "reset adds a lot to the recovery variable (d 8): firing cannot persist", cheap::from_ref( "d_switch", cheap::set_params( "N", { { "d", 8.0 } } ) ) );
   CHEAP_ROW( "d_switch", "holding current too low (x0.2): 'set' cannot start firing", cheap::from_ref( "d_switch", cheap::scale_input( "hold", 0.2 ) ) );
+
+  // ---- rates ----
+  // (the rate levels' sensors drive rate units only, so the one-cell rows use the rate unit the level opens on; a spiking cell would not even load)
+  for ( const char* t : { "r_oscillate", "r_choose" } )
+  {
+    CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
+    CHEAP_ROW( t, "one rate unit, first-connect weights", cheap::single_cell( t ) );
+    CHEAP_ROW( t, "reference with every weight 0", zero_f( t ) );
+  }
+  CHEAP_ROW_V( "r_oscillate", "reference minus I > E (nothing shuts the excitation down)", "negative", cheap::from_ref( "r_oscillate", cut_f( "I", "E" ) ) );
+  CHEAP_ROW_V( "r_oscillate", "reference minus E > E (no self-excitation)", "excite itself", cheap::from_ref( "r_oscillate", cut_f( "E", "E" ) ) );
+  CHEAP_ROW_V( "r_oscillate", "reference minus E > I", "inhibitory one", cheap::from_ref( "r_oscillate", cut_f( "E", "I" ) ) );
+  CHEAP_ROW( "r_oscillate", "loop far too weak (self-excitation x0.3)", cheap::from_ref( "r_oscillate", cut_f( "E", "E", 0.3 ) ) );
+  CHEAP_ROW( "r_oscillate", "inhibition far too weak (x0.2)", cheap::from_ref( "r_oscillate", cut_f( "I", "E", 0.2 ) ) );
+  CHEAP_ROW( "r_oscillate", "drive five times too strong: the rate sits at its ceiling", cheap::from_ref( "r_oscillate", cheap::scale_input( "drive", 5.0 ) ) );
+  CHEAP_ROW( "r_oscillate", "no drive wired", cheap::from_ref( "r_oscillate", cheap::scale_input( "drive", 0.0 ) ) );
+  CHEAP_ROW( "r_oscillate", "inhibition as fast as excitation (I tau 10) and weak self-excitation", cheap::from_ref( "r_oscillate", cheap::both( cheap::set_params( "I", { { "tau", 10.0 } } ), cut_f( "E", "E", 0.5 ) ) ) );
+  CHEAP_ROW_V( "r_oscillate", "both motors read the excitatory unit", "same unit", [] {
+    json c = cheap::reference( "r_oscillate" );
+    for ( auto& o : c[ "outputs" ] ) o[ "neurons" ] = json::array( { { { "pop", "E" } } } );
+    return c;
+  }() );
+
+  CHEAP_ROW_V( "r_choose", "reference minus the self-excitation (A > A, B > B)", "excite itself", cheap::from_ref( "r_choose", cheap::both( cut_f( "A", "A" ), cut_f( "B", "B" ) ) ) );
+  CHEAP_ROW_V( "r_choose", "reference minus the mutual inhibition", "inhibit each other", cheap::from_ref( "r_choose", cheap::both( cut_f( "A", "B" ), cut_f( "B", "A" ) ) ) );
+  CHEAP_ROW_V( "r_choose", "reference minus B > A (one-way inhibition)", "inhibit each other", cheap::from_ref( "r_choose", cut_f( "B", "A" ) ) );
+  CHEAP_ROW( "r_choose", "self-excitation far too weak (x0.3): nothing is amplified", cheap::from_ref( "r_choose", cheap::both( cut_f( "A", "A", 0.3 ), cut_f( "B", "B", 0.3 ) ) ) );
+  CHEAP_ROW( "r_choose", "self-excitation and inhibition far too strong: the first winner never gives way", cheap::from_ref( "r_choose", cheap::all( cut_f( "A", "A", 3.0 ), cut_f( "B", "B", 3.0 ), cut_f( "A", "B", 3.0 ), cut_f( "B", "A", 3.0 ) ) ) );
+  CHEAP_ROW( "r_choose", "inhibition far too weak (x0.1): both win", cheap::from_ref( "r_choose", cheap::both( cut_f( "A", "B", 0.1 ), cut_f( "B", "A", 0.1 ) ) ) );
+  CHEAP_ROW( "r_choose", "b_in not wired", cheap::from_ref( "r_choose", cheap::scale_input( "b_in", 0.0 ) ) );
+  CHEAP_ROW_V( "r_choose", "both motors read A", "same unit", [] {
+    json c = cheap::reference( "r_choose" );
+    for ( auto& o : c[ "outputs" ] ) o[ "neurons" ] = json::array( { { { "pop", "A" } } } );
+    return c;
+  }() );
+
+  CHEAP_ROW( "r_meanfield", "empty bench", cheap::empty( "r_meanfield" ) );
+  CHEAP_ROW( "r_meanfield", "one spiking cell and one siegert unit, first-connect weights, no connections", [] {
+    cheap::Bench b = cheap::channels( "r_meanfield", { "N1" }, { "N1" } );
+    b.pop( "N1", "iaf_psc_delta" ).pop( "S1", "siegert_neuron" );
+    b.c[ "inputs" ][ 1 ][ "targets" ] = json::array( { { { "pop", "S1" } } } );
+    b.c[ "outputs" ][ 1 ] = { { "name", "mf" }, { "kind", "rate_value" }, { "neurons", json::array( { { { "pop", "S1" } } } ) } };
+    return b.c;
+  }() );
+  CHEAP_ROW( "r_meanfield", "reference with every weight 0", zero_f( "r_meanfield" ) );
+  CHEAP_ROW_V( "r_meanfield", "network without inhibition (I > E, I > I cut)", "loop", cheap::from_ref( "r_meanfield", cheap::both( cut_f( "I", "E" ), cut_f( "I", "I" ) ) ) );
+  CHEAP_ROW_V( "r_meanfield", "prediction without inhibition (SI > SE cut)", "prediction has no", cheap::from_ref( "r_meanfield", cheap::both( cut_f( "SI", "SE" ), cut_f( "SI", "SI" ) ) ) );
+  CHEAP_ROW( "r_meanfield", "prediction with the wrong K for the excitatory recurrence (SE > SE and SE > SI: 15 instead of 60)", cheap::from_ref( "r_meanfield", [ & ]( json& c ) {
+    for ( auto& p : c[ "projections" ] )
+      if ( p[ "pre" ] == "SE" ) p[ "synapse" ][ "K" ] = 15;
+  } ) );
+  CHEAP_ROW( "r_meanfield", "prediction with a quarter of the inhibition (SI K 5 instead of 20)", cheap::from_ref( "r_meanfield", [ & ]( json& c ) {
+    for ( auto& p : c[ "projections" ] )
+      if ( p[ "pre" ] == "SI" ) p[ "synapse" ][ "K" ] = 5;
+  } ) );
+  CHEAP_ROW( "r_meanfield", "prediction driven at half the rate", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext_mf", 0.5 ) ) );
+  CHEAP_ROW( "r_meanfield", "the siegert drive not wired", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext_mf", 0.0 ) ) );
+  CHEAP_ROW( "r_meanfield", "network driven at half the rate (ext weight x0.5)", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext", 0.5 ) ) );
+  CHEAP_ROW( "r_meanfield", "network connections far weaker than the prediction's (E > E, E > I x0.2)", cheap::from_ref( "r_meanfield", cheap::both( cut_f( "E", "E", 0.2 ), cut_f( "E", "I", 0.2 ) ) ) );
 }

@@ -21,8 +21,47 @@ func _ready() -> void:
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 func attach(t: Telemetry) -> void: tele = t; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
+## v0.6: a circuit made only of rate units has no spikes: the raster becomes a heat strip, one row per unit, colour = rate (sienna up, blue below zero), 3 s of model time.
+var _rh := {}                    # neuron -> PackedFloat32Array of rate samples (every 4 ms of model time)
+var _rt := PackedFloat32Array()
+var _rep := -1
+const RATE_WIN_MS := 3000.0
+func _rate_only() -> bool:
+	if tele == null or tele.sim == null or tele.n == 0: return false
+	for p in tele.circuit.get("populations", []):
+		if not Circuits.is_rate_model(str(p.get("model", ""))): return false
+	return true
+func _sample_rates() -> void:
+	if _rep != tele.episode: _rep = tele.episode; _rh = {}; _rt = PackedFloat32Array()
+	if not _rt.is_empty() and tele.t_ms - _rt[_rt.size() - 1] < 4.0: return
+	_rt.append(tele.t_ms)
+	for i in tele.n:
+		var a: PackedFloat32Array = _rh.get(i, PackedFloat32Array()); var v := float(tele.sim.neuron_state(i, "rate")); a.append(v if is_finite(v) else 0.0); _rh[i] = a
+	if _rt.size() > 1500:
+		_rt = _rt.slice(_rt.size() - 1500)
+		for i in _rh: _rh[i] = (_rh[i] as PackedFloat32Array).slice((_rh[i] as PackedFloat32Array).size() - 1500)
+
+func _draw_rate_strip(pl: Rect2) -> void:
+	var fz := Kit.fs(14); var n := tele.n; var row := pl.size.y / float(n); var t1 := tele.t_ms; var t0 := t1 - RATE_WIN_MS
+	var vmax := 1.0
+	for i in _rh: for v in (_rh[i] as PackedFloat32Array): vmax = maxf(vmax, absf(v))
+	var first := 0; var pops: Array = tele.circuit.get("populations", [])
+	for pi in pops.size():
+		var cnt := Circuits.pop_n(pops[pi])
+		draw_string(Gfx.serif_italic(), Vector2(8, pl.position.y + row * (float(first) + float(cnt) * 0.5) + float(fz) * 0.35), str(pops[pi].get("id", "")), HORIZONTAL_ALIGNMENT_LEFT, pl.position.x - 12, fz, Kit.TEXT)
+		first += cnt
+	for i in n:
+		var a: PackedFloat32Array = _rh.get(i, PackedFloat32Array())
+		for j in _rt.size():
+			if j >= a.size() or _rt[j] < t0: continue
+			var x0 := pl.position.x + pl.size.x * (_rt[j] - t0) / RATE_WIN_MS; var x1 := pl.position.x + pl.size.x * ((_rt[j + 1] if j + 1 < _rt.size() else t1) - t0) / RATE_WIN_MS
+			var k := clampf(absf(a[j]) / vmax, 0.0, 1.0); var col := Kit.exc() if a[j] >= 0.0 else Kit.inh()
+			draw_rect(Rect2(x0, pl.position.y + row * float(i) + 1.0, maxf(x1 - x0, 1.5), row - 2.0), Color(col, 0.08 + 0.9 * k))
+	draw_string(Gfx.mono(), Vector2(size.x - 300, 20), "rate, last 3 s, full colour = %.1f" % vmax, HORIZONTAL_ALIGNMENT_RIGHT, 286, fz, Kit.TEXT_SOFT)
+
 func _process(dt: float) -> void:
 	if not is_visible_in_tree(): return
+	if _rate_only(): _sample_rates()
 	if tele != null and auto_window: _auto(dt)
 	window_ms = lerpf(window_ms, window_target, clampf(dt * 8.0, 0.0, 1.0)) if absf(window_ms - window_target) > 1.0 else window_target
 	queue_redraw(); _layer.queue_redraw()
@@ -67,6 +106,9 @@ func _draw() -> void:
 	var fz := Kit.fs(14); var f := Fonts.regular; var pl := _plot()
 	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
 	Gfx.chart_strip(self, pl, 12.0)
+	if _rate_only():
+		draw_string(Gfx.serif_italic(), Vector2(14, 20), "Population rates", HORIZONTAL_ALIGNMENT_LEFT, 200, Kit.fs(16), Kit.TEXT)
+		_draw_rate_strip(pl); return
 	draw_string(Gfx.serif_italic(), Vector2(14, 20), "Spike raster", HORIZONTAL_ALIGNMENT_LEFT, 200, Kit.fs(16), Kit.TEXT)
 	var vt := tele.view_t if tele != null else 0.0
 	# 100 ms grid, scrolling with time
@@ -90,7 +132,7 @@ func _draw() -> void:
 		first += cnt
 
 func _draw_spikes(layer: Control) -> void:
-	if tele == null or tele.n == 0: return
+	if tele == null or tele.n == 0 or _rate_only(): return
 	var pl := _plot(); var n := tele.n; var row := pl.size.y / float(n); var vt := tele.view_t; var t_left := vt - window_ms
 	var th := minf(row * 0.78, 20.0); var w := 1.7 if window_ms / maxf(pl.size.x, 1.0) < 2.5 else 1.1
 	var ec := Kit.exc(); var ic := Kit.inh()

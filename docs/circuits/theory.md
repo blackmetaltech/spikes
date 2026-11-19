@@ -14,3 +14,15 @@ Levels in `engine/src/tasks/` on the Bestiary scaffolding (`bestiary_a.h`, plus 
 * The resonance threshold of `d_class` (the damped oscillation of the resting state must be at least 15 Hz) is a game value that separates the Izhikevich resonator and fast-spiking presets from the regular-spiking default, whose rest is a nearly degenerate spiral (a Bogdanov-Takens neighbourhood).
 * `d_switch`: the `reset` sensor carries a negative current (the level is scaled by -1 in the task), so its weight stays positive in the lab; the window of holding currents that works for the reference is about 1.5 to 3.5 (the cell fires on its own from 4).
 * Izhikevich cells start at their resting fixed point (`rest_state`), not at NEST's U = 0.
+
+## Rate models (`rates`)
+
+| Level | Teaches | Mechanism the check demands | Reference |
+|---|---|---|---|
+| `r_oscillate` | the Wilson-Cowan pair | two rate units; drive reaches E; E > E, E > I positive, I > E negative; behaviour: a rhythm after the drive, I following E | 2 `threshold_lin_rate_ipn` (E tau 10, I tau 20, ceiling 1): E > E +5, E > I +0.8, I > E -6, drive 0.2 |
+| `r_choose` | competition between populations | two rate units, each excites itself, each inhibits the other; behaviour: a small advantage is amplified, held when the inputs are equal, overturned by a strong challenger | 2 units: self +1.25, mutual -1, inputs 0.5/0.45, then equal, then 0.2/0.9 |
+| `r_meanfield` | mean field and where it holds | spiking E-I loop with several sparse random inputs per cell, driven by `ext`; siegert E-I loop driven by a driving siegert unit; behaviour: the two rates agree at three drive levels | 200 + 50 `iaf_psc_delta` cells (K 60 and 20, J 0.3 and -1.5 mV) and 3 siegert units with the same J and K |
+
+* Rate units are NEST `threshold_lin_rate_ipn` with a ceiling (`alpha` 1) and no noise (`sigma` 0): `tau dr/dt = -r + mu + min(max(g (sum_j w_j r_j - theta), 0), alpha)`. The drive writes `mu`, so it passes the unit's nonlinearity unrectified; this is why the winner-take-all window of `r_choose` is narrow and the level asks for a held choice, not a flip-flop at equal strength.
+* `r_meanfield` compares the mean rate of the spiking E cells (`net`, Hz per cell) with the rate of the siegert unit it is wired to predict (`mf`). The reference recurrence is strong enough that the prediction without the inhibition is off by a factor of two or more, so a prediction that ignores the loop fails; the rows of `cheap_rows_f.inc` pin that for K and J mismatches.
+* The agreement band is 15 % of the larger rate plus 1.5 Hz (guided 25 %, researcher 10 %). With 200 cells the spiking rates carry a sampling error of about 2 %.

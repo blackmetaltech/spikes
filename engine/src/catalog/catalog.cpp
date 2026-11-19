@@ -276,6 +276,92 @@ std::vector< CatalogModel > build()
   }
   {
     CatalogModel m;
+    m.id = m.model = "iaf_psc_delta";
+    m.title = "Integrate-and-fire with delta synapses";
+    m.family = "Integrate-and-fire";
+    m.summary = "A leaky integrate-and-fire cell whose synaptic input is an instantaneous voltage jump: the weight of a connection is the size of the postsynaptic potential in mV. "
+                "It is the cell whose firing rate the Siegert mean-field formula describes exactly, which makes it the natural spiking partner of a siegert unit.";
+    m.examples = { "Cells of the Brunel network of excitatory and inhibitory neurons", "The textbook leaky integrate-and-fire neuron with delta synapses" };
+    m.source = "Brunel 2000 J Comput Neurosci 8:183-208, doi:10.1023/a:1008925309027; Hahne et al. 2017 Front Neuroinform 11:34, doi:10.3389/fninf.2017.00034";
+    m.params = { P{ "tau_m", "ms", "Membrane time constant.", 10, 2, 100 }, P{ "C_m", "pF", "Membrane capacitance.", 250, 50, 1000 }, P{ "t_ref", "ms", "Refractory period.", 2, 0, 10 },
+      P{ "E_L", "mV", "Resting potential (use 0 to read the other voltages from rest).", -70, -80, 0 }, P{ "V_th", "mV", "Spike threshold.", -55, -60, 40 },
+      P{ "V_reset", "mV", "Voltage right after a spike.", -70, -80, 0 }, P{ "I_e", "pA", "Constant input current.", 0, -500, 1000 } };
+    m.input_weight = 1;  // the weight is the voltage jump in mV (about one tenth of the distance to threshold is a typical network synapse)
+    m.weight_unit = "mV";
+    m.ei = "either";
+    m.ei_note = "Input weight is a voltage jump in mV; sign sets E or I.";
+    m.drive = { "dc", "pA", { 0, 200, 400, 600, 800, 1000 } };
+    add( m );
+  }
+  {
+    CatalogModel m;
+    m.id = m.model = "threshold_lin_rate_ipn";
+    m.title = "Rate unit (threshold-linear)";
+    m.family = "Rate models";
+    m.summary = "A whole population as one number, its firing rate. The rate follows its input with a time constant tau; the input from other units is summed, rectified at a threshold and "
+                "capped at a ceiling. It has no spikes, no raster and no membrane voltage: connect units with rate connections (a weight is the gain of one unit onto another, negative for inhibition) "
+                "and drive them with a rate input.";
+    m.examples = { "An excitatory or an inhibitory population in a Wilson-Cowan model", "A competing pair of populations that decide between two stimuli" };
+    m.source = "Wilson & Cowan 1972 Biophys J 12:1-24, doi:10.1016/S0006-3495(72)86068-5; NEST threshold_lin_rate_ipn, Hahne et al. 2017 Front Neuroinform 11:34, doi:10.3389/fninf.2017.00034";
+    m.preset_json = json{ { "sigma", 0.0 }, { "alpha", 1.0 } }.dump();
+    m.params = { P{ "tau", "ms", "How fast the rate follows its input.", 10, 1, 200 }, P{ "mu", "", "Constant drive added to the rate (a drive input writes it).", 0, -2, 2 },
+      P{ "sigma", "", "Noise on the rate (0 = deterministic).", 0, 0, 2 }, P{ "g", "", "Gain of the rectified input.", 1, 0.1, 10 }, P{ "theta", "", "Threshold of the input.", 0, -2, 2 },
+      P{ "alpha", "", "Ceiling of the rectified input.", 1, 0.1, 10 } };
+    m.input_weight = 1;
+    m.weight_unit = "";
+    m.ei = "either";
+    m.ei_note = "A unit is excitatory or inhibitory by the sign of the weights it sends out.";
+    m.drive = { "rate_drive", "", { 0, 0.25, 0.5, 1, 2, 4 } };
+    m.run_ms = 400;
+    m.skip_ms = 200;
+    add( m );
+  }
+  {
+    CatalogModel m;
+    m.id = m.model = "tanh_rate_ipn";
+    m.title = "Rate unit (sigmoid)";
+    m.family = "Rate models";
+    m.summary = "A population rate with a smooth S-shaped response: the summed input goes through a hyperbolic tangent, so the rate saturates both ways (between -1 and 1, read as activity relative "
+                "to a baseline). Same connections and drive as the threshold-linear unit.";
+    m.examples = { "Units of a rate network where activity can go below baseline", "A Wilson-Cowan style population with a sigmoid response" };
+    m.source = "Wilson & Cowan 1972 Biophys J 12:1-24, doi:10.1016/S0006-3495(72)86068-5; NEST tanh_rate_ipn, Hahne et al. 2017 Front Neuroinform 11:34, doi:10.3389/fninf.2017.00034";
+    m.preset_json = json{ { "sigma", 0.0 } }.dump();
+    m.params = { P{ "tau", "ms", "How fast the rate follows its input.", 10, 1, 200 }, P{ "mu", "", "Constant drive added to the rate (a drive input writes it).", 0, -2, 2 },
+      P{ "sigma", "", "Noise on the rate (0 = deterministic).", 0, 0, 2 }, P{ "g", "", "Gain (steepness) of the response.", 1, 0.1, 10 }, P{ "theta", "", "Threshold of the input.", 0, -2, 2 } };
+    m.input_weight = 1;
+    m.weight_unit = "";
+    m.ei = "either";
+    m.ei_note = "A unit is excitatory or inhibitory by the sign of the weights it sends out.";
+    m.drive = { "rate_drive", "", { 0, 0.25, 0.5, 1, 2, 4 } };
+    m.run_ms = 400;
+    m.skip_ms = 200;
+    add( m );
+  }
+  {
+    CatalogModel m;
+    m.id = m.model = "siegert_neuron";
+    m.title = "Mean-field unit (Siegert)";
+    m.family = "Rate models";
+    m.summary = "The mean-field stand-in for a population of integrate-and-fire cells with delta synapses: its rate is the Siegert formula applied to the mean and the variance of the input it gets "
+                "from other mean-field units. A projection between two of them carries J, the size of one postsynaptic potential in mV, and K, the number of inputs per cell, of the spiking network "
+                "it describes. A unit with no input of its own, whose `mean` is set to the external rate, stands for the external drive.";
+    m.examples = { "The prediction for the mean rates of a Brunel network", "An external Poisson drive in a mean-field model" };
+    m.source = "Fourcaud & Brunel 2002 Neural Comput 14:2057, doi:10.1162/089976602320264015; Hahne et al. 2017 Front Neuroinform 11:34, doi:10.3389/fninf.2017.00034; Amit & Brunel 1997 Cereb Cortex 7:237, doi:10.1093/cercor/7.3.237";
+    m.params = { P{ "tau", "ms", "How fast the rate relaxes to the Siegert value (a pseudo-time of the iteration, not a membrane constant).", 1, 0.5, 50 },
+      P{ "tau_m", "ms", "Membrane time constant of the cells it stands for.", 5, 2, 100 }, P{ "tau_syn", "ms", "Synaptic time constant (0 for delta synapses).", 0, 0, 10 },
+      P{ "t_ref", "ms", "Refractory period of those cells.", 2, 0, 10 }, P{ "mean", "1/s", "Constant input rate (for a driving unit: the external rate).", 0, 0, 100000 },
+      P{ "theta", "mV", "Threshold relative to rest.", 15, 5, 40 }, P{ "V_reset", "mV", "Reset relative to rest.", 0, -10, 20 } };
+    m.input_weight = 1;
+    m.weight_unit = "";
+    m.ei = "either";
+    m.ei_note = "Excitation or inhibition is the sign of J on the projection.";
+    m.drive = { "rate_drive", "1/s", { 0, 2000, 5000, 10000, 15000, 20000 } };
+    m.run_ms = 400;
+    m.skip_ms = 200;
+    add( m );
+  }
+  {
+    CatalogModel m;
     m.id = m.model = "parrot_neuron";
     m.title = "Parrot (relay) neuron";
     m.family = "Relay";
@@ -483,7 +569,7 @@ std::string catalog_circuit_json( const CatalogModel& m, double level )
   json c = { { "schema_version", 1 }, { "name", "catalog " + m.id }, { "resolution_ms", 0.1 }, { "seed", 7 },
     { "populations", json::array( { { { "id", "N" }, { "model", m.model }, { "n", 1 }, { "params", json::parse( m.preset_json ) } } } ) },
     { "inputs", json::array( { { { "name", "drive" }, { "kind", m.drive.kind }, { "targets", json::array( { "N" } ) }, { "weight", 1.0 }, { "value", level } } } ) },
-    { "outputs", json::array( { { { "name", "out" }, { "kind", "rate" }, { "neurons", json::array( { "N" } ) } } } ) } };
+    { "outputs", json::array( { { { "name", "out" }, { "kind", m.drive.kind == "rate_drive" ? "rate_value" : "rate" }, { "neurons", json::array( { "N" } ) } } } ) } };
   return c.dump();
 }
 

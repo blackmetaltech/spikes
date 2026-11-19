@@ -72,7 +72,50 @@ def d_switch():
           [inp("hold", "dc", 2.5, ["N"]), inp("set", "dc", 10.0, ["N"]), inp("reset", "dc", 10.0, ["N"])], [out("spikes", ["N"])]))
 
 
-BUILD = {"d_class": d_class, "d_phasic": d_phasic, "d_switch": d_switch}
+RATE = {"tau": 10.0, "sigma": 0.0, "g": 1.0, "theta": 0.0, "alpha": 1.0}
+
+
+def rproj(pre, post, w, rule="all_to_all", **extra):
+    p = {"pre": pre, "post": post, "rule": rule, "synapse": {"synapse_model": "rate_connection_instantaneous", "weight": w}}
+    if pre == post:
+        p["allow_autapses"] = True
+    p.update(extra)
+    return p
+
+
+def r_oscillate():
+    e = dict(RATE); i = dict(RATE); i["tau"] = 20.0
+    write("r_oscillate", circuit("Two populations that make a rhythm", "r_oscillate",
+          [pop("E", "threshold_lin_rate_ipn", 1, e, (220, 120)), pop("I", "threshold_lin_rate_ipn", 1, i, (420, 120))],
+          [rproj("E", "E", 5.0), rproj("E", "I", 0.8), rproj("I", "E", -6.0)],
+          [inp("drive", "rate_drive", 1.0, ["E"], 0.2)],
+          [out("e", ["E"], "rate_value"), out("i", ["I"], "rate_value")]))
+
+
+def r_choose():
+    write("r_choose", circuit("Two populations, one winner", "r_choose",
+          [pop("A", "threshold_lin_rate_ipn", 1, dict(RATE), (220, 120)), pop("B", "threshold_lin_rate_ipn", 1, dict(RATE), (420, 120))],
+          [rproj("A", "A", 1.25), rproj("B", "B", 1.25), rproj("A", "B", -1.0), rproj("B", "A", -1.0)],
+          [inp("a_in", "rate_drive", 1.0, ["A"], 0.5), inp("b_in", "rate_drive", 1.0, ["B"], 0.5)],
+          [out("a", ["A"], "rate_value"), out("b", ["B"], "rate_value")]))
+
+
+def r_meanfield():
+    neu = {"C_m": 1.0, "tau_m": 20.0, "t_ref": 2.0, "E_L": 0.0, "V_reset": 0.0, "V_th": 20.0}
+    sg = {"tau_m": 20.0, "t_ref": 2.0, "theta": 20.0, "V_reset": 0.0, "tau": 5.0}
+    J, JI, Jx, CE, CI = 0.3, -1.5, 0.2, 60, 20
+    fi = lambda a, b, k, w: {"pre": a, "post": b, "rule": "fixed_indegree", "indegree": k, "synapse": {"synapse_model": "static_synapse", "weight": w, "delay": 1.5}}
+    dc = lambda a, b, w, K: {"pre": a, "post": b, "rule": "all_to_all", "synapse": {"synapse_model": "diffusion_connection", "weight": w, "K": K}}
+    write("r_meanfield", circuit("The network and its mean field", "r_meanfield",
+          [pop("E", "iaf_psc_delta", 200, dict(neu), (60, 80)), pop("I", "iaf_psc_delta", 50, dict(neu), (60, 300)),
+           pop("SE", "siegert_neuron", 1, dict(sg), (520, 80)), pop("SI", "siegert_neuron", 1, dict(sg), (520, 300)), pop("SD", "siegert_neuron", 1, {"mean": 0.0}, (420, 190))],
+          [fi("E", "E", CE, J), fi("E", "I", CE, J), fi("I", "E", CI, JI), fi("I", "I", CI, JI),
+           dc("SD", "SE", Jx, 1), dc("SD", "SI", Jx, 1), dc("SE", "SE", J, CE), dc("SE", "SI", J, CE), dc("SI", "SE", JI, CI), dc("SI", "SI", JI, CI)],
+          [inp("ext", "poisson", Jx, ["E", "I"], 8000.0), inp("ext_mf", "rate_drive", 1.0, ["SD"], 8000.0)],
+          [out("net", ["E"]), out("mf", ["SE"], "rate_value")]))
+
+
+BUILD = {"d_class": d_class, "d_phasic": d_phasic, "d_switch": d_switch, "r_oscillate": r_oscillate, "r_choose": r_choose, "r_meanfield": r_meanfield}
 
 if __name__ == "__main__":
     for k in (sys.argv[1:] or list(BUILD)):

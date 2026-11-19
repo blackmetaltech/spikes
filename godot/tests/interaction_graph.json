@@ -183,6 +183,15 @@
    },
    "state_of": "campaign"
   },
+  "campaign.chapter.rates": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Theory: Rate models",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "rates"
+   },
+   "state_of": "campaign"
+  },
   "parts": {
    "kind": "screen",
    "label": "Parts bin (browse the catalogue)",
@@ -953,6 +962,13 @@
    "from": "campaign",
    "to": "campaign.chapter.dynamics",
    "control": "Chapter_dynamics",
+   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.rates",
+   "from": "campaign",
+   "to": "campaign.chapter.rates",
+   "control": "Chapter_rates",
    "note": "A tab shows a chapter's map; locked chapters can be looked at."
   },
   {

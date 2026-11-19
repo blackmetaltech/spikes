@@ -264,7 +264,8 @@ public:
     std::vector< Crit > crits;
     std::map< std::string, double > parts;
     for ( const auto& w : m.wins )
-      for ( const auto& ch : info_.motors ) parts[ ch + "_" + w.key + "_hz" ] = m.hz( ch, w.key );
+      for ( const auto& ch : info_.motors )
+        if ( std::find( s_.vals.begin(), s_.vals.end(), ch ) == s_.vals.end() ) parts[ ch + "_" + w.key + "_hz" ] = m.hz( ch, w.key );   // (a rate_value channel has no spikes to count)
     if ( s_.judge ) s_.judge( m, crits, parts );
     s.parts = parts;
     int met = 0;

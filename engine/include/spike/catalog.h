@@ -22,7 +22,7 @@ struct CatalogParam
 
 struct CatalogDrive
 {
-  std::string kind;   // "dc" (pA through a dc_generator) or "poisson" (Hz through a poisson_generator, weight 1)
+  std::string kind;   // "dc" (pA through a dc_generator), "poisson" (Hz through a poisson_generator, weight 1) or "rate_drive" (0.6: rate models; the card is measured by its rate_value output)
   std::string unit;   // "pA" | "Hz" (Izhikevich cards use the model's own current units, labelled "pA" as NEST does)
   std::vector< double > levels;  // the steps of the f-I thumbnail
 };

@@ -6,7 +6,7 @@ extends Screen
 ## task's sensors and motors); Reference (the reference circuit already wired) appears only once the level is passed, or in Guided mode. Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
-const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics"}
+const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics", "rates": "Rates"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
 var first: Control
