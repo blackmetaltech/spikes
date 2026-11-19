@@ -214,8 +214,7 @@ protected:
     c3.recipe = "level onto a group of inhibitory cells projecting onto the effort cells, with a strong enough weight.";
     crits.push_back( c3 );
 
-    pass_msg = "Warned workload: dip " + fmt( pk, 2 ) + ", level " + fmt( y1, 2 ) + " at the end; unwarned workload: level " + fmt( y2, 2 ) +
-               ". Feed-forward caught the first, feedback the second.";
+    pass_msg = "A warned workload was met before it arrived and an unwarned one was corrected afterwards: feed-forward caught the first, feedback the second.";
   }
 
 private:

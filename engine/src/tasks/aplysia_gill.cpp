@@ -104,14 +104,15 @@ Spec spec()
     c.push_back( { "first", h1 >= ( m.tol > 1.2 ? 2.0 : 3.0 ), ramp( h1, 0, 3 ), "The first touch hardly moves the gill: the reflex has to be there before it can learn anything. Strengthen the synapse onto the motor neuron." } );
     const double hab = m.tol > 1.2 ? 0.65 : 0.5;
     c.push_back( { "habit", h1 > 0 && h4 <= hab * h1, h1 > 0 ? 1.0 - ramp( h4 / h1, hab, 1.0 ) : 0.0,
-      "The fourth touch is nearly as strong as the first: the reflex does not habituate. The sensory synapse must lose strength with use, and recover slowly enough not to be full again 500 ms later." } );
+      "The fourth touch is nearly as strong as the first: the reflex does not habituate. The sensory synapse must lose strength with use, and recover slowly enough not to be full again straight away." } );
     const double rec = m.tol > 1.2 ? 0.5 : 0.6;
     c.push_back( { "recover", h1 > 0 && r >= rec * h1, h1 > 0 ? ramp( r / h1, 0, rec ) : 0.0,
       "After the rest the reflex has not come back: the synapse recovers too slowly. A habituated reflex recovers within seconds of rest in this level: speed up the recovery of the synapse." } );
     const double sens = m.tol > 1.2 ? 1.6 : 2.0;
     c.push_back( { "sens", s1 >= 3 && s1 >= sens * s0, s0 > 0 ? ramp( s1 / s0, 1.0, sens ) : ramp( s1, 0, 3 ),
-      "The touch after the tail shock is no stronger than the one before it: the shock does not sensitise the reflex. The shock must make the facilitating interneuron release its modulator, and "
-      "the modulator must strengthen the synapse of the touch pathway enough to show." } );
+      s1 > s0 ? "The touch after the tail shock is stronger than the one before it, but not by enough to count as sensitisation: the modulator must strengthen the synapse of the touch pathway more."
+              : "The touch after the tail shock is no stronger than the one before it: the shock does not sensitise the reflex. The shock must make the facilitating interneuron release its modulator, and "
+                "the modulator must strengthen the synapse of the touch pathway enough to show." } );
     c.push_back( { "quiet", q <= 2, 1.0 - ramp( q, 2, 30 ), "The gill moves when nothing touches it: the motor neuron must be silent unless a touch (or the shock) drives it." } );
   };
   s.ok_verdict = "A gill-withdrawal reflex that learns: it habituates to repeated touch, recovers with rest, and is sensitised by a shock to the tail, through one depressing synapse that a modulator strengthens.";

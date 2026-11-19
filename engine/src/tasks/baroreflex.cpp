@@ -304,26 +304,21 @@ public:
     else if ( spikes_ < 1 )
       o << "No beats: sa_beat has not fired" << yet << " Add the SA-node cell and read it out as sa_beat.";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: MAP " << s.parts[ "map_min_mmHg" ] << "-" << s.parts[ "map_max_mmHg" ] << " mmHg, " << 100 * frac << " % of the time in 80-100.)";
+      o << mech_.missing();
     else if ( !done )
-      o << "MAP " << heart_.map_smooth << " mmHg so far, " << 100 * frac << " % of the time in 80-100.";
+      o << "Holding the pressure so far.";
     else if ( passed_all_but( frac, worst_settle, tails ) )
-      o << "Pressure held: MAP " << s.parts[ "map_min_mmHg" ] << "-" << s.parts[ "map_max_mmHg" ] << " mmHg, " << 100 * frac
-        << " % of the time in 80-100.";
+      o << "Pressure held: it stayed in the healthy band through standing up and the recovery.";
     else if ( ne_peak_ < 0.05 )
-      o << "No sympathetic output: pressure sits near " << map_mean() << " mmHg (sympathetic tone is part of normal pressure) and falls "
-        << "when upright; MAP reached " << s.parts[ "map_min_mmHg" ] << ".";
+      o << "No sympathetic output: pressure sits low (sympathetic tone is part of normal pressure) and falls when upright.";
     else if ( map_mean() > kHi )
-      o << "Pressure runs high: mean " << map_mean() << " mmHg, up to " << s.parts[ "map_max_mmHg" ]
-        << ". Sympathetic output is not being turned down by pressure (is the baroreceptor input reaching CVLM, and CVLM inhibiting RVLM?).";
+      o << "Pressure runs high. Sympathetic output is not being turned down by pressure (is the baroreceptor input reaching CVLM, and CVLM inhibiting RVLM?).";
     else if ( s.parts[ "map_min_mmHg" ] < kLo - 10 )
-      o << "Pressure falls to " << s.parts[ "map_min_mmHg" ] << " mmHg and the reflex does not catch it ("
-        << 100 * frac << " % in band): the response is too weak or too slow.";
+      o << "Pressure falls and the reflex does not catch it: the response is too weak or too slow.";
     else if ( s.parts[ "map_max_mmHg" ] > kHi + 15 )
-      o << "Pressure overshoots to " << s.parts[ "map_max_mmHg" ] << " mmHg: the reflex over-corrects.";
+      o << "Pressure overshoots: the reflex over-corrects.";
     else
-      o << "Pressure leaves 80-100 mmHg too often: " << 100 * frac << " % in band, settling takes up to " << worst_settle
-        << " s (needs " << 100 * frac_min() << " % and " << settle_max() << " s or less).";
+      o << "Pressure leaves the healthy band too often, or takes too long to come back: tighten the reflex.";
     s.verdict = o.str();
     return s;
   }

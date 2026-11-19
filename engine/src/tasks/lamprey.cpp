@@ -239,16 +239,18 @@ public:
       o << "right_motor never fired" << yet << " Both sides must burst in turn; only left_motor is active.";
     else if ( !a.valid )
     {
-      if ( a.swing_l < 2.0 && a.swing_r < 2.0 )
+      if ( a.swing_l < 2.0 && a.swing_r < 2.0 && a.mean_l < 2.0 && a.mean_r < 2.0 )
+        o << "No rhythm: both motor channels fire only a few spikes, so there is nothing to alternate. Drive the cells harder" << yet;
+      else if ( a.swing_l < 2.0 && a.swing_r < 2.0 )
         o << "No rhythm: neither motor rate rises and falls (it fires steadily or in a blur)" << yet;
       else if ( std::min( a.swing_l, a.swing_r ) < 2.0 || std::min( a.swing_l, a.swing_r ) < 0.3 * std::max( a.swing_l, a.swing_r ) )
         o << "No rhythm: only " << ( a.swing_l > a.swing_r ? "left_motor" : "right_motor" )
-          << " rises and falls; the other side stays flat. Both sides must burst in turn" << yet;
+          << " rises and falls; the other side stays " << ( ( a.swing_l > a.swing_r ? a.mean_r : a.mean_l ) < 2.0 ? "nearly silent" : "flat" ) << ". Both sides must burst in turn" << yet;
       else
         o << "No rhythm: left and right motor rates never alternate cleanly" << yet;
     }
     else if ( f_ok == 0 )
-      o << "The rhythm is outside the swimming range (1-10 Hz): " << ( a.f < 1.0 ? "too slow." : "too fast." );
+      o << "The rhythm is outside the swimming range: " << ( a.f < 1.0 ? "too slow." : "too fast." );
     else if ( std::fabs( a.phase - 180.0 ) > phase_tol() )
       o << "Left and right are not alternating: the bursts of the two sides overlap too much.";
     else if ( a.speed < speed_min() )
@@ -342,7 +344,7 @@ private:
 
   struct Analysis
   {
-    double f = 0, phase = 0, speed = 0, swing_l = 0, swing_r = 0, amp_l = 0, amp_r = 0;
+    double f = 0, phase = 0, speed = 0, swing_l = 0, swing_r = 0, amp_l = 0, amp_r = 0, mean_l = 0, mean_r = 0;
     bool valid = false;  // both sides modulate coherently at f
   };
 
@@ -371,6 +373,8 @@ private:
       ms += sp_[ i ];
     }
     ml /= n; mr /= n; r.speed = ms / n;
+    r.mean_l = ml;
+    r.mean_r = mr;
     size_t skip = std::min< size_t >( n / 10, 200 );  // let the extra filter settle
     double lmax = -1e18, lmin = 1e18, rmax = -1e18, rmin = 1e18, dmax = -1e18, dmin = 1e18;
     for ( size_t i = skip; i < n; ++i )

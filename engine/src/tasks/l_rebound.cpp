@@ -33,7 +33,8 @@ Spec spec()
             "Build that: the sensor 'inhibit' drives an inhibitory cell, which silences a target cell that you read on 'rebound'. The target must stay quiet before "
             "the inhibition, quiet during it and quiet between the two pulses, and it must fire right after each pulse ends. Most cells cannot: an integrate-and-fire cell "
             "inhibited for a while simply returns to rest. A cell that rebounds has a slow variable that the inhibition pushes in the 'wrong' direction, so that it "
-            "overshoots when the inhibition ends.";
+            "overshoots when the inhibition ends. The target also needs a steady drive of its own, a bias that holds it just below firing: a cell sitting far "
+            "from threshold has nothing to rebound to.";
   i.chapter = "leech";
   i.sensors = { "inhibit" };
   i.motors = { "rebound" };
@@ -88,8 +89,12 @@ Spec spec()
     c.push_back( { "quiet", q <= 1, 1.0 - ramp( q, 1, 20 ), "The target fires when it should be quiet (before the first pulse, during the inhibition or between the pulses). It must be silent until the inhibition is released: "
                                                           "check that nothing else drives it, and that the inhibition is strong enough to hold it." } );
     const double need = m.tol > 1.2 ? 1 : 2;
-    c.push_back( { "reb1", r1 >= need, ramp( r1, 0, need ), "The target does not fire when the first pulse ends: it only returns to rest. It needs a cell type that overshoots after inhibition, and an inhibition strong and long enough to push its slow variable." } );
-    c.push_back( { "reb2", r2 >= need, ramp( r2, 0, need ), "The target does not fire when the second pulse ends: the rebound must come after every release." } );
+    c.push_back( { "reb1", r1 >= need, ramp( r1, 0, need ),
+      r1 < 0.5 ? "The target does not fire when the first pulse ends: it only returns to rest. It needs a cell type that overshoots after inhibition, a bias that holds it just below firing, and an inhibition strong and long enough to push its slow variable."
+               : "The target fires too weakly when the first pulse ends: a rebound is a short burst, not a single spike. Push its slow variable further with stronger or longer inhibition." } );
+    c.push_back( { "reb2", r2 >= need, ramp( r2, 0, need ),
+      r2 < 0.5 ? "The target does not fire when the second pulse ends: the rebound must come after every release."
+               : "The rebound after the second pulse is too weak: a short burst is needed after every release, not a single spike." } );
   };
   s.ok_verdict = "A rebound: the target is silent while it is inhibited and fires as soon as the inhibition is released.";
   s.h1 = "A rebound needs a slow variable in the cell that the inhibition drives past its resting value, so that the cell overshoots when the inhibition ends.";

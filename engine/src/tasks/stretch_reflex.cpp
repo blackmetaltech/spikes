@@ -241,8 +241,7 @@ public:
     else if ( m.resistance < tol_min( mode_, 0.30 ) )
       o << "The reflex is fast enough but cuts the deflection too little: it is too weak. Strengthen the Ia > motoneuron link or enlarge the pools.";
     else
-      o << ( done ? "Stretch reflex at " : "Stretch reflex so far at " ) << m.latency << " ms, deflection cut by " << m.resistance * 100
-        << "%, antagonist suppressed " << m.recip * 100 << "%, no ringing.";
+      o << ( done ? "Stretch reflex: it starts promptly after the tap, cuts the deflection, suppresses the antagonist and does not ring." : "Stretch reflex so far is on track." );
     s.verdict = o.str();
     return s;
   }

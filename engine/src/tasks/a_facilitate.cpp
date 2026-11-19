@@ -88,11 +88,14 @@ Spec spec()
     const double top = m.tol > 1.2 ? 9 : 6;
     c.push_back( { "before", before >= 0.5 && before <= top, before < 0.5 ? ramp( before, 0, 0.5 ) : 1.0 - ramp( before, top, 3 * top ),
       before < 0.5 ? "The touch hardly moves the gill before the shock: the reflex has to be there before it can be strengthened. Strengthen the synapse onto the motor neuron a little."
-                : "The reflex is already at its largest before any shock, so a shock has no room to strengthen it. Make the touch synapse weaker, and let the modulator do the strengthening." } );
+                : ( before > 0 && after >= 2.0 * before
+                      ? "The shock does strengthen the reflex, but the touches before it are already stronger than a modest withdrawal. Make the touch synapse weaker, and let the modulator do the strengthening."
+                      : "The reflex is already strong before any shock, so a shock has little room to strengthen it. Make the touch synapse weaker, and let the modulator do the strengthening." ) } );
     const double need = m.tol > 1.2 ? 1.6 : ( m.tol < 0.9 ? 2.4 : 2.0 );
     c.push_back( { "after", before > 0 && after >= need * before, before > 0 ? ramp( after / before, 1.0, need ) : 0.0,
-      "The touches after the shock are no stronger than those before it: the shock does not facilitate the reflex. Check that the tail pathway makes the facilitating interneuron fire, that "
-      "its modulator is released, and that the modulator acts on the touch synapse strongly enough." } );
+      after > before ? "The touches after the shock are stronger than those before it, but not by enough: make the modulator act on the touch synapse more strongly, or let the facilitating interneuron fire more."
+                     : "The touches after the shock are no stronger than those before it: the shock does not facilitate the reflex. Check that the tail pathway makes the facilitating interneuron fire, that "
+                       "its modulator is released, and that the modulator acts on the touch synapse strongly enough." } );
     c.push_back( { "quiet", q <= 2, 1.0 - ramp( q, 2, 30 ), "The gill moves between the touches: the motor neuron must be silent unless the sensory cell drives it." } );
   };
   s.ok_verdict = "Sensitisation: the tail shock releases a modulator that strengthens the touch synapse, so the touches after it give a clearly larger withdrawal.";

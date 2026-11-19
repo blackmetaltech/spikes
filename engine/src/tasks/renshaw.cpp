@@ -216,11 +216,11 @@ public:
     else if ( !firing )
       o << "The motor pool is nearly silent: give it tonic drive.";
     else if ( m.done == 0 )
-      o << "Tremor " << m.tremor << "%, waiting for the pushes" << yet;
+      o << "Waiting for the pushes" << yet;
     else if ( m.osc_flag )
       o << "The limb rings after the push: too much loop gain.";
     else if ( !m.have_probe )
-      o << "Tremor " << m.tremor << "%; the common-input volleys are still to come" << yet;
+      o << "The common-input volleys are still to come" << yet;
     else if ( m.excess < 0.57 * kExcessRef )
       o << "Your motor pools hardly answer the common input (a volley adds far less than it would in an open cord), so there is no common drive for recurrent inhibition to calm. "
         << "The noise is lost on its way: cells that integrate a Poisson input fire far less often than the input and swallow the volley, and weak links to the pools lose what is left; use cells that repeat every spike (parrot_neuron) and check their weight onto both pools.";
@@ -229,8 +229,7 @@ public:
     else if ( m.resistance < tol_min( mode_, 0.30 ) )
       o << "The stretch reflex cuts the deflection too little: the recurrent inhibition is smothering the reflex.";
     else
-      o << ( done ? "Tremor " : "Tremor so far " ) << m.tremor << "%, " << std::setprecision( 0 ) << m.improvement * 100 << "% below the unbraked cord expected for your circuit, reflex cuts deflection by "
-        << m.resistance * 100 << "%.";
+      o << ( done ? "Tremor calmed: the recurrent loop brakes the pools well below what an unbraked cord would show, and the reflex still resists the push." : "Tremor so far is calmed." );
     s.verdict = o.str();
     if ( done && !s.passed )  // a failing run never shows a full score
       s.value = std::min( s.value, 89.0 );

@@ -247,7 +247,7 @@ public:
     else if ( !mech_.empty() )
       o << mech_;
     else if ( !done )
-      o << "In progress: " << hits << " of " << kTouches << " pokes answered so far.";
+      o << "In progress.";
     else if ( s.passed )
     {
       if ( false_triggers_ == 0 )

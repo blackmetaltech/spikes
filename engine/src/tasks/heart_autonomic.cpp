@@ -321,24 +321,24 @@ public:
     else if ( spikes_ < 1 )
       o << "No beats: sa_beat has not fired" << yet << " Check the SA-node cells and the sa_beat output.";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: " << hr_inst_ << " beats/min now, " << mae << " bpm mean error.)";
+      o << mech_.missing();
     else if ( !done && t_ < sch_.rest_a )
-      o << "Warming up (" << heart_.hr_bpm << " beats/min now, target " << target_bpm( sch_, t_ ) << ").";
+      o << "Warming up.";
     else if ( !done )
-      o << "Tracking so far: error " << mae << " bpm on average, " << hr_inst_ << " beats/min now (target " << target_bpm( sch_, t_ ) << ").";
+      o << "Tracking the schedule so far.";
     else if ( !rest_ok )
-      o << ( rest > kRest ? "Resting tachycardia: " : "Resting bradycardia: " ) << rest << " beats/min at rest, target " << kRest
+      o << ( rest > kRest ? "Resting tachycardia: the heart is too fast at rest" : "Resting bradycardia: the heart is too slow at rest" )
         << ( rest > kRest ? ". The resting heart is held down by vagal tone; is the vagal branch working?" : ". Too much vagal drive at rest." );
     else if ( !plat_ok )
-      o << ( plat < kPeak ? "The heart cannot speed up: " : "Heart rate overshoots: " ) << plat << " beats/min in exercise, target " << kPeak
+      o << ( plat < kPeak ? "The heart cannot speed up enough in exercise" : "Heart rate overshoots in exercise" )
         << ( plat < kPeak ? ". Sympathetic drive is too weak or cut." : "." );
     else if ( !rec_ok )
-      o << ( rec > kRest ? "Slow recovery: " : "Recovery overshoots into bradycardia: " ) << rec << " beats/min at the end, target " << kRest
+      o << ( rec > kRest ? "Slow recovery: the heart is still too fast at the end" : "Recovery overshoots into bradycardia: the heart is too slow at the end" )
         << ( rec > kRest ? ". Vagal tone must return and sympathetic drive must fall." : ". Too much vagal drive after exercise (ACh near the arrest range?)." );
     else if ( mae > lim_mae() )
-      o << "Phases are right on average but tracking is loose: " << mae << " bpm mean error (needs " << lim_mae() << " or less).";
+      o << "Phases are right on average but tracking is loose: the heart follows the schedule too sluggishly or too jerkily.";
     else
-      o << "Tracked the schedule: " << mae << " bpm mean error, rest " << rest << ", exercise " << plat << ", recovery " << rec << ".";
+      o << "Tracked the schedule: right rate at rest, in exercise and in recovery, and closely in between.";
     s.verdict = o.str();
     return s;
   }

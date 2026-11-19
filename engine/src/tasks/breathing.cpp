@@ -276,30 +276,29 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !mech_.ok() )
-      o << mech_.missing() << " (The run itself: " << rest.rate << " /min at rest, ventilation x" << ratio << " under CO2, PaCO2 peak " << pa_peak << " mmHg.)";
+      o << mech_.missing();
     else if ( spikes_ < 1 )
       o << "The phrenic pool never fired" << yet << " Do the bursters burst? The phrenic cells need a standing drive, and the link from the rhythm group must be strong enough to fire them.";
     else if ( rest.n < 5 )
-      o << "Only " << static_cast< int >( rest.n ) << " breaths in the " << static_cast< int >( sch_.rest_b - sch_.rest_a ) << " s of rest" << yet << " Need a regular rhythm: raise the burster drive "
+      o << "Too few breaths during the rest" << yet << " Need a regular rhythm: raise the burster drive "
         << "and make sure the bursters are coupled so they burst together; if the phrenic pool is "
         << "held silent, check the expiratory inhibition.";
     else if ( rest.rate < rlo() || rest.rate > rhi() )
-      o << "Resting rate " << rest.rate << " /min is outside " << rlo() << "-" << rhi() << ": "
+      o << "The resting rate is out of range: "
         << ( rest.rate > rhi() ? "too fast. Weaken the burster coupling, or lower the drive (the cells' own drive or the chemo weight to the bursters)."
                             : "too slow. Raise the drive to the bursters (their own drive or more chemo weight) or strengthen the coupling a little." );
     else if ( pa_rest < palo() || pa_rest > pahi() )
-      o << "Resting PaCO2 " << pa_rest << " mmHg is outside " << palo() << "-" << pahi() << ": the breaths are too " << ( pa_rest > pahi() ? "shallow" : "deep" ) << ".";
+      o << "Resting blood CO2 is out of range: the breaths are too " << ( pa_rest > pahi() ? "shallow" : "deep" ) << ".";
     else if ( !done && t_ < sch_.ch_b * 1000.0 )
-      o << "Breathing at " << rest.rate << " /min at rest, PaCO2 " << pa_rest << " mmHg; the CO2 test is still running.";
+      o << "Resting breathing is in range; the CO2 test is still running.";
     else if ( ratio < rmin() )
-      o << "Ventilation rose only " << ratio << "x under the CO2 challenge (need " << rmin() << "x): no chemoreflex. PaCO2 peaked at " << pa_peak << " mmHg.";
+      o << "Ventilation did not rise enough under the CO2 challenge: no chemoreflex.";
     else if ( pa_peak > pmax() )
-      o << "Ventilation rose " << ratio << "x but PaCO2 still reached " << pa_peak << " mmHg (limit " << pmax() << ").";
+      o << "Ventilation rose, but blood CO2 still climbed too high: the response is too weak or too slow.";
     else if ( pa_rec > recmax() && done )
-      o << "PaCO2 had not recovered afterwards (" << pa_rec << " mmHg).";
+      o << "Blood CO2 had not recovered afterwards.";
     else
-      o << ( done ? "Breathing" : "Breathing so far" ) << " " << rest.rate << " /min at rest, ventilation " << ratio << "x with CO2, PaCO2 peak " << pa_peak
-        << " mmHg.";
+      o << ( done ? "Breathing held: a steady resting rhythm, faster and deeper under CO2, and blood CO2 recovered." : "Breathing so far is on track." );
     s.verdict = o.str();
     return s;
   }

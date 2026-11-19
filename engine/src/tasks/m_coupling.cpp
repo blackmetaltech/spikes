@@ -81,7 +81,7 @@ public:
                   "more the faster one is held back and the slower one speeded up, until they share one rhythm.", "" },
       { 2, "Use two sinoatrial-node cells, one wired to 'a' and one to 'b', and connect them to each other in both directions. Look at the "
            "weight of those two links: the default is only a small nudge.", "a" },
-      { 3, "N1 (SA node cell) > 'a' and N2 (SA node cell) > 'b'. Link N1 > N2 and N2 > N1, both excitatory, and raise the weight well above the "
+      { 3, "The first SA node cell > 'a' and the second SA node cell > 'b'. Link them in both directions, both excitatory, and raise the weight well above the "
            "default until the verdict says they are locked. Too weak and the beats still slip past each other.", "a" } };
   }
 
@@ -133,7 +133,7 @@ public:
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( !done() )
-      o << "Running: a has beaten " << static_cast< int >( ta_.size() ) << " times, b " << static_cast< int >( tb_.size() ) << ".";
+      o << "Running.";
     else if ( shared_ )
       o << "'a' and 'b' are read from the same cell. Use two different cells, one on each channel.";
     else if ( !mech_.empty() )

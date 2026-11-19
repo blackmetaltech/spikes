@@ -256,8 +256,7 @@ protected:
     r.recipe = "Set the delay of the link between the first and second group, and of the one between the second and third, to the pause you want between bursts.";
     crits.push_back( r );
 
-    pass_msg = "Three bursts in order after each go, " + fmt( parts.count( "gap12_ms_trial1" ) ? parts[ "gap12_ms_trial1" ] : 0 ) + " and " +
-               fmt( parts.count( "gap23_ms_trial1" ) ? parts[ "gap23_ms_trial1" ] : 0 ) + " ms apart: a pattern generator from delays.";
+    pass_msg = "Three bursts in order after each go, evenly spaced by the delays: a pattern generator from delays.";
   }
 
 private:

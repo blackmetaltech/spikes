@@ -242,8 +242,7 @@ protected:
                  "Every pool is wired from 'command' and read out on its own channel.";
       crits.push_back( c );
     }
-    pass_msg = "A clean staircase: force " + fmt( f[ 1 ], 2 ) + " / " + fmt( f[ 2 ], 2 ) + " / " + fmt( f[ 3 ], 2 ) +
-               " as the command grew, small units first (mean error " + fmt( err, 3 ) + ").";
+    pass_msg = "A clean staircase: the force grew step by step as the command grew, small units first.";
   }
 
 private:
