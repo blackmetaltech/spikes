@@ -29,6 +29,8 @@ std::string prc_experiment_json( spike::Engine& engine, const std::string& chann
   const std::vector< int >& neurons, double merge_gap_ms = 0.0, int repeats = 1, int nbins = 10 );
 /// Heart-rate variability from beat times in ms (SDNN, RMSSD, pNN50, LF/HF).
 std::string hrv_json( const std::vector< double >& beat_times_ms );
+/// 0.6: spike-triggered average of a stimulus sampled every dt_ms (JSON {mean: [...], n, before_ms, dt_ms}).
+std::string sta_json( const std::vector< double >& stimulus, double dt_ms, const std::vector< double >& spike_times_ms, double before_ms, double after_ms );
 /// 4-node motif census JSON (199 classes, only those present are listed). Refuses with an error if the estimated work
 /// (motif4_work_estimate * (1 + n_null)) exceeds `max_work` (0 = no limit).
 std::string motif4_json( const spike::Engine& engine, int sign, int n_null, unsigned long long seed, double max_work = 5e7 );

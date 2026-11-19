@@ -142,7 +142,31 @@ def h_learn():
           [inp("cue", "poisson", 1500.0, ["C"], 0.0), inp("show", "poisson", 1500.0, ["C", "R"], 0.0)], [out("memory", ["C", "R"])]))
 
 
-BUILD = {"d_class": d_class, "d_phasic": d_phasic, "d_switch": d_switch, "r_oscillate": r_oscillate, "r_choose": r_choose, "r_meanfield": r_meanfield, "h_complete": h_complete, "h_two": h_two, "h_learn": h_learn}
+def tuned_in(name, targets, period=180.0, kappa=2.0, rmax=80.0, rbase=5.0):
+    return inp(name, "tuned_poisson", 1.0, targets, 0.0, rate_max=rmax, rate_base=rbase, kappa=kappa, period_deg=period)
+
+
+def t_tuned():
+    write("t_tuned", circuit("A cell tuned by its inputs", "t_tuned",
+          [pop("A1", "parrot_neuron", 4, {}, (60, 80)), pop("A2", "parrot_neuron", 1, {}, (60, 180)), pop("A3", "parrot_neuron", 3, {}, (60, 280)), pop("R", "iaf_psc_alpha", 1, {}, (300, 180))],
+          [proj("A2", "R", 1500.0)], [tuned_in("stim", ["A1", "A2", "A3"])], [out("resp", ["R"])]))
+
+
+def t_sharpen(wi=-2500.0):
+    seg = proj("A", "T", 1500.0, rule="one_to_one")
+    write("t_sharpen", circuit("Sharpening a tuning curve", "t_sharpen",
+          [pop("A", "parrot_neuron", 8, {}, (60, 80)), pop("T", "iaf_psc_alpha", 8, {}, (60, 240))],
+          [seg, proj("T", "T", wi), proj("T", "T", 2500.0, rule="one_to_one")], [tuned_in("stim", ["A"], kappa=0.5, rbase=10.0)], [out("resp", ["T"])]))
+
+
+def t_decode():
+    write("t_decode", circuit("Reading a direction from a crowd", "t_decode",
+          [pop("A", "parrot_neuron", 12, {}, (60, 80)), pop("T", "iaf_psc_alpha", 12, {}, (60, 240))],
+          [proj("A", "T", 1500.0, rule="one_to_one")], [tuned_in("stim", ["A"], period=360.0, kappa=2.0)],
+          [out("heading", ["T"], "population_vector")]))
+
+
+BUILD = {"d_class": d_class, "d_phasic": d_phasic, "d_switch": d_switch, "r_oscillate": r_oscillate, "r_choose": r_choose, "r_meanfield": r_meanfield, "h_complete": h_complete, "h_two": h_two, "h_learn": h_learn, "t_tuned": t_tuned, "t_sharpen": t_sharpen, "t_decode": t_decode}
 
 if __name__ == "__main__":
     for k in (sys.argv[1:] or list(BUILD)):

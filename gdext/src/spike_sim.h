@@ -72,6 +72,7 @@ public:
   String prc_experiment_json( const String& channel, double baseline, double pulse_value, double pulse_ms, int64_t n_phases,
     const PackedInt32Array& neurons, double merge_gap_ms, int64_t repeats, int64_t nbins );
   static String hrv_json( const PackedFloat64Array& beat_times_ms );
+  static String sta_json( const PackedFloat64Array& stimulus, double dt_ms, const PackedFloat64Array& spike_times_ms, double before_ms, double after_ms );   // 0.6: reverse correlation
   /// 4-node census; refuses (error JSON) when the work estimate exceeds max_work (0 = no limit).
   String motif4_json( int64_t sign, int64_t n_null, int64_t seed, double max_work ) const;
   static String motif4_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed, double max_work );

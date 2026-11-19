@@ -20,7 +20,7 @@ var back_btn: Button
 var chart: MotifChart
 var panel: SeriesPanel
 var stats_view: StatsView
-const TABS := [[0, "3-node"], [1, "4-node"], [2, "HRV"], [3, "PRC"], [4, "bursts"], [5, "energy"]]
+const TABS := [[0, "3-node"], [1, "4-node"], [2, "HRV"], [3, "PRC"], [4, "bursts"], [5, "energy"], [6, "STA"]]
 const RECORDS := [[10, "10 s"], [30, "30 s"], [60, "60 s"], [0, "full"]]
 const BEAT_GAP_MS := 150.0
 const MOTIF4_MAX_WORK := 5.0e7
@@ -74,7 +74,7 @@ func build() -> void:
 func _tab_changed() -> void:
 	chart.visible = tab <= 0; panel.visible = tab > 0
 	for c in _head_motif: c.visible = tab <= 1
-	for c in _head_rec: c.visible = tab >= 2 and tab <= 4
+	for c in _head_rec: c.visible = (tab >= 2 and tab <= 4) or tab == 6
 	compute()
 
 ## The population the heart / breathing tasks read first: the one behind the task's first motor output (the SA node, the preBotC...), else the first.
@@ -137,13 +137,21 @@ func _start_record() -> void:
 	if not ClassDB.class_exists("SpikeSim"): panel.message = "The spike-gd GDExtension is not loaded."; panel.queue_redraw(); return
 	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: panel.message = "No circuit yet. Build one in the lab."; panel.queue_redraw(); return
 	var sim = ClassDB.instantiate("SpikeSim")
-	if not sim.load_circuit(Circuits.to_json(Telemetry.sanitized(circuit))): panel.message = "The engine rejected the circuit: " + str(sim.error()); panel.queue_redraw(); return
-	var t = Campaign.make(task_id) if task_id != "" else null
+	var sta := tab == 6   # v0.6 reverse correlation: a seeded Gaussian white-noise current is written into the first cell of the chosen population every ms
+	var run_c: Dictionary = circuit
+	if sta:
+		var pops0: Array = circuit.get("populations", [])
+		if pop_idx >= pops0.size() or Circuits.is_rate_model(str(pops0[pop_idx].get("model", ""))): panel.message = "Reverse correlation needs a spiking cell: choose a population of spiking cells."; panel.queue_redraw(); return
+		run_c = circuit.duplicate(true)
+		run_c["inputs"] = (run_c.get("inputs", []) as Array) + [{"name": "sta_noise", "kind": "dc", "targets": [{"pop": str(pops0[pop_idx].get("id", "")), "idx": [0]}], "weight": 1.0, "value": 0.0}]
+	if not sim.load_circuit(Circuits.to_json(Telemetry.sanitized(run_c))): panel.message = "The engine rejected the circuit: " + str(sim.error()); panel.queue_redraw(); return
+	var t = Campaign.make(task_id) if task_id != "" and not sta else null
 	if t != null: t.reset(int(circuit.get("seed", 1)))
 	var total := float(rec_s) * 1000.0
 	if t != null and (rec_s == 0 or total > float(t.duration_ms())): total = float(t.duration_ms())
 	if t == null and rec_s == 0: total = 30000.0
-	_rec_run = {"sim": sim, "task": t, "t": 0.0, "total": total, "pairs": PackedFloat64Array()}
+	_rec_run = {"sim": sim, "task": t, "t": 0.0, "total": total, "pairs": PackedFloat64Array(), "sta": sta, "stim": PackedFloat64Array(), "rng": RandomNumberGenerator.new()}
+	if sta: (_rec_run["rng"] as RandomNumberGenerator).seed = int(circuit.get("seed", 1)) + 7919; _rec_run["total"] = minf(total, 20000.0)
 	rec = {}; _compute_series()
 
 func _process(_dt: float) -> void:
@@ -152,14 +160,24 @@ func _process(_dt: float) -> void:
 	var sim = _rec_run["sim"]; var t = _rec_run["task"]
 	while float(_rec_run["t"]) < float(_rec_run["total"]) and Time.get_ticks_msec() - t0 < 12:
 		for _k in 20:
-			if t != null: t.step(sim, 1.0)
+			if bool(_rec_run.get("sta", false)):
+				var lv := _sta_level(); var z := float((_rec_run["rng"] as RandomNumberGenerator).randfn(0.0, 1.0)); var u: float = float(lv[0]) + float(lv[1]) * z
+				sim.set_input("sta_noise", u); var sa: PackedFloat64Array = _rec_run["stim"]; sa.append(u); _rec_run["stim"] = sa
+				sim.step(1.0)
+			elif t != null: t.step(sim, 1.0)
 			else: sim.step(1.0)
 			_rec_run["t"] = float(_rec_run["t"]) + 1.0
 		var pa: PackedFloat64Array = _rec_run["pairs"]; pa.append_array(sim.drain_spikes()); _rec_run["pairs"] = pa   # packed arrays are values: store the appended copy back
 	if float(_rec_run["t"]) >= float(_rec_run["total"]):
-		rec = {"pairs": _rec_run["pairs"], "n": int(sim.neuron_count()), "t_ms": float(_rec_run["t"]), "task_id": task_id}
+		rec = {"pairs": _rec_run["pairs"], "n": int(sim.neuron_count()), "t_ms": float(_rec_run["t"]), "task_id": task_id, "stim": _rec_run.get("stim", PackedFloat64Array()), "sta": bool(_rec_run.get("sta", false)), "sta_pop": pop_idx}
 		sim.stop(); _rec_run = {}
-	if tab >= 2 and tab <= 4: _compute_series()
+	if (tab >= 2 and tab <= 4) or tab == 6: _compute_series()
+
+## Mean and standard deviation (pA, or the model's own current unit) of the white-noise current for the cell of the chosen population: about at its threshold, so that it fires irregularly.
+func _sta_level() -> Array:
+	var pops: Array = circuit.get("populations", []); var model := str(pops[pop_idx].get("model", "")) if pop_idx < pops.size() else ""
+	var tab_ := {"izhikevich": [3.0, 2.5], "hh_psc_alpha": [0.0, 300.0], "aeif_cond_alpha": [330.0, 150.0], "aeif_cond_exp": [330.0, 150.0], "iaf_cond_exp": [280.0, 120.0]}
+	return tab_.get(model, [330.0, 120.0])
 
 ## Neuron ids of the chosen population.
 func _pop_neurons() -> PackedInt32Array:
@@ -187,12 +205,22 @@ static func beat_times(pairs: PackedFloat64Array, neurons: PackedInt32Array, gap
 	return out
 
 func _compute_series() -> void:
-	panel.kind = ["", "", "hrv", "prc", "bursts", "energy"][tab]; panel.data = {}; panel.message = ""; panel.extra = {}
+	panel.kind = ["", "", "hrv", "prc", "bursts", "energy", "sta"][tab]; panel.data = {}; panel.message = ""; panel.extra = {}
 	if tab == 5: _compute_energy(); return
 	if not _rec_run.is_empty():
 		panel.message = "Recording... %.0f of %.0f s" % [float(_rec_run["t"]) * 0.001, float(_rec_run["total"]) * 0.001]; panel.queue_redraw(); return
 	if rec.is_empty():
 		panel.message = "Press “Record”: the circuit is run on the task for the length chosen and every spike is kept, then analysed here."
+		panel.queue_redraw(); return
+	if tab == 6:
+		if not bool(rec.get("sta", false)): panel.message = "Press “Record” on this tab: the first cell of the population is driven by a Gaussian white-noise current for the length chosen (at most 20 s), and the stimulus that preceded each of its spikes is averaged."; panel.queue_redraw(); return
+		var pr0: PackedFloat64Array = rec["pairs"]; var first := Circuits.pop_first(circuit, int(rec["sta_pop"])); var st := PackedFloat64Array()
+		for j in range(0, pr0.size() - 1, 2):
+			if int(pr0[j]) == first: st.append(pr0[j + 1])
+		var d0 := Circuits.parse(str(SpikeSim.sta_json(rec["stim"], 1.0, st, 80.0, 10.0)))
+		panel.extra = {"sd": _sta_level()[1], "t_ms": float(rec["t_ms"]), "spikes": st.size()}
+		if d0.has("error"): panel.message = str(d0["error"])
+		else: panel.data = d0
 		panel.queue_redraw(); return
 	var pairs: PackedFloat64Array = rec["pairs"]; var n := int(rec["n"]); var t_ms := float(rec["t_ms"]); var ns := _pop_neurons()
 	var pops: Array = circuit.get("populations", [])
@@ -330,7 +358,7 @@ class SeriesPanel extends Control:
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(380, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _title() -> String:
-		return {"m4": "Four-node motifs", "hrv": "Heart-rate variability", "prc": "Phase-response curve", "bursts": "Bursts", "energy": "Energy"}.get(kind, "")
+		return {"m4": "Four-node motifs", "hrv": "Heart-rate variability", "prc": "Phase-response curve", "bursts": "Bursts", "energy": "Energy", "sta": "Spike-triggered average"}.get(kind, "")
 	func _num(v: Variant, fmt := "%.1f") -> String: return "-" if v == null else fmt % float(v)
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
@@ -344,6 +372,7 @@ class SeriesPanel extends Control:
 			"prc": _draw_prc(f, fb, fz)
 			"bursts": _draw_bursts(f, fb, fz)
 			"energy": _draw_energy(f, fb, fz)
+			"sta": _draw_sta(f, fb, fz)
 	func _rows(rows: Array, y0: float, f: Font, fb: Font) -> float:
 		var y := y0
 		for kv in rows:
@@ -427,6 +456,25 @@ class SeriesPanel extends Control:
 			var x0 := r.position.x + r.size.x * float(b["onset_ms"]) / tt; var x1 := r.position.x + r.size.x * float(b["offset_ms"]) / tt
 			draw_rect(Rect2(x0, r.position.y + 6.0, maxf(x1 - x0, 2.0), r.size.y - 12.0), Color(Kit.exc(), 0.85))
 		_note("A burst starts at an ISI under 170 ms, ends at one over 170 ms, has at least 3 spikes and 10 ms, and is 200 ms or more from the last one.", r.end.y + 20.0, f, fz)
+	## Reverse correlation (Chichilnisky 2001): the mean of the white-noise stimulus before each spike. For a cell that is linear before its threshold it is its filter, up to a scale.
+	func _draw_sta(f: Font, fb: Font, fz: int) -> void:
+		var d := data; var m: Array = d.get("mean", []); var n := int(d.get("n", 0))
+		if m.is_empty() or n < 5: draw_string(f, Vector2(16, 70), "Too few spikes (%d): the cell fired hardly at all under this noise." % n, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT); return
+		var sd := float(extra.get("sd", 1.0)); var P := Rect2(60, 70, size.x - 84.0, size.y - 170.0)
+		draw_rect(P, Color(Gfx.SHEET, 0.9)); draw_rect(P, Kit.INK, false, 1.2)
+		var lo := 0.0; var hi := 0.0
+		for v in m: lo = minf(lo, float(v)); hi = maxf(hi, float(v))
+		lo = minf(lo, -0.2 * sd); hi = maxf(hi, 0.2 * sd)
+		var yz := P.end.y - (0.0 - lo) / maxf(hi - lo, 1e-9) * P.size.y; draw_line(Vector2(P.position.x, yz), Vector2(P.end.x, yz), Color(Kit.INK, 0.35), 1.0)
+		var before := float(d.get("before_ms", 80.0)); var span := float(m.size() - 1); var xs := P.position.x + P.size.x * before / span; draw_line(Vector2(xs, P.position.y), Vector2(xs, P.end.y), Color(Kit.AMBER, 0.8), 1.4)
+		var q := PackedVector2Array()
+		for k in m.size(): q.append(Vector2(P.position.x + P.size.x * float(k) / span, P.end.y - (float(m[k]) - lo) / maxf(hi - lo, 1e-9) * P.size.y))
+		draw_polyline(q, Kit.exc(), 2.4, true)
+		draw_string(f, Vector2(P.position.x, P.end.y + float(fz) + 4.0), "-%d ms" % int(before), HORIZONTAL_ALIGNMENT_LEFT, 80, fz, Kit.TEXT_SOFT)
+		draw_string(f, Vector2(xs - 20.0, P.end.y + float(fz) + 4.0), "spike", HORIZONTAL_ALIGNMENT_LEFT, 60, fz, Kit.AMBER)
+		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %.3g)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, sd], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		_note("The average of a Gaussian white-noise stimulus around the spikes is the cell's linear filter (Chichilnisky 2001): a bump just before the spike means the cell integrates the recent past.", size.y - 18.0 - float(fz), f, fz)
+
 	func _draw_energy(f: Font, fb: Font, fz: int) -> void:
 		var d := data; var hz := float(d["hz"]); var bud := float(d["budget"]); var ok := hz <= bud
 		var atp := Telemetry.atp_text(hz * float(d["neurons"]))

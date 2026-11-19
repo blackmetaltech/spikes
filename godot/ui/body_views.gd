@@ -6,7 +6,7 @@ extends RefCounted
 ## draws the numbers: strip charts, the ECG (from the real beat times), the gauges of the dashboard. Everything draws onto a TaskView (a Control) `c`, inside
 ## rect `r`; history comes from Telemetry.hist.
 
-const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase", "rates", "memory"]
+const KINDS := ["limb", "heart", "lungs", "eye", "gut", "dashboard", "compass", "phase", "rates", "memory", "tuning"]
 
 static func ro(t: Telemetry) -> Dictionary: return (t.body.get("readouts", {}) as Dictionary) if t != null else {}
 static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.get(k, dflt))
@@ -23,6 +23,7 @@ static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
 		"phase": _phase(c, t, r)
 		"rates": _rates(c, t, r)
 		"memory": _memory(c, t, r)
+		"tuning": _tuning(c, t, r)
 		_: _dashboard(c, t, r)
 
 # ---------------------------------------------------------------- readout names and units (G6)
@@ -703,6 +704,42 @@ static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 			if cued.has(id): c.draw_arc(ctr, cell * 0.46, 0.0, TAU, 24, Kit.AMBER, 3.0, true)
 	var legend := "cells that fire glow sienna; an amber ring marks the cells a cue reaches"
 	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), legend, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+
+# ---------------------------------------------------------------- tuning (v0.6)
+## A dial with the stimulus the task shows (ink arrow; the period of the tuned input is the full circle) and, for a ring readout, the decoded direction (cyan arrow, its length the strength of the
+## vector); beside it a bar per cell of the first motor channel (its recent activity), in the order of the cells.
+static func _tuning(c: Control, t: Telemetry, r: Rect2) -> void:
+	var fz := Kit.fs(14)
+	if t == null or t.sim == null or t.task == null: _empty(c, r, "Build the cells: the tuning appears here."); return
+	var stim := ""; var period := 360.0
+	for ch in t.circuit.get("inputs", []):
+		if str(ch.get("kind", "")) == "tuned_poisson": stim = str(ch.get("name", "")); period = float(ch.get("period_deg", 360.0))
+	var y0 := r.position.y + _banner(c, t, r)
+	var area := Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - float(fz) - 12.0)
+	var rad := maxf(minf(area.size.y * 0.42, area.size.x * 0.22), 28.0); var cc := Vector2(area.position.x + rad + 30.0, area.get_center().y)
+	c.draw_circle(cc, rad + 3.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true)
+	for k in 12:
+		var a := TAU * float(k) / 12.0 - PI * 0.5; var dv := Vector2(cos(a), sin(a))
+		c.draw_line(cc + dv * rad, cc + dv * (rad - (9.0 if k % 3 == 0 else 5.0)), Color(Kit.INK, 0.7), 1.2, true)
+	if stim != "":
+		var ang := float(t.sim.input_value(stim)) / period * TAU - PI * 0.5; var d := Vector2(cos(ang), sin(ang))
+		c.draw_line(cc, cc + d * (rad - 4.0), Kit.INK, 3.0, true); c.draw_circle(cc + d * (rad - 4.0), 5.0, Kit.INK)
+	var motors: Array = t.task.motor_channels(); var kinds := {}
+	for o in t.sim.outputs(): kinds[str(o["name"])] = o
+	for m in motors:
+		if kinds.has(str(m)) and str(kinds[str(m)]["kind"]) == "population_vector":
+			var st := float(t.sim.output_strength(str(m)))
+			if st > 0.02:
+				var ba := float(t.sim.output_angle(str(m))) - PI * 0.5; var bd := Vector2(cos(ba), sin(ba))
+				c.draw_line(cc, cc + bd * (rad - 6.0) * clampf(st / 0.8, 0.0, 1.0), Kit.CYAN, 5.0, true); c.draw_circle(cc + bd * (rad - 6.0) * clampf(st / 0.8, 0.0, 1.0), 6.0, Kit.CYAN)
+	if not motors.is_empty() and kinds.has(str(motors[0])):
+		var cells: PackedInt32Array = kinds[str(motors[0])]["neurons"]; var n := cells.size()
+		var bx := area.position.x + rad * 2.0 + 90.0; var bw := (area.end.x - bx - 10.0) / float(maxi(n, 1)); var base := area.end.y - 6.0
+		for k in n:
+			var lit := clampf(float(t.flash[cells[k]]) if cells[k] < t.flash.size() else 0.0, 0.0, 1.0)
+			c.draw_rect(Rect2(bx + bw * float(k) + 2.0, base - lit * area.size.y * 0.8, maxf(bw - 4.0, 2.0), maxf(lit * area.size.y * 0.8, 2.0)), Color(Kit.exc(), 0.3 + 0.7 * lit))
+		c.draw_line(Vector2(bx, base), Vector2(area.end.x - 6.0, base), Kit.INK, 1.2)
+	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "ink: the stimulus shown; cyan: the direction decoded from the cells; bars: how active each cell is", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- dashboard
 ## Gauges for every judged trace (the arc is the tolerance band, the needle the value, green inside it and red outside, with a sparkline of the last 20 s), then

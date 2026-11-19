@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - 0.6 Theory wing, chapter 4: tuning and decoding
+
+- Three levels: `t_tuned` (a cell tuned by choosing its afferents), `t_sharpen` (tuning sharpened by competition among cells), `t_decode` (a direction decoded with the population vector from the player's cells, over random directions).
+- Lab: a tuning view (stimulus dial, decoded arrow, activity bars); the lab skeleton copies the tuning of `tuned_poisson` inputs from the reference.
+- Analysis screen: a spike-triggered-average tab (reverse correlation of a Gaussian white-noise current). `SpikeSim.sta_json`.
+- `Scripted`: `raw` sensors and `reseed` (levels drawn from the episode seed).
+
 ## [Unreleased] - 0.6 Theory wing, chapter 3: attractor memory
 
 - Three levels: `h_complete` (a partial cue recalls the whole pattern), `h_two` (two patterns, no blended state), `h_learn` (the pattern is written by `stdp_synapse` during an exposure phase and recalled after, with a check that the weights really grew and that nothing was recalled before).

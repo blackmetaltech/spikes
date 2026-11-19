@@ -275,6 +275,7 @@ String SpikeSim::prc_experiment_json( const String& channel, double baseline, do
     ints( neurons ), merge_gap_ms, int( repeats ), int( nbins ) ) );
 }
 String SpikeSim::hrv_json( const PackedFloat64Array& beats ) { return js( spike_gd::hrv_json( dbls( beats ) ) ); }
+String SpikeSim::sta_json( const PackedFloat64Array& stim, double dt, const PackedFloat64Array& spikes, double before, double after ) { return js( spike_gd::sta_json( dbls( stim ), dt, dbls( spikes ), before, after ) ); }
 String SpikeSim::motif4_json( int64_t sign, int64_t n_null, int64_t seed, double max_work ) const
 {
   if ( !owns() )
@@ -324,6 +325,7 @@ void SpikeSim::_bind_methods()
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "prc_json", "pairs", "n", "neurons", "perturb_ms", "period_ms", "merge_gap_ms", "nbins" ), &SpikeSim::prc_json );
   ClassDB::bind_method( D_METHOD( "prc_experiment_json", "channel", "baseline", "pulse_value", "pulse_ms", "n_phases", "neurons", "merge_gap_ms", "repeats", "nbins" ), &SpikeSim::prc_experiment_json );
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "hrv_json", "beat_times_ms" ), &SpikeSim::hrv_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "sta_json", "stimulus", "dt_ms", "spike_times_ms", "before_ms", "after_ms" ), &SpikeSim::sta_json );
   ClassDB::bind_method( D_METHOD( "motif4_json", "sign", "n_null", "seed", "max_work" ), &SpikeSim::motif4_json );
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "motif4_json_edges", "triples", "n", "sign", "n_null", "seed", "max_work" ), &SpikeSim::motif4_json_edges );
 }

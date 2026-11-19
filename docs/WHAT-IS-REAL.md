@@ -134,6 +134,12 @@ Diagnosis cases `dx_compass`, `dx_mb_apl`, `dx_mb_dan`, `dx_crab` are fictional 
 |---|---|---|---|
 | `h_complete`, `h_two`, `h_learn` | NEST `iaf_psc_alpha`, 8 cells in 2 groups; `stdp_synapse` in `h_learn` | Content-addressable memory in a network with symmetric connections and its spurious mixtures (Hopfield 1982); stable, selective activity in networks of integrate-and-fire cells (Amit & Brunel 1997); Hebbian storage by spike-timing-dependent plasticity (Bi & Poo 1998; Song, Miller & Abbott 2000) | **A pattern is a group of cells, not a +1 / -1 vector, and the weight matrix is block-structured by construction, not built by the outer-product rule: this is the simplest honest reading of a stored pattern with 8 cells.** Persistent activity is at 100 Hz or more because the network has no balanced inhibition or adaptation; real delay activity is 10 to 40 Hz. The inhibition between patterns is built in (NEST `stdp_synapse` is excitatory only, so it cannot be learned). The STDP learning rate, the weights, the exposure and the cue are game values; one second of exposure stands for minutes of learning |
 
+### Theory wing (0.6): tuning and decoding
+
+| Level | Cells | Mostly literature | Tuned, illustrative or assumed |
+|---|---|---|---|
+| `t_tuned`, `t_sharpen`, `t_decode` | NEST `parrot_neuron` afferents driven by `tuned_poisson` (von Mises rates), `iaf_psc_alpha` cells, engine `population_vector` readout | Orientation-selective cells and their construction from aligned inputs (Hubel & Wiesel 1962); sharpening of tuning by cortical interactions (Ben-Yishai, Bar-Or & Sompolinsky 1995); the population vector (Georgopoulos, Schwartz & Kettner 1986); reverse correlation of a white-noise stimulus (Chichilnisky 2001) | **The tuning curves are given, not learned:** a von Mises rate with a game-chosen width, peak and base, Poisson spikes, preferred angles evenly spread. Real afferents are not evenly spaced or Poisson. Whether real orientation tuning is feed-forward or recurrent is debated, and the levels show each mechanism working, not that it is how the cortex does it. The sharpening needs self-excitation as well as inhibition in the reference (a uniform inhibition alone is marginal). The STA uses a Gaussian current whose mean and sd are a per-model table near threshold |
+
 ### Diagnosis cases (fictional patients, model circuits)
 
 | Level | Underlying task | Real pathology it echoes | Honest limit |

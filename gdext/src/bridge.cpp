@@ -1,4 +1,5 @@
 #include "bridge.h"
+#include "spike/theory.h"
 #include "spike/analysis.h"
 
 #include <algorithm>
@@ -160,6 +161,20 @@ std::string prc_experiment_json( spike::Engine& engine, const std::string& chann
   {
     return error_json( e.what() );
   }
+}
+
+std::string sta_json( const std::vector< double >& stimulus, double dt_ms, const std::vector< double >& spike_times_ms, double before_ms, double after_ms )
+{
+  const spike::theory::Sta r = spike::theory::spike_triggered_average( stimulus, dt_ms, spike_times_ms, before_ms, after_ms );
+  std::string out = "{\"mean\":[";
+  char buf[64];
+  for ( size_t k = 0; k < r.mean.size(); ++k )
+  {
+    std::snprintf( buf, sizeof buf, "%s%.9g", k ? "," : "", r.mean[ k ] );
+    out += buf;
+  }
+  std::snprintf( buf, sizeof buf, "],\"n\":%d,\"before_ms\":%.6g,\"dt_ms\":%.6g}", r.n_used, r.before_ms, r.dt_ms );
+  return out + buf;
 }
 
 std::string hrv_json( const std::vector< double >& beat_times_ms )

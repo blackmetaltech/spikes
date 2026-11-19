@@ -39,3 +39,16 @@ Levels in `engine/src/tasks/` on the Bestiary scaffolding (`bestiary_a.h`, plus 
 * "Symmetric" is checked between groups: every projection has a partner back of about the same mean weight (within a factor of two). `h_learn` checks it at the start; plasticity is free to break it later.
 * Persistent activity is at 100 Hz or more (no balanced inhibition, no adaptation): it is an attractor, not a model of delay activity.
 * `h_learn`: learning is compressed (a 1.2 s exposure at 60 Hz, lambda 0.0015); with lambda 0.0025 the 200 ms cue itself writes the pattern and `naive` fails (a cheap row pins this at lambda 0.03).
+
+## Tuning and decoding (`tuning`)
+
+| Level | Teaches | Mechanism the check demands | Reference |
+|---|---|---|---|
+| `t_tuned` | a tuned cell from convergence | the cell `resp` reads is not an afferent, hears some afferents by excitation and not all; behaviour: a clear response at 90 degrees, at least 3 x the response at 0 and 1.4 x at 45 and 135 | afferents in groups A1 (4), A2 (1), A3 (3), one cell listening to A2 |
+| `t_sharpen` | sharper tuning from inhibition | cells driven by the afferents, not the afferents, with a net inhibitory loop among them; behaviour: the response of cells 45 degrees from the shown orientation is at most 48 % of the peak | 8 afferents, 8 cells one to one, all-to-all inhibition -2500 and self-excitation +2500 |
+| `t_decode` | the population vector | `heading` (ring readout) reads at least 8 cells that are not afferents and listen to them; behaviour: mean decoding error at most 25 degrees over six random directions | 12 afferents, 12 cells one to one |
+
+* The afferents are `tuned_poisson` inputs: von Mises tuning, Poisson spikes, one generator per afferent; the preferred angle of afferent k of N is the period times k / N, in circuit order. The levels use a `raw` sensor (the angle is not scaled by the episode's small gain noise).
+* `t_sharpen` reads the response of every cell relative to the orientation shown (the cell preferring it, and the two cells 45 degrees away) over twelve trials, because one cell's spike count is too noisy. A uniform inhibition without self-excitation sharpens less than the threshold in most seeds: the level asks for competition.
+* The random directions of `t_decode` come from the episode seed (a different draw per seed, deterministic).
+* The Analysis screen has a seventh tab, "STA": a seeded Gaussian white-noise current is written into the first cell of the chosen population every ms for up to 20 s and the stimulus that preceded each spike is averaged (`theory::spike_triggered_average`, tested in `test_theory`). The mean and the standard deviation of the noise are a per-model table in `analysis.gd`, near the cell's threshold.
