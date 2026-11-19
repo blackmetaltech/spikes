@@ -61,6 +61,7 @@ Spec spec()
             "population vector over the ring. You are scored on the heading error in the dark: how far the bump is from the true heading, after holding still and after each turn. "
             "A ring alone cannot move; shifters on one side cannot turn both ways.";
   i.chapter = "fly_compass";
+  i.view = "compass";
   i.sensors = cue_family();
   i.sensors.push_back( "turn_left" );
   i.sensors.push_back( "turn_right" );
@@ -92,6 +93,11 @@ Spec spec()
     for ( const auto& k : checks() )
       if ( !k.full_only || !quick ) c.wins.push_back( { k.key, k.t0, k.t1 } );
     return c;
+  };
+  s.timeline = []() -> std::vector< Task::Event > {
+    std::vector< Task::Event > v = { { 0, 500, "landmark" } };
+    for ( const auto& u : turns( false ) ) v.push_back( { u.t0, u.t1 - u.t0, u.dps > 0 ? "turn right" : "turn left" } );
+    return v;
   };
   s.mech = []( const Graph& g ) -> std::string {
     std::string r = ring_readout_missing( g, "heading" );
@@ -195,7 +201,7 @@ Spec spec()
 }
 }  // namespace
 
-std::unique_ptr< Task > make_fly_compass() { return std::make_unique< Landmark >( spec() ); }
+std::unique_ptr< Task > make_fly_compass() { return std::make_unique< Landmark >( spec(), []( double t, bool quick ) { return heading_change( turns( quick ), t ); } ); }
 
 }  // namespace spike::tasks
 

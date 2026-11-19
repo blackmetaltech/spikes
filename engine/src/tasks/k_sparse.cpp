@@ -59,6 +59,7 @@ Spec spec()
     c.wins = { { "quiet", 0, 400 }, { "a_lo", 500, 1000 }, { "b_lo", 1100, 1600 }, { "a_hi", 1700, 2200 } };
     return c;
   };
+  s.timeline = []() -> std::vector< Task::Event > { return { { 500, 500, "odour A" }, { 1100, 500, "odour B" }, { 1700, 500, "odour A, strong" } }; };
   s.mech = []( const Graph& g ) -> std::string { return sparse_code_missing( g, "kc" ); };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const double pool = std::max( 1.0, m.pool.count( "kc" ) ? m.pool.at( "kc" ) : 1.0 );

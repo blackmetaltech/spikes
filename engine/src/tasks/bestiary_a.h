@@ -166,6 +166,7 @@ struct Spec
   bool spine = true;
   std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
   std::vector< std::string > cells;                    // motor channels whose individual cells are tracked (Meas::active / Meas::both)
+  std::function< std::vector< Task::Event >() > timeline;  // optional: the events shown under the world (default: one per input segment, labelled with its channel)
 };
 
 class Scripted : public micro::MicroBase
@@ -183,6 +184,7 @@ public:
   double quick_duration_ms() const override { return quick_sched_.dur; }
   std::vector< Event > timeline() const override
   {
+    if ( s_.timeline ) return s_.timeline();
     std::vector< Event > v;
     for ( const auto& g : sched_.segs ) v.push_back( { g.t0, g.t1 - g.t0, g.ch } );
     return v;
@@ -237,7 +239,7 @@ public:
     const bool all = met == static_cast< int >( crits.size() );
     s.passed = all && finished();
     s.value = s.passed ? 100.0 : 85.0 * ( crits.empty() ? 0.0 : soft / static_cast< double >( crits.size() ) );
-    if ( !finished() ) s.passed = false;
+    if ( !finished() || !wiring_.ok() ) s.passed = false;   // a half-wired circuit never passes (chapters B: a sensor or motor that is not connected is no solution)
     apply_mech( s );
     s.parts[ "criteria_met" ] = met;
     s.parts[ "criteria" ] = static_cast< double >( crits.size() );

@@ -1,0 +1,253 @@
+{
+ "schema_version": 1,
+ "name": "Crab: the pyloric rhythm",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "AB",
+   "model": "stg_cell",
+   "n": 1,
+   "params": {
+    "g_Na": 251200,
+    "g_CaT": 1570.0,
+    "g_CaS": 3768.0,
+    "g_A": 31400,
+    "g_KCa": 3140.0,
+    "g_Kd": 62800,
+    "g_H": 6.28,
+    "g_L": 0.0,
+    "I_e": -50.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     120,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "PD",
+   "model": "stg_cell",
+   "n": 2,
+   "params": {
+    "g_Na": 62800,
+    "g_CaT": 1570.0,
+    "g_CaS": 3768.0,
+    "g_A": 31400,
+    "g_KCa": 3140.0,
+    "g_Kd": 62800,
+    "g_H": 6.28,
+    "g_L": 6.28,
+    "I_e": -50.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     120,
+     240
+    ],
+    [
+     150,
+     240
+    ]
+   ]
+  },
+  {
+   "id": "LP",
+   "model": "stg_cell",
+   "n": 1,
+   "params": {
+    "g_Na": 62800,
+    "g_CaT": 0.0,
+    "g_CaS": 1256.0,
+    "g_A": 6280,
+    "g_KCa": 0.0,
+    "g_Kd": 31400,
+    "g_H": 18.84,
+    "g_L": 6.28,
+    "I_e": 0.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     360,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "PY",
+   "model": "stg_cell",
+   "n": 2,
+   "params": {
+    "g_Na": 62800,
+    "g_CaT": 2512.0,
+    "g_CaS": 628.0,
+    "g_A": 50240,
+    "g_KCa": 0.0,
+    "g_Kd": 78500,
+    "g_H": 62.8,
+    "g_L": 6.28,
+    "I_e": 50.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     360,
+     240
+    ],
+    [
+     390,
+     240
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "AB",
+   "post": "PD",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 100.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PD",
+   "post": "AB",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 20.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "AB",
+   "post": "LP",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -40.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "AB",
+   "post": "PY",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -40.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PD",
+   "post": "LP",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -20.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PD",
+   "post": "PY",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -20.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "LP",
+   "post": "PD",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -10.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "LP",
+   "post": "PY",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -10.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PY",
+   "post": "LP",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -30.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "modulator",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "AB"
+    },
+    {
+     "pop": "PD"
+    }
+   ],
+   "weight": 50.0,
+   "value": 1.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "pd",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "PD"
+    }
+   ]
+  },
+  {
+   "name": "lp",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "LP"
+    }
+   ]
+  },
+  {
+   "name": "py",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "PY"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "crab_pyloric",
+  "notes": "docs/circuits/bestiary_b.md"
+ }
+}

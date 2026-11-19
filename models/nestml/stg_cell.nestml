@@ -1,0 +1,125 @@
+# stg_cell: a single-compartment conductance-based cell of the crab stomatogastric ganglion, after the Prinz et al. 2003 model family:
+# fast sodium (Na), delayed rectifier (Kd), transient and slow calcium (CaT, CaS), A-type potassium (A), calcium-activated potassium (KCa), hyperpolarisation-activated (H) and a leak.
+# Gating kinetics follow the published forms (Boltzmann steady states, voltage-dependent time constants); the numerical constants are written from memory of those papers and the
+# maximal conductances are game values chosen to give a pacemaker (AB/PD-like) and followers (LP/PY-like): they are NOT the published parameter sets (docs/models/stg_cell.md).
+#
+#   C dV/dt = -I_Na - I_Kd - I_CaT - I_CaS - I_A - I_KCa - I_H - I_L - I_syn + I_e + I_stim
+#
+# Output: one spike per action potential (upward crossing of V_th, re-armed below V_rearm); bursts are the clusters of these spikes.
+# Units: V mV, t ms, conductances nS (1 mS/cm2 of a 0.628e-3 cm2 cell = 628 nS), C pF (1 uF/cm2 = 628 pF), calcium in uM.
+model stg_cell:
+
+    state:
+        V_m mV = -60 mV
+        m_na real = 0.
+        h_na real = 0.9
+        m_kd real = 0.
+        m_cat real = 0.
+        h_cat real = 0.2
+        m_cas real = 0.
+        h_cas real = 0.2
+        m_a real = 0.
+        h_a real = 0.3
+        m_kca real = 0.
+        m_h real = 0.1
+        Ca real = 0.05
+        armed boolean = true
+
+    equations:
+        inline Vv real = V_m / (1 mV)
+        inline m_na_inf real = 1. / (1. + exp(-(Vv + 25.5) / 5.29))
+        inline tau_m_na ms = (1.32 - 1.26 / (1. + exp(-(Vv + 120.) / 25.))) * (1 ms)
+        inline h_na_inf real = 1. / (1. + exp((Vv + 48.9) / 5.18))
+        inline tau_h_na ms = (0.67 / (1. + exp(-(Vv + 62.9) / 10.)) * (1.5 + 1. / (1. + exp((Vv + 34.9) / 3.6)))) * (1 ms)
+        inline m_kd_inf real = 1. / (1. + exp(-(Vv + 14.2) / 11.8))
+        inline tau_m_kd ms = (7.2 - 6.4 / (1. + exp(-(Vv + 28.3) / 19.2))) * (1 ms)
+        inline m_cat_inf real = 1. / (1. + exp(-(Vv + 27.1) / 7.2))
+        inline tau_m_cat ms = (21.7 - 21.3 / (1. + exp(-(Vv + 68.1) / 20.5))) * (1 ms)
+        inline h_cat_inf real = 1. / (1. + exp((Vv + 32.1) / 5.5))
+        inline tau_h_cat ms = (105. - 89.8 / (1. + exp(-(Vv + 55.) / 16.9))) * (1 ms)
+        inline m_cas_inf real = 1. / (1. + exp(-(Vv + 33.) / 8.1))
+        inline tau_m_cas ms = (1.4 + 7. / (exp((Vv + 27.) / 10.) + exp(-(Vv + 70.) / 13.))) * (1 ms)
+        inline h_cas_inf real = 1. / (1. + exp((Vv + 60.) / 6.2))
+        inline tau_h_cas ms = (60. + 150. / (exp((Vv + 55.) / 9.) + exp(-(Vv + 65.) / 16.))) * (1 ms)
+        inline m_a_inf real = 1. / (1. + exp(-(Vv + 27.2) / 8.7))
+        inline tau_m_a ms = (11.6 - 10.4 / (1. + exp(-(Vv + 32.9) / 15.2))) * (1 ms)
+        inline h_a_inf real = 1. / (1. + exp((Vv + 56.9) / 4.9))
+        inline tau_h_a ms = (38.6 - 29.2 / (1. + exp(-(Vv + 38.9) / 26.5))) * (1 ms)
+        inline m_kca_inf real = (Ca / (Ca + 3.)) / (1. + exp(-(Vv + 28.3) / 12.6))
+        inline tau_m_kca ms = (90.3 - 75.09 / (1. + exp(-(Vv + 46.) / 22.7))) * (1 ms)
+        inline m_h_inf real = 1. / (1. + exp((Vv + 70.) / 6.))
+        inline tau_m_h ms = (272. + 1499. / (1. + exp(-(Vv + 42.2) / 8.73))) * (1 ms)
+        inline E_Ca mV = (6.1 * ln(3000. / max(Ca, 0.0001))) * (1 mV)
+
+        inline I_Na pA = g_Na * m_na**3 * h_na * (V_m - E_Na)
+        inline I_Kd pA = g_Kd * m_kd**4 * (V_m - E_K)
+        inline I_CaT pA = g_CaT * m_cat**3 * h_cat * (V_m - E_Ca)
+        inline I_CaS pA = g_CaS * m_cas**3 * h_cas * (V_m - E_Ca)
+        inline I_A pA = g_A * m_a**3 * h_a * (V_m - E_K)
+        inline I_KCa pA = g_KCa * m_kca**4 * (V_m - E_K)
+        inline I_H pA = g_H * m_h * (V_m - E_H)
+        inline I_L pA = g_L * (V_m - E_L)
+
+        kernel g_exc = exp(-t / tau_syn_exc)
+        kernel g_inh = exp(-t / tau_syn_inh)
+        inline I_syn pA = unit_psg * (convolve(g_exc, exc_spikes) * (V_m - E_exc) + convolve(g_inh, inh_spikes) * (V_m - E_inh))
+
+        V_m' = (-I_Na - I_Kd - I_CaT - I_CaS - I_A - I_KCa - I_H - I_L - I_syn + I_e + I_stim) / C_m
+        m_na' = (m_na_inf - m_na) / tau_m_na
+        h_na' = (h_na_inf - h_na) / tau_h_na
+        m_kd' = (m_kd_inf - m_kd) / tau_m_kd
+        m_cat' = (m_cat_inf - m_cat) / tau_m_cat
+        h_cat' = (h_cat_inf - h_cat) / tau_h_cat
+        m_cas' = (m_cas_inf - m_cas) / tau_m_cas
+        h_cas' = (h_cas_inf - h_cas) / tau_h_cas
+        m_a' = (m_a_inf - m_a) / tau_m_a
+        h_a' = (h_a_inf - h_a) / tau_h_a
+        m_kca' = (m_kca_inf - m_kca) / tau_m_kca
+        m_h' = (m_h_inf - m_h) / tau_m_h
+        Ca' = (-0.01496 * (I_CaT + I_CaS) / (1 pA) - Ca + 0.05) / tau_Ca
+
+    parameters:
+        C_m pF = 628 pF
+        g_Na nS = 62800 nS
+        g_Kd nS = 62800 nS
+        g_CaT nS = 1570 nS
+        g_CaS nS = 3768 nS
+        g_A nS = 31400 nS
+        g_KCa nS = 3140 nS
+        g_H nS = 6.28 nS
+        g_L nS = 6.28 nS
+        E_Na mV = 50 mV
+        E_K mV = -80 mV
+        E_H mV = -20 mV
+        E_L mV = -50 mV
+        tau_Ca ms = 303 ms
+        I_e pA = 0 pA
+
+        # synapses (spike-triggered conductances; the real glutamatergic inhibition is graded as well)
+        E_exc mV = 0 mV
+        E_inh mV = -80 mV
+        tau_syn_exc ms = 5 ms
+        tau_syn_inh ms = 20 ms
+
+        # spike detector
+        V_th mV = -10 mV
+        V_rearm mV = -30 mV
+
+    internals:
+        unit_psg nS = 1 nS
+
+    input:
+        exc_spikes <- excitatory spike
+        inh_spikes <- inhibitory spike
+        I_stim pA <- continuous
+
+    output:
+        spike
+
+    update:
+        integrate_odes()
+        if armed and V_m > V_th:
+            armed = false
+            emit_spike()
+        if not armed and V_m < V_rearm:
+            armed = true

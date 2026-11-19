@@ -1,0 +1,64 @@
+{
+ "schema_version": 1,
+ "name": "Crab: phase from inhibition and rebound",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "LP",
+   "model": "stg_cell",
+   "n": 1,
+   "params": {
+    "g_Na": 62800,
+    "g_CaT": 0.0,
+    "g_CaS": 1256.0,
+    "g_A": 6280,
+    "g_KCa": 0.0,
+    "g_Kd": 31400,
+    "g_H": 18.84,
+    "g_L": 6.28,
+    "I_e": 0.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     150
+    ]
+   ]
+  }
+ ],
+ "projections": [],
+ "inputs": [
+  {
+   "name": "pd",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "LP"
+    }
+   ],
+   "weight": -20.0,
+   "value": 100.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "lp",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "LP"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "s_phase",
+  "notes": "docs/circuits/bestiary_b.md"
+ }
+}

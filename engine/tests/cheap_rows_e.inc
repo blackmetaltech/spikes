@@ -26,7 +26,7 @@
     };
   };
 
-  const std::vector< std::string > levels_e = { "c_ring", "c_shift", "fly_compass", "k_sparse", "k_depress", "fly_mb" };
+  const std::vector< std::string > levels_e = { "c_ring", "c_shift", "fly_compass", "k_sparse", "k_depress", "fly_mb", "s_pacemaker", "s_phase", "crab_pyloric" };
   // every weight 0; a dopamine-gated synapse cannot have weight 0 (the loader refuses it), so it gets the smallest weight it accepts
   auto zero_e = []( json& c ) {
     for ( auto& p : c[ "projections" ] )
@@ -136,4 +136,39 @@
   CHEAP_ROW( "fly_mb", "learning amplitude zero", cheap::from_ref( "fly_mb", set_syn( "KC", "MBON", { { "A_plus", 0.0 }, { "A_minus", 0.0 } } ) ) );
   CHEAP_ROW( "fly_mb", "potentiation instead of depression", cheap::from_ref( "fly_mb", set_syn( "KC", "MBON", { { "A_plus", 1000.0 }, { "A_minus", -1000.0 } } ) ) );
   CHEAP_ROW( "fly_mb", "avoidance cells without bias and without drive", cheap::from_ref( "fly_mb", cheap::both( set_syn( "KC", "MBON", { { "weight", 0.001 } } ), cheap::set_params( "MBON", { { "I_e", 0.0 } } ) ) ) );
+  // ---- crab pyloric rhythm ----
+  auto scale_all = []( double f ) -> cheap::Mut {
+    return [ = ]( json& c ) {
+      for ( auto& p : c[ "projections" ] ) if ( p.contains( "synapse" ) && p[ "synapse" ].contains( "weight" ) ) p[ "synapse" ][ "weight" ] = p[ "synapse" ][ "weight" ].get< double >() * f;
+    };
+  };
+  auto no_params = []( const std::string& id, std::vector< std::string > keys ) -> cheap::Mut {
+    return [ = ]( json& c ) { for ( const auto& k : keys ) cheap::find_pop( c, id )->operator[]( "params" )[ k ] = 0.0; };
+  };
+
+  CHEAP_ROW_V( "s_pacemaker", "reference with a plain integrate-and-fire burster", "plain", cheap::from_ref( "s_pacemaker", cheap::set_model( "AB", "iaf_psc_alpha" ) ) );
+  CHEAP_ROW_V( "s_pacemaker", "reference minus AB > PD", "coupled both ways", cheap::from_ref( "s_pacemaker", cut_e( "AB", "PD" ) ) );
+  CHEAP_ROW_V( "s_pacemaker", "reference minus PD > AB", "coupled both ways", cheap::from_ref( "s_pacemaker", cut_e( "PD", "AB" ) ) );
+  CHEAP_ROW( "s_pacemaker", "no modulator (the burster stays silent)", cheap::from_ref( "s_pacemaker", cheap::scale_input( "modulator", 0.0 ) ) );
+  CHEAP_ROW( "s_pacemaker", "no calcium-activated potassium: the cell fires tonically", cheap::from_ref( "s_pacemaker", cheap::both( no_params( "AB", { "g_KCa" } ), no_params( "PD", { "g_KCa" } ) ) ) );
+  CHEAP_ROW( "s_pacemaker", "much too much drive (bias 300 pA)", cheap::from_ref( "s_pacemaker", cheap::set_params( "AB", { { "I_e", 300.0 } } ) ) );
+  CHEAP_ROW( "s_pacemaker", "PD cells only slightly coupled (AB > PD 1/50)", cheap::from_ref( "s_pacemaker", cut_e( "AB", "PD", 0.02 ) ) );
+
+  CHEAP_ROW_V( "s_phase", "reference with a plain integrate-and-fire follower", "plain", cheap::from_ref( "s_phase", cheap::set_model( "LP", "iaf_psc_alpha" ) ) );
+  CHEAP_ROW( "s_phase", "reference with the input cut", cheap::from_ref( "s_phase", cheap::scale_input( "pd", 0.0 ) ) );
+  CHEAP_ROW( "s_phase", "reference with the input made excitatory", cheap::from_ref( "s_phase", cheap::scale_input( "pd", -1.0 ) ) );
+  CHEAP_ROW( "s_phase", "no H current and no calcium currents (no rebound)", cheap::from_ref( "s_phase", no_params( "LP", { "g_H", "g_CaT", "g_CaS" } ) ) );
+  CHEAP_ROW( "s_phase", "inhibition far too weak (1/20)", cheap::from_ref( "s_phase", cheap::scale_input( "pd", 0.05 ) ) );
+  CHEAP_ROW( "s_phase", "tonic drive of 1500 pA (fires through the inhibition)", cheap::from_ref( "s_phase", cheap::set_params( "LP", { { "I_e", 1500.0 } } ) ) );
+
+  CHEAP_ROW_V( "crab_pyloric", "reference minus AB > LP and PD > LP", "does not inhibit the followers", cheap::from_ref( "crab_pyloric", cheap::both( cut_e( "AB", "LP" ), cut_e( "PD", "LP" ) ) ) );
+  CHEAP_ROW_V( "crab_pyloric", "reference minus LP > PY", "LP does not inhibit PY", cheap::from_ref( "crab_pyloric", cut_e( "LP", "PY" ) ) );
+  CHEAP_ROW( "crab_pyloric", "reference minus PY > LP", cheap::from_ref( "crab_pyloric", cut_e( "PY", "LP" ) ) );
+  CHEAP_ROW_V( "crab_pyloric", "reference with a plain integrate-and-fire PY", "plain", cheap::from_ref( "crab_pyloric", cheap::set_model( "PY", "iaf_psc_alpha" ) ) );
+  CHEAP_ROW_V( "crab_pyloric", "reference with a plain integrate-and-fire LP", "plain", cheap::from_ref( "crab_pyloric", cheap::set_model( "LP", "iaf_psc_alpha" ) ) );
+  CHEAP_ROW( "crab_pyloric", "no modulator (the pacemaker is silent)", cheap::from_ref( "crab_pyloric", cheap::scale_input( "modulator", 0.0 ) ) );
+  CHEAP_ROW( "crab_pyloric", "followers without H current", cheap::from_ref( "crab_pyloric", cheap::both( no_params( "LP", { "g_H" } ), no_params( "PY", { "g_H" } ) ) ) );
+  CHEAP_ROW( "crab_pyloric", "pacemaker without calcium-activated potassium (tonic)", cheap::from_ref( "crab_pyloric", cheap::both( no_params( "AB", { "g_KCa" } ), no_params( "PD", { "g_KCa" } ) ) ) );
+  CHEAP_ROW( "crab_pyloric", "every synapse ten times stronger", cheap::from_ref( "crab_pyloric", scale_all( 10.0 ) ) );
+  CHEAP_ROW( "crab_pyloric", "every synapse twenty times weaker", cheap::from_ref( "crab_pyloric", scale_all( 0.05 ) ) );
 }

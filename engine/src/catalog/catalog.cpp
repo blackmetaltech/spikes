@@ -390,6 +390,34 @@ std::vector< CatalogModel > build()
   }
   {
     CatalogModel m;
+    m.id = m.model = "stg_cell";
+    m.title = "Stomatogastric neuron (conductance-based)";
+    m.family = "Custom (NESTML)";
+    m.summary = "A single-compartment conductance-based cell with the currents of the crab stomatogastric ganglion: fast sodium and delayed-rectifier potassium for the spikes, two calcium currents (T-type and slow) and a "
+                "calcium-activated potassium current for slow bursts, an A-type potassium current and the hyperpolarisation-activated current H. With the default conductances it bursts about once a second by itself; "
+                "with a strong H current, no calcium-activated potassium and some inhibition it fires by rebound.";
+    m.examples = { "Pyloric pacemaker neurons AB and PD of the crab stomatogastric ganglion", "Follower neurons LP and PY that fire by rebound after inhibition" };
+    m.source = "Prinz et al. 2003 J Neurophysiol 90:3998-4015 (kinetics, from memory of the published forms); conductances are game values (docs/models/stg_cell.md)";
+    m.params = { P{ "g_Na", "nS", "Fast sodium conductance (spikes).", 62800, 0, 300000 }, P{ "g_Kd", "nS", "Delayed-rectifier potassium conductance (spike repolarisation).", 62800, 0, 100000 },
+      P{ "g_CaT", "nS", "Transient (T-type) calcium conductance (rebound, burst start).", 1570, 0, 5000 }, P{ "g_CaS", "nS", "Slow calcium conductance (burst plateau).", 3768, 0, 10000 },
+      P{ "g_A", "nS", "A-type potassium conductance (delays firing after inhibition).", 31400, 0, 60000 }, P{ "g_KCa", "nS", "Calcium-activated potassium conductance (ends bursts; sets the period).", 3140, 0, 10000 },
+      P{ "g_H", "nS", "Hyperpolarisation-activated (H) conductance (rebound).", 6.28, 0, 100 }, P{ "g_L", "nS", "Leak conductance.", 6.28, 0, 50 },
+      P{ "I_e", "pA", "Constant input current.", 0, -200, 200 } };
+    m.input_weight = 20.0;  // nS of a spike-triggered synaptic conductance (positive excites, negative inhibits); one spike of 20 nS moves a quiet cell by a few mV
+    m.weight_unit = "nS";
+    m.ei = "inhibitory";
+    m.ei_note = "Pyloric followers are inhibited by the pacemaker; the pacemaker cells excite each other through coupling.";
+    m.drive = { "dc", "pA", { -50, 0, 25, 50, 100, 200 } };
+    m.nestml = true;
+    m.run_ms = 12000;
+    m.skip_ms = 2000;
+    m.max_ms = 30000;
+    m.trace_ms = 3000;
+    m.trace_dt_ms = 2.0;
+    add( m );
+  }
+  {
+    CatalogModel m;
     m.id = m.model = "icc_slow_wave";
     m.title = "Interstitial cell of Cajal slow-wave oscillator";
     m.family = "Custom (NESTML)";
