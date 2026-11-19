@@ -29,6 +29,13 @@ public:
   double voltage( int64_t neuron ) const;
   void watch( int64_t neuron );
   double output_rate( const String& name ) const;
+  /// 0.5 (add-only): population_vector outputs (bump angle in radians [0, 2 pi) and strength 0..1 over the last step), and the spike-train inputs.
+  double output_angle( const String& name ) const;
+  double output_strength( const String& name ) const;
+  /// Append spikes (absolute model time, ms, on the resolution grid, after the time reached) to a "spike_generator" input.
+  bool queue_spikes( const String& name, const PackedFloat64Array& times_ms );
+  /// "sinusoidal_poisson" input: key is "rate", "amplitude", "freq_hz" or "phase".
+  bool set_input_param( const String& name, const String& key, double value );
   int64_t neuron_count() const;
   Dictionary stats() const;
   // extras for the editor and scopes

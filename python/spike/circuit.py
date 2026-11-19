@@ -59,6 +59,9 @@ class Network:
     mod_targets: dict = field(default_factory=dict)  # (pop id, param) -> base value
     mod_levels: dict = field(default_factory=lambda: {"NE": 0.0, "ACh": 0.0, "DA": 0.0})
     da_generator: Any = None
+    proj_nc: dict = field(default_factory=dict)       # projection number -> (pre NodeCollection, post NodeCollection, synapse model)
+    proj_targets: dict = field(default_factory=dict)  # (projection number, param) -> (connections, base values per connection)
+    sg_times: dict = field(default_factory=dict)      # spike_generator input name -> every spike time queued so far (ms, ascending)
 
     def population(self, pop_id: str):
         return self.populations[pop_id][2]
@@ -71,7 +74,37 @@ class Network:
         import nest
 
         kind = self.spec["inputs"][[i["name"] for i in self.spec["inputs"]].index(name)]["kind"]
-        self.devices[name].set({"amplitude" if kind == "dc" else "rate": float(value)})
+        if kind == "spike_generator":
+            raise CircuitError(f"set_input: '{name}' is a spike_generator: use queue_spikes()")
+        self.devices[name].set({"amplitude" if kind == "dc" else "rate": float(value)})  # sinusoidal_poisson: the mean rate
+
+    def set_input_param(self, name: str, key: str, value: float):
+        """Change "rate", "amplitude" (Hz), "freq_hz" (Hz) or "phase" (degrees) of a sinusoidal_poisson input (like Engine::set_input_param)."""
+        kind = self.spec["inputs"][[i["name"] for i in self.spec["inputs"]].index(name)]["kind"]
+        if kind != "sinusoidal_poisson":
+            raise CircuitError(f"set_input_param: '{name}' is not a sinusoidal_poisson input")
+        if key not in _SINE_KEYS:
+            raise CircuitError(f"set_input_param: unknown parameter '{key}' (rate, amplitude, freq_hz, phase)")
+        self.devices[name].set({_SINE_KEYS[key]: float(value)})
+
+    def queue_spikes(self, name: str, times_ms):
+        """Append spikes (absolute model time in ms, a multiple of the resolution, strictly after the time reached) to a spike_generator
+        input (like Engine::queue_spikes). Raises CircuitError, queueing nothing, for a time in the past or off the grid."""
+        kind = self.spec["inputs"][[i["name"] for i in self.spec["inputs"]].index(name)]["kind"]
+        if kind != "spike_generator":
+            raise CircuitError(f"queue_spikes: '{name}' is not a spike_generator input")
+        add = []
+        for t in times_ms:
+            t = float(t)
+            steps = t / self.resolution_ms
+            if abs(steps - round(steps)) > 1e-6:
+                raise CircuitError(f"queue_spikes: spike time {t:f} ms is not a multiple of the resolution ({self.resolution_ms:f} ms)")
+            if not t > self.time_ms + 0.5 * self.resolution_ms:
+                raise CircuitError(f"queue_spikes: spike time {t:f} ms is not after the model time reached ({self.time_ms:f} ms)")
+            add.append(round(steps) * self.resolution_ms)
+        times = sorted(self.sg_times.get(name, []) + add)
+        self.sg_times[name] = times
+        self.devices[name].set({"spike_times": [t for t in times if t > self.time_ms + 0.5 * self.resolution_ms]})
 
     def set_modulator(self, name: str, conc: float):
         """Set an external neuromodulator level (NE, ACh, DA) and apply the modulation table now (the C++ engine does this at the
@@ -93,6 +126,57 @@ def load_circuit(circuit) -> dict:
     if isinstance(circuit, os.PathLike) or (isinstance(circuit, str) and not circuit.lstrip().startswith("{") and os.path.exists(circuit)):
         return json.loads(Path(circuit).read_text())
     return json.loads(circuit)
+
+
+_SINE_KEYS = {"rate": "rate", "amplitude": "amplitude", "freq_hz": "frequency", "phase": "phase"}
+INPUT_KINDS = ("dc", "poisson", "spike_generator", "sinusoidal_poisson")
+
+
+def _parse_input(inp: dict, i: int, res: float):
+    """Validate an input like engine/src/circuit.cpp and return (NEST model, params, spike_times). Error paths are the engine's."""
+    path = f"inputs[{i}]"
+    kind = inp.get("kind")
+    if kind not in INPUT_KINDS:
+        raise CircuitError(f"{path}.kind: unsupported input kind '{kind}' (supported: dc, poisson, spike_generator, sinusoidal_poisson)")
+    sg, sp = kind == "spike_generator", kind == "sinusoidal_poisson"
+    if not sg and "spike_times" in inp:
+        raise CircuitError(f'{path}.spike_times: only valid for kind "spike_generator"')
+    for k in ("rate", "amplitude", "freq_hz", "phase"):
+        if not sp and k in inp:
+            raise CircuitError(f'{path}.{k}: only valid for kind "sinusoidal_poisson"')
+    if (sg or sp) and "value" in inp:
+        raise CircuitError(f"{path}.value: a {kind} input has no value (spike_generator: give spike_times; sinusoidal_poisson: rate, amplitude, freq_hz, phase)")
+    if sg:
+        times = []
+        st = inp.get("spike_times", [])
+        if not isinstance(st, list):
+            raise CircuitError(f"{path}.spike_times: must be an array of times in ms")
+        for k, t in enumerate(st):
+            tp = f"{path}.spike_times[{k}]"
+            if isinstance(t, bool) or not isinstance(t, (int, float)):
+                raise CircuitError(f"{tp}: must be a number (ms)")
+            t = float(t)
+            if not t > 0.0:
+                raise CircuitError(f"{tp}: spike time must be > 0 ms")
+            steps = t / res
+            if abs(steps - round(steps)) > 1e-6:
+                raise CircuitError(f"{tp}: spike time {t:f} ms is not a multiple of resolution_ms ({res:f})")
+            if times and t < times[-1]:
+                raise CircuitError(f"{tp}: spike times must be sorted in ascending order")
+            times.append(round(steps) * res)
+        return "spike_generator", ({"spike_times": times} if times else {}), times
+    if sp:
+        rate, amp = _num(inp, "rate", path) or 0.0, _num(inp, "amplitude", path) or 0.0
+        freq, phase = _num(inp, "freq_hz", path) or 0.0, _num(inp, "phase", path) or 0.0
+        if not rate >= 0:
+            raise CircuitError(f"{path}.rate: mean rate must be >= 0 Hz")
+        if not amp >= 0:
+            raise CircuitError(f"{path}.amplitude: amplitude must be >= 0 Hz")
+        if not (freq >= 0 and freq * res / 1000.0 < 0.5):
+            raise CircuitError(f"{path}.freq_hz: frequency must be >= 0 and below the Nyquist limit of the resolution ({500.0 / res:f} Hz)")
+        return "sinusoidal_poisson_generator", {"rate": rate, "amplitude": amp, "frequency": freq, "phase": phase}, []
+    key = "amplitude" if kind == "dc" else "rate"
+    return ("dc_generator" if kind == "dc" else "poisson_generator"), {key: float(inp.get("value", 0.0))}, []
 
 
 def _selector(spec, pops, sel, what) -> list[int]:
@@ -288,7 +372,7 @@ def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
                 raise CircuitError(f"{path}.rule: gap_junction all_to_all needs pre and post to be the same population (use one_to_one or edges between two populations)")
             if rn == "all_to_all":
                 rule.setdefault("allow_autapses", False)
-    elif model in ("tsodyks2_synapse", "quantal_stp_synapse"):
+    elif model in ("tsodyks2_synapse", "tsodyks_synapse", "quantal_stp_synapse"):
         for key, lo, hi, msg in (("U", 0, 1, "utilisation U must be in [0, 1]"), ("u", 0, 1, "initial utilisation u must be in [0, 1]")):
             v = _num(syn, key, spath)
             if v is not None and not (lo <= v <= hi):
@@ -299,10 +383,17 @@ def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
         v = _num(syn, "tau_fac", spath)
         if v is not None and not v >= 0:
             raise CircuitError(f"{spath}.tau_fac: facilitation time constant tau_fac must be >= 0 ms (0 = depression only)")
-        if model == "tsodyks2_synapse":
+        if model in ("tsodyks2_synapse", "tsodyks_synapse"):
             v = _num(syn, "x", spath)
             if v is not None and not (0 <= v <= 1):
                 raise CircuitError(f"{spath}.x: initial resources x must be in [0, 1]")
+            if model == "tsodyks_synapse":
+                v = _num(syn, "y", spath)
+                if v is not None and not (0 <= v <= 1):
+                    raise CircuitError(f"{spath}.y: initial active fraction y must be in [0, 1]")
+                v = _num(syn, "tau_psc", spath)
+                if v is not None and not v > 0:
+                    raise CircuitError(f"{spath}.tau_psc: postsynaptic current time constant tau_psc must be > 0 ms")
         else:
             n = 1
             if "n" in syn:
@@ -362,45 +453,81 @@ def _prepare_projection(spec: dict, pr: dict, k: int, seed: int = 0) -> dict:
 
 def _parse_modulation(spec: dict) -> list:
     pops = {p["id"] for p in spec["populations"]}
+    projs = spec.get("projections", [])
     rows = []
     for i, m in enumerate(spec.get("modulation", [])):
         path = f"modulation[{i}]"
         if not isinstance(m, dict):
             raise CircuitError(f"{path}: must be an object")
         for key in m:
-            if key not in ("modulator", "pop", "param", "gain", "scale_per_unit", "min", "max"):
+            if key not in ("modulator", "pop", "projection", "param", "gain", "scale_per_unit", "min", "max"):
                 raise CircuitError(f"{path}.{key}: unknown key")
-        for key in ("modulator", "pop", "param"):
+        for key in ("modulator", "param"):
             if key not in m:
                 raise CircuitError(f"{path}.{key}: required field is missing")
         if m["modulator"] not in MODULATORS:
             raise CircuitError(f"{path}.modulator: unknown modulator '{m['modulator']}' (NE, ACh or DA)")
-        if m["pop"] not in pops:
-            raise CircuitError(f"{path}.pop: unknown population '{m['pop']}'")
+        if ("pop" in m) == ("projection" in m):
+            raise CircuitError(f"{path}: exactly one of 'pop' (a neuron parameter) or 'projection' (a synapse parameter) is required")
+        proj = None
+        if "pop" in m:
+            if m["pop"] not in pops:
+                raise CircuitError(f"{path}.pop: unknown population '{m['pop']}'")
+        else:
+            proj = m["projection"]
+            if isinstance(proj, bool) or not isinstance(proj, int) or not 0 <= proj < len(projs):
+                raise CircuitError(f"{path}.projection: must be a projection number (0-based, file order; this circuit has {len(projs)})")
+            sm = (projs[proj].get("synapse") or {}).get("synapse_model", "static_synapse")
+            if sm == "gap_junction":
+                raise CircuitError(f"{path}.projection: gap_junction projections cannot be modulated")
+            if m["param"] == "weight" and sm.startswith("stdp"):
+                raise CircuitError(f"{path}.param: the weight of a plastic {sm} projection is owned by the plasticity rule and cannot be modulated")
+            if m["param"] in ("delay", "synapse_model", "port", "target", "source"):
+                raise CircuitError(f"{path}.param: '{m['param']}' cannot be modulated")
+            for j, q in enumerate(projs):
+                if j != proj and q["pre"] == projs[proj]["pre"] and q["post"] == projs[proj]["post"] and (q.get("synapse") or {}).get("synapse_model", "static_synapse") == sm:
+                    raise CircuitError(
+                        f"{path}.projection: projections {min(j, proj)} and {max(j, proj)} connect the same populations with the same synapse model, "
+                        "so their connections cannot be told apart: use another synapse model for one of them")
         if ("gain" in m) == ("scale_per_unit" in m):
             raise CircuitError(f"{path}: exactly one of 'gain' (value += gain * conc) or 'scale_per_unit' (value *= 1 + scale_per_unit * conc) is required")
         scale = "scale_per_unit" in m
         lo, hi = _num(m, "min", path), _num(m, "max", path)
         if lo is not None and hi is not None and lo > hi:
             raise CircuitError(f"{path}: min must be <= max")
-        rows.append({"modulator": m["modulator"], "pop": m["pop"], "param": m["param"], "scale": scale,
+        rows.append({"modulator": m["modulator"], "pop": m.get("pop"), "projection": proj, "param": m["param"], "scale": scale,
                      "amount": _num(m, "scale_per_unit" if scale else "gain", path), "min": lo, "max": hi})
     return rows
 
 
+def _law(v: float, r: dict, conc: float) -> float:
+    v = v * (1.0 + r["amount"] * conc) if r["scale"] else v + r["amount"] * conc
+    if r["min"] is not None:
+        v = max(v, r["min"])
+    if r["max"] is not None:
+        v = min(v, r["max"])
+    return v
+
+
 def _apply_modulation(net: "Network"):
-    """Write the modulation table's values for the current modulator levels (rows on one (pop, param) compose in file order)."""
+    """Write the modulation table's values for the current modulator levels (rows on one (pop, param) or (projection, param) compose in file order)."""
     for (pid, param), base in net.mod_targets.items():
         v = base
         for r in net.modulation:
-            if r["pop"] == pid and r["param"] == param:
-                c = net.mod_levels[r["modulator"]]
-                v = v * (1.0 + r["amount"] * c) if r["scale"] else v + r["amount"] * c
-                if r["min"] is not None:
-                    v = max(v, r["min"])
-                if r["max"] is not None:
-                    v = min(v, r["max"])
+            if r["projection"] is None and r["pop"] == pid and r["param"] == param:
+                v = _law(v, r, net.mod_levels[r["modulator"]])
         net.populations[pid][2].set({param: v})
+    for (k, param), (conns, base) in net.proj_targets.items():
+        rows = [r for r in net.modulation if r["projection"] == k and r["param"] == param]
+        post_model = next(p["model"] for p in net.spec["populations"] if p["id"] == net.spec["projections"][k]["post"])
+        lim = weight_limit(post_model)[0] if param == "weight" else 0.0
+        vals = []
+        for b in base:
+            v = b
+            for r in rows:
+                v = _law(v, r, net.mod_levels[r["modulator"]])
+            vals.append(max(-lim, min(lim, v)) if lim > 0 else v)
+        conns.set({param: vals})
     if net.da_generator is not None:
         net.da_generator.set({"rate": max(0.0, net.mod_levels["DA"]) * DA_VT_HZ_PER_UNIT})
 
@@ -503,10 +630,12 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
 
     # 2. devices, 3. recorder
     devices = {}
-    for inp in spec.get("inputs", []):
-        model = {"dc": "dc_generator", "poisson": "poisson_generator"}[inp["kind"]]
-        key = "amplitude" if inp["kind"] == "dc" else "rate"
-        devices[inp["name"]] = nest.Create(model, params={key: float(inp.get("value", 0.0))})
+    sg_times: dict[str, list] = {}
+    for i, inp in enumerate(spec.get("inputs", [])):
+        model, params, times = _parse_input(inp, i, res)
+        devices[inp["name"]] = nest.Create(model, params=params or None)
+        if inp["kind"] == "spike_generator":
+            sg_times[inp["name"]] = list(times)
     recorder = nest.Create("spike_recorder", params={"record_to": "memory"})
 
     base = all_nodes.tolist()[0]
@@ -519,8 +648,8 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
     for pid, (_, _, pnc) in pops.items():  # default modulation (after the circuit's own rows, like the engine)
         st0 = pnc[0].get()
         for mod, par in DEFAULT_MODULATION:
-            if par in st0 and not any(r["pop"] == pid and r["param"] == par for r in modulation):
-                modulation.append({"modulator": mod, "pop": pid, "param": par, "scale": False, "amount": 1.0, "min": 0.0, "max": None})
+            if par in st0 and not any(r["projection"] is None and r["pop"] == pid and r["param"] == par for r in modulation):
+                modulation.append({"modulator": mod, "pop": pid, "projection": None, "param": par, "scale": False, "amount": 1.0, "min": 0.0, "max": None})
 
     # (4) dopamine plumbing: one volume_transmitter per distinct "dopamine_source" (order of first use), one generator -> parrot chain
     vts: dict[str, Any] = {}
@@ -538,6 +667,7 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
             nest.Connect(relay, vt, conn_spec="all_to_all", syn_spec={"synapse_model": "static_synapse", "weight": 1.0, "delay": res})
 
     # connections: projections
+    proj_nc: dict[int, tuple] = {}
     for k, (pr, pp) in enumerate(zip(spec.get("projections", []), prepared)):
         pre_first, pre_n, pre_nc = pops[pr["pre"]]
         post_first, post_n, post_nc = pops[pr["post"]]
@@ -546,6 +676,7 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
             model = f"stdp_dopamine_synapse__p{k}"
             nest.CopyModel("stdp_dopamine_synapse", model, {**pp["common"], "volume_transmitter": vts[pp["dopamine_pop"]]})
             syn["synapse_model"] = model
+        proj_nc[k] = (pre_nc, post_nc, syn["synapse_model"])
         if pp["edges"] is not None:
             ed = pp["edges"]
             if not ed:
@@ -601,9 +732,23 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
     if rec_idx:
         nest.Connect(nodes(rec_idx), recorder, conn_spec="all_to_all", syn_spec={"weight": 1.0, "delay": res})
 
-    net = Network(spec, res, sd, int(threads), n_neurons, all_nodes, pops, devices, recorder, modulation=modulation, da_generator=da_generator)
+    net = Network(spec, res, sd, int(threads), n_neurons, all_nodes, pops, devices, recorder, modulation=modulation, da_generator=da_generator,
+                  proj_nc=proj_nc, sg_times=sg_times)
     # modulation table: remember each target parameter's base value (after the population's params), then apply the zero-level state
     for r in modulation:
+        if r["projection"] is not None:  # synapse row: each connection's own base value
+            key = (r["projection"], r["param"])
+            if key not in net.proj_targets:
+                pre_nc, post_nc, model = proj_nc[r["projection"]]
+                conns = nest.GetConnections(pre_nc, post_nc, model)
+                if len(conns):
+                    try:
+                        st = conns.get(r["param"])
+                    except Exception as e:  # PyNEST raises for an unknown synapse parameter
+                        raise CircuitError(f"modulation.param: synapse model {model} has no parameter '{r['param']}'") from e
+                    base = [float(x) for x in (st if isinstance(st, (list, tuple, np.ndarray)) else [st])]
+                    net.proj_targets[key] = (conns, base)
+            continue
         key = (r["pop"], r["param"])
         if key not in net.mod_targets:
             st = pops[r["pop"]][2][0].get()

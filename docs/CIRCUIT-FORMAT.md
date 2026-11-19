@@ -20,7 +20,9 @@ A circuit is one JSON file. The game, the C++ engine, the Python package and eve
   ],
   "inputs": [
     { "name": "drive", "kind": "dc", "targets": ["L", "R"], "weight": 1.0, "value": 300.0 },
-    { "name": "touch", "kind": "poisson", "targets": [{ "pop": "L", "idx": [0] }], "weight": 20.0, "value": 0.0 }
+    { "name": "touch", "kind": "poisson", "targets": [{ "pop": "L", "idx": [0] }], "weight": 20.0, "value": 0.0 },
+    { "name": "taps", "kind": "spike_generator", "targets": ["R"], "weight": 20.0, "spike_times": [50.0, 100.0, 150.0] },
+    { "name": "theta", "kind": "sinusoidal_poisson", "targets": ["R"], "weight": 5.0, "rate": 40.0, "amplitude": 30.0, "freq_hz": 8.0, "phase": 0.0 }
   ],
   "outputs": [
     { "name": "left_motor", "kind": "rate", "neurons": [{ "pop": "L", "idx": [0] }] }
@@ -33,9 +35,9 @@ A circuit is one JSON file. The game, the C++ engine, the Python package and eve
 ## Rules
 - **Neuron indices.** Circuit-level neuron indices run from 0 to N−1 over the populations in file order. Inside a population, `idx` is 0-based. The engine converts to NEST's 1-based node IDs.
 - **Projections.** A projection has either `rule` (any NEST connection rule, with its parameters next to it, for example `indegree`, `p` or `allow_autapses`) or `edges`. Each edge is `[pre_idx, post_idx, weight, delay]` with optional extra synapse fields. `synapse` is a NEST syn_spec dict, and `synapse_model` defaults to `static_synapse`. Projections are numbered in file order, and that number is the `projection` argument of `Engine::set_weight`.
-- **Inputs.** Each input creates one NEST device: `dc` makes a `dc_generator` (value in pA) and `poisson` makes a `poisson_generator` (value in Hz). The device connects to its targets with `weight`, and `value` is the initial amplitude or rate.
+- **Inputs.** Each input creates one NEST device: `dc` makes a `dc_generator` (value in pA) and `poisson` makes a `poisson_generator` (value in Hz). The device connects to its targets with `weight`, and `value` is the initial amplitude or rate. Two more kinds (0.5, see "Spike-train inputs"): `spike_generator` and `sinusoidal_poisson`.
 - **Empty channels.** `targets` (inputs) and `neurons` (outputs) may be empty (`[]`). The device is still created, nothing is connected, and an empty output always reads 0. This lets the editor run a half-wired circuit.
-- **Outputs** are readouts over a set of neurons: `"kind": "rate"` (default, spike counts) or `"kind": "modulator"` (see "Neuromodulation").
+- **Outputs** are readouts over a set of neurons: `"kind": "rate"` (default, spike counts), `"kind": "modulator"` (see "Neuromodulation") or `"kind": "population_vector"` (0.5, see "Population-vector output").
 - **Initial membrane potential.** If a population's `params` has no `V_m`, and the model has `V_m`, `E_L` and `V_th` with `V_th > E_L` (after `params` are applied), each neuron gets a seeded random `V_m = lo + u * (hi - lo)`, with `u` in [0, 1) and `[lo, hi]` = `[E_L, V_th]`, except for models with their own range: `sa_node_pacemaker` uses `[-74, -45]` mV (its E_L = -30 mV and V_th = 0 mV are not a resting range: drawing from them started every clone depolarised and in lock-step, so five uncoupled cells scored as one; from -74 to -45 mV the clones start at different phases of the diastolic depolarisation and only coupling brings them together). The table is `vm_init_range()` in `engine/src/circuit.cpp` and `VM_INIT_RANGE` in `python/spike/circuit.py`. This breaks symmetry between identical cells (for example a half-centre). `u` comes from splitmix64 keyed by the circuit `seed` and the circuit-level neuron index `i`, independent of NEST's RNG: `z = seed + (i+1) * 0x9E3779B97F4A7C15 (mod 2^64)`; `z = (z ^ z>>30) * 0xBF58476D1CE4E5B9`; `z = (z ^ z>>27) * 0x94D049BB133111EB`; `z ^= z>>31`; `u = (z >> 11) / 2^53`. The C++ engine and `python/spike/circuit.py` implement exactly this. Set `V_m` explicitly (for example to the resting potential) to disable it; the reference circuits and the `iaf_dc` golden do so where timing must be analytic.
 - **Top-level keys.** `schema_version`, `name`, `resolution_ms`, `seed`, `populations`, `projections`, `inputs`, `outputs`, `modulation`, `record`, `meta`.
 - **`pos`** holds editor coordinates, one `[x, y]` per neuron. It is optional and ignored by simulators.
@@ -84,7 +86,8 @@ Even inside the limits a cell can diverge (for example 500 nS onto a tiny `C_m`)
 | model | rules |
 |---|---|
 | `gap_junction` | Electrical coupling. Needs `hh_psc_alpha_gap` or `hh_cond_beta_gap_traub` on **both** sides. Instantaneous: `delay` is an error (the 4th element of an edge is ignored). `weight` is a conductance in nS and must be > 0. Always symmetric: with `rule: one_to_one` the loader sets `make_symmetric: true`; `all_to_all` is allowed only within one population (pre = post; autapses default to off); `edges` projections get their mirror edge (post to pre) added by the engine. `set_weight` changes both directions. Other rules are rejected. |
-| `tsodyks2_synapse` | Short-term plasticity (depression and facilitation). `U` in [0, 1] (utilisation), `u` in [0, 1], `x` in [0, 1], `tau_rec` > 0 ms, `tau_fac` >= 0 ms (0 = depression only). `weight` is the absolute amplitude scale; the first PSP is `weight * U`. |
+| `tsodyks2_synapse` | Short-term plasticity (depression and facilitation). `U` in [0, 1] (utilisation), `u` in [0, 1], `x` in [0, 1], `tau_rec` > 0 ms, `tau_fac` >= 0 ms (0 = depression only). `weight` is the absolute amplitude scale: a spike gives a PSC of `weight * u * x`. **The first spike of a connection uses the connection's own initial `u` (NEST default 0.5), not `U`; every later spike uses `u = U` (with `tau_fac` = 0).** Set `"u"` equal to `"U"` for a first PSP of `weight * U`. A 20 Hz train onto one cell then shows a falling PSP that recovers over `tau_rec` (`engine/tests/test_synapse_modulation.cpp`). |
+| `tsodyks_synapse` | The older Tsodyks-Markram model, same idea with a postsynaptic-current kinetic: `U`, `x`, `y`, `u` in [0, 1], `tau_psc` > 0 ms, `tau_rec` > 0 ms, `tau_fac` >= 0 ms. Prefer `tsodyks2_synapse`; this one is accepted and validated the same way. |
 | `quantal_stp_synapse` | Stochastic release with short-term plasticity: `n` release sites (integer >= 1), `a` available sites (integer, 0 to `n`), `U`, `u`, `tau_rec`, `tau_fac` as above. `weight` is the amplitude of one released quantum. |
 | `stdp_synapse` | Spike-timing-dependent plasticity, excitatory only: every `weight` must be > 0 (inhibitory STDP is rejected with an error: use `static_synapse` or `tsodyks2_synapse`). `Wmax` defaults to 2 x `weight` (for `edges`: 2 x the largest edge weight); if `weight` is a distribution, `Wmax` must be given. `weight` > `Wmax` is an error. `tau_plus` > 0 ms. |
 | `stdp_dopamine_synapse` | Dopamine-gated STDP (reward learning). Same weight and `Wmax` rules as `stdp_synapse` (plus `Wmin` in [0, Wmax], `tau_c`, `tau_n` > 0 ms). The projection needs a `"dopamine_source": "<population id>"` (a projection-level key, next to `pre` and `post`). |
@@ -99,26 +102,36 @@ Three engine-level concentration channels, `NE` (noradrenaline), `ACh` (acetylch
 
 ### The `modulation` table
 
-An array that maps a modulator to a parameter of **every neuron of one population**. It is applied between steps (at the start of `step()`, only when the value changed), never inside one.
+An array that maps a modulator to a parameter of **every neuron of one population** (`pop`) or, since 0.5, to a parameter of **every connection of one projection** (`projection`). It is applied between steps (at the start of `step()`, only when the value changed), never inside one.
 
 ```json
 "modulation": [
   { "modulator": "NE",  "pop": "SA", "param": "ne",  "gain": 1.0 },
   { "modulator": "ACh", "pop": "SA", "param": "ach", "gain": 1.0 },
-  { "modulator": "NE",  "pop": "R",  "param": "I_e", "scale_per_unit": 0.5, "min": 0.0, "max": 800.0 }
+  { "modulator": "NE",  "pop": "R",  "param": "I_e", "scale_per_unit": 0.5, "min": 0.0, "max": 800.0 },
+  { "modulator": "NE",  "projection": 0, "param": "U",      "gain": 0.4, "min": 0.0, "max": 1.0 },
+  { "modulator": "ACh", "projection": 2, "param": "weight", "scale_per_unit": 1.0 }
 ]
 ```
 
 | key | meaning |
 |---|---|
 | `modulator` | `"NE"`, `"ACh"` or `"DA"` |
-| `pop` | population id (the whole population) |
-| `param` | a numeric NEST parameter of the population's model (checked at load) |
+| `pop` | population id (the whole population): the row modulates a **neuron** parameter |
+| `projection` | projection number (0-based, file order: the same number as the `projection` argument of `Engine::set_weight`): the row modulates a **synapse** parameter of every connection of that projection |
+| `param` | a numeric NEST parameter of the population's model, or of the projection's synapse model (for `tsodyks2_synapse`: `U`, `u`, `x`, `tau_rec`, `tau_fac`, `weight`, ...); checked at load |
 | `gain` | additive: `value = value + gain * conc` |
 | `scale_per_unit` | multiplicative: `value = value * (1 + scale_per_unit * conc)` |
 | `min`, `max` | optional clamp of the result |
 
-Exactly one of `gain` and `scale_per_unit` per row. The starting `value` is the parameter after the population's `params` are applied. Rows on the same `(pop, param)` combine in file order. Use `gain` for parameters that are the channel themselves (a NESTML cell's `ne` input: base 0, so `value = conc`) and `scale_per_unit` or `gain` on a real parameter such as `I_e`. A modulated parameter is owned by the table: live edits with `set_neuron_param` on it are overwritten the next time the level changes.
+Exactly one of `pop` and `projection` per row, and exactly one of `gain` and `scale_per_unit`. The law, the units (concentration in arbitrary units, 0 = baseline) and the timing are the same for both targets. The starting `value` is the parameter after the population's `params` are applied (neuron row), or each connection's own value after the projection is built, weight spread included (synapse row: the law is applied per connection, so a spread of weights stays a spread). Rows on the same `(pop, param)` or `(projection, param)` combine in file order. Use `gain` for parameters that are the channel themselves (a NESTML cell's `ne` input: base 0, so `value = conc`) and `scale_per_unit` or `gain` on a real parameter such as `I_e`. A modulated parameter is owned by the table: live edits with `set_neuron_param` (neuron row) or `set_weight` (synapse row on `weight`) are overwritten the next time the level changes.
+
+Synapse rows, in detail:
+- **Aplysia-style sensitisation.** On a `tsodyks2_synapse` projection, `{ "modulator": "NE", "projection": 0, "param": "U", "gain": 0.4, "min": 0, "max": 1 }` raises the release probability with the modulator level, so the same presynaptic train gives larger PSPs (with `tau_fac` = 0, `U` acts from the second spike of a connection on; give the first spike the same efficacy with `"u"` = `"U"` in the synapse). `param: "weight"` with `scale_per_unit` scales the amplitude instead. Both are tested in `engine/tests/test_synapse_modulation.cpp` (PSP x3 when `U` goes 0.2 to 0.6).
+- A modulated `weight` is clamped to the postsynaptic model's weight ceiling (see "Weight limits").
+- Not allowed (error at load): a `gap_junction` projection; `weight` of `stdp_synapse` / `stdp_dopamine_synapse` (the plasticity rule owns it); `delay`, `synapse_model`, `port`, `source`, `target`; an unknown parameter name; a projection index out of range; and a projection that shares its pre population, post population and synapse model with another projection (their connections cannot be told apart: use another synapse model for one of them).
+- A synapse row on a projection with no connections does nothing (and cannot check `param`).
+- The Python package (`python/spike/circuit.py`) applies synapse rows the same way (`Network.set_modulator`).
 
 ### Default modulation
 
@@ -140,6 +153,31 @@ Each spike adds `gain` (default 0.05 concentration units) to the output's pool, 
 
 After the recorder, nodes are created in this order (neuron ids are unchanged): one `volume_transmitter` per distinct `dopamine_source` (order of first use), then one `poisson_generator` (rate 0 Hz) and one `parrot_neuron`, only if a `stdp_dopamine_synapse` projection exists. Connections: each source population to its transmitter, generator to parrot, parrot to every transmitter (all `static_synapse`, weight 1, delay = resolution), then the projections.
 
+## Spike-train inputs (0.5)
+
+| `kind` | NEST device | keys |
+|---|---|---|
+| `spike_generator` | `spike_generator` | `spike_times`: array of times in ms (optional, default none) |
+| `sinusoidal_poisson` | `sinusoidal_poisson_generator` | `rate` (mean, Hz, default 0), `amplitude` (Hz, default 0), `freq_hz` (Hz, default 0), `phase` (degrees, as NEST, default 0) |
+
+Both connect to `targets` with `weight` (and `delay`, default the resolution) like the other inputs. `value` is not used by these kinds (giving it is an error): a `spike_generator` has no scalar, and `sinusoidal_poisson` uses `rate`. Keys of one kind on another kind are errors.
+
+**spike_generator.** `spike_times` are **absolute model times in ms**, on the resolution grid (each time must be a multiple of `resolution_ms`; within 1e-6 steps it is snapped to the grid, otherwise the loader refuses it with `inputs[i].spike_times[k]: ... not a multiple of resolution_ms`), strictly greater than 0, sorted ascending. Equal times are allowed (two spikes in one step). A spike at time `t` is emitted by the device in the step that ends at `t` and arrives at the target at `t + delay`. The list may be empty or absent: a task or the game queues spikes at run time with `Engine::queue_spikes(channel, times_ms)` (GDScript `SpikeSim.queue_spikes(name, PackedFloat64Array)`): times are absolute model time (`stats().t_ms` is the clock), need not be sorted, are added to the spikes already queued, and must be a multiple of the resolution and strictly after the time reached (otherwise the call returns false, `error()` says why and nothing is queued). They reach NEST at the start of the next `step()`. `set_input()` on a `spike_generator` is an error (a spike train has no single value). `spike_times` and `queue_spikes` are the only task-settable parts.
+
+**sinusoidal_poisson.** The rate is `max(0, rate + amplitude * sin(2 pi freq_hz t + phase))` in Hz, with `t` the absolute model time; each target gets its own independent train (`individual_spike_trains`, like `poisson`). `freq_hz` must be below the Nyquist limit of the resolution (`500 / resolution_ms` Hz). Between steps a task can change the parameters: `Engine::set_input(channel, value)` sets the mean `rate`, and `Engine::set_input_param(channel, key, value)` sets `rate`, `amplitude`, `freq_hz` or `phase` (degrees) (GDScript `SpikeSim.set_input_param`). NEST's sinusoidal generator derives its oscillator state from amplitude, frequency and phase when a run is prepared, and only `rate` is read live, so the engine re-prepares NEST before the next step when `amplitude`, `freq_hz` or `phase` changed (the same mechanism the Poisson rate uses). The phase follows the absolute clock, so a change of `freq_hz` keeps `phase` as the phase at t = 0, not at the moment of the change.
+
+`python/spike/circuit.py` builds both kinds (`spike_generator`, `sinusoidal_poisson_generator`) and `Network.set_input(name, value)` sets the mean rate; for `spike_generator` it raises (use `Network.queue_spikes`).
+
+## Population-vector output (0.5)
+
+```json
+{ "name": "heading", "kind": "population_vector", "neurons": [{ "pop": "EPG" }] }
+```
+
+A ring readout (the fly compass, a head-direction ring): `neurons` is an **ordered** list, and neuron `k` of `N` has preferred angle `2 pi k / N` (evenly spaced on the ring, k = 0 at angle 0, increasing). Unlike `rate`, the list is not sorted: the order the selectors give is the ring order (`[{ "pop": "EPG", "idx": [7,6,5,4,3,2,1,0] }]` is the mirror ring), and repeating a neuron is an error. Other keys (`modulator`, `gain`, `tau_ms`) are errors for this kind.
+
+After each `step()`, from the spike counts `c_k` of that step: the vector `V = sum_k c_k (cos a_k, sin a_k)`. `Engine::output_angle(name)` is the bump angle `atan2(V_y, V_x)` in radians in [0, 2 pi) and `Engine::output_strength(name)` is `|V| / sum_k c_k` in [0, 1]: 1 when every spike is at one angle, about 0.79 for a half-rectified cosine bump, 0 for a flat or cancelling profile. With no spike in the step both are 0 (no direction). Both are 0 for other output kinds and unknown names. The output also counts spikes like a `rate` output (`output_rate`, `output_count`). GDScript: `SpikeSim.output_angle(name)`, `SpikeSim.output_strength(name)`. The window is the last `step()`, so a task chooses it (steps of 50 to 100 ms smooth the Poisson noise of a bump). Tests: `engine/tests/test_population_vector.cpp`.
+
 ## Parts bin (catalog)
 
 `engine/include/spike/catalog.h` lists the cell models the game offers as cards (description, biological examples, key parameters with unit and range, default input weight, E/I suitability, thumbnail drive). `build/engine/spike-catalog` measures every card in its own process (one engine per process) and writes `catalog/thumbs.json`: for each card the f-I points (`fi`: rate at each drive level) and a V_m `trace` at the level nearest 20 Hz. Each card declares its window in the `probe` block of `catalog_json()` (`run_ms`, `skip_ms`, `trace_ms`, `trace_dt_ms`; default 1.2 s run, first 0.2 s discarded). Slow oscillators are measured over **at least 10 cycles**: a level is extended in `run_ms` chunks until more than `min_cycles` (10) spikes were seen or `max_ms` is reached, and the rate is then `(n-1)/(t_last-t_first)`. So the SA node card (one beat per cycle) runs 12 s, extended up to 60 s; the Butera burster runs 60 s (its rate is spikes per second, many per burst); the ICC card (a wave every ~20 s) runs 60 s, extended up to 6 min. The card's `vm_init` is the seeded initial V_m range the engine uses for the model (null = the default `[E_L, V_th]`).
@@ -148,4 +186,4 @@ Every card has a measured default input `input_weight` with a `weight_unit`: the
 
 ## Structure (v0.4)
 
-`Engine::structure()` reports populations (id, model, size, first neuron index, numeric params, E/I `sign` from the summed outgoing weights), projections (pre and post population, rule or `edges`, synapse model, connection count, mean/min/max weight, sign of the mean weight, in-degree mean and max) and channels (the populations each input targets and each output reads), read from the live NEST connections. `has_path`, `has_loop` and `has_loop_via` answer reachability and feedback-loop questions on that graph; projections with zero connections or a zero mean weight are not edges. API and semantics: `docs/ENGINE-STRUCTURE.md`.
+`Engine::structure()` reports populations (id, model, size, first neuron index, numeric params, E/I `sign` from the summed outgoing weights), projections (pre and post population, rule or `edges`, synapse model, connection count, mean/min/max weight, sign of the mean weight, in-degree mean and max) and channels (the populations each input targets and each output reads, with the channel `kind`: inputs `dc`, `poisson`, `spike_generator`, `sinusoidal_poisson`; outputs `rate`, `modulator`, `population_vector`; a `population_vector` lists its neurons in ring order), read from the live NEST connections. `has_path`, `has_loop` and `has_loop_via` answer reachability and feedback-loop questions on that graph; projections with zero connections or a zero mean weight are not edges. API and semantics: `docs/ENGINE-STRUCTURE.md`.

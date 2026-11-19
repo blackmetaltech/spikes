@@ -3,6 +3,7 @@
 #include "spike/engine.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -128,11 +129,21 @@ struct Engine::Impl
     size_t node_id;
     double value;
     bool dirty;
+    // v0.5 (add-only)
+    int kind = 0;                       // 0 dc / poisson (value in `param`), 1 spike_generator, 2 sinusoidal_poisson
+    std::vector< double > times;        // spike_generator: every spike time queued so far (absolute ms, ascending)
+    bool times_dirty = false;
+    double amplitude = 0, freq_hz = 0, phase = 0;  // sinusoidal_poisson (value = rate); Hz, Hz, degrees
+    bool extra_dirty = false;
   };
   std::vector< Dev > devs;
   std::map< std::string, size_t > in_idx, out_idx;
   std::vector< double > out_count;
   std::vector< std::vector< int > > out_of_neuron;
+  // population_vector outputs (v0.5): per neuron, the unit vector (cos, sin) of its ring angle for each output it belongs to (parallel to out_of_neuron),
+  // and the running vector sum and spike count of the current step per output.
+  std::vector< std::vector< std::array< double, 2 > > > out_vec_of_neuron;
+  std::vector< double > pv_x, pv_y;
   struct Proj
   {
     nest::NodeCollectionPTR src, tgt;
@@ -158,6 +169,19 @@ struct Engine::Impl
     std::vector< size_t > rows;              // indices into spec.modulation, file order
   };
   std::vector< ModTarget > mod_targets;
+  struct ProjModTarget                       // v0.5: one (projection, parameter) written by the modulation table, per connection
+  {
+    int proj;
+    std::string param;
+    bool is_long = false;
+    double limit = 0;                        // |weight| ceiling of the postsynaptic model (param "weight"), 0 = none
+    std::deque< nest::ConnectionID > conns;
+    std::vector< double > base, applied;     // per connection: value after the projection was built, value last written
+    std::vector< size_t > rows;              // indices into spec.modulation, file order
+    std::vector< double > last;              // modulator levels of `rows` at the last write
+  };
+  std::vector< ProjModTarget > pmod_targets;
+  bool pmod_first = true;
   int da_dev = -1;                           // index into devs: poisson_generator feeding the volume_transmitters
   double mod_total( int m ) const { return mod_ext[ m ] + mod_pool[ m ]; }
 
@@ -187,6 +211,11 @@ struct Engine::Impl
     out_idx.clear();
     out_count.clear();
     out_of_neuron.clear();
+    out_vec_of_neuron.clear();
+    pv_x.clear();
+    pv_y.clear();
+    pmod_targets.clear();
+    pmod_first = true;
     projs.clear();
     pools.clear();
     for ( int m = 0; m < 3; ++m )
@@ -232,6 +261,8 @@ struct Engine::Impl
   void build();
   void collect();
   void apply_modulation();
+  void apply_projection_modulation();
+  void build_projection_modulation();
   void decay_pools();
   double read_vm( int32_t neuron ) const;
   std::deque< nest::ConnectionID > find_conns( const Proj& p, int32_t pre_neuron, int32_t post_neuron ) const;
@@ -326,7 +357,7 @@ void Engine::Impl::build()
         continue;
       bool has = false;
       for ( const ModulationSpec& m : spec.modulation )
-        has = has or ( m.pop_index == static_cast< int >( i ) and m.param == par );
+        has = has or ( m.proj_index < 0 and m.pop_index == static_cast< int >( i ) and m.param == par );
       if ( has )
         continue;
       ModulationSpec m;
@@ -346,6 +377,8 @@ void Engine::Impl::build()
   {
     const ModulationSpec& m = spec.modulation[ i ];
     const std::string path = "modulation[" + std::to_string( i ) + "]";
+    if ( m.proj_index >= 0 )
+      continue;  // projection rows are resolved after the connections exist (build_projection_modulation)
     ModTarget* mt = nullptr;
     for ( auto& t : mod_targets )
       if ( t.pop == m.pop_index and t.param == m.param )
@@ -385,11 +418,34 @@ void Engine::Impl::build()
     std::string path = "inputs[" + std::to_string( i ) + "]";
     try
     {
-      auto nc = nest::create( in.kind == "dc" ? "dc_generator" : "poisson_generator", 1 );
+      const char* model = in.kind == "dc" ? "dc_generator" : in.kind == "spike_generator" ? "spike_generator" : in.kind == "sinusoidal_poisson" ? "sinusoidal_poisson_generator" : "poisson_generator";
+      auto nc = nest::create( model, 1 );
       Dev d{ in.kind == "dc" ? "amplitude" : "rate", ( *nc )[ 0 ], in.value, false };
       Dictionary v;
-      v[ d.param ] = in.value;
-      nest::set_node_status( d.node_id, v );
+      if ( in.kind == "spike_generator" )
+      {
+        d.kind = 1;
+        d.param.clear();
+        d.times = in.spike_times;
+        if ( not d.times.empty() )
+          v[ "spike_times" ] = d.times;
+      }
+      else
+      {
+        v[ d.param ] = in.value;
+        if ( in.kind == "sinusoidal_poisson" )
+        {
+          d.kind = 2;
+          d.amplitude = in.amplitude;
+          d.freq_hz = in.freq_hz;
+          d.phase = in.phase;
+          v[ "amplitude" ] = in.amplitude;
+          v[ "frequency" ] = in.freq_hz;
+          v[ "phase" ] = in.phase;
+        }
+      }
+      if ( not v.empty() )
+        nest::set_node_status( d.node_id, v );
       in_idx[ in.name ] = devs.size();
       devs.push_back( d );
     }
@@ -589,15 +645,82 @@ void Engine::Impl::build()
   // outputs
   out_count.assign( spec.outputs.size(), 0.0 );
   out_of_neuron.assign( spec.n_neurons, {} );
+  out_vec_of_neuron.assign( spec.n_neurons, {} );
+  pv_x.assign( spec.outputs.size(), 0.0 );
+  pv_y.assign( spec.outputs.size(), 0.0 );
   for ( size_t o = 0; o < spec.outputs.size(); ++o )
   {
     out_idx[ spec.outputs[ o ].name ] = o;
-    for ( int32_t n : spec.outputs[ o ].neurons )
+    const OutputSpec& os = spec.outputs[ o ];
+    for ( size_t k = 0; k < os.neurons.size(); ++k )
+    {
+      const int32_t n = os.neurons[ k ];
       out_of_neuron[ n ].push_back( static_cast< int >( o ) );
+      // ring position: neuron k of N sits at angle 2 pi k / N
+      const double a = 2.0 * 3.14159265358979323846 * static_cast< double >( k ) / static_cast< double >( os.neurons.size() );
+      out_vec_of_neuron[ n ].push_back( { std::cos( a ), std::sin( a ) } );
+    }
   }
   pools.assign( spec.outputs.size(), Pool{} );
   for ( int32_t n : spec.record_voltage )
     watched[ n ];
+  build_projection_modulation();
+}
+
+// Modulation rows that target a projection: remember each connection's base value of the parameter (after the projection was built, spread and all).
+void Engine::Impl::build_projection_modulation()
+{
+  for ( size_t i = 0; i < spec.modulation.size(); ++i )
+  {
+    const ModulationSpec& m = spec.modulation[ i ];
+    if ( m.proj_index < 0 )
+      continue;
+    const std::string path = "modulation[" + std::to_string( i ) + "]";
+    ProjModTarget* mt = nullptr;
+    for ( auto& t : pmod_targets )
+      if ( t.proj == m.proj_index and t.param == m.param )
+        mt = &t;
+    if ( not mt )
+    {
+      ProjModTarget t;
+      t.proj = m.proj_index;
+      t.param = m.param;
+      const ProjSpec& ps = spec.projs[ m.proj_index ];
+      t.conns = find_conns( projs[ m.proj_index ], -1, -1 );
+      if ( not t.conns.empty() )
+      {
+        std::vector< Dictionary > st = nest::get_connection_status( t.conns );
+        if ( not st[ 0 ].known( m.param ) )
+          throw std::runtime_error( path + ".param: synapse model " + projs[ m.proj_index ].model + " has no parameter '" + m.param + "'" );
+        for ( const Dictionary& d : st )
+        {
+          try
+          {
+            t.base.push_back( d.get< double >( m.param ) );
+          }
+          catch ( const std::exception& )
+          {
+            try
+            {
+              t.base.push_back( static_cast< double >( d.get< long >( m.param ) ) );
+              t.is_long = true;
+            }
+            catch ( const std::exception& )
+            {
+              throw std::runtime_error( path + ".param: '" + m.param + "' of " + projs[ m.proj_index ].model + " is not a scalar number" );
+            }
+          }
+        }
+        t.applied = t.base;
+      }
+      if ( m.param == "weight" )
+        t.limit = weight_limit( spec.pops[ ps.post_pop ].model );
+      pmod_targets.push_back( std::move( t ) );
+      mt = &pmod_targets.back();
+    }
+    mt->rows.push_back( i );
+  }
+  pmod_first = true;
 }
 
 // Neuromodulation, applied between steps: write every (population, parameter) of the modulation table whose value changed.
@@ -627,6 +750,7 @@ void Engine::Impl::apply_modulation()
     nest::set_nc_status( pop_nc[ t.pop ], ds );
     t.applied = v;
   }
+  apply_projection_modulation();
   if ( da_dev >= 0 )
   {
     Dev& d = devs[ da_dev ];
@@ -637,6 +761,52 @@ void Engine::Impl::apply_modulation()
       d.dirty = true;
     }
   }
+}
+
+// Synapse modulation (v0.5): the same law as for neurons, per connection of the projection, from each connection's own base value.
+void Engine::Impl::apply_projection_modulation()
+{
+  for ( ProjModTarget& t : pmod_targets )
+  {
+    if ( t.conns.empty() )
+      continue;
+    std::vector< double > cur;
+    for ( size_t r : t.rows )
+      cur.push_back( mod_total( modulator_index( spec.modulation[ r ].modulator ) ) );
+    if ( not pmod_first and cur == t.last )
+      continue;
+    t.last = cur;
+    std::deque< nest::ConnectionID > changed;
+    std::vector< Dictionary > ds;
+    for ( size_t c = 0; c < t.conns.size(); ++c )
+    {
+      double v = t.base[ c ];
+      for ( size_t k = 0; k < t.rows.size(); ++k )
+      {
+        const ModulationSpec& m = spec.modulation[ t.rows[ k ] ];
+        v = m.scale ? v * ( 1.0 + m.amount * cur[ k ] ) : v + m.amount * cur[ k ];
+        if ( m.has_min )
+          v = std::max( v, m.vmin );
+        if ( m.has_max )
+          v = std::min( v, m.vmax );
+      }
+      if ( t.limit > 0 )
+        v = std::max( -t.limit, std::min( t.limit, v ) );  // never past the weight ceiling (a huge conductance makes the integrator diverge)
+      if ( v == t.applied[ c ] )
+        continue;
+      Dictionary d;
+      if ( t.is_long )
+        d[ t.param ] = static_cast< long >( std::llround( v ) );
+      else
+        d[ t.param ] = v;
+      changed.push_back( t.conns[ c ] );
+      ds.push_back( d );
+      t.applied[ c ] = v;
+    }
+    if ( not changed.empty() )
+      nest::set_connection_status( changed, ds );
+  }
+  pmod_first = false;
 }
 
 // Decay every release pool to the end of the step and refresh the per-modulator sums.
@@ -677,10 +847,16 @@ void Engine::Impl::collect()
     checksum = fnv_bytes( checksum, static_cast< uint64_t >( s.step ), 8 );
     ++spikes;
     const double t_spike = static_cast< double >( s.step ) * res - s.offset;
-    for ( int o : out_of_neuron[ n ] )
+    for ( size_t oi = 0; oi < out_of_neuron[ n ].size(); ++oi )
     {
+      const int o = out_of_neuron[ n ][ oi ];
       out_count[ o ] += 1.0;
       const OutputSpec& os = spec.outputs[ o ];
+      if ( os.kind == "population_vector" )
+      {
+        pv_x[ o ] += out_vec_of_neuron[ n ][ oi ][ 0 ];
+        pv_y[ o ] += out_vec_of_neuron[ n ][ oi ][ 1 ];
+      }
       if ( os.kind == "modulator" )
       {
         Pool& pl = pools[ o ];
@@ -810,11 +986,101 @@ void Engine::set_input( const std::string& channel, double value )
     return;
   }
   Impl::Dev& d = m.devs[ it->second ];
+  if ( d.kind == 1 )
+  {
+    m.error = "set_input: '" + channel + "' is a spike_generator: use queue_spikes()";
+    return;
+  }
   if ( d.value != value )
   {
     d.value = value;
     d.dirty = true;
   }
+}
+
+bool Engine::set_input_param( const std::string& channel, const std::string& key, double value )
+{
+  Impl& m = *impl_;
+  auto it = m.in_idx.find( channel );
+  if ( it == m.in_idx.end() )
+  {
+    m.error = "set_input_param: unknown input channel '" + channel + "'";
+    return false;
+  }
+  Impl::Dev& d = m.devs[ it->second ];
+  if ( d.kind != 2 )
+  {
+    m.error = "set_input_param: '" + channel + "' is not a sinusoidal_poisson input";
+    return false;
+  }
+  if ( key != "rate" and key != "amplitude" and key != "freq_hz" and key != "phase" )
+  {
+    m.error = "set_input_param: unknown parameter '" + key + "' (rate, amplitude, freq_hz, phase)";
+    return false;
+  }
+  if ( not std::isfinite( value ) or ( value < 0.0 and key != "phase" ) )
+  {
+    m.error = "set_input_param: " + key + " must be a finite number >= 0";
+    return false;
+  }
+  if ( key == "freq_hz" and not( value * m.spec.resolution_ms / 1000.0 < 0.5 ) )
+  {
+    m.error = "set_input_param: freq_hz is above the Nyquist limit of the resolution";
+    return false;
+  }
+  if ( key == "rate" )
+  {
+    set_input( channel, value );
+    return true;
+  }
+  double& slot = key == "amplitude" ? d.amplitude : key == "freq_hz" ? d.freq_hz : d.phase;
+  if ( slot != value )
+  {
+    slot = value;
+    d.extra_dirty = true;
+  }
+  return true;
+}
+
+bool Engine::queue_spikes( const std::string& channel, const std::vector< double >& times_ms )
+{
+  Impl& m = *impl_;
+  auto it = m.in_idx.find( channel );
+  if ( it == m.in_idx.end() )
+  {
+    m.error = "queue_spikes: unknown input channel '" + channel + "'";
+    return false;
+  }
+  Impl::Dev& d = m.devs[ it->second ];
+  if ( d.kind != 1 )
+  {
+    m.error = "queue_spikes: '" + channel + "' is not a spike_generator input";
+    return false;
+  }
+  const double res = m.spec.resolution_ms;
+  const double now = static_cast< double >( m.steps_done ) * res;
+  std::vector< double > add;
+  for ( double t : times_ms )
+  {
+    const double steps = t / res;
+    if ( not std::isfinite( t ) or std::fabs( steps - std::round( steps ) ) > 1e-6 )
+    {
+      m.error = "queue_spikes: spike time " + std::to_string( t ) + " ms is not a multiple of the resolution (" + std::to_string( res ) + " ms)";
+      return false;
+    }
+    if ( not( t > now + 0.5 * res ) )
+    {
+      m.error = "queue_spikes: spike time " + std::to_string( t ) + " ms is not after the model time reached (" + std::to_string( now ) + " ms)";
+      return false;
+    }
+    add.push_back( std::round( steps ) * res );
+  }
+  if ( add.empty() )
+    return true;
+  d.times.insert( d.times.end(), add.begin(), add.end() );
+  std::sort( d.times.begin(), d.times.end() );
+  d.times_dirty = true;
+  return true;
 }
 
 void Engine::step( double ms )
@@ -847,8 +1113,10 @@ void Engine::step( double ms )
     }
     m.apply_modulation();
     bool reprep = false;
+    const double now_ms = static_cast< double >( m.steps_done ) * res;
     for ( auto& d : m.devs )
-      if ( d.dirty )
+    {
+      if ( d.dirty and d.kind != 1 )
       {
         Dictionary v;
         v[ d.param ] = d.value;
@@ -856,12 +1124,35 @@ void Engine::step( double ms )
         d.dirty = false;
         reprep = reprep or d.param == "rate";
       }
+      if ( d.extra_dirty )
+      {
+        // sinusoidal_poisson: the oscillator state is derived from amplitude / frequency / phase in prepare(), so they need a re-prepare
+        Dictionary v;
+        v[ "amplitude" ] = d.amplitude;
+        v[ "frequency" ] = d.freq_hz;
+        v[ "phase" ] = d.phase;
+        nest::set_node_status( d.node_id, v );
+        d.extra_dirty = false;
+        reprep = true;
+      }
+      if ( d.times_dirty )
+      {
+        // spike_generator: only the spikes still ahead (strictly after the model time reached) are handed to NEST
+        d.times.erase( d.times.begin(), std::upper_bound( d.times.begin(), d.times.end(), now_ms + 0.5 * res ) );
+        Dictionary v;
+        v[ "spike_times" ] = d.times;
+        nest::set_node_status( d.node_id, v );
+        d.times_dirty = false;
+      }
+    }
     if ( reprep )
     {
       nest::cleanup();
       nest::prepare();
     }
     std::fill( m.out_count.begin(), m.out_count.end(), 0.0 );
+    std::fill( m.pv_x.begin(), m.pv_x.end(), 0.0 );
+    std::fill( m.pv_y.begin(), m.pv_y.end(), 0.0 );
     // Long steps run in slices of <= 100 ms (identical spikes) so the spike ring cannot overflow.
     const int64_t total = static_cast< int64_t >( std::llround( n ) );
     const int64_t chunk = std::max< int64_t >( 1, static_cast< int64_t >( std::llround( 100.0 / res ) ) );
@@ -915,6 +1206,29 @@ double Engine::output_count( const std::string& channel ) const
 {
   auto it = impl_->out_idx.find( channel );
   return it == impl_->out_idx.end() ? 0.0 : impl_->out_count[ it->second ];
+}
+
+double Engine::output_angle( const std::string& channel ) const
+{
+  auto it = impl_->out_idx.find( channel );
+  if ( it == impl_->out_idx.end() or impl_->spec.outputs[ it->second ].kind != "population_vector" )
+    return 0.0;
+  const double x = impl_->pv_x[ it->second ], y = impl_->pv_y[ it->second ];
+  if ( x == 0.0 and y == 0.0 )
+    return 0.0;
+  double a = std::atan2( y, x );
+  if ( a < 0.0 )
+    a += 2.0 * 3.14159265358979323846;
+  return a >= 2.0 * 3.14159265358979323846 ? 0.0 : a;  // a tiny negative angle rounds up to exactly 2 pi: that is angle 0
+}
+
+double Engine::output_strength( const std::string& channel ) const
+{
+  auto it = impl_->out_idx.find( channel );
+  if ( it == impl_->out_idx.end() or impl_->spec.outputs[ it->second ].kind != "population_vector" )
+    return 0.0;
+  const double n = impl_->out_count[ it->second ];
+  return n > 0 ? std::min( 1.0, std::hypot( impl_->pv_x[ it->second ], impl_->pv_y[ it->second ] ) / n ) : 0.0;
 }
 
 double Engine::output_rate( const std::string& channel ) const

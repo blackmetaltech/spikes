@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "Spike-train inputs (0.5): spike_generator and sinusoidal_poisson",
+  "resolution_ms": 0.1,
+  "seed": 5,
+  "populations": [
+    { "id": "A", "model": "iaf_psc_alpha", "n": 4, "params": { "V_m": -70.0 } },
+    { "id": "B", "model": "parrot_neuron", "n": 6 },
+    { "id": "T", "model": "parrot_neuron", "n": 2 }
+  ],
+  "projections": [
+    { "pre": "B", "post": "A", "rule": "all_to_all", "synapse": { "synapse_model": "tsodyks2_synapse", "weight": 60.0, "delay": 1.0, "U": 0.5, "u": 0.5, "tau_rec": 400.0, "tau_fac": 0.0 } }
+  ],
+  "inputs": [
+    { "name": "taps", "kind": "spike_generator", "targets": ["T", { "pop": "A", "idx": [0, 1] }], "weight": 900.0, "spike_times": [20.0, 40.5, 41.0, 100.0, 250.3] },
+    { "name": "theta", "kind": "sinusoidal_poisson", "targets": ["B"], "weight": 1.0, "rate": 40.0, "amplitude": 40.0, "freq_hz": 10.0, "phase": 90.0 }
+  ],
+  "outputs": [
+    { "name": "A", "kind": "rate", "neurons": ["A"] }
+  ],
+  "record": { "spikes": "all" }
+}

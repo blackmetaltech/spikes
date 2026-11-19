@@ -12,6 +12,8 @@ struct ProjectionInfo   { int32_t index;                                        
                           int32_t n_edges; double w_mean, w_min, w_max; int sign;            // sign of w_mean (0 when n_edges == 0 or w_mean == 0)
                           double indegree_mean; int32_t indegree_max; };                     // connections per post neuron (convergence)
 struct ChannelStructure { std::string name, kind; std::vector<std::string> pops; std::vector<int32_t> neurons; };
+                          // kind: inputs "dc" | "poisson" | "spike_generator" | "sinusoidal_poisson" (0.5); outputs "rate" | "modulator" | "population_vector" (0.5).
+                          // neurons: for a population_vector, in ring order (neuron k of N at angle 2 pi k / N), not sorted
 struct Structure        { std::vector<PopulationInfo> populations; std::vector<ProjectionInfo> projections;
                           std::vector<ChannelStructure> inputs, outputs;                     // pops = target pops (inputs) / source pops (outputs)
                           int population_index(const std::string& id) const;                 // -1 if unknown
@@ -39,4 +41,4 @@ const auto* mn = st.population("MN");
 if (!e.has_loop("MN", 2, -1)) verdict = "No inhibitory feedback loop onto the motor pool: nothing is turning the output back down.";
 ```
 
-Tests: `engine/tests/test_structure.cpp`. Format notes: `docs/CIRCUIT-FORMAT.md` ("Structure").
+Tests: `engine/tests/test_structure.cpp` (new channel kinds: `test_spike_inputs.cpp`, `test_population_vector.cpp`). Format notes: `docs/CIRCUIT-FORMAT.md` ("Structure").

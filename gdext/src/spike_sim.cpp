@@ -91,6 +91,21 @@ double SpikeSim::output_rate( const String& name ) const
 {
   return owns() ? engine_->output_rate( to_std( name ) ) : 0.0;
 }
+double SpikeSim::output_angle( const String& name ) const { return owns() ? engine_->output_angle( to_std( name ) ) : 0.0; }
+double SpikeSim::output_strength( const String& name ) const { return owns() ? engine_->output_strength( to_std( name ) ) : 0.0; }
+bool SpikeSim::queue_spikes( const String& name, const PackedFloat64Array& times_ms )
+{
+  if ( !owns() )
+    return false;
+  std::vector< double > t( size_t( times_ms.size() ) );
+  for ( int64_t i = 0; i < times_ms.size(); ++i )
+    t[ size_t( i ) ] = times_ms[ i ];
+  return engine_->queue_spikes( to_std( name ), t );
+}
+bool SpikeSim::set_input_param( const String& name, const String& key, double value )
+{
+  return owns() && engine_->set_input_param( to_std( name ), to_std( key ), value );
+}
 int64_t SpikeSim::neuron_count() const { return owns() ? engine_->neuron_count() : 0; }
 Dictionary SpikeSim::stats() const
 {
@@ -236,6 +251,10 @@ void SpikeSim::_bind_methods()
   ClassDB::bind_method( D_METHOD( "voltage", "i" ), &SpikeSim::voltage );
   ClassDB::bind_method( D_METHOD( "watch", "i" ), &SpikeSim::watch );
   ClassDB::bind_method( D_METHOD( "output_rate", "name" ), &SpikeSim::output_rate );
+  ClassDB::bind_method( D_METHOD( "output_angle", "name" ), &SpikeSim::output_angle );
+  ClassDB::bind_method( D_METHOD( "output_strength", "name" ), &SpikeSim::output_strength );
+  ClassDB::bind_method( D_METHOD( "queue_spikes", "name", "times_ms" ), &SpikeSim::queue_spikes );
+  ClassDB::bind_method( D_METHOD( "set_input_param", "name", "key", "value" ), &SpikeSim::set_input_param );
   ClassDB::bind_method( D_METHOD( "neuron_count" ), &SpikeSim::neuron_count );
   ClassDB::bind_method( D_METHOD( "stats" ), &SpikeSim::stats );
   ClassDB::bind_method( D_METHOD( "neuron_population", "i" ), &SpikeSim::neuron_population );

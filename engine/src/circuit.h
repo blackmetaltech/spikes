@@ -49,11 +49,15 @@ struct InputSpec
   std::vector< int32_t > targets;  // circuit-level neuron indices (sorted, unique)
   double weight = 1.0, value = 0.0;
   double delay = -1.0;             // < 0: use resolution
+  // v0.5 (add-only): kind "spike_generator" (spike_times, absolute model time in ms, on the resolution grid, > 0) and
+  // "sinusoidal_poisson" (value = rate in Hz, amplitude in Hz, freq_hz in Hz, phase in degrees, as NEST).
+  std::vector< double > spike_times;
+  double amplitude = 0.0, freq_hz = 0.0, phase = 0.0;
 };
 
 struct OutputSpec
 {
-  std::string name, kind;                // kind: "rate" | "modulator"
+  std::string name, kind;                // kind: "rate" | "modulator" | "population_vector" (v0.5: neurons are in ring order, file order of the selectors)
   std::vector< int32_t > neurons;
   std::string modulator;                 // kind "modulator": "NE" | "ACh" | "DA"
   double gain = 0.05, tau_ms = 1000.0;   // kind "modulator": concentration added per spike (a.u.), decay time constant (ms)
@@ -67,6 +71,7 @@ struct ModulationSpec
 {
   std::string modulator, pop, param;
   int pop_index = -1;
+  int proj_index = -1;                   // v0.5: >= 0 targets parameter `param` of every connection of projection `proj_index` (instead of a population)
   bool scale = false;                    // true: scale_per_unit, false: gain
   double amount = 0.0;
   bool has_min = false, has_max = false;

@@ -24,7 +24,7 @@ struct Spike
 struct ChannelInfo
 {
   std::string name;
-  std::string kind;              // "dc", "poisson", ... for inputs; "rate" for outputs
+  std::string kind;              // "dc", "poisson", "spike_generator", "sinusoidal_poisson" for inputs; "rate", "modulator", "population_vector" for outputs
   std::vector< int32_t > neurons; // circuit-level neuron indices it targets / reads
 };
 
@@ -63,7 +63,7 @@ struct ProjectionInfo
 
 struct ChannelStructure
 {
-  std::string name, kind;                     // kind: "dc", "poisson", ... (inputs); "rate" / "modulator" (outputs)
+  std::string name, kind;                     // kind: "dc" / "poisson" / "spike_generator" / "sinusoidal_poisson" (inputs); "rate" / "modulator" / "population_vector" (outputs)
   std::vector< std::string > pops;            // populations touched (target pops of an input, source pops of an output), file order, unique
   std::vector< int32_t > neurons;             // circuit-level neuron indices
 };
@@ -150,6 +150,18 @@ public:
   /// True when `pop` lies on a cycle of at most max_hops projections that passes through population `via` (e.g. has_loop_via("MN", "RC", 2)).
   /// sign_filter as for has_path (applied to every projection of the cycle).
   bool has_loop_via( const std::string& pop, const std::string& via, int max_hops = 0, int sign_filter = 0 ) const;
+
+  /// Additions (v0.5, add-only). Spike-train inputs: queue_spikes() appends spikes to a "spike_generator" input (absolute model time in ms, a multiple of the
+  /// resolution, strictly after the time reached; times need not be sorted). Returns false and sets error() otherwise. They are handed to NEST at the start of the
+  /// next step(). set_input() on a spike_generator is an error. set_input_param() changes "rate" (Hz), "amplitude" (Hz), "freq_hz" (Hz) or "phase" (degrees) of a
+  /// "sinusoidal_poisson" input between steps (the next step re-prepares NEST for amplitude / freq_hz / phase; set_input() sets the mean rate).
+  bool queue_spikes( const std::string& channel, const std::vector< double >& times_ms );
+  bool set_input_param( const std::string& channel, const std::string& key, double value );
+  /// "population_vector" outputs: the circular mean of the spike counts of the last step() over the ordered ring (neuron k of N at angle 2 pi k / N).
+  /// output_angle(): bump angle in radians [0, 2 pi), 0 when no spike; output_strength(): vector length / spike count, 0 (no preference) to 1 (all spikes at one angle),
+  /// 0 when no spike. Both are 0 for any other output kind or an unknown name.
+  double output_angle( const std::string& name ) const;
+  double output_strength( const std::string& name ) const;
 
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.
