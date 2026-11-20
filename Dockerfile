@@ -29,6 +29,8 @@ RUN set -eux; base=https://github.com/godotengine/godot-builds/releases/download
     unzip -q -j /tmp/tpl.tpz 'templates/linux_release.x86_64' 'templates/version.txt' -d "$d"; \
     rm -f /tmp/godot.zip /tmp/tpl.tpz; godot --version
 
+# The checkout and the restored CI cache (third_party/) are mounted from the host and owned by another uid; git refuses those as "dubious ownership" without this.
+RUN git config --system --add safe.directory '*'
 WORKDIR /src
 # third_party/ (NEST clone + static build, NESTML venv, godot-cpp) lives under the mounted /src, so re-runs are incremental.
 ENV SPIKE_OPENMP=OFF
