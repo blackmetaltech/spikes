@@ -56,3 +56,11 @@ All fonts are OFL and vendored in `godot/assets/fonts`.
   - Neurons are stained somata with fine inked dendrites.
   - Scopes are chart-paper strips.
   - The score is a stamp or needle gauge.
+
+## Plates of the Bestiary and Theory wings
+The body chapters draw their atlas pages live in `godot/ui/anatomy.gd`. The ten wing chapters use pre-rendered plates instead: `godot/assets/plates/<chapter id>.png`, one per chapter (worm, leech, aplysia, crab, fly_compass, fly_mb, dynamics, rates, memory, tuning).
+- **Made by** `tools/art/plates.py` (pycairo, Pillow, numpy; deterministic). Rerun it after editing a drawing and commit the PNGs. The theory curves are computed from the models they show: FitzHugh-Nagumo for Dynamics, Wilson-Cowan for Rate models, von Mises tuning for Tuning and decoding.
+- **Format:** 2000 × 1250 RGBA, the aspect of the map canvas. The paper is transparent, so the map draws its own sheet and engraved frame underneath. Stretch the plate over the whole canvas rect. A pin at canvas fraction (fx, fy) then sits at (fx × 2000, fy × 1250) on the plate.
+- **Style:** the same as the procedural plates. Line weights and lettering are given in logical px at 1080p and scaled by 2000 / 1236. Labels are Fraunces italic (opsz 24, wght 420) on translucent paper slips. Specimens are sepia or slate washes with ink rims, hatching and stipple. Stain colours keep their roles: sienna for excitation, Prussian blue for inhibition, verdigris for sensory, madder plum for motor, gamboge for modulators.
+- **Composition:** each Bestiary plate has the specimen, its species name, a scale bar, and one or two "Fig. N." insets (a circuit, a section or a trace). Each Theory plate is a set of numbered figures. All of them leave the three planned pin spots (0.2, 0.62), (0.5, 0.36) and (0.8, 0.62) readable.
+- **Pins and keep-out areas:** `plates.json` lists, for each plate, the pin positions it was composed around and keep-out rects as canvas fractions `[x, y, w, h, weight]`. The rects cover the anatomy and every lettered call-out. The map can feed them to its label-plate placement, the way `keep_rect` works for the procedural scenes.
