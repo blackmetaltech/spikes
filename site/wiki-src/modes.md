@@ -17,7 +17,7 @@ A mode changes how much help you get and how forgiving the score is. It never ch
 |---|---|---|---|
 | Recipe | Printed in the brief, free | Behind **Show recipe**. Using it caps the level at two stars. | None |
 | Hints | Free, all three tiers, always | Open after two missed runs | None. The Hint button is hidden. |
-| Seeds needed to pass | 1 | 1 (5 for the second star) | 5. A pass needs Test x5. |
+| Worlds needed to pass | 1 (Check runs five; at most two stars) | 1 (all five for the second star) | 5. A pass needs all five, and earns the Researcher seal. |
 | Noise in the stimulus | Low or none | Normal | Physiological (about twice Standard in the micro-puzzles) |
 | Pass bands (the ranges the score accepts) | Wide | As written in the brief | Tight |
 | Reference button | Open from the start | After you pass the level | After you pass the level |

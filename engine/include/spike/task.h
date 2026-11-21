@@ -99,6 +99,18 @@ public:
   /// Spine levels gate chapter progress; branches (variants, diagnosis, optional) never do.
   virtual bool on_spine() const { return true; }
 
+  /// add-only: the level's optional third-star challenge, shown on the level card before the player starts (never a hidden budget). `text` is the plain
+  /// sentence; the game checks the numbers against the circuit: at most `max_neurons` cells (0 = no limit), a mean rate of at most `max_rate_hz` spikes/s per
+  /// cell (0 = no limit), no modulator output at all when `no_modulators`. The default is the par: build it with no more neurons than the reference.
+  struct Challenge { std::string text; int max_neurons = 0; double max_rate_hz = 0; bool no_modulators = false; };
+  virtual Challenge challenge() const
+  {
+    Challenge c;
+    c.max_neurons = par_neurons();
+    if ( c.max_neurons > 0 ) c.text = "Build it with " + std::string( c.max_neurons == 1 ? "a single neuron" : "no more than " + std::to_string( c.max_neurons ) + " neurons" ) + " (par).";
+    return c;
+  }
+
   /// Difficulty mode, set before reset(): "guided" | "standard" | "researcher". Tasks scale tolerance (bands, seeds, noise)
   /// and perturbation strength from it; structure never changes. Default: standard.
   virtual void set_mode( const std::string& mode ) { mode_ = mode; }

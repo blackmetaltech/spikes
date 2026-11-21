@@ -6,8 +6,8 @@ extends Screen
 ## task's sensors and motors); Reference (the reference circuit already wired) appears only once the level is passed, or in Guided mode. Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
-## What each row of chapter tabs is (the second line of its label); the Theory row says it is open from the start.
-const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, open from the start"}
+## What each row of chapter tabs is (the second line of its label); the Theory row says it opens after chapter I.
+const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, after chapter I"}
 const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics", "rates": "Rates", "memory": "Memory", "tuning": "Tuning"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
@@ -211,15 +211,18 @@ func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, 
 		row.add_child(c)
 
 ## The three star conditions, worded for the difficulty mode (Progress.stars_for decides what earns them; the mode only changes how the pass is judged).
+## Star 2 is the five worlds of CHECK; star 3 is the level's own challenge, with its text (Progress.challenge), never an unstated budget. Guided stops at two stars.
 func _star_tiers(par: int, diagnosis := false, tid := "") -> Array:
 	var m := Progress.mode()
-	if diagnosis:   # a diagnosis case is a pass by naming the cause: the second star is a right first answer
-		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try and few probes (a score of 85 or more)", 3]]
-	var t1 := "Pass the task"; var t2 := "Pass on 5 random seeds (“Test x5”)"
-	var t3 := "Pass with %s or fewer" % Progress.neurons_text(par) if par > 0 else "Pass on 5 seeds, small circuit"
-	if m == "guided": t1 = "Pass the task (wide bands, hints free)"
-	elif m == "standard": t3 += " and never open “Show recipe”" + (" (used)" if tid != "" and Progress.recipe_used(tid) else "")
-	elif m == "researcher": t1 = "Pass on all 5 seeds (“Test x5”, required)"; t2 = "Pass on 5 seeds (physiological noise)"
+	if diagnosis:   # a diagnosis case is a pass by naming the cause: the second star is a right first answer, the third one after a probe that tells the candidates apart
+		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try, after at least one probe that tells the candidates apart, and few probes", 3]] if m != "guided" \
+			else [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2]]
+	var t1 := "Pass the task"; var t2 := "CHECK passes all five worlds"
+	var ch := str(Progress.challenge(tid)["text"]) if tid != "" else ""
+	var t3 := "Challenge: " + (ch if ch != "" else "pass on all five worlds with a small circuit")
+	if m == "guided": return [["Pass the task (wide bands, hints free)", 1], [t2 + " (Guided stops at two stars)", 2]]
+	elif m == "standard": t3 += " Never open “Show recipe”" + (" (used)." if tid != "" and Progress.recipe_used(tid) else ".")
+	elif m == "researcher": t1 = "Pass all five worlds under noise (CHECK, required)"; t2 = "CHECK passes all five worlds with tight bands (earns the Researcher seal)"
 	return [[t1, 1], [t2, 2], [t3, 3]]
 
 func _fill_detail() -> void:
@@ -262,6 +265,8 @@ func _fill_detail() -> void:
 		var rb := Kit.btn("Reference", func(): if not synth: go.call(true), "panel", int(24 * f) if not phone else 19); rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rb.disabled = synth; bt.add_child(rb)
 		rb.tooltip_text = "Open the reference circuit, already wired. It earns no stars."
 	if not open: detail_box.add_child(Kit.label(Campaign.lock_reason(sel) + ".", small, Kit.RED, true))
+	elif Progress.mode() == "guided" and Campaign.is_wing(chapter) and not Campaign.wing_gate_met(chapter):
+		detail_box.add_child(Kit.label("Guided mode leaves this chapter open; its prerequisite is %s." % str(Campaign.WING_GATES[chapter]["title"]), 15, Kit.TEXT_SOFT, true))
 	if is_var:
 		detail_box.add_child(Kit.label("A challenge variant of %s. It never gates the spine." % str(info["title"]), small, Kit.TEXT_SOFT, true))
 	else:
@@ -277,7 +282,7 @@ func _fill_detail() -> void:
 		var per := []
 		for mm in Progress.MODES:
 			var br := Progress.best_in(tid, mm)
-			per.append("%s: %s" % [Progress.mode_name(mm), ("%d of 3 stars" % int(br["stars"])) if bool(br["passed"]) else "not yet"])
+			per.append("%s: %s" % [Progress.mode_name(mm), (("%d of %d stars" % [int(br["stars"]), 2 if mm == "guided" else 3]) + (", sealed" if bool(br.get("seal", false)) else "")) if bool(br["passed"]) else "not yet"])
 		detail_box.add_child(Kit.label("   ".join(per), 15, Kit.TEXT_SOFT, true))
 	var brief := str(info["brief"]); var ld := LabInspector.lead(brief, 230 if not phone else 170)
 	detail_box.add_child(Kit.label(brief if _brief_full or not bool(ld[1]) else str(ld[0]), small, Kit.TEXT_SOFT, true))
@@ -297,6 +302,11 @@ func _fill_detail() -> void:
 	if str(info.get("symptoms", "")) != "": detail_box.add_child(Kit.label("Patient: " + str(info["symptoms"]), small, Kit.TEXT, true))
 	_chips_row("NEW IDEA", (node["concepts_new"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.exc(), f, phone)
 	_chips_row("USES", (node["concepts_used"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.GAMBOGE, f, phone, true)
+	if not is_var and bool(node["installed"]):   # what the level builds on and has not been passed yet: "needs: <concept> (from <level>)"
+		var nd := []
+		for n2 in Campaign.needs(tid):
+			if not bool(n2["met"]): nd.append("%s (from %s)" % [str(n2["title"]), str(n2["level_title"])])
+		_chips_row("NEEDS", nd, Kit.RED, f, phone)
 	if not is_var:
 		var hu := Progress.hints_used(tid)
 		if int(hu["count"]) > 0: detail_box.add_child(Kit.label("Hints used: %d (highest tier %d). Recorded, never punished." % [int(hu["count"]), int(hu["max_tier"])], 15, Kit.TEXT_SOFT, true))
@@ -719,8 +729,8 @@ class MapCanvas extends Control:
 		draw_string(Gfx.serif_italic(), Vector2(22 + Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x, size.y - 14), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
 		_draw_key(pz)
 		if not Campaign.chapter_open(chapter):
-			var g := Campaign.gate_chapter(chapter)
-			Anatomy.tag(self, ("Locked. Pass the %s spine first." % str(Campaign.chapter_def(g)["title"])) if g != "" else "Locked.", Vector2(14, 10.0 + float(fz)), Kit.RED, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.7)
+			var lr := Campaign.chapter_lock_reason(chapter)
+			Anatomy.tag(self, ("Locked. %s." % lr) if lr != "" else "Locked.", Vector2(14, 10.0 + float(fz)), Kit.RED, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.7)
 
 	## The key to the pin glyphs, a small italic legend in the bottom-left corner above the plate caption (not on a phone: the level card names the kind).
 	func _draw_key(pz: int) -> void:

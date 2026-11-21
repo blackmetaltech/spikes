@@ -270,7 +270,7 @@ func _compute_energy() -> void:
 		panel.message = "Run the circuit for a few seconds in the lab (or press “Record” in another tab), then come back: the energy bill is measured from the spikes it produced."; panel.queue_redraw(); return
 	var hz := Progress.energy_hz(spikes, n, t_ms)
 	panel.data = {"hz": hz, "budget": Progress.energy_budget(task_id), "neurons": n, "par": Progress.budget(task_id), "t_ms": t_ms, "spikes": spikes,
-		"has_task": task_id != "", "per_pop": per_pop, "src": src, "gap": Progress.star3_gap(task_id, n, hz)}
+		"has_task": task_id != "", "clause": Progress.energy_clause(task_id) > 0.0, "per_pop": per_pop, "src": src, "gap": Progress.star3_gap(task_id, n, hz)}
 	panel.queue_redraw()
 
 ## Population-level graph: node = population (index in circuit.populations), edge = at least one projection between two different
@@ -504,18 +504,22 @@ class SeriesPanel extends Control:
 		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %s)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, String.num(sd, 2)], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
 		_note("The average of a Gaussian white-noise stimulus around the spikes is the cell's linear filter (Chichilnisky 2001): a bump just before the spike means the cell integrates the recent past.", size.y - 18.0 - float(fz), f, fz)
 
+	func _energy_line(ok: bool, clause: bool) -> String:
+		if ok: return "Energy: within budget."
+		return "Energy: over budget, no third star." if clause else "Energy: over the reference ceiling (no part of this level's challenge)."
+
 	func _draw_energy(f: Font, fb: Font, fz: int) -> void:
 		var d := data; var hz := float(d["hz"]); var bud := float(d["budget"]); var ok := hz <= bud
 		var atp := Telemetry.atp_text(hz * float(d["neurons"]))
 		var y := _rows([["measured over", "%.0f s, %s" % [float(d["t_ms"]) * 0.001, str(d.get("src", ""))]], ["neurons / spikes", "%d / %d" % [int(d["neurons"]), int(d["spikes"])]],
-			["mean rate per neuron", "%.1f spikes/s" % hz], ["energy budget" if bool(d["has_task"]) else "reference budget", "%.0f spikes/s" % bud], ["ATP (network)", atp]], 60.0, f, fb)
+			["mean rate per neuron", "%.1f spikes/s" % hz], ["energy ceiling (challenge)" if bool(d.get("clause", false)) else "reference ceiling", "%.0f spikes/s" % bud], ["ATP (network)", atp]], 60.0, f, fb)
 		var r := Rect2(16, y + 6.0, size.x - 32.0, 22.0); var mx := maxf(hz, bud) * 1.15
 		draw_rect(r, Color(Kit.LINE, 0.5)); draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(hz / mx, 0.0, 1.0), r.size.y)), Color(Kit.exc() if ok else Kit.RED, 0.9))
 		var bx := r.position.x + r.size.x * bud / mx; draw_line(Vector2(bx, r.position.y - 4.0), Vector2(bx, r.end.y + 4.0), Kit.TEXT, 2.0)
 		y = r.end.y + 34.0
 		if bool(d["has_task"]):
 			var gap := str(d.get("gap", ""))
-			draw_string(fb, Vector2(16, y), "Energy: within budget." if ok else "Energy: over budget, no third star.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(17), Kit.exc() if ok else Kit.RED); y += 28.0
+			draw_string(fb, Vector2(16, y), _energy_line(ok, bool(d.get("clause", false))), HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(17), Kit.exc() if ok else Kit.RED); y += 28.0
 			if gap != "": draw_string(f, Vector2(16, y), "Third star blocked by: " + gap, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT); y += 24.0
 		var pp: Array = d.get("per_pop", [])
 		if pp.size() > 0 and y < size.y - 70.0:

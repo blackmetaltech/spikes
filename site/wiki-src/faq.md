@@ -23,7 +23,7 @@ Linux x86_64 with glibc 2.39 or newer. Windows is planned and not built yet. See
 
 ### How long does it take to finish?
 
-The campaign has 78 levels in all: the body chapters (19 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases), the Bestiary and the Theory wing. A micro-puzzle takes minutes. A boss can take much longer. Stars give you a reason to return.
+The campaign has 79 levels in all: the body chapters (20 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases), the Bestiary and the Theory wing. A micro-puzzle takes minutes. A boss can take much longer. Stars give you a reason to return.
 
 ### What licence is it under?
 
@@ -37,7 +37,7 @@ No. The optional play log is off by default, stays on your device, and you can e
 
 ### Why can't I open a level?
 
-A level opens when the one before it in its chapter is passed. A chapter opens when the previous chapter's main path is passed, or the one two before it. The card says "Pass X first". The Bestiary and the Theory wing are open from the start. See [the core loop](core-loop.html).
+A level opens when the one before it in its chapter is passed. A chapter opens when the previous chapter's main path is passed, or the one two before it. The card says "Pass X first". The Bestiary and the Theory wing open when you pass the Invertebrates spine, and some Bestiary chapters wait for a level they build on (the card says which). See [the core loop](core-loop.html).
 
 ### Why is a tool missing, such as inhibitory neurons or Analysis?
 
@@ -45,7 +45,7 @@ Tools open as the campaign needs them. The More menu lists what is still to come
 
 ### What is the difference between Run, Check and Test x5?
 
-Run is live on the bench. Check scores headless on the level's own seed, using the quick episode. Test x5 re-runs on five other seeds and is what earns the second star. See [the core loop](core-loop.html).
+Run is live on the bench. Check scores headless on five worlds (seeds 101 to 105) with the quick episode, and passing all five earns the second star. Test x5 in More does the same on the full episode. See [the core loop](core-loop.html).
 
 ### My circuit passed on Check but not on Test x5.
 
@@ -61,7 +61,7 @@ A circuit that equals the level's reference file, or that the Reference button f
 
 ### Why is the third star so hard?
 
-It needs the same result with par neurons or fewer and a mean firing rate under the energy budget. Pass first, then remove neurons one at a time. The lesion lab shows which neurons do nothing. See [the lesion lab](lesion-lab-and-analysis.html).
+It needs all five worlds of Check and then the level's challenge, which is written on the card (by default, par neurons or fewer). Pass first, then remove neurons one at a time. The lesion lab shows which neurons do nothing. See [the lesion lab](lesion-lab-and-analysis.html).
 
 ### Are the Results histograms other players?
 

@@ -50,6 +50,7 @@ public:
   void set_mode( const String& mode );       // before reset(): "guided" | "standard" | "researcher"
   String mode() const;
   Dictionary variants() const;               // {id: description}
+  Dictionary challenge() const;              // add-only: {text, max_neurons, max_rate_hz, no_modulators} (the optional third star)
   void set_variant( const String& v );       // "" = base task; before reset()
   String variant() const;
   Array hints() const;                       // [{tier:int, text:String, target:String}]

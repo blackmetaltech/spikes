@@ -185,6 +185,18 @@ Dictionary SpikeTask::variants() const
       d[ S( kv.first ) ] = S( kv.second );
   return d;
 }
+Dictionary SpikeTask::challenge() const
+{
+  Dictionary d;
+  if ( !task_ )
+    return d;
+  const auto c = task_->challenge();
+  d[ "text" ] = S( c.text );
+  d[ "max_neurons" ] = int64_t( c.max_neurons );
+  d[ "max_rate_hz" ] = c.max_rate_hz;
+  d[ "no_modulators" ] = c.no_modulators;
+  return d;
+}
 void SpikeTask::set_variant( const String& v )
 {
   if ( task_ )
@@ -370,6 +382,7 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "set_mode", "mode" ), &SpikeTask::set_mode );
   ClassDB::bind_method( D_METHOD( "mode" ), &SpikeTask::mode );
   ClassDB::bind_method( D_METHOD( "variants" ), &SpikeTask::variants );
+  ClassDB::bind_method( D_METHOD( "challenge" ), &SpikeTask::challenge );
   ClassDB::bind_method( D_METHOD( "set_variant", "variant" ), &SpikeTask::set_variant );
   ClassDB::bind_method( D_METHOD( "variant" ), &SpikeTask::variant );
   ClassDB::bind_method( D_METHOD( "hints" ), &SpikeTask::hints );

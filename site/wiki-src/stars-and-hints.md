@@ -2,7 +2,7 @@
 title: Stars, par and the hint ladder
 section: Playing
 order: 11
-summary: How stars are earned, what par and the energy budget mean, what the recipe costs, and how the three hint tiers work.
+summary: How stars are earned, what the five-world Check, par and the challenge mean, what the recipe costs, and how the three hint tiers work.
 ---
 
 # Stars, par and the hint ladder
@@ -14,22 +14,22 @@ Each level can give up to three stars. This page says exactly what earns them, w
 | Stars | Condition |
 |---|---|
 | 1 | The level is passed. |
-| 2 | The level is passed on all five **Test x5** seeds. |
-| 3 | The same, using no more neurons than the level's **par**, and staying inside the **energy budget**. In Standard mode you also must never have opened **Show recipe**. |
+| 2 | **Check** passes all five worlds (Standard or Researcher). |
+| 3 | Star 2, plus the level's own **challenge**: an optional goal written on the level card before you start, for example "Build it with no more than 16 neurons (par)". In Standard mode you also must never have opened **Show recipe**. |
 
-In **Researcher** mode the wording shifts: the first star is a pass on all five seeds (a pass needs Test x5 there), and the second is a five-seed pass under the mode's physiological noise.
+**Guided mode earns at most two stars.** It is the mode with the recipe and free hints, so the third star is not offered there. In **Researcher** mode a pass is five worlds under the mode's physiological noise and tight bands, and it earns the **Researcher seal** as well, a mark kept apart from the stars on the level card ("sealed").
 
-The campaign card shows the three conditions for your current mode. The brief repeats them in one line: "Stars: 1 pass. 2 pass on 5 seeds (Test x5). 3 the same with N neurons or fewer."
+The level card shows the three conditions for your current mode, with the challenge text in full. Nothing that can block a star is left unstated.
 
-### How Test x5 works
+### How Check runs the five worlds
 
-**Test x5** runs the level five times. The worlds use seeds 101, 102, 103, 104 and 105. The circuit is reseeded as well. The score you keep is the mean of the five runs. All five must pass for the second star. If only some pass, the end card says "It passes the fixed world but not every seed: make it less fragile, then test again." Fragile usually means a weight sits right on an edge.
+**Check** now scores your circuit in five slightly different worlds at once: seeds 101 to 105, with the circuit reseeded as well, using the level's quick episode. The toast says "Check: 4 of 5 worlds passed" and shows the verdict of the first world that failed. A pass in one world is the first star; all five is the second. A circuit that only just works fails some of the five: make it less fragile, then check again. **Test x5** in the More menu is the same test on the full episode, and records the mean score.
 
-A **spread** on a connection (a percentage of weight variation across the synapses of an axon) is drawn again for every seed. A circuit that only works with identical weights fails here.
+A **spread** on a connection (a percentage of weight variation across the synapses of an axon) is drawn again for every world. A circuit that only works with identical weights fails here.
 
 ## Par
 
-Par is a neuron count that each level sets. It is the size a tidy circuit needs. It is close to the size of the level's reference circuit for most levels but not always the same number: the level decides it. The campaign card and the brief state it ("Pass with 16 neurons or fewer").
+Par is a neuron count that each level sets, and the default challenge asks for it. It is the size a tidy circuit needs. It is close to the size of the level's reference circuit for most levels but not always the same number: the level decides it. The campaign card and the brief state it ("Pass with 16 neurons or fewer").
 
 Par counts the neurons of your circuit, with the cells of each group added up. A group of ten counts as ten. Par does not count sensors and motors.
 
@@ -40,17 +40,17 @@ Par counts the neurons of your circuit, with the cells of each group added up. A
 | Convergence | 1 |
 | Reflex arc | 16 |
 | Worm chemotaxis | 28 |
-| Stretch reflex | 52 |
+| Stretch reflex | 54 |
 | Spinal sprint (boss) | 80 |
 | Autonomic exam (boss) | 75 |
 
 The campaign pages list the par of every level: [body](campaign-body.html), [Bestiary](campaign-bestiary.html), [Theory](campaign-theory.html). A diagnosis case has no par.
 
-## The energy budget
+## The energy clause
 
-A real neuron pays for every spike in the molecule ATP, the cell's energy currency. The game counts it as the **mean firing rate per neuron over a whole episode**, in spikes per second. The **energy budget** of a level is 1.6 times the rate of its reference circuit, rounded. A level without its own entry has a default of 40 spikes per second per neuron.
+A real neuron pays for every spike in the molecule ATP, the cell's energy currency. The game counts it as the **mean firing rate per neuron over a whole episode**, in spikes per second. A few levels add an energy clause to their challenge, and then the card says so: "Keep the mean rate under 40 spikes/s per neuron". The ceiling is 1.6 times the rate of the level's reference circuit, rounded.
 
-| Level | Budget (spikes/s per neuron) |
+| Level | Ceiling (spikes/s per neuron) |
 |---|---|
 | Reflex arc | 40 |
 | Worm | 130 |
@@ -66,11 +66,10 @@ A real neuron pays for every spike in the molecule ATP, the cell's energy curren
 | Pupil | 30 |
 | Peristalsis | 10 |
 | Fight or flight | 26 |
-| Other levels | 40 |
 
-The end card translates it to a rough cost: about 1e8 to 1e9 ATP per spike (Attwell and Laughlin 2001; Lennie 2003), so read it as an order of magnitude. The Analysis screen has an energy tab that shows the same number plus a bar for each population. See [the lesion lab and analysis tools](lesion-lab-and-analysis.html).
+Levels not in the table have no energy clause. The Analysis energy tab still shows a reference ceiling of 40 for them, for information only. The end card translates the rate to a rough cost: about 1e8 to 1e9 ATP per spike (Attwell and Laughlin 2001; Lennie 2003), so read it as an order of magnitude. See [the lesion lab and analysis tools](lesion-lab-and-analysis.html).
 
-If a third star is blocked, the end card says why: "N neurons, par is M" or "x spikes/s per neuron, budget y".
+If a third star is blocked, the end card says why: "N neurons, par is M" or "x spikes/s per neuron, ceiling y".
 
 ## The recipe
 
@@ -108,7 +107,7 @@ After a failed run a part of the bench glows red. This is not a hint. It is free
 
 - A copy of the reference circuit.
 - A challenge variant (it has a DONE chip and gives no stars).
-- A diagnosis case: it has its own star rules. See [diagnosis cases](diagnosis-cases.html).
+- A diagnosis case: it has its own star rules (its third star needs a probe). See [diagnosis cases](diagnosis-cases.html).
 
 ## Related pages
 
