@@ -720,12 +720,12 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
               continue;
             const char* unit = nullptr;
             const double lim = weight_limit( q->model, &unit );
-            if ( lim > 0 and in.kind != "dc" and std::fabs( in.weight ) > lim )
+            if ( lim > 0 and in.kind != "dc" and is_nestml_model( q->model ) and std::fabs( in.weight ) > lim )  // (other models keep their old, unchecked input weights)
               fail( sub( path, "weight" ), "weight " + std::to_string( in.weight ) + " is outside the allowed range |w| <= " + std::to_string( static_cast< long >( lim ) ) + " " + unit +
                                                " for " + q->model );
             if ( in.kind == "dc" )
             {
-              const double cap = is_nestml_model( q->model ) ? kMaxNestmlDcPa : kMaxDcPa;
+              const double cap = is_nestml_model( q->model ) ? kMaxNestmlInputPa : kMaxDcPa;
               if ( std::fabs( in.weight * in.value ) > cap )
                 fail( sub( path, "value" ), "a constant current of " + std::to_string( in.weight * in.value ) + " pA onto '" + q->id + "' is above the allowed " + std::to_string( static_cast< long >( cap ) ) + " pA" );
             }

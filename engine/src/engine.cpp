@@ -504,7 +504,7 @@ void Engine::Impl::build()
         for ( int32_t t : in.targets )
           for ( const auto& q : spec.pops )
             if ( t >= q.first and t < q.first + q.n and is_nestml_model( q.model ) )
-              cap = std::min( cap, kMaxNestmlDcPa );
+              cap = std::min( cap, kMaxNestmlInputPa );
         d.vmax = in.weight != 0.0 ? cap / std::fabs( in.weight ) : 1e300;
       }
       else
