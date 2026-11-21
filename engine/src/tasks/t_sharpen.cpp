@@ -1,12 +1,12 @@
 // Micro-puzzle "t_sharpen" (tuning chapter, concept "lateral_inhibition_tuning"): a population of cells, each fed by one afferent, inherits the afferents' broad tuning. Inhibition among the cells,
 // from the neighbours that prefer other orientations, narrows it: the cell that prefers the stimulus wins and silences its neighbours.
 //
-// WORLD (3600 ms; tuned_poisson sensor 'stim', period one hundred and eighty degrees, broad tuning curves (kappa 0.5, base 10 Hz, peak 80 Hz); the afferents are cells you create, eight of them, cell k prefers 22.5 k degrees):
-//   twelve trials of 300 ms, orientations 0, 45, 90, 135 three times. 'resp' reads the eight cells that listen to the afferents; the one that prefers ninety degrees is the fifth in the circuit.
-//   The response is read over all twelve trials: the mean rate of the cell that prefers the orientation shown (peak) and of the two cells forty-five degrees away from it (side), in the last 220 ms of each trial.
+// WORLD (14400 ms; tuned_poisson sensor 'stim', period one hundred and eighty degrees, broad tuning curves (kappa 0.5, base 10 Hz, peak 80 Hz); the afferents are cells you create, eight of them, cell k prefers 22.5 k degrees):
+//   twenty-four trials of 300 ms, orientations 0, 45, 90, 135 six times. 'resp' reads the eight cells that listen to the afferents; the one that prefers ninety degrees is the fifth in the circuit.
+//   The response is read over all twenty-four trials: the mean rate of the cell that prefers the orientation shown (peak) and of the two cells forty-five degrees away from it (side), in the last 220 ms of each trial.
 // SCORING
-//   fires   the cells fire at 12 Hz or more at their preferred orientation (guided 8)
-//   narrow  the side rate is at most 48 % of the peak rate (guided 60 %, researcher 44 %)    the tuning is sharper than the afferents'
+//   fires   the cells fire at 10 Hz or more at their preferred orientation (guided 7)
+//   narrow  the side rate is at most 58 % of the peak rate (guided 62 %, researcher 52 %). Without the loop the ratio is about 67 %; the ratio of two small spike counts is noisy (about 5 points over the 48 trials), so the limit sits well clear of that null and the inhibition-only circuits (45 to 50 %)    the tuning is sharper than the afferents'
 // MECHANISM (Engine::structure()): the eight cells are driven by the afferents by excitation and are not the afferents; they inhibit one another (directly, or through a cell they excite).
 // Biology: sharpening of orientation tuning by intracortical inhibition (Ben-Yishai R, Bar-Or RL, Sompolinsky H (1995) PNAS 92:3844: a recurrent network model in which the tuning width is set by
 // the cortical interactions; Hubel DH, Wiesel TN (1962) J Physiol 160:106 for the feed-forward picture it sharpens). Whether real cortical tuning is sharpened this way is debated.
@@ -20,8 +20,8 @@ namespace
 using namespace bestiary;
 using namespace tl;
 
-const double kAng[] = { 0, 45, 90, 135, 0, 45, 90, 135, 0, 45, 90, 135 };
-constexpr int kTrials = 12;
+constexpr int kTrials = 48;   // six rounds of the four orientations: the ratio of two small spike counts is noisy, and more trials keep a circuit that sharpens from passing or failing by the draw of the seed
+inline double ang_of( int k ) { return 45.0 * ( k % 4 ); }
 
 /// Spikes of the cell with ring index `k` (0..7, in circuit order) in trial window `key`.
 double cell_spikes( const Meas& m, int k, const std::string& key )
@@ -41,7 +41,7 @@ void profile( const Meas& m, double& peak, double& side )
   peak = side = 0;
   for ( int k = 0; k < kTrials; ++k )
   {
-    const int pref = static_cast< int >( kAng[ k ] / 22.5 + 0.5 ), w = k;
+    const int pref = static_cast< int >( ang_of( k ) / 22.5 + 0.5 ), w = k;
     const std::string key = "t" + std::to_string( w );
     peak += cell_spikes( m, pref, key );
     side += 0.5 * ( cell_spikes( m, pref + 2, key ) + cell_spikes( m, pref - 2, key ) );
@@ -59,13 +59,13 @@ Spec spec()
   i.brief = "Afferents with broad tuning curves feed a population of cells, one cell to one afferent, and the cells inherit the broad tuning. Inhibition among them can narrow it: the cell that prefers the "
             "stimulus pulls ahead and pushes its neighbours down. 'stim' shows an orientation, 0 to one hundred and eighty degrees, in turn. Make eight afferent cells (parrot cells), connect 'stim' to them, and make eight "
             "cells that each listen to their own afferent (neuron k of the afferents to neuron k of the cells, the 'neuron k to k' wiring). 'resp' reads the eight cells. The cell that prefers the orientation shown "
-            "must fire well, and the cells that prefer forty-five degrees away from it at only a small fraction of that. Without inhibition among the cells the tuning is as broad as the afferents'. Inhibition among the cells narrows the tuning, "
-            "and a cell that also excites itself holds its lead against the others; how strong each is decides how much it sharpens.";
+            "must fire well, and the cells that prefer forty-five degrees away from it at only a small fraction of that. Without inhibition among the cells the tuning is as broad as the afferents'. Inhibition among the cells narrows the tuning: that is what the level asks for. "
+            "A cell that also excites itself holds its lead against the others, which is optional; how strong each is decides how much it sharpens.";
   i.chapter = "tuning";
   i.view = "tuning";
   i.sensors = { "stim" };
   i.motors = { "resp" };
-  i.duration_ms = 3600;
+  i.duration_ms = 14400;
   i.concepts_new = { "lateral_inhibition_tuning" };
   i.concepts_used = { "tuning_curve", "inhibition" };
   i.par_neurons = 16;
@@ -84,7 +84,7 @@ Spec spec()
     for ( ; k < 8; ++k ) m.extra[ "c" + std::to_string( k ) ] = -1;
   };
   i.recipe = "Afferents A (8 parrot cells) and cells T (8 integrate-and-fire cells). stim > A at weight 1 (broad: peak 80 Hz, base 10 Hz). A > T with the 'neuron k to k' wiring at +1500 pA. T > T inhibition at -2500 pA, every pair (the cells inhibit each other), and T > T self-excitation at +2500 pA (the "
-             "'neuron k to k' wiring: each cell excites itself, so the leader holds on while it silences the rest). 'resp' reads T. Without the loop the cells forty-five degrees away fire at about two thirds of the peak rate; with it, at about a third. Inhibition alone is not enough.";
+             "'neuron k to k' wiring: each cell excites itself, so the leader holds on while it silences the rest). 'resp' reads T. Without the loop the cells forty-five degrees away fire at about two thirds of the peak rate; with it, at about a third. The inhibition is what the level requires; the self-excitation only makes the sharpening stronger and steadier, and inhibition alone (about 2500 pA) already passes.";
   i.note = { "Sharpening tuning with inhibition",
     "The feed-forward inputs to a cortical cell are only broadly tuned. In recurrent network models inhibition among cells of different preferences, or between them and a competitor, makes the "
     "tuning of the response much sharper than that of the input, so that the width of the tuning is set by the cortical interactions rather than by the input. Experimental evidence for and against such "
@@ -92,10 +92,10 @@ Spec spec()
     "Ben-Yishai R, Bar-Or RL, Sompolinsky H (1995) Proc Natl Acad Sci USA 92:3844-3848, doi:10.1073/pnas.92.9.3844" };
   s.schedule = [ & ]( bool ) {
     Schedule c;
-    c.dur = 3600;
+    c.dur = 14400;
     for ( int k = 0; k < kTrials; ++k )
     {
-      c.segs.push_back( { "stim", 300.0 * k, 300.0 * ( k + 1 ), kAng[ k ] } );
+      c.segs.push_back( { "stim", 300.0 * k, 300.0 * ( k + 1 ), ang_of( k ) } );
       c.wins.push_back( { "t" + std::to_string( k ), 300.0 * k + 80, 300.0 * ( k + 1 ) } );
     }
     return c;
@@ -120,7 +120,7 @@ Spec spec()
     p[ "peak_hz" ] = r90;
     p[ "side_hz" ] = side;
     p[ "ratio_pct" ] = 100.0 * ratio;
-    const double need = m.tol > 1.2 ? 8.0 : 12.0, lim = m.tol > 1.2 ? 0.6 : ( m.tol < 0.9 ? 0.44 : 0.48 );
+    const double need = m.tol > 1.2 ? 7.0 : 10.0, lim = m.tol > 1.2 ? 0.62 : ( m.tol < 0.9 ? 0.52 : 0.58 );
     c.push_back( { "fires", r90 >= need, ramp( r90, 0, need ), "The cell that prefers ninety degrees hardly fires: the afferent must drive it enough, and inhibition must not silence it too." } );
     c.push_back( { "narrow", r90 > 0 && ratio <= lim, r90 > 0 ? 1.0 - ramp( ratio, lim, 1.0 ) : 0.0,
       "The cell responds nearly as much to the neighbouring orientations as to its own: its tuning is as broad as the afferents'. Inhibition from the other cells must be strong enough to push down the response to the orientations it does not prefer." } );

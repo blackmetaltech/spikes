@@ -59,7 +59,7 @@ Spec spec()
              "'heading' reads T as a ring (all twelve cells, in order). The decoded direction is within a few degrees on average.";
   i.note = { "The population vector",
     "Georgopoulos and colleagues recorded neurons in the monkey motor cortex and found each tuned, broadly, to the direction of the arm's movement. A single cell predicts the direction badly, but the "
-    "population vector, the sum of the cells' preferred directions weighted by their firing, points in the direction of movement. Population decoding has been used since for many sensory and motor variables.",
+    "population vector, the sum of the cells' preferred directions weighted by their firing, points in the direction of movement. The population vector is one linear decoder, not the best one: for cells with Poisson variability and bell-shaped tuning a maximum-likelihood readout is more accurate, and a winner-take-all readout is another choice. Population decoding has been used since for many sensory and motor variables.",
     "Georgopoulos AP, Schwartz AB, Kettner RE (1986) Science 233:1416-1419, doi:10.1126/science.3749885" };
   s.schedule = [ & ]( bool ) {
     Schedule c;
