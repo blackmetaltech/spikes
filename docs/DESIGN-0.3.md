@@ -2,6 +2,8 @@
 
 Status: a proposal for review. Grounded in the design literature below; sources are marked **[searched]** where checked against summaries or primary material this session, and **[memory]** where taken from my own recollection of the book (verify against the text before quoting).
 
+**Status: shipped in 0.3.0.** The campaign has since grown (0.5.0: 20 micro-puzzles with `m_tonic`, 79 levels in three wings, gated wings, new star rules); see the CHANGELOG and `docs/PLAN.md`.
+
 ## 0. Where 0.2 stands (the starting point)
 - 14 tasks in 5 chapters, each a large build (7–49 neurons), with stars for pass, pass on 5 seeds, and staying under the neuron and energy budget.
 - Strengths:

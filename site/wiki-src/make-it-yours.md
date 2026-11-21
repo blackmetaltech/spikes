@@ -29,7 +29,7 @@ Each has a page in `docs/models/` that says where the equations come from and ho
 ### The steps
 
 1. **Write the model.** Add `models/nestml/my_cell.nestml`. Follow an existing file. The repository's cells share conventions: an `excitatory` and an `inhibitory` spike input port (so a positive circuit weight excites and a negative one inhibits), a continuous current port for `dc` inputs, and a parameter `I_e` for a constant current. Neuromodulator levels `ach` and `ne` are plain parameters; the [modulation table](circuit-is-data.html) drives them. NESTML 9 syntax has quirks: a spike port takes no unit (declare an internal `unit_psg nS` instead), and variable names `a` and `h` collide with unit names.
-2. **Generate the C++.** Run `scripts/build-nestml.sh`. It makes a virtual environment with the pinned NESTML, then runs `scripts/nestml_generate.py` over every `.nestml` file in `models/nestml`, and writes C++ into `third_party/nestml-gen/`. The script patches around some incompatibilities between NESTML 9 and the pinned NEST (it fixes the NEST version label, replaces NESTML's own build step, and removes a `libltdl` guard the neuron code does not need).
+2. **Generate the C++.** Run `scripts/build-nestml.sh`. It makes a virtual environment with the pinned NESTML, then runs `scripts/nestml_generate.py` over every `.nestml` file in `models/nestml`, and writes C++ into `third_party/nestml-gen/`. The script patches around some incompatibilities between NESTML 9 and the pinned NEST (it fixes the NEST version label, replaces NESTML's own build step, and removes a `libltdl` guard the neuron code does not need). It also injects a step-count and minimum-step guard and a non-finite check into every cell's integration loop, so a strong input ends the run with an error and not a stall. The engine caps the weights and constant currents a custom cell accepts for the same reason (see [a circuit is data](circuit-is-data.html#limits-and-errors)); a new cell inherits those caps, and a circuit that needs more is refused with a message.
 3. **Rebuild the engine.** `cmake -S . -B build && cmake --build build -j`. CMake globs the generated sources and compiles them into the engine. It warns if a `.nestml` file is newer than the generated code. The models register themselves after every NEST reset, in `engine/src/modules/nestml_models.cpp`.
 4. **Add a parts-bin card.** The cards are defined in C++ in `engine/src/catalog/catalog.cpp`. A card gives the model's title, a family ("Custom (NESTML)"), a plain summary, real-world examples, a source line, the key parameters with units and ranges, the default input weight and its unit, whether it suits excitatory or inhibitory use, and the drive levels for its thumbnail. Copy the `stg_cell` card and edit it. Slow oscillators set `run_ms` and `max_ms` so the probe sees at least 10 cycles.
 5. **Measure the thumbnails.** `build/engine/spike-catalog` runs every card in its own process and writes `catalog/thumbs.json` (the f-I curve and a voltage trace). The game reads that file for the card pictures.
@@ -51,14 +51,14 @@ The base class is `spike::Task` in `engine/include/spike/task.h`. The important 
 |---|---|
 | `id()`, `title()`, `brief()` | The level name and the plain-language brief. The brief says what to build and how it is scored, but gives no numbers that give the answer away. |
 | `sensor_channels()`, `motor_channels()` | The names of the inputs the task drives and outputs it reads. A circuit must declare them. |
-| `channel_kinds()` | How each channel is declared (`dc`, `poisson`, `rate`, ...) and a default sensor weight, so the lab can build a correct empty bench. |
+| `channel_kinds()` | How each channel is declared (`dc`, `poisson`, `rate`, ...) and a default sensor weight, so the lab can build a correct empty bench. A level of the Theory wing may declare `rate_drive` or `tuned_poisson` inputs and `rate_value` outputs. |
 | `duration_ms()`, `quick_duration_ms()` | The full episode, and a shorter one that Check uses by the same rules. |
 | `reset(seed)`, `step(engine, dt_ms)` | The world. `reset` builds a deterministic world from the seed. `step` reads the world into engine inputs, steps the engine 1 ms, reads outputs, and advances the world. |
 | `score()` | A value from 0 to 100, a pass flag, a verdict sentence and named parts. |
 | `body()` and `view()` | What the game draws: a limb, heart, lungs, eye, gut, a dashboard or the generic polyline. See [bodies](bodies.html). |
 | `chapter()`, `level_kind()`, `on_spine()` | Where it sits: a chapter id, `micro`, `task`, `boss` or `diagnosis`, and whether it gates progress. Branches never gate. |
 | `concepts_new()`, `concepts_used()` | The ideas it teaches and relies on. These feed the glossary and the "know first" chips. |
-| `par_neurons()` | The neuron count for the third star. |
+| `par_neurons()`, `challenge()` | The neuron count for the par, and the optional goal for the third star (a neuron par, sometimes an energy ceiling or "no modulators"), shown as text on the level card. |
 | `timeline()`, `bands()`, `modulators()` | Scripted events, target bands for the timeline plot and the neuromodulators the task reads. |
 | `set_mode()`, `variants()`, `set_variant()` | Difficulty modes and challenge variants. A mode changes tolerance and noise, never structure. |
 | `hints()` | Three tiers: the idea, the place (a population or channel id to outline), a partial recipe. |
@@ -75,7 +75,7 @@ End the file with the macro, with the id equal to the file name:
 SPIKE_REGISTER_TASK( my_level, 301, "my_level.json", make_my_level )
 ```
 
-The number sorts the campaign (10s are Invertebrates, 100s Spinal cord, 200s Heart, 300s Breathing, 400s Autonomic, 500s the Bestiary, 600s Theory). CMake finds the file by globbing and generates the code that keeps its registration. The file stem must equal the id.
+The number sorts the campaign, and the engine's registry order is the play order within a chapter. By habit the bands are about 10 to 30 for Invertebrates, 100s Spinal cord, 200s Heart, 300s Breathing, 400s Autonomic, 500s the Bestiary and 600s Theory, and a micro-puzzle takes a number just below the level it prepares. Which levels open when is decided in `godot/game/campaign.gd` (a wing opens after the Invertebrates spine, and a few chapters wait for a named level). CMake finds the file by globbing and generates the code that keeps its registration. The file stem must equal the id.
 
 ### The steps
 
@@ -94,9 +94,9 @@ The number sorts the campaign (10s are Invertebrates, 100s Spinal cord, 200s Hea
 
    Every level has at least these: the empty bench, a single cell, a tonic cell with all weights 0, the reference with every weight 0, with every weight extreme, and the reference minus its mechanism. `CHEAP_ROW_V` also requires the verdict to contain a word, which pins that the verdict names the missing mechanism. A row passes when the task does not pass on seeds 1 and 2 and says something. The test also checks that the reference passes the same harness, so a broken harness cannot "fail" everything. A scan checks that verdicts and hint tiers contain no digits.
 5. **Write the notebook entry and the glossary concept.** Cite real papers. The concept text lives in `godot/game/campaign.gd` (the `CONCEPTS` table). Run the citation checker (below).
-6. **Put it on the map.** Engine order sets play order. `campaign.gd` has a `PLANNED` table of map positions per chapter (levels not listed are placed automatically) and `DX_PARENT` for diagnosis cases. Add an energy budget in `godot/game/progress.gd` if the reference circuit's spike rate matters; the default is 40 spikes per second per cell.
+6. **Put it on the map.** Engine order sets play order. `campaign.gd` has a `PLANNED` table of map positions per chapter (levels not listed are placed automatically) and `DX_PARENT` for diagnosis cases. If the third-star challenge should include an energy ceiling, add the level to `ENERGY_HZ` in `godot/game/progress.gd` (1.6 times what its reference circuit spends, from `rate_hz_per_neuron` in `spike-run --task <id>`); levels without an entry use 40 spikes per second per cell for the Analysis screen only, and earn nothing from it.
 7. **Document it** in `docs/circuits/my_level.md` and `docs/WHAT-IS-REAL.md`.
-8. **Run the tests**: the cheap rows, `tasks_circuits_test`, the smoke test, and the interaction-graph test if the UI changed.
+8. **Run the tests**: the cheap rows, `tasks_circuits_test`, `tasks_quick_full_test` (the reference must pass the quick and the full episode in every mode), `spike-run --task my_level --seeds 1,2,3 --require all`, the smoke test, and the interaction-graph test if the UI changed.
 
 ### Making the rows
 

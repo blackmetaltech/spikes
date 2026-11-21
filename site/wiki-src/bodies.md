@@ -32,7 +32,7 @@ This page describes each body: what it models, what you drive, what you read, an
 | Lamprey swimmer | Lamprey swimmer | `left_motor`, `right_motor` | Nothing: an open command | Invertebrates |
 | Worm on a salt plate | Worm chemotaxis | `turn_left`, `turn_right` | `ASEL`, `ASER` salt cells | Invertebrates |
 | Touch reflex limb | Reflex arc | `withdraw` pool | Touch Poisson input | Invertebrates |
-| Ring, dials and dashboards | Bestiary and Theory levels | varies | varies | Bestiary, Theory |
+| Specimens, rings, dials and dashboards | Bestiary and Theory levels, micro-puzzles | varies | varies | Bestiary, Theory |
 
 ![The limb view: a joint with its flexor and extensor muscles and spindle readouts](img/bodies-limb.png)
 
@@ -43,7 +43,7 @@ This page describes each body: what it models, what you drive, what you read, an
 **What happens in a slice.**
 
 1. The joint's sensors report the state of the muscles. A **muscle spindle** has two kinds of afferent: **Ia** (sensitive to stretch and to how fast it changes) and **II** (sensitive to length only). A **Golgi tendon organ** reports force as **Ib**.
-2. The level writes those rates to the sensor cards as `dc` inputs, after about 8 ms of conduction delay. The circuit's input weight turns one hertz into about 4 pA.
+2. The level writes those rates to the sensor cards as `dc` inputs, after about 10 ms of conduction delay. The circuit's input weight turns one hertz into about 4 pA.
 3. Your motor pools fire. Their mean rate, smoothed over 15 ms and delayed 10 ms for the efferent conduction, becomes the excitation of the muscle.
 4. The muscle recruits its units from small to large (the **size principle**), produces force, and moves the joint.
 
@@ -51,7 +51,7 @@ This page describes each body: what it models, what you drive, what you read, an
 
 **Recruitment.** Unit i is recruited at a threshold that rises from 2 % to 80 % of the pool's excitation. A unit fires at a rate of 8 Hz plus 50 Hz per unit of excitation above its threshold, capped at 35 to 45 Hz. A cell in your motor pool is therefore one unit of a muscle with a limited range.
 
-> **Note:** In the spinal levels the muscle's excitation is the pool's **total** rate (cells times mean rate) divided by what 20 units can use at their peak. One motor neuron at the top rate excites one twentieth of the muscle. **Pool size is part of every spinal design.**
+> **Note:** In the spinal levels the muscle's excitation is the pool's **total** rate (cells times mean rate) divided by what 20 units can use at their peak. One motor neuron at the top rate excites one twentieth of the muscle. The top rate differs from level to level (50 Hz by default, more or less in some levels), so the same pool can drive a muscle harder in one level than in another. **Pool size is part of every spinal design.**
 
 **The joint.** It moves between -1.0 and 1.45 radians. Zero is horizontal. Positive is flexion (the limb raised). The forearm-like defaults are a mass of 1.5 kg, an inertia of 0.07 kg m^2, 350 N of peak force per muscle and a 4 cm moment arm. Stops at the ends are a stiff spring and damper. The tests show that a limp limb sags to the lower stop, that the resting angle rises with flexor drive, that co-contraction cuts the push-induced deflection (0.21 to 0.15 rad) and that the limits hold.
 
@@ -59,7 +59,7 @@ This page describes each body: what it models, what you drive, what you read, an
 
 **What is simplified.** Rigid tendon (no series elasticity). No pennation. No doublet potentiation. A single hinge with constant moment arm. The motor pool does not deliver spikes unit by unit: the muscle makes its own regular unit trains from the excitation. The coefficients are game values.
 
-**The view.** A drawn arm with two muscle bellies coloured by activation, spindles and a ghost target where the level has one.
+**The view.** A drawn arm on a trunk, with the flexor and the extensor as muscle bellies coloured by activation, spindle readouts and a ghost target where the level has one.
 
 ## The heart and circulation (Heart chapter)
 
@@ -73,7 +73,7 @@ This page describes each body: what it models, what you drive, what you read, an
 
 **Challenges.** Standing pools up to 220 ml of blood in the legs (time constant 6 s), so venous return and pressure fall. Without a reflex the mean pressure falls from 93 to 73 mmHg in the test. Haemorrhage removes volume from the venous side: 300 ml takes pressure from 93 to 63 mmHg with no reflex, a deliberately severe, game-readable fall.
 
-**The baroreceptor.** The pressure sensor is a sigmoid of pressure and its rate of change, from a threshold near 50 to 60 mmHg to saturation around 180 to 200 mmHg. At equal pressure the rising limb fires more than the falling limb. The level feeds the one-second average rate to the sensor. It is the whole nerve's rate, not a single fibre.
+**The baroreceptor.** The pressure sensor is a sigmoid of pressure plus 0.04 s times its rate of change, centred on 100 mmHg with a width of 20 mmHg and a top rate of 100 Hz: nearly silent below about 50 mmHg and nearly saturated above about 150. At equal pressure the rising limb fires more than the falling limb. The level feeds the one-second average rate to the sensor. It is the whole nerve's rate, not a single fibre.
 
 **The intrinsic rate.** If nothing drives the heart, the module's built-in pacemaker beats at 105 plus 80 times the sympathetic level minus 85 times the vagal level, in beats per minute. A resting tone of 0.2 sympathetic and 0.6 vagal gives 70 beats per minute. In the game the pacemaker is a circuit of cells, not this formula: the formula is the fallback for tests.
 
@@ -159,7 +159,7 @@ This page describes each body: what it models, what you drive, what you read, an
 
 **What the level measures.** Whether the head gets within 1 mm of the peak within 45 s, in a run of 120 s.
 
-**What is simplified.** A constant speed and a point head. The wiring in the circuit is a reduced reading of the real connectome, and the sensory cells here spike while the real ones are graded. Time is the real time.
+**What is simplified.** A constant speed and a point head. The sensory cells here spike while the real ones are graded. Time is the real time.
 
 **The view.** A stippled petri dish with a salt gradient and the worm drawn as an inked ribbon, two bars for the salt cells and the distance to the peak over time.
 
@@ -167,20 +167,33 @@ This page describes each body: what it models, what you drive, what you read, an
 
 The **reflex arc** level has no physical body model. The world is six pokes in a 20 s episode, each 200 ms long, and the withdraw pool's bursts are counted in a 25 ms window. The view draws a limb that pulls back when a burst is declared. It is a visualisation of the score, not a simulation of a limb.
 
-## Rings, dials and dashboards (Bestiary and Theory levels)
+## Specimen views (the Bestiary)
 
-Many levels have no body in the sense above. They have a **scripted world** and a view built for its idea:
+Every Bestiary level, and its diagnosis case, shows its animal as a living specimen. The still engraving is cut from the same drawing as the chapter's plate on the campaign map. What moves on it is drawn live from the running circuit only: the motor channels' rates, the spikes of their cells, the sensors' values and the level's own stimulus schedule. Nothing moves that the simulation does not move. Each view also keeps the level's judged quantities as compact gauges, and works in the phone layout (a short view drops the captions).
+
+| Chapter | What the specimen shows |
+|---|---|
+| Worm | *C. elegans* crawling forward or backing up with the motor output, with the touch cells lit where it is touched |
+| Leech | The two heart tubes beating with their side, and the heart interneurons' bursts as a pen record with the period and phase |
+| Sea slug | The gill withdrawing in proportion to the motor cell's firing, with the siphon touch and the tail shock marked and the withdrawal at every touch |
+| Fly compass | The ellipsoid-body ring as 16 wedges washed by their cells' firing, the bump as a needle, the landmark while the lights are on, and a fly turning with its true heading. The numbers beside it give the decoded heading, the true heading and the error |
+| Fly mushroom body | The Kenyon cells as a field of points (which fire for odour A and which for odour B), the output cells and the dopamine cells |
+| Crab | The stomatogastric ganglion magnified with its cells lit, and the triphasic rhythm as a pen record with phase marks |
+
+## Rings, dials and dashboards (Theory levels and the rest)
+
+The remaining levels have no body in the sense above. They have a **scripted world** and a view built for its idea:
 
 | View | Levels | What it draws |
 |---|---|---|
-| **Dashboard** (default) | Micro-puzzles, Bestiary levels, baroreflex, fight or flight, autonomic exam | Gauges for each judged trace (the arc is the tolerance band, the needle is the value, green inside and red outside, with a sparkline of the last 20 s), tiles for other readouts, and a banner naming the scripted event that is on now |
-| **Compass** | Fly compass chapter | A dial: the ink needle is the true heading, the cyan needle is the bump of the circuit (its length is how sharp the bump is), and a mark on the rim is the landmark while the lights are on. Angles run clockwise from the top |
+| **Dashboard** (default) | Micro-puzzles, baroreflex, fight or flight, autonomic exam | Gauges for each judged trace (the arc is the tolerance band, the needle is the value, green inside and red outside, with a sparkline of the last 20 s), tiles for other readouts, and a banner naming the scripted event that is on now |
+| **Compass** | Fly compass chapter (a specimen view, see above) | A ring of 16 wedges lit by the compass cells' firing, a needle for the bump (its length is how sharp the bump is), a mark on the rim for the true heading and another for the landmark while the lights are on. Angles run clockwise from the top |
 | **Phase plane** | Dynamics chapter | The two nullclines of the first cell the motor channel reads, its fixed points (filled stable, hollow unstable, a cross for a saddle), the reset, and a live trajectory. It is computed by the engine from the cell's own parameters and the current it gets now |
 | **Rates** | Rate models chapter | Scrolling traces of the motor channels on one shared scale |
-| **Memory** | Attractor memory chapter | A grid of the cells the motor channels read, lit by their own spikes. Cells that a sensor reaches are ringed in amber |
+| **Memory** | Attractor memory chapter | Arrays of the cells the motor channels read, each filling as it fires, so a recalled pattern fills in. The stored pattern is framed by a dashed outline and a cell that a sensor reaches carries a tick |
 | **Tuning** | Tuning chapter | A dial for the stimulus angle, bars for each cell's response and a single cell's tuning curve |
 
-**The fly compass world.** A landmark sets the heading, then the lights go out and the fly turns. The 16-cell ring must form a bump at the landmark, hold it in the dark, and follow the turns by adding up the angular velocity. The landmark is 300 Hz on cue sensors, one per ring cell. The turn is two `dc` sensors: a tonic level of 40 units on both, and while turning the side of the turn gets 0.25 units per degree per second more and the other side as much less. Very slow turns, below about 60 degrees per second, fall inside the dead zone of a discrete ring and are not part of the world.
+**The fly compass world.** A landmark sets the heading, then the lights go out and the fly turns. The 16-cell ring must form a bump at the landmark, hold it in the dark, and follow the turns by adding up the angular velocity. The landmark is 300 Hz on cue sensors, one per ring cell. The turn is two `dc` sensors: a tonic level of 40 units on both, and while turning the side of the turn gets 0.25 units per degree per second more and the other side as much less. Very slow turns, below about 60 degrees per second, fall inside the dead zone of a discrete ring and are not part of the world. The full episode is 9.2 seconds, Check runs the first 5 seconds. (The first two puzzles of the chapter use their own, simpler turn sensors.)
 
 **The other scripted worlds.** The Aplysia chapter has a gill withdrawal, the mushroom body chapter has odour patterns and a punishment, the crab chapter has a pyloric rhythm. They are described in [campaign-bestiary](campaign-bestiary.html). The Theory worlds are in [campaign-theory](campaign-theory.html).
 
@@ -188,7 +201,7 @@ Many levels have no body in the sense above. They have a **scripted world** and 
 
 - The bodies are **illustrative**: structure from the literature, coefficients chosen for plausibility. No body reproduces a particular person or animal.
 - The efferent coupling (pool rate to muscle drive) and the afferent gains (organ state to sensor rate) are tuned in the game, not measured.
-- Task worlds are built for a 20 to 150 s puzzle. They follow the cited experiments in kind, not in detail.
+- Task worlds are built as puzzles of a few seconds (the Bestiary and micro-puzzles) up to a few minutes (the longest body levels). They follow the cited experiments in kind, not in detail.
 - Several cells in the Bestiary spike where real ones signal in a graded way. See [what is real](what-is-real.html).
 
 ## Related pages

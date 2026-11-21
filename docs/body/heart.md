@@ -11,7 +11,7 @@ Ejection `Q_ej` is a half-sine of duration `T_ej = 0.33 sqrt(RR)` (Weissler-type
 ## Beat events
 `HeartInput::sa_spikes > 0` fires a beat (250 ms refractory merges doublets); else `sa_rate_hz >= 0` runs a deterministic phase
 accumulator (`0` = beats only from spikes); else (`< 0`) the intrinsic pacemaker `HR = 105 + 80 sym - 85 vagal` bpm
-(Jose & Collison 1970: intrinsic ~105 bpm; resting tone sym 0.2, vagal 0.6 gives 70 bpm).
+(Jose & Collison 1970: intrinsic ~105 bpm; resting tone sym 0.2, vagal 0.6 gives 70 bpm). This is the heart module's own fallback rule, used when no spikes drive the heart. It is not the NESTML pacemaker cell: that cell beats at about 99 per minute with no autonomic input and about 67 with ACh 0.5 (measured, [sa_node_pacemaker.md](../models/sa_node_pacemaker.md)).
 
 ## Stroke volume
 `SV = SV0 * contractility * Starling(Pv) * filling(RR)`: Starling `Pv/(Pv + 4)` normalised to rest (Frank-Starling, saturating), contractility
@@ -25,7 +25,7 @@ so SV falls (71 -> 47 ml from 70 to 120 bpm in the test) while CO and MAP still 
 - Resting values (test): MAP 93, 112/76 mmHg, HR 70, SV 72 ml, CO 5.0 L/min, CVP 5 mmHg; diastolic decay tau = R C = 1.4 s.
 
 ## Baroreceptor afferent
-`rate = 100 Hz * sigmoid((P + tau_d dP/dt - 100)/20)`, `tau_d = 0.04 s`: sigmoid pressure coding with threshold ~50-60 and saturation ~180-200 mmHg
+`rate = 100 Hz * sigmoid((P + tau_d dP/dt - 100)/20)`, `tau_d = 0.04 s`: sigmoid pressure coding centred on 100 mmHg with a width of 20 mmHg (about 10% to 90% over 56 to 144 mmHg, so it keeps rising above 140)
 (Kirchheim 1976) and a rate (dP/dt) term (Chapleau & Abboud 1987; Mahdi et al. 2013): at equal pressure the rising limb fires more than the falling limb (test: 53 vs 39 Hz). `baro_hz`
 is instantaneous, `baro_mean_hz` (1 s average) is the one to wire to a sensor channel (or generate spikes from it). This is a whole-nerve rate, not per fibre.
 

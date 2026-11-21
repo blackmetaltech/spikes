@@ -7,57 +7,29 @@ summary: What changed in each version of Spike, in plain words and newest first,
 
 # Changelog highlights
 
-This is a player's summary of `CHANGELOG.md` in the repository. It is newest first. Versions marked "in progress" are not released: they are on the main branch and in source builds. The game's title screen shows the version of the build you run.
+This is a player's summary of `CHANGELOG.md` in the repository. It is newest first. The game's title screen shows the version of the build you run.
 
-> **Note:** The numbering is uneven. The game project file says "0.5 in progress", while the changelog already has entries for the 0.6 Theory wing under "Unreleased". The Python package says 0.4.0. Treat the dates and tags on the [releases page](https://github.com/ixaxaar/spikes/releases) as the final word.
+## 0.5.0 (2026-11-22): the Bestiary, the Theory wing, and stars that mean something
 
-## In progress: the Theory wing (0.6)
+The campaign now has 79 levels in three wings. There is no separate 0.6: the Theory wing ships in 0.5.
 
-A new wing of the campaign, open from the start like the Bestiary, built on what a computational-neuroscience course teaches. See [the Theory wing](campaign-theory.html).
+**New levels**
+- **The Bestiary** has six chapters, one per model organism: the worm (*C. elegans*, wired from the real touch circuit), the leech heartbeat, the sea slug (*Aplysia*), the fly compass, the fly mushroom body and the crab pyloric rhythm. That is 18 levels and 7 diagnosis cases. See [the Bestiary](campaign-bestiary.html).
+- **The Theory wing** has four chapters of three levels: dynamics (a phase-plane view), rate models and mean field, attractor memory, and tuning and decoding (with a spike-triggered-average tab in Analysis). See [the Theory wing](campaign-theory.html).
+- **A new micro-puzzle, Tonic drive** (a bias current), after Adaptation: 20 micro-puzzles now.
+- **Diagnosis is scored on probes.** The cases track the probes you used and your wrong guesses, the order of the candidates does not hint at the answer, and no finding names the answer. See [diagnosis cases](diagnosis-cases.html).
 
-- **Chapter 1, Dynamics.** Where firing starts (class I and class II cells), a cell that reports only change, and one neuron that remembers a pulse. The lab gets a phase-plane view: nullclines, fixed points, the reset and a live trajectory.
-- **Chapter 2, Rate models and mean field.** Two populations that oscillate (a Wilson-Cowan pair), two that compete with a held choice, and a spiking network compared with its mean-field prediction. The lab gets rate units, rate connections, a mean-field link with its own J and K numbers, and a rate strip instead of a spike raster for circuits of rate units.
-- **Chapter 3, Attractor memory.** A partial cue recalls a whole pattern; two patterns without blends; a pattern written by spike-timing-dependent plasticity. The lab gets a pattern view and a plastic-synapse editor.
-- **Chapter 4, Tuning and decoding.** A tuned cell built from its inputs, tuning sharpened by competition, and a direction read from a crowd of cells with the population vector. The lab gets a tuning view with a stimulus dial. The Analysis screen gets a spike-triggered-average tab.
-- **Under the hood.** New input and output kinds, rate neurons and `siegert_neuron` as populations, and new command-line options (`--sample`, `--set`, `--phase`). See [a circuit is data](circuit-is-data.html) and [spike-run](spike-run.html).
-- New citations, checked against PubMed.
+**New in the game**
+- **Plate 0**, an interactive tutorial, and a mode picker on the first run.
+- **A rewritten editor:** undo and redo, zoom and pan, multi-select, copy and paste, keyboard and gamepad building, three solution slots per level, JSON copy and paste, and an import from a level you have passed. See [controls](controls.html).
+- **Stars that mean something.** CHECK runs five worlds. One star is a pass, two is all five worlds, three is a per-level challenge that is written on the level card. Guided mode stops at two stars. A Researcher pass earns a seal. A diagnosis case's third star needs the right answer after a probe. See [stars and hints](stars-and-hints.html).
+- **Gated wings and Needs chips.** The Bestiary and Theory open once you pass the Invertebrates spine; a few Bestiary chapters wait for an earlier level; each level card lists what it needs. Posture is now a branch, like Reach.
+- **A score stamp** with the criteria and a Details panel, a map wing selector with a Continue button, and larger, more careful body drawings.
+- **Safer saves:** atomic writes, backups, a bench history you can restore, save export and import, Reset progress and a log folder. A damaged file is set aside instead of crashing the game. The engine refuses hostile or enormous circuits with a plain message.
 
-## In progress: 0.5 playtest fixes
+**Under the hood:** the engine has safety limits and a fuzz test, the UI has an interaction graph and headless tests, CI uses a prebuilt toolchain image, and this website and wiki are built from the repository. New circuit-file input and output kinds support the Theory wing; the Python package does not read them yet. See [a circuit is data](circuit-is-data.html) and [spike-run](spike-run.html).
 
-A review of the new levels with novice-style circuits led to a round of fixes.
-
-- **The reference lock** only flags a circuit as a copy of the reference when it truly equals the reference file, or when you pressed Reference. Before, round-number circuits you built yourself could be wrongly flagged and lose their stars.
-- **Structure checks** that were too strict were loosened: a latch can hold itself with one cell exciting itself, and the worm level accepts turning only one way.
-- **Check** now runs the short episode. The two boss levels got quick versions of about 5 seconds each.
-- **No numbers in verdicts and hints**, for every level, pass or fail, all three tiers. A test scans every one.
-- **Verdicts follow the facts.** Several verdicts that said the opposite of what the circuit did were corrected (the leech burster, the lamprey, the Aplysia levels, the leech rebound).
-- **Gauges** are all fed. A missing readout shows a dash rather than a green 0.0.
-- **Lab and map:** two rows of chapter tabs (Body and Bestiary) and a scrolling strip on phones; the pass rule is visible in the brief; slider limits come from each level's needs; a verdict asking for more strength is not shown when a slider is at its end; notifications queue one at a time; hints open after two different missed circuits; diagnosis cases offer Reveal answer after several wrong picks.
-- Some difficulty settings were adjusted: the half-centre level's default drive, the Aplysia lab defaults, and the leech rebound brief.
-
-## In progress: 0.5 Bestiary, step 3 (fly compass, fly mushroom body, crab)
-
-Thirteen levels in three more chapters. See [the Bestiary](campaign-bestiary.html).
-
-- **Fly compass:** a bump of activity on a ring of cells that holds the heading and follows turns in the dark, plus a diagnosis case.
-- **Fly mushroom body:** a sparse odour code, and a dopamine-gated depression that teaches the fly to avoid an odour, plus two diagnosis cases.
-- **Crab:** a conductance-based pacemaker kernel and rebound followers making the pyloric rhythm, plus a diagnosis case.
-- A new custom cell, `stg_cell` (a stomatogastric neuron), with its own parts-bin card.
-- The lab gets a ring readout, ring-closing wiring, random sparse wiring, a dopamine-gated synapse with source and learning, and a compass dial.
-- Honesty notes: the compass and mushroom body follow published cell types, not synapse-level data; the crab cell's kinetics are written from memory of the published forms and its parameter sets are not the published ones. See [what is real](what-is-real.html).
-- A half-wired circuit (a sensor or motor left unconnected) no longer passes a scripted level.
-
-## In progress: 0.5 Bestiary, step 2 (worm, leech, sea slug)
-
-Twelve levels in three new chapters, a wing that is open from the start and never gates the body chapters.
-
-- **Worm:** hold a reversal, choose forward or backward, and a touch circuit wired from real synapse counts of the C. elegans connectome (read through OpenWorm's ConnectomeToolbox).
-- **Leech:** a bursting cell, rebound after inhibition, and the two-cell heartbeat.
-- **Sea slug (Aplysia):** a reflex that gets used to a touch, one that a tail shock sensitises, and the gill-withdrawal reflex that combines them.
-- Each chapter has a diagnosis case.
-- The lab offers depressing synapses and a modulation row on a synapse for the Aplysia levels.
-- What is real: worm and leech cells are spiking stand-ins for graded cells; the leech cycle is time-compressed.
-- Known gaps at the time: no plate art for the Bestiary map; deleting a connection in the lab did not renumber a synapse modulation row; the citation checker still reported unverified references in the research sheets.
+**Gaps the project states:** the leech heartbeat level still needs a rework of its escape-versus-release concept; the spinal boss reference passes about 80 percent of held-out seeds; `stretch_reflex`'s quick CHECK misses 1 or 2 of 35 test seeds; nothing yet re-runs a circuit with the mechanism removed to prove the mechanism matters; the fly connectome excerpt is not real synapse data; the Python package lacks the Theory input and population kinds; the phone layout has rough spots; there is no Windows build. The parts-bin card for the SA-node cell says about 70 beats per minute where the model measures about 99.
 
 ## 0.4.0 (2026-11-18): Honest puzzles, shippable game
 

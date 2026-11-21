@@ -37,23 +37,23 @@ No. The optional play log is off by default, stays on your device, and you can e
 
 ### Why can't I open a level?
 
-A level opens when the one before it in its chapter is passed. A chapter opens when the previous chapter's main path is passed, or the one two before it. The card says "Pass X first". The Bestiary and the Theory wing open when you pass the Invertebrates spine, and some Bestiary chapters wait for a level they build on (the card says which). See [the core loop](core-loop.html).
+A level opens when the one before it on its chapter's main path is passed. A chapter opens when the previous chapter's main path is passed, or the one two before it. The card says "Pass X first". The Bestiary and the Theory wing open when you pass the Invertebrates spine, and some Bestiary chapters wait for a level or chapter they build on (the card says which; Guided mode drops those waits). The red NEEDS chips on a card are advice about concepts you have not met, not locks. See [the core loop](core-loop.html).
 
 ### Why is a tool missing, such as inhibitory neurons or Analysis?
 
-Tools open as the campaign needs them. The More menu lists what is still to come. The [sandbox](sandbox.html) has everything open.
+Tools open as the campaign needs them: inhibitory neurons, the parts bin and noise inputs at the first level that needs them, and Analysis, Load, Save, the JSON copy and paste and Import from a passed level at the Spinal cord chapter. The More menu lists what is still to come. The [sandbox](sandbox.html) has everything open.
 
 ### What is the difference between Run, Check and Test x5?
 
-Run is live on the bench. Check scores headless on five worlds (seeds 101 to 105) with the quick episode, and passing all five earns the second star. Test x5 in More does the same on the full episode. See [the core loop](core-loop.html).
+Run is live on the bench. Check scores headless on five worlds (seeds 101 to 105) with the quick episode, and passing all five earns the second star. Test x5 (on the bar once you have passed, and in More) does the same on the full episode, live, with a progress card. See [the core loop](core-loop.html).
 
 ### My circuit passed on Check but not on Test x5.
 
-Check uses one seed. Test x5 uses five worlds, and it also reseeds the circuit and redraws any weight spread. A circuit that sits on an edge fails on some seeds. Move weights toward the middle of the range that works. See [tips](tips.html).
+Check runs the level's quick episode and Test x5 the full one, on the same five worlds. A circuit that sits on an edge can pass one and fail the other, or fail on some seeds. Move weights toward the middle of the range that works. See [tips](tips.html).
 
 ### I used the recipe. Can I still get three stars?
 
-Not in Standard mode. Pressing **Show recipe** caps that level at two stars. In Guided mode the recipe is free and the star rules are written for it. Try Researcher mode for a harder challenge.
+Not in Standard mode. Pressing **Show recipe** caps that level at two stars. In Guided mode the recipe is free, but Guided stops at two stars anyway. Researcher mode has no recipe, and its passes also earn a seal.
 
 ### Why does my copy of the reference circuit give no stars?
 
@@ -73,7 +73,7 @@ By design. Verdicts and hints name the mechanism that is missing, not the number
 
 ### I am stuck on a diagnosis case.
 
-Probe with scopes first (three probes are free). A cut that changes nothing is a finding. A wrong guess costs 15 points and a probe beyond the free ones costs 3. See [diagnosis cases](diagnosis-cases.html).
+Probe with scopes first (three probes are free). A cut that changes nothing is a finding. A wrong guess costs 15 points and a probe beyond the free ones costs 3. The third star needs the right answer on the first try after a probe that tells the candidates apart. REVEAL ANSWER appears after three wrong guesses, and a revealed case can earn one star at most. See [diagnosis cases](diagnosis-cases.html).
 
 ### A level says it is not installed.
 
@@ -95,11 +95,31 @@ Yes. A level is a C++ file with a registration line, a reference circuit and a t
 
 ### Where is my save?
 
-In Godot's per-user data folder for "Spike". See [settings and performance](settings-and-performance.html).
+In Godot's per-user data folder for "Spike" (on Linux, `~/.local/share/godot/app_userdata/Spike/`). Settings, Game prints the folder and has **Export save**, **Import save** and **Open log folder**. See [settings and performance](settings-and-performance.html#saves-backups-and-logs).
 
 ### How do I reset my progress?
 
-Close the game and delete `progress.cfg` in the user data folder. There is no reset button.
+Settings, Game tab, **Reset progress**. A card asks first. Every star, score and unlock goes and the mode returns to Standard, but your circuits stay. The old progress file is kept beside the new one as `progress.cfg.reset-<time>`, so it can be put back by hand while the game is closed.
+
+### How do I move my save to another computer?
+
+Settings, Game tab, **Export save** writes one zip (`spike-save-<time>.zip`, in your Documents folder) with your progress, settings, pinned goals, play log, circuit autosaves and solution slots. On the other machine use **Import save** and pick the zip. Every file in it is checked first; if one is bad, nothing is imported and the message says why.
+
+### The game says my save was damaged.
+
+The game keeps three backups of each file and writes safely, so this is rare. It moved the damaged file aside as `<name>.corrupt-<time>`, used the newest good backup, and told you where the damaged file is. If no backup could be read, saving to that file is switched off for the session so nothing overwrites it; copy the file somewhere safe and ask in the issues. A damaged circuit for one level is renamed `last_<level>.json.bad` and that level starts on an empty bench.
+
+### I lost my circuit after pressing Empty bench, Reference or Load.
+
+More, **Restore previous bench** brings it back. The game keeps the newest ten benches a button replaced, per level. Undo (Ctrl+Z) goes back through your edits, and the solution slots (Save to A, B, C) keep circuits you choose.
+
+### A banner says "The engine rejected the circuit".
+
+A value is outside what the engine allows (for example a synaptic weight above 500 nS onto a conductance-based cell, a delay above 1000 ms) or the circuit is too large. The banner names the place and the limit. The game also refuses, before the engine, a pasted or loaded circuit with more than 2000 neurons, a group above 400 neurons, or damaged fields. See [how to read the lab](how-to-read-the-lab.html#when-the-lab-refuses-a-circuit) for the limits.
+
+### My score stops at 49.
+
+The circuit brings a stimulus of its own: an input the level does not drive. Delete it and wire the sensors the brief names. See [the core loop](core-loop.html).
 
 ### The game says the extension is not loaded.
 
@@ -107,7 +127,7 @@ The message reads "The spike-gd GDExtension is not loaded. Run scripts/build-gd.
 
 ### Check does nothing or says it could not start.
 
-Check needs the headless scorer, `spike-run`, next to the extension. Keep the files of the zip together. A build run from source needs `scripts/build-gd.sh` to put `spike-run` in `godot/bin`.
+Check needs the headless scorer, `spike-run`, next to the extension. Keep the files of the zip together. If the zip lost the executable bit, the game tries to set it and otherwise says "Check cannot run: ... is not executable" with the `chmod +x` command to use. A build run from source needs `scripts/build-gd.sh` to put `spike-run` in `godot/bin`. A toast reading "Check timed out" means a cell model stalled for 60 seconds, usually from a huge weight or current.
 
 ### Why does the game feel slow?
 

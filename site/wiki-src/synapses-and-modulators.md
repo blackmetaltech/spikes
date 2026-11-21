@@ -29,7 +29,15 @@ You make a connection in one of two ways. In **Connect** mode, click a source gr
 
 **Weight units by target cell.** A synapse onto a current-based cell is in picoamps (pA). Onto a conductance-based cell it is in nanosiemens (nS). Onto a cell with delta synapses it is a voltage step in millivolts (mV). The Izhikevich cells also take a voltage step in mV. The [parts bin](parts-bin.html) lists the unit of every cell.
 
-**Hard limits.** The circuit loader refuses a weight above 500 nS onto a conductance-based cell, or above 10000 pA onto a current-based cell. The reference circuits stay under 60 nS and 1500 pA. A cell can still blow up numerically inside these limits. The engine then stops the run and says "numerical instability"; reload the circuit to continue.
+**Hard limits.** The engine refuses a circuit whose weights or sizes could make the simulator unstable or the game unresponsive. The sliders keep you well inside most of these, but a circuit file you paste or import can break them. The limits:
+
+- A weight above 500 nS (onto a cell with `_cond_` in its model name) or above 10000 pA (onto a `_psc_` cell) is refused. The four custom NESTML cells take at most 2000 nS. The Izhikevich, rate and mean-field cells have no weight limit of this kind.
+- A gap junction is at most 100 nS.
+- A delay in a circuit file is at most 1000 ms (the lab's slider stops at 250 ms).
+- At most 20000 neurons in total and about 2 million connections.
+- A Poisson, sinusoidal or tuned input is at most 100000 Hz; a constant current at most 100000 pA (2000 pA on a custom NESTML cell, 1000 pA for a `dc` input onto one).
+
+A refused circuit does not run. The lab shows a banner "The engine rejected the circuit:" followed by the reason, which names the part of the circuit at fault, for example the number of the connection and the allowed range. A cell can still blow up numerically inside these limits (a huge weight onto a tiny capacitance, say). The engine then stops the run and says "numerical instability"; reload the circuit to continue. The exact format rules are in [a circuit is data](circuit-is-data.html).
 
 **Delay.** The default delay of a new axon is 2 ms. The delay slider is square-law too. One to three milliseconds fits a single synapse. A hundred or two hundred milliseconds stands for a whole chain of cells you do not draw, which some burst generators need.
 
@@ -109,7 +117,7 @@ A **gap junction** is an electrical synapse: a pore that joins two cells so thei
 Only two cell models accept them: `hh_psc_alpha_gap` and `hh_cond_beta_gap_traub`. The rules, enforced when a circuit loads:
 
 - Both sides must be one of those two models.
-- The weight is a conductance in nS and must be above 0.
+- The weight is a conductance in nS, above 0 and at most 100.
 - The delay is not allowed.
 - It is always symmetric. With `one_to_one` wiring the loader makes it symmetric. With `all_to_all` it is allowed only within one population. An `edges` list gets its mirror edge added.
 - A gap junction cannot be modulated by the neuromodulator table.
@@ -187,7 +195,7 @@ A **modulation row** maps a modulator to one parameter. It can act on every neur
 
 An optional `min` and `max` clamp the result. A row can target one group or one axon, and uses add or scale, never both. Rows are applied between steps, never in the middle of one.
 
-**Cells that follow modulators by themselves.** The NESTML cells `sa_node_pacemaker`, `butera_burster` and `icc_slow_wave` have parameters called `ne` and `ach`. The engine adds an implicit row for each: NE to `ne` and ACh to `ach`, gain 1, minimum 0. They follow the circuit-wide levels with no setup. A circuit overrides this for one cell and one parameter by listing a row of its own. The baroreflex level, for example, maps ACh to `ach` with a gain of 0.5. Other cells ignore the modulators until you add a row.
+**Cells that follow modulators by themselves.** The NESTML cells `sa_node_pacemaker`, `butera_burster` and `icc_slow_wave` have parameters called `ne` and `ach`. The engine adds an implicit row for each: NE to `ne` and ACh to `ach`, gain 1, minimum 0. They follow the circuit-wide levels with no setup. A circuit overrides this for one cell and one parameter by listing a row of its own. Other cells ignore the modulators until you add a row.
 
 **In the lab.** Select a neuron group and press **Advanced**. The section **Responds to neuromodulators** lists the rows for that group. A row has a modulator stepper, a parameter stepper, an **add / scale** stepper, a **per unit** slider and an **X** to remove it. **Add row** appends one. Cells that expose `ne` or `ach` offer those as the first parameters; every other parameter in the **Advanced** list can be modulated too. The lab warns when a model has no parameter a modulator can act on.
 

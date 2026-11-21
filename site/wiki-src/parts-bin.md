@@ -21,9 +21,9 @@ Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a c
 
 **For this task.** Inside a level the bin shows a heading **For this task** first. These are the cells the level's reference circuit uses, plus the cells of its chapter.
 
-**When it appears.** The Parts button is not on the palette in the first levels. It opens at the first level whose reference circuit uses a cell other than the plain integrate-and-fire cell. That is **Adaptation** (the eighth level of the Invertebrates chapter, after the touch reflex and the salt-seeking worm), whose reference uses an adaptive exponential cell. It stays open once you are that far. The sandbox always shows it. The rule is in `godot/ui/lab/lab_unlocks.gd`.
+**When it appears.** The Parts button is not on the palette in the first levels. It opens at the first level whose reference circuit uses a cell other than the plain integrate-and-fire cell. That is **Adaptation**, the eighth level of the Invertebrates spine (after Threshold, Excitation, Convergence, Touch reflex, Inhibition, Subtraction and Salt-seeking worm), whose reference uses an adaptive exponential cell. It stays open once you are that far. The sandbox always shows it. The rule is in `godot/ui/lab/lab_unlocks.gd`.
 
-**Which cards are open.** A card is usable when your build can run it and its chapter is open. Locked cards show `UNLOCKS IN <chapter>`. Cards your build cannot run show `NOT IN THIS BUILD`. Two exceptions: a model that the current level's own reference circuit uses is always pickable, and the sandbox opens everything. The table below lists the chapter that opens each card. The Bestiary and Theory wings are open from the start, so the crab cell and the rate and mean-field cards are open as soon as the Parts button is.
+**Which cards are open.** A card is usable when your build can run it and its chapter is open. Locked cards show `UNLOCKS IN <chapter>`. Cards your build cannot run show `NOT IN THIS BUILD`. Two exceptions: a model that the current level's own reference circuit uses is always pickable, and the sandbox opens everything. The table below lists the chapter that opens each card. A chapter opens by the campaign's own rules, not when you pass a level of it: Invertebrates and Spinal cord are open from the start, and each later body chapter opens when the spine of the chapter before it (or the one two before it) is passed. The Bestiary and Theory wings open after the Invertebrates spine is passed, so the rate and mean-field cards ("Rate models") open then. The crab cell waits further: the Crab chapter opens only after the Leech spine is passed (Guided mode drops this extra wait, not the Invertebrates one). See [the Theory wing](campaign-theory.html) and [the Bestiary](campaign-bestiary.html).
 
 > **Note:** The inspector of a selected neuron has a model stepper that lists only models you can use. If a model is not in that list, pick its card in the Parts bin first.
 
@@ -54,7 +54,7 @@ Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a c
 | Mean-field unit (Siegert) | `siegert_neuron` | Rate models | Rate models | none |
 | Sinoatrial node pacemaker | `sa_node_pacemaker` | Custom (NESTML) | Heart | nS |
 | Bursting pacemaker (preBotzinger) | `butera_burster` | Custom (NESTML) | Breathing | nS |
-| Stomatogastric neuron | `stg_cell` | Custom (NESTML) | Crab (open from start) | nS |
+| Stomatogastric neuron | `stg_cell` | Custom (NESTML) | Crab (Bestiary, after the Leech spine) | nS |
 | Interstitial cell of Cajal | `icc_slow_wave` | Custom (NESTML) | Autonomic | pA |
 
 The column "Weight unit" is the unit of a synaptic weight onto that cell. A weight is how strong one connection is (see [synapses and modulators](synapses-and-modulators.html)). The cell models use different units because NEST models them differently: current-based cells take picoamps, conductance-based cells take nanosiemens, delta-synapse cells take a voltage jump in millivolts.
@@ -484,7 +484,7 @@ Used by: **Peristalsis**.
 
 - Most reference circuits use `iaf_psc_alpha`. Rhythm, spinal and Bestiary circuits add `aeif_cond_alpha`, and some spinal circuits and the lamprey use `iaf_cond_alpha`.
 - `iaf_cond_alpha` (integrate-and-fire with alpha-shaped conductance synapses) is used by seven reference circuits (stretch reflex, Renshaw, posture, reach, spinal sprint, lamprey and the shaky-arm diagnosis case) but has **no card in the parts bin**. In those levels you can inspect it, but you cannot add more of it from the bin. Use `iaf_cond_exp` or `aeif_cond_alpha` for similar cells.
-- Weights have limits: the circuit format refuses `|weight|` above 500 nS onto a conductance-based cell and above 10000 pA onto a current-based cell. The reference circuits stay below 60 nS and 1500 pA. See [a circuit is data](circuit-is-data.html).
+- Weights have limits: the circuit format refuses `|weight|` above 500 nS onto a conductance-based cell (`_cond_` in the model name), above 10000 pA onto a current-based cell (`_psc_`), and above 2000 nS onto a custom NESTML cell. Other limits (neuron count, connections, delay, input rates and currents) are listed under [synapses and modulators](synapses-and-modulators.html). A refused circuit shows "The engine rejected the circuit" with the reason. See [a circuit is data](circuit-is-data.html).
 - The f-I plots and voltage traces are measured by the engine with the `spike-catalog` tool and shipped as `catalog/thumbs.json`. If the file is missing, the cards show their text only. See [spike-run and tools](spike-run.html).
 
 ## Related pages

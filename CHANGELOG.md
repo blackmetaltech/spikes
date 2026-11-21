@@ -1,57 +1,58 @@
 # Changelog
 
-## [Unreleased] - 0.6 Theory wing, chapter 4: tuning and decoding
+## [0.5.0] - 2026-11-22 — The Bestiary, the Theory wing, and stars that mean something
 
-- Three levels: `t_tuned` (a cell tuned by choosing its afferents), `t_sharpen` (tuning sharpened by competition among cells), `t_decode` (a direction decoded with the population vector from the player's cells, over random directions).
-- Lab: a tuning view (stimulus dial, decoded arrow, activity bars); the lab skeleton copies the tuning of `tuned_poisson` inputs from the reference.
-- Analysis screen: a spike-triggered-average tab (reverse correlation of a Gaussian white-noise current). `SpikeSim.sta_json`.
-- `Scripted`: `raw` sensors and `reseed` (levels drawn from the episode seed).
+0.5 adds two new wings to the campaign (design: `docs/DESIGN-0.5.md`, `docs/DESIGN-THEORY.md`), turns diagnosis into a second core loop, and was followed by two enhancement waves that hardened the engine and the save files, rewrote the circuit editor, added a tutorial and made the stars mean something. The campaign now has 79 levels. The 0.6 Theory notes that were kept as "Unreleased" are folded in here: there is no separate 0.6.
 
-## [Unreleased] - 0.6 Theory wing, chapter 3: attractor memory
+### Added
+- **The Bestiary wing** (six chapters, 18 levels and 7 diagnosis cases), one chapter per model organism, notes in `docs/circuits/bestiary_a.md` and `bestiary_b.md`:
+  - **Worm** (*C. elegans*): `w_latch`, `w_switch`, `worm_touch`, `dx_worm`. `worm_touch` is wired from the real touch circuit (Cook et al. 2019 synapse counts through the OpenWorm ConnectomeToolbox `cect`, `tools/connectome/worm.py`).
+  - **Leech**: `l_burst`, `l_rebound`, `leech_heart`, `dx_leech`.
+  - **Sea slug** (*Aplysia*): `a_depress`, `a_facilitate`, `aplysia_gill`, `dx_aplysia`.
+  - **Fly compass**: `c_ring`, `c_shift`, `fly_compass`, `dx_compass`.
+  - **Fly mushroom body**: `k_sparse`, `k_depress`, `fly_mb`, `dx_mb_apl`, `dx_mb_dan`.
+  - **Crab** (stomatogastric ganglion): `s_pacemaker`, `s_phase`, `crab_pyloric`, `dx_crab`, with the new NESTML cell `stg_cell` (after the Liu/Prinz model family, game conductances) and a parts-bin card.
+  - Engine, add-only: `Structure::modulation` and `ChannelStructure::modulator`, `ProjectionInfo::dopamine_source`, `Engine::output_spiked`, synapse parameter modulation, `spike_generator` and `sinusoidal_poisson` inputs, the `population_vector` ring output. Lab: depressing synapses and a modulation row, a ring readout, ring-closing segment wiring, random sparse wiring, a dopamine-gated synapse, a compass dial.
+  - Engraved plates for the Bestiary and Theory chapters (`tools/art/plates.py`), and specimen views in the lab: fly compass, crab triphasic record, leech heart tubes and bursts, *Aplysia* gill, crawling worm, mushroom body Kenyon field.
+- **The Theory wing** (four chapters, 12 levels): `d_class`, `d_phasic`, `d_switch` (dynamics, with a V-w phase-plane view from the cell's live parameters); `r_oscillate`, `r_choose`, `r_meanfield` (rate models and a siegert mean-field prediction, with a rates view); `h_complete`, `h_two`, `h_learn` (attractor memory, one level with STDP-written weights, with a pattern view); `t_tuned`, `t_sharpen`, `t_decode` (tuning and the population vector, with a tuning dial). A spike-triggered-average tab in the Analysis screen. Engine, add-only: `Engine::neuron_state`, `input_weight`, `input_value`, `output_value`; input kinds `rate_drive` and `tuned_poisson`; output kind `rate_value`; rate neurons and `siegert_neuron` as populations with `rate_connection_*` and `diffusion_connection` (J, K) projections; `spike/theory.h`; `spike-run --sample/--set/--phase`. See `docs/CIRCUIT-FORMAT.md`.
+- **Diagnosis as a second core loop:** cases are scored on the probes you used and on wrong guesses, the candidate order does not depend on the answer, no finding names the answer, probes are counted and shown, Reveal appears after repeated misses. `spike-run --list-variants <task>` lists the candidates (used by the smoke test, which submits every candidate and expects exactly one to pass).
+- **A new micro-puzzle, `m_tonic`** (tonic drive, a bias current), after `m_adaptation`: 20 micro-puzzles now. Briefs that need a bias say so, and the lab's default cell fails every micro-puzzle with a verdict that names the concept.
+- **Plate 0, an interactive tutorial,** and a **mode picker** on the first run, with one-step pointers.
+- **A rewritten circuit editor:** undo and redo, zoom and pan with fit, multi-select, copy and paste, bus cards and ensembles, keyboard and gamepad building with a cursor, three solution slots per level (A, B, C), JSON copy and paste, and an Import from a level you have passed. The controls are listed in Settings > Controls.
+- **Honest scoring and stars:** CHECK runs five worlds; star 1 is a pass, star 2 is all five worlds in Standard or Researcher, star 3 is a per-level challenge with its text on the level card; Guided mode stops at two stars; a Researcher pass earns a seal kept apart from the stars; a diagnosis case's third star needs the right answer after a probe. The save file is version 2, with a migration of version-1 files. Cheat-proofing in the scorers: a functional weight floor in every graph helper, an input guard (no undeclared or recorded inputs), owned stimuli, token-wiring rows in the cheap-circuit tables, adapting-cell and burster whitelists.
+- **A score stamp** with criteria rows and a Details panel in human words, and a lean end card.
+- **Campaign gating and "Needs":** the Bestiary and Theory wings open after the Invertebrates spine; Sea slug waits for Heart's `m_neuromodulation`, Crab for the Leech spine, Fly mushroom body for the Sea slug spine (Guided drops these in-wing waits); every level card has "Needs" chips for the concepts it uses. `posture` is a branch off the spinal spine, like `reach`, and the spinal boss scores its hold and reach phases apart. The map has a wing selector, a Continue button and numbered spine pins.
+- **An atomic save layer** (`SaveIO`): atomic writes, backups, quarantine of a damaged file, save versions, circuit validation with player-visible errors, a bench history you can restore, the reference lock kept in the autosave, a CHECK timeout and snapshot, diagnosis persistence, a flush on close, save export and import (a zip that carries the solution slots), Reset progress, a log folder.
+- **Engine safety limits:** the GSL error handler is off, a NESTML stall guard, parse-time budgets, a cap on dc input to NESTML cells, per-projection synapse copies, and a hostile-circuit fuzz corpus and evidence circuits as ctests; `spike-run` rejects bad values with a message and exit status 1 or 2, never a core dump.
+- **Interaction graph** of the UI (`godot/tests/interaction_graph.json`, `docs/INTERACTION-GRAPH.md`): stable control ids, a headless walk (`ui_graph`) and a completeness check; ctests for the save layer, the editor, the tutorial, the lab chrome and the specimen art. The Godot tests take a resource lock and run one after another.
+- **CI image:** a prebuilt toolchain image (NEST static plus PyNEST, NESTML venv, godot-cpp) is published to GHCR; `ci.yml` pulls it, skips docs-only pushes and cancels superseded runs.
+- **The website and wiki:** a landing page, a 31-page player wiki built from `site/wiki-src/` by `tools/site/build.py`, gameplay media and a GitHub Pages workflow.
 
-- Three levels: `h_complete` (a partial cue recalls the whole pattern), `h_two` (two patterns, no blended state), `h_learn` (the pattern is written by `stdp_synapse` during an exposure phase and recalled after, with a check that the weights really grew and that nothing was recalled before).
-- Lab: a pattern view (cells lit by their own spikes, the cued ones ringed), a plastic-synapse editor (learning rate, weakening, ceiling) in `h_learn`.
-- `Scripted` (task scaffold) gained `tick` and named neuron sets (`Meas::sets`, `active_in`) for levels that need to know which cells a sensor reaches.
+### Changed
+- **Body views** are drawn larger and more carefully (a limb on a trunk, lungs with a cardiac notch and the bronchial trees, a heart clear of the caption, the gut legend, the reflex arc as sensory neuron, ganglion and motor neuron); a fit guard keeps tiles and gauges inside their boxes at 1366x768 and with large text.
+- **Rasters and traces:** one label line per group, rate-heat rows for large circuits, a voltage axis clamped to -90..+40 mV with a note, min/max envelopes for dense traces. One value per signal: a motor channel reads its `<channel>_hz` readout over a 500 ms window, and a measuring state replaces a bar parked at zero.
+- **Colour:** blue means inhibition only (the Prussian-blue button is retired).
+- **Reference circuits** of `stretch_reflex`, `reach`, `boss_spinal_sprint`, `baroreflex`, the autonomic exam, `worm_touch`, `fly_compass` and others were retuned over seeds 1-10 and 101-105 so the five-world CHECK passes. The `stretch_reflex` reference has 4 interneurons per side (par 54), and `dx` patients were regenerated.
+- **Breathing** is a deliberately short chapter (one micro-puzzle, one task, one diagnosis case).
+- **Playtest fixes** (`research/PLAYTEST-0.5.md`): a circuit counts as a copy of the reference only when it equals the reference file exactly or the REFERENCE button filled the bench; structure checks accept a self-excitation loop (`w_latch`, `worm_touch`) and turning one way (`worm`); CHECK runs the quick episode (the spinal boss about 5 s, the autonomic exam about 5 s, worm and lamprey under 1 s); verdicts and hints of tiers 1-3 carry no numbers for every task; verdicts follow the parts; gauges are all fed and a missing readout shows a dash; toasts queue; a half-wired scripted circuit no longer passes.
+- **Versions:** the game, the Python package and CMake now all say 0.5.0.
 
-## [Unreleased] - 0.6 Theory wing, chapter 2: rate models and mean field
+### Fixed
+- Documentation: the SA-node cell beats at about 99 per minute with no autonomic input and about 67 with ACh 0.5 (measured with `spike-run`); `docs/models`, `docs/body/heart.md` and the wiki now agree, and the heart module's own fallback rule (105) is said to be a different thing. The gut docs now say the module defaults to 12 segments and the peristalsis level uses 8.
+- An empty bench scores 0.
+- Several tuning, diagnosis and compass fixes (`t_tuned` judged by weights, `t_sharpen` steady across seeds, mean-subtracted STA, compass overshoot called "too strong", `dx_leech` patient robust on every seed, `dx_aplysia` findings no longer name the answer).
 
-- Three levels: `r_oscillate` (Wilson-Cowan pair), `r_choose` (winner take all with a held choice), `r_meanfield` (a spiking E-I network and its siegert mean-field prediction, scored on agreement at three drive levels).
-- Rate units in the lab: parts-bin cards (`threshold_lin_rate_ipn`, `tanh_rate_ipn`, `siegert_neuron`, `iaf_psc_delta`), rate connections with no delay, a mean-field projection with J and K, rate-readout channels, a rate-strip raster instead of spikes for a circuit of rate units, a rates chart as the level view.
-- Catalog probe for rate cards (steady rate against drive); `test_catalog` knows them. Lab: random sparse wiring (fixed in-degree up to 100) in the rates and memory chapters.
-
-## [Unreleased] - 0.6 Theory wing, chapter 1: dynamics
-
-- New campaign wing "Theory" (third tab row, open from the start): `docs/DESIGN-THEORY.md`. First chapter, dynamics: `d_class` (class I and II, f-I onset), `d_phasic` (a stable fixed point that ends firing), `d_switch` (one neuron, two stable states, set and reset pulses).
-- New lab view: the V-w phase plane (nullclines from the cell's live parameters and current, fixed points, reset, live trajectory).
-- Engine, add-only: `Engine::neuron_state`, `input_weight`, `input_value`, `output_value`; input kinds `rate_drive`, `tuned_poisson`; output kind `rate_value`; rate neurons and `siegert_neuron` as populations with `rate_connection_*` and `diffusion_connection` (J, K) projections; `spike/theory.h` (phase plane, onset type, spike-triggered average); `spike-run --sample/--set/--phase`. See `docs/CIRCUIT-FORMAT.md`.
-- New citations (checked against PubMed): Ermentrout 1996, Rothman & Manis 2003, Touboul & Brette 2008, Naud 2008 and those of the later chapters.
-
-## [Unreleased] - 0.5 playtest fixes (research/PLAYTEST-0.5.md)
-
-- **Reference lock:** a circuit counts as a copy of the reference only when it equals the reference file exactly (structure, editor positions, provenance, every number within a relative 1e-6) or the REFERENCE button filled the bench; hand-built circuits with round numbers are never flagged.
-- **Structure checks:** `w_latch` and `worm_touch` accept a self-excitation loop (autapse); `worm` accepts turning one way (the other turn channel may stay unconnected), in the engine and in the lab's wiring check. Test: `tasks_fixes_test`.
-- **CHECK** runs the quick episode (`score_headless_quick_async`); the spinal boss has a compressed quick schedule (all three reaches, a push in each hold; about 5 s), the autonomic boss's quick day is about 5 s, worm and lamprey under 1 s.
-- **No numbers in verdicts and hints (tiers 1-3)** for every task, pass or fail, including the "(The run itself: ...)" suffixes; the digit scan in `tasks_cheap_test` covers every task (names of the task's own channels and the formula CO2 are not numbers). Wiring messages name a numbered channel family once.
-- **Verdicts follow the parts:** `l_burst`, `lamprey`, `a_facilitate`, `aplysia_gill`, `l_rebound`.
-- **Gauges** are all fed (`tasks_gauges_test`); a missing readout shows a dash, not 0.0 in green. Sentinel -1 shows a dash.
-- **Lab/campaign:** two-row chapter tabs (Body / Bestiary) and a scrolling strip on a phone; pass rule in the visible part of the brief; slider caps from the level's reference (twice the largest weight) and typed values; a verdict that asks for more strength is not shown at a slider's cap; toasts queue (one at a time, none over the result modal); hints open after two different missed circuits; "rhythm by accident" only for circuits with a feedback loop and a task without a periodic stimulus; serotonin label on the Aplysia modulator dial; diagnosis: Reveal answer after two wrong picks, a generic "no diagnosis" verdict, `dx_aplysia` findings no longer name the answer, `dx_leech` patient robust on every seed; title shows the project version (0.5.0-dev).
-- **Difficulty:** `m_half_centre` default drive 400 fires the plain adaptive cell; the Aplysia lab defaults (U 0.1, gain 3, scale 4) are in the workable range; `l_rebound` brief names the steady drive.
-
-## [Unreleased] - 0.5 Bestiary, step 3: fly compass, fly mushroom body, crab
-
-- Thirteen levels in three more chapters of the Bestiary wing: fly compass (`c_ring`, `c_shift`, `fly_compass`, `dx_compass`), fly mushroom body (`k_sparse`, `k_depress`, `fly_mb`, `dx_mb_apl`, `dx_mb_dan`), crab (`s_pacemaker`, `s_phase`, `crab_pyloric`, `dx_crab`). Notes: `docs/circuits/bestiary_b.md`.
-- New NESTML cell `stg_cell` (Na, Kd, CaT, CaS, A, KCa, H, leak and calcium; after the Liu/Prinz model family, game conductances), with a parts-bin card.
-- Engine, add-only: `ProjectionInfo::dopamine_source`, `Engine::output_spiked`. Lab: ring readout output kind, ring-closing segment wiring, random sparse wiring, dopamine-gated synapse with source and learning, compass dial.
-- The compass is wired after Turner-Evans/Hulse cell types, not synapse-level data; the mushroom body after the published cell types; STG kinetics are from memory of the published forms and the parameter sets are not the published ones (`docs/WHAT-IS-REAL.md`).
-- Scripted levels: a half-wired circuit (a sensor or motor not connected) no longer passes.
-
-## [Unreleased] - 0.5 Bestiary, step 2: worm, leech, sea slug
-
-- Twelve levels in three new campaign chapters (wing "Bestiary", open from the start, never gating the body chapters): worm (`w_latch`, `w_switch`, `worm_touch`, `dx_worm`), leech (`l_burst`, `l_rebound`, `leech_heart`, `dx_leech`), aplysia (`a_depress`, `a_facilitate`, `aplysia_gill`, `dx_aplysia`). Design: `docs/DESIGN-0.5.md`; notes: `docs/circuits/bestiary_a.md`.
-- `worm_touch` is wired from the real touch circuit (Cook et al. 2019 synapse counts through the OpenWorm ConnectomeToolbox `cect`, `tools/connectome/worm.py`).
-- Engine, add-only: `Structure::modulation` and `ChannelStructure::modulator`. Lab: the Aplysia levels offer depressing synapses and a modulation row on a synapse.
-- What is real: worm and leech cells are spiking stand-ins for graded cells; the leech cycle is time-compressed.
-- Known gaps: no plate art for the Bestiary map; deleting a connection in the lab does not renumber a synapse modulation row; `tools/citations/check.py` still reports the unverified references of the research sheets `research/bestiary-*.md`.
+### Known gaps
+- **`leech_heart`:** the planned rework of its escape-versus-release concept is not done.
+- **The spinal boss reference passes about 80% of held-out seeds**, not all of them.
+- **`stretch_reflex`'s quick CHECK misses 1 or 2 of 35 seeds** (the full episode passes).
+- **No counterfactual mechanism check:** structure checks look at the wiring and the behaviour, but nothing yet re-runs a circuit with the mechanism removed to prove it matters.
+- **The fly connectome excerpt is not real synapse data.** The compass and the mushroom body follow published cell types; only `worm_touch` is wired from a real connectome.
+- **The Python package lacks the Theory wing's input and population kinds** (`rate_drive`, `tuned_poisson`, `rate_value`, rate populations); those circuits run in the game and `spike-run` only.
+- **The parts-bin card for the SA-node cell says about 70 beats per minute**; the model measures about 99 (the card text is in `engine/src/catalog/catalog.cpp`).
+- **Phone layout has rough spots.**
+- **No Windows build:** NEST and godot-cpp are not cross-built, and the runner has POSIX-only parts. Desktop Linux only, glibc 2.39 or newer.
+- **Parts bin and par counts:** reference circuits use `iaf_cond_alpha` (the lamprey, the spinal levels, `dx_clonus`) although the parts bin has no card for it, and the par of several levels (`c_ring`, `c_shift`, `fly_compass`, `k_sparse`, `r_meanfield`, and some micro-puzzles) differs from the neuron count of their reference circuit; neither is fixed.
 
 ## [0.4.0] - 2026-11-18 — Honest puzzles, shippable game
 
