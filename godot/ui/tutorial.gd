@@ -33,6 +33,7 @@ var _extra := ""              # the second cell step 10 added (removed again whe
 var _t := 0.0                 # seconds since the step started
 var _idle := 0.0
 var _check_seen := false
+var _checks0 := 0             # lab.play.checks_done when the Check step began
 var _spikes_seen := false
 var _built_kind := ""
 var _banner: PanelContainer
@@ -175,7 +176,7 @@ func _build_steps() -> Array:
 		{"text": "Too much and the cell fires on the small blip as well as the big step. Find the middle: spikes on the step only. Adjust the weight until the run passes.",
 			"info": true, "kind": "act", "scopes": true, "spot": func(): return [_rect_of(lab.gauges), _rect_of(lab.raster)] + _tab_rects(), "allow": func(): return [_editor_rect(), _rect_of(lab.inspector), _rect_of(lab.gauges), _rect_of(lab.raster)] + _tab_rects(),
 			"done": func(): return lab.tele != null and bool(lab.tele.score.get("passed", false)), "do": func(): _set_weight(470.0)},
-		{"text": "Check scores your circuit on a fresh run, faster than watching one. Press Check.",
+		{"text": "Check scores your circuit in five slightly different worlds (five seeds: the same level with other noise), faster than watching one run. Press Check.",
 			"kind": "act", "spot": func(): return _ctl_rects(["BtnCheck"]), "done": func(): return _check_seen, "do": func(): lab.play.check_start()},
 		{"text": "The note that just came up is the verdict. It says what to change, never the number to type. A pass earns a star; more come from passing on every seed and staying small.",
 			"info": true, "kind": "next", "spot": func(): return [_rect_of(lab.score_card)]},
@@ -195,7 +196,7 @@ func _goto(n: int) -> void:
 	if bool(st.get("scopes", false)): _show_tab("scopes_only")
 	elif lab.layout.compact: _show_tab("circuit")
 	if step == 5 and lab.tele != null: lab.tele.running = true; lab._sync_run_btn()
-	if step == 8: _check_seen = false
+	if step == 8: _check_seen = false; _checks0 = lab.play.checks_done
 	if step == 10 and (lab.circuit.get("populations", []) as Array).size() < 2 and _extra == "":
 		lab._add_neuron("E"); _extra = str(((lab.circuit["populations"] as Array).back() as Dictionary).get("id", ""))
 	elif step == 10 and _extra != "": lab.editor.select({"t": "pop", "id": _extra})
@@ -238,6 +239,15 @@ func _finish(how: String, go_map: bool) -> void:
 	_sync_visible()
 
 # ---------------------------------------------------------------------------------------------------- geometry helpers (all in global coordinates)
+## The lab's toast on screen (the Check verdict that step 9 talks about): the banner keeps off it as it keeps off the lit controls.
+func _toast_rects() -> Array:
+	var out := []
+	if lab == null or lab.celebration == null: return out
+	for t in lab.celebration._toasts:
+		var r := _rect_of(t["node"] as Control)
+		if r.size != Vector2.ZERO: out.append(r)
+	return out
+
 func _rect_of(c: Control) -> Rect2:
 	if c == null or not is_instance_valid(c) or not c.is_visible_in_tree(): return Rect2()
 	return c.get_global_rect()
@@ -346,13 +356,13 @@ func _tick_step(dt: float) -> void:
 	if lab.tele != null and lab.tele.sim != null and lab.tele.total_spikes > 0 and step == 6 and not _targets("inputs", "pulse").is_empty() and not _targets("outputs", "spike").is_empty(): _spikes_seen = true
 	if step == 8:
 		if lab.play._check_job != 0: _check_seen = false; _idle = -1.0   # a check is running
-		elif _idle < 0.0 and lab.score_card != null and lab.score_card.check_text != "": _check_seen = true
+		elif (_idle < 0.0 or lab.play.checks_done > _checks0) and lab.score_card != null and lab.score_card.check_text != "": _check_seen = true
 	_spots = (st["spot"] as Callable).call().filter(func(r): return (r as Rect2).size != Vector2.ZERO)
 	_allow = (st["allow"] as Callable).call().filter(func(r): return (r as Rect2).size != Vector2.ZERO) if st.has("allow") else _spots.duplicate()
 	if step == 10 and _extra != "" and not _sel_done and lab._dirty < 0.0 and _t > 0.4:   # the engine reload after adding the cell clears the selection: select the cell once more so the E / I button is there
 		_sel_done = true; lab.editor.select({"t": "pop", "id": _extra})
 	if str(lab.editor.sel.get("t", "")) == "in" and step >= 6: Progress.meta_put("sensor_opened", true)   # the sensor card was opened: its ring is done (a skipped tutorial keeps the ring)
-	_keep = _tab_rects() + ([] if bool(st.get("info", false)) else _spots)
+	_keep = _tab_rects() + ([] if bool(st.get("info", false)) else _spots) + _toast_rects()
 	if str(st.get("ghost", "")) != "": _ghost = _ghost_points(str(st["ghost"]))
 	if st.get("kind", "") == "act" and st.has("done") and not _revisit and _t > 0.15 and (st["done"] as Callable).call(): _next(); return
 	if step == 5 and not _revisit and _t > 6.0: _next()
