@@ -34,6 +34,7 @@ const DEFAULT_ENERGY_HZ := 40.0
 static var _best := {}
 static var _loaded := false
 static var _mode := "standard"
+static var _meta := {}             # the other [meta] keys: the tutorial's "seen" flags (ui/tutorial.gd): tutorial, mode_picked, sensor_opened, tip_<task>
 
 static func _load() -> void:
 	if _loaded: return
@@ -51,10 +52,12 @@ static func _load() -> void:
 		var v: Variant = c.get_value("best", k)
 		if v is Dictionary: _best[k] = v
 	var m := str(c.get_value("meta", "mode", "standard")); _mode = m if m in MODES else "standard"
+	for k in c.get_section_keys("meta"):
+		if k != "mode": _meta[k] = c.get_value("meta", k)
 
 ## Forget what was loaded and read the file again (after a save import).
 static func reload() -> void:
-	_loaded = false; _best = {}; _mode = "standard"; _load(); Campaign.refresh()
+	_loaded = false; _best = {}; _mode = "standard"; _meta = {}; _load(); Campaign.refresh()
 
 ## Reset progress: the old file is moved aside (progress.cfg.reset-<time>), not deleted; the game starts from nothing.
 static func reset() -> String:
@@ -64,7 +67,7 @@ static func reset() -> String:
 		moved = SaveIO.quarantine(PATH, "reset")
 		for i in range(1, SaveIO.BACKUPS + 1): SaveIO.remove_all(PATH + ".bak%d" % i)   # (remove_all of a backup name removes just that file)
 		SaveIO.readonly.erase(PATH); SaveIO.status.erase(PATH)
-	_best = {}; _mode = "standard"; Campaign.refresh()
+	_best = {}; _mode = "standard"; _meta = {}; Campaign.refresh()
 	return moved
 
 static func best(task: String) -> Dictionary:
@@ -75,6 +78,17 @@ static func best(task: String) -> Dictionary:
 	if not b.has("hints"): b["hints"] = {}
 	if not b.has("variants"): b["variants"] = []
 	return b
+
+## A saved "seen" flag (progress.cfg [meta]): the tutorial, the mode picker, the one-step pointers. `default` when it was never set.
+static func meta_get(key: String, default: Variant = "") -> Variant:
+	_load(); return _meta.get(key, default)
+static func meta_put(key: String, value: Variant) -> void:
+	_load()
+	if _meta.get(key, null) == value: return
+	_meta[key] = value; _save()
+## True when nothing has been played or recorded on this save (the tutorial starts only then).
+static func is_fresh() -> bool:
+	_load(); return _best.is_empty()
 
 static func mode() -> String:
 	_load(); return _mode
@@ -122,6 +136,7 @@ static func _save() -> void:
 	var c := ConfigFile.new()
 	for k in _best: c.set_value("best", k, _best[k])
 	c.set_value("meta", "mode", _mode)
+	for k in _meta: c.set_value("meta", k, _meta[k])
 	SaveIO.save_cfg(PATH, c)
 
 # ---- diagnosis cases (docs/DESIGN-0.3.md section 6): wrong picks, probes and Reveal are part of the save, so leaving the case and coming back does not wipe them ----

@@ -51,6 +51,19 @@ flowchart LR
   settings_game("Settings, Game tab (difficulty, play log)")
   credits["Credits"]
   analysis["Analysis, 3-node motifs"]
+  tut_s1{{"Plate 0 step 1: the bench, sensor and motor cards (Next)"}}
+  tut_s2{{"Plate 0 step 2: add a neuron (lit: + Excitatory)"}}
+  tut_s3{{"Plate 0 step 3: drag sensor to cell (animated ghost)"}}
+  tut_s4{{"Plate 0 step 4: drag cell to motor"}}
+  tut_s5{{"Plate 0 step 5: raster and trace explained while it runs"}}
+  tut_s6{{"Plate 0 step 6: click the sensor, raise its weight until the cell spikes"}}
+  tut_s7{{"Plate 0 step 7: find the middle, the live run passes"}}
+  tut_s8{{"Plate 0 step 8: press Check"}}
+  tut_s9{{"Plate 0 step 9: read the verdict and the stars"}}
+  tut_s10{{"Plate 0 step 10: the E / I switch on a second cell"}}
+  tut_s11{{"Plate 0 step 11: hints, recipe and brief"}}
+  tut_picker{{"Plate 0 step 12: pick a mode (Guided / Standard / Researcher) over the campaign map"}}
+  tut_tip{{"One-step pointer, the first time a level with a new control opens (here m_inhibition: E / I)"}}
   title -->|LegendPlay| campaign
   campaign -.->|Back or Esc| title
   title -->|LegendWhatisreal| real
@@ -84,6 +97,33 @@ flowchart LR
   settings -->|OptReducedMotion| settings
   settings_game -->|OptMode| settings_game
   settings_game -->|OptRecordMyPlay| settings_game
+  title -->|LegendPlay| tut_s1
+  title -->|LegendPlay| tut_picker
+  campaign -->|BtnTutorial| tut_s1
+  tut_s2 -->|TutDo| tut_s3
+  tut_s3 -->|TutDo| tut_s4
+  tut_s4 -->|TutDo| tut_s5
+  tut_s5 -->|TutNext| tut_s6
+  tut_s6 -->|TutDo| tut_s7
+  tut_s7 -->|event: tut_pass| tut_s8
+  tut_s8 -->|TutDo| tut_s9
+  tut_s9 -->|TutNext| tut_s10
+  tut_s10 -->|TutDo| tut_s11
+  tut_s11 -->|TutNext| tut_picker
+  tut_s1 -->|TutNext| tut_s2
+  tut_s2 -->|BtnExcitatory| tut_s3
+  tut_s2 -->|TutBack| tut_s1
+  tut_s3 -->|tut:drag_in| tut_s4
+  tut_s4 -->|tut:drag_out| tut_s5
+  tut_s6 -->|tut:raise| tut_s7
+  tut_s8 -->|BtnCheck| tut_s9
+  tut_s10 -->|BtnEI| tut_s11
+  tut_s1 -->|TutSkip| tut_picker
+  tut_s1 -->|TutSkip| campaign
+  tut_s1 -->|key:escape| tut_picker
+  tut_picker -->|Mode_researcher| campaign
+  tut_picker -->|key:escape| campaign
+  campaign -->|BtnBuild| tut_tip
 ```
 
 ### The lab, its modals and the analysis
@@ -232,7 +272,7 @@ flowchart LR
 | Node | Kind | What it is | Controls |
 |---|---|---|---|
 | `title` | screen | Title (Plate I) | `LegendPlay`, `LegendLaboratory`, `LegendWhatisreal`, `LegendSettings`, `LegendCredits`, `LegendQuit` |
-| `campaign` | screen | Campaign map (default chapter) | `BtnBack`, `StepMode`, `BtnNotebook`, `BtnPartsBin`, `BtnSandbox`, `Wing_*`, `Chapter_*`, `Pin_*`, `BtnBuild`, `BtnReference?`, `BtnMoreEllipsis?`, `BtnContinue?` |
+| `campaign` | screen | Campaign map (default chapter) | `BtnBack`, `StepMode`, `BtnNotebook`, `BtnPartsBin`, `BtnSandbox`, `Wing_*`, `Chapter_*`, `Pin_*`, `BtnBuild`, `BtnTutorial`, `BtnReference?`, `BtnMoreEllipsis?`, `BtnContinue?` |
 | `campaign.chapter.invertebrates` | tab | Campaign chapter tab: Invertebrates |  |
 | `campaign.chapter.spinal` | tab | Campaign chapter tab: Spinal cord |  |
 | `campaign.chapter.heart` | tab | Campaign chapter tab: Heart |  |
@@ -289,6 +329,19 @@ flowchart LR
 | `lab.hint` | panel | Hint ladder card (idea, place, partial recipe) | `BtnHintClose`, `BtnHintNext?`, `BtnAskAgain?` |
 | `lab.toast` | toast | Toast (Check verdict, Skip, hints unlocked, notebook entry) |  |
 | `lab.stamp` | overlay | First-pass celebration: FIRST PASS stamp, trail, notebook toast |  |
+| `tut.s1` | overlay | Plate 0 step 1: the bench, sensor and motor cards (Next) | `TutNext`, `TutSkip` |
+| `tut.s2` | overlay | Plate 0 step 2: add a neuron (lit: + Excitatory) | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s3` | overlay | Plate 0 step 3: drag sensor to cell (animated ghost) | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s4` | overlay | Plate 0 step 4: drag cell to motor | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s5` | overlay | Plate 0 step 5: raster and trace explained while it runs | `TutBack`, `TutNext`, `TutSkip` |
+| `tut.s6` | overlay | Plate 0 step 6: click the sensor, raise its weight until the cell spikes | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s7` | overlay | Plate 0 step 7: find the middle, the live run passes | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s8` | overlay | Plate 0 step 8: press Check | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s9` | overlay | Plate 0 step 9: read the verdict and the stars | `TutBack`, `TutNext`, `TutSkip` |
+| `tut.s10` | overlay | Plate 0 step 10: the E / I switch on a second cell | `TutBack`, `TutDo`, `TutSkip` |
+| `tut.s11` | overlay | Plate 0 step 11: hints, recipe and brief | `TutBack`, `TutNext`, `TutSkip` |
+| `tut.picker` | overlay | Plate 0 step 12: pick a mode (Guided / Standard / Researcher) over the campaign map | `Mode_guided`, `Mode_standard`, `Mode_researcher` |
+| `tut.tip` | overlay | One-step pointer, the first time a level with a new control opens (here m_inhibition: E / I) | `TutGotIt` |
 
 ### Guards that must hide or disable a control
 
@@ -303,5 +356,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 58 nodes, 127 edges, 8 guard checks.
+Counts: 71 nodes, 155 edges, 8 guard checks.
 <!-- END GENERATED -->

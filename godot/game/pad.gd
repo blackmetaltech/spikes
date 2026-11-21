@@ -65,6 +65,7 @@ func _focusable(c: Control) -> bool:
 ## Make sure something is focused. `force` re-picks even if something already is.
 func ensure_focus(force: bool) -> void:
 	var cur: Control = app.get_viewport().gui_get_focus_owner()
+	if cur != null and not force and app.tutorial != null and app.tutorial.is_ancestor_of(cur): return   # the tutorial banner keeps its focus
 	var host: Control = app.current_screen()
 	if host == null: host = app.root
 	if cur != null and not force and cur.is_visible_in_tree() and host.is_ancestor_of(cur): return

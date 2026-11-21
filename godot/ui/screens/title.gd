@@ -60,7 +60,7 @@ func build() -> void:
 
 func _press(id: String) -> void:
 	match id:
-		"tasks": app.show_screen("tasks")
+		"tasks": app.tutorial.on_play()   # a fresh save starts Plate 0; otherwise the map
 		"lab": app.open_lab("")
 		"settings": app.show_screen("settings")
 		"credits": app.show_screen("credits")

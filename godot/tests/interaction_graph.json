@@ -6,7 +6,8 @@
  "fixtures": {
   "$first": "the first level of the campaign (open from the start)",
   "$locked": "a level that is locked in a fresh save",
-  "$dx": "the first diagnosis case"
+  "$dx": "the first diagnosis case",
+  "$inhibition": "the m_inhibition level (its first-visit pointer is the one the walk shows)"
  },
  "ignore": [
   {
@@ -65,7 +66,8 @@
     "Wing_*",
     "Chapter_*",
     "Pin_*",
-    "BtnBuild"
+    "BtnBuild",
+    "BtnTutorial"
    ],
    "optional": [
     "BtnReference",
@@ -884,6 +886,237 @@
     "screen": "lab",
     "celebrating": true
    }
+  },
+  "tut.s1": {
+   "kind": "overlay",
+   "label": "Plate 0 step 1: the bench, sensor and motor cards (Next)",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s1"
+   },
+   "controls": [
+    "TutNext",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s2": {
+   "kind": "overlay",
+   "label": "Plate 0 step 2: add a neuron (lit: + Excitatory)",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s2"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s3": {
+   "kind": "overlay",
+   "label": "Plate 0 step 3: drag sensor to cell (animated ghost)",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s3"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s4": {
+   "kind": "overlay",
+   "label": "Plate 0 step 4: drag cell to motor",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s4"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s5": {
+   "kind": "overlay",
+   "label": "Plate 0 step 5: raster and trace explained while it runs",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s5"
+   },
+   "controls": [
+    "TutBack",
+    "TutNext",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s6": {
+   "kind": "overlay",
+   "label": "Plate 0 step 6: click the sensor, raise its weight until the cell spikes",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s6"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s7": {
+   "kind": "overlay",
+   "label": "Plate 0 step 7: find the middle, the live run passes",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s7"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s8": {
+   "kind": "overlay",
+   "label": "Plate 0 step 8: press Check",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s8"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s9": {
+   "kind": "overlay",
+   "label": "Plate 0 step 9: read the verdict and the stars",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s9"
+   },
+   "controls": [
+    "TutBack",
+    "TutNext",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s10": {
+   "kind": "overlay",
+   "label": "Plate 0 step 10: the E / I switch on a second cell",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s10"
+   },
+   "controls": [
+    "TutBack",
+    "TutDo",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.s11": {
+   "kind": "overlay",
+   "label": "Plate 0 step 11: hints, recipe and brief",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "s11"
+   },
+   "controls": [
+    "TutBack",
+    "TutNext",
+    "TutSkip"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
+  },
+  "tut.picker": {
+   "kind": "overlay",
+   "label": "Plate 0 step 12: pick a mode (Guided / Standard / Researcher) over the campaign map",
+   "detect": {
+    "screen": "tasks",
+    "tutorial": "picker"
+   },
+   "controls": [
+    "Mode_guided",
+    "Mode_standard",
+    "Mode_researcher"
+   ],
+   "scope": "Tutorial",
+   "state_of": "campaign",
+   "back": {
+    "key": "Escape"
+   }
+  },
+  "tut.tip": {
+   "kind": "overlay",
+   "label": "One-step pointer, the first time a level with a new control opens (here m_inhibition: E / I)",
+   "detect": {
+    "screen": "lab",
+    "tutorial": "tip"
+   },
+   "controls": [
+    "TutGotIt"
+   ],
+   "scope": "Tutorial",
+   "state_of": "lab",
+   "co": [
+    "lab.task"
+   ]
   }
  },
  "edges": [
@@ -2090,6 +2323,243 @@
     "mode": "guided"
    },
    "needs_reference": true
+  },
+  {
+   "id": "tut.play_fresh",
+   "from": "title",
+   "to": "tut.s1",
+   "control": "LegendPlay",
+   "setup": {
+    "tutorial": "fresh"
+   },
+   "note": "Play on a fresh save starts Plate 0 in the lab (m_threshold, Guided, empty bench)."
+  },
+  {
+   "id": "tut.play_skipped",
+   "from": "title",
+   "to": "tut.picker",
+   "control": "LegendPlay",
+   "setup": {
+    "tutorial": "skipped"
+   },
+   "note": "Play after the tutorial was skipped and no mode was ever chosen: the map with the one-screen mode picker."
+  },
+  {
+   "id": "tut.replay",
+   "from": "campaign",
+   "to": "tut.s1",
+   "control": "BtnTutorial",
+   "note": "Title > Play > Tutorial replays Plate 0 at any time."
+  },
+  {
+   "id": "tut.s2_do",
+   "from": "tut.s2",
+   "to": "tut.s3",
+   "control": "TutDo",
+   "note": "Do it for me adds the neuron.",
+   "wait": 5
+  },
+  {
+   "id": "tut.s3_do",
+   "from": "tut.s3",
+   "to": "tut.s4",
+   "control": "TutDo",
+   "note": "Do it for me wires the sensor to the cell.",
+   "wait": 5
+  },
+  {
+   "id": "tut.s4_do",
+   "from": "tut.s4",
+   "to": "tut.s5",
+   "control": "TutDo",
+   "note": "Do it for me wires the cell to the motor.",
+   "wait": 5
+  },
+  {
+   "id": "tut.s5_next",
+   "from": "tut.s5",
+   "to": "tut.s6",
+   "control": "TutNext"
+  },
+  {
+   "id": "tut.s6_do",
+   "from": "tut.s6",
+   "to": "tut.s7",
+   "control": "TutDo",
+   "wait": 60,
+   "note": "Do it for me sets a weight inside the band; the step ends when the cell spikes."
+  },
+  {
+   "id": "tut.s7_pass",
+   "from": "tut.s7",
+   "to": "tut.s8",
+   "action": "event:tut_pass",
+   "slow": true,
+   "note": "The live run finishes and passes: the step ends by itself.",
+   "control": ""
+  },
+  {
+   "id": "tut.s8_do",
+   "from": "tut.s8",
+   "to": "tut.s9",
+   "control": "TutDo",
+   "wait": 120,
+   "note": "Do it for me presses Check; the step ends when the verdict is in."
+  },
+  {
+   "id": "tut.s9_next",
+   "from": "tut.s9",
+   "to": "tut.s10",
+   "control": "TutNext"
+  },
+  {
+   "id": "tut.s10_do",
+   "from": "tut.s10",
+   "to": "tut.s11",
+   "control": "TutDo",
+   "note": "Do it for me flips the second cell to inhibitory.",
+   "wait": 5
+  },
+  {
+   "id": "tut.s11_finish",
+   "from": "tut.s11",
+   "to": "tut.picker",
+   "control": "TutNext",
+   "note": "Finish: the map opens with the mode picker."
+  },
+  {
+   "id": "tut.s1_next",
+   "from": "tut.s1",
+   "to": "tut.s2",
+   "control": "TutNext"
+  },
+  {
+   "id": "tut.s2_press",
+   "from": "tut.s2",
+   "to": "tut.s3",
+   "control": "BtnExcitatory",
+   "note": "The player adds the neuron with the lit palette button (a real click through the hole in the dim).",
+   "wait": 5
+  },
+  {
+   "id": "tut.s2_back",
+   "from": "tut.s2",
+   "to": "tut.s1",
+   "control": "TutBack"
+  },
+  {
+   "id": "tut.s3_drag",
+   "from": "tut.s3",
+   "to": "tut.s4",
+   "action": "tut:drag_in",
+   "note": "A real mouse drag from the sensor card's edge onto the cell.",
+   "control": "",
+   "wait": 5
+  },
+  {
+   "id": "tut.s4_drag",
+   "from": "tut.s4",
+   "to": "tut.s5",
+   "action": "tut:drag_out",
+   "note": "A real mouse drag from the cell's rim onto the motor card.",
+   "control": "",
+   "wait": 5
+  },
+  {
+   "id": "tut.s6_raise",
+   "from": "tut.s6",
+   "to": "tut.s7",
+   "action": "tut:raise",
+   "wait": 60,
+   "note": "A real click on the sensor card, then the weight slider moved into the band.",
+   "control": ""
+  },
+  {
+   "id": "tut.s8_check",
+   "from": "tut.s8",
+   "to": "tut.s9",
+   "control": "BtnCheck",
+   "wait": 120,
+   "note": "The player presses the lit Check button."
+  },
+  {
+   "id": "tut.s10_ei",
+   "from": "tut.s10",
+   "to": "tut.s11",
+   "control": "BtnEI",
+   "note": "The player presses the lit E / I button.",
+   "wait": 5
+  },
+  {
+   "id": "tut.skip",
+   "from": "tut.s1",
+   "to": "tut.picker",
+   "control": "TutSkip",
+   "note": "Skip tutorial from the first run: marks it done and opens the map with the mode picker."
+  },
+  {
+   "id": "tut.skip_replay",
+   "from": "tut.s1",
+   "to": "campaign",
+   "control": "TutSkip",
+   "setup": {
+    "tutorial": "seen"
+   },
+   "path_avoid": [
+    "tut.play_fresh"
+   ],
+   "note": "Skipping a replay goes straight to the map (the mode was chosen before)."
+  },
+  {
+   "id": "tut.esc",
+   "from": "tut.s1",
+   "to": "tut.picker",
+   "action": "key:escape",
+   "note": "Esc always leaves the tutorial.",
+   "control": ""
+  },
+  {
+   "id": "tut.pick",
+   "from": "tut.picker",
+   "to": "campaign",
+   "control": "Mode_researcher",
+   "expect": {
+    "mode_changes": true
+   },
+   "note": "Choosing a mode continues to the map."
+  },
+  {
+   "id": "tut.pick_esc",
+   "from": "tut.picker",
+   "to": "campaign",
+   "action": "key:escape",
+   "note": "Esc keeps the current mode and continues.",
+   "control": ""
+  },
+  {
+   "id": "tut.tip_show",
+   "from": "campaign",
+   "to": "tut.tip",
+   "control": "BtnBuild",
+   "setup": {
+    "level": "$inhibition",
+    "unlock_all": true,
+    "tutorial": "tips"
+   },
+   "plain_entry": true,
+   "note": "First visit to m_inhibition: the pointer at E / I."
+  },
+  {
+   "id": "tut.tip_got",
+   "from": "tut.tip",
+   "to": "lab.task",
+   "control": "TutGotIt",
+   "setup": {
+    "level": "$inhibition",
+    "unlock_all": true,
+    "tutorial": "tips"
+   },
+   "note": "Got it dismisses the pointer for good."
   }
  ],
  "negatives": [
