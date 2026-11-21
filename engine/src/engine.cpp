@@ -106,13 +106,14 @@ Dictionary to_dict( const nlohmann::json& o )
   return d;
 }
 
-// Rate drives (mean / mu of rate neurons) are clamped: siegert_neuron's integral fails for |mean| beyond a few hundred, and a failed GSL integral must not be reachable by a player.
-constexpr double kDriveLimit = 500.0;
+// Rate drives (mean / mu of rate neurons) are clamped: siegert_neuron's integral fails for a mean below about -1000 (the references drive it at 6000..10000 Hz), and a
+// failed GSL integral must not be reachable by a player.
+constexpr double kDriveMin = -500.0, kDriveMax = 1.0e6;
 double clamp_drive( double x )
 {
   if ( not std::isfinite( x ) )
     return 0.0;
-  return std::max( -kDriveLimit, std::min( kDriveLimit, x ) );
+  return std::max( kDriveMin, std::min( kDriveMax, x ) );
 }
 
 // Watchdog thresholds: wall clock per ms of model time of one slice (<= 100 ms), and the minimum wall time before it trips.
