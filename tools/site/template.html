@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{doc_title}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="{{canonical}}">
+<meta property="og:site_name" content="Spike">
+<meta property="og:title" content="{{doc_title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{canonical}}">
+<meta property="og:image" content="https://ixaxaar.github.io/spikes/assets/og.jpg">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#EFE6D4">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
+<link rel="preload" href="../assets/fonts/Fraunces.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../assets/fonts/AtkinsonHyperlegible-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script>document.documentElement.classList.add("js")</script>
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="wiki.css">
+</head>
+<body class="wiki">
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="../" aria-label="Spike home">Spike<span>.</span></a>
+    <button class="menubtn" type="button" id="menubtn" aria-expanded="false" aria-controls="navlinks">Menu</button>
+    <nav class="links" id="navlinks" aria-label="Primary">
+      <a href="../">Home</a>
+      <a href="index.html">Wiki</a>
+      <a href="see-it-in-action.html">See it in action</a>
+      <a href="https://github.com/ixaxaar/spikes">GitHub</a>
+    </nav>
+    <a class="btn ink mini" href="../#download">Download</a>
+  </div>
+</header>
+<div class="wiki-wrap">
+  <aside class="side" id="side" aria-label="Wiki">
+    <div class="search" role="search">
+      <label class="sr" for="q">Search the wiki</label>
+      <input id="q" type="search" placeholder="Search the wiki" autocomplete="off" spellcheck="false" aria-controls="results" aria-describedby="qhint">
+      <kbd class="qkey" aria-hidden="true">/</kbd>
+      <p class="sr" id="qhint">Results appear below as you type. Use the arrow keys to move through them.</p>
+      <ul id="results" class="results" hidden></ul>
+    </div>
+    <details class="pages" id="pages" open>
+      <summary>Pages</summary>
+      <nav aria-label="Wiki pages">
+{{sidebar}}
+      </nav>
+    </details>
+  </aside>
+  <main id="main" class="doc">
+    <p class="kicker">{{kicker}}</p>
+    <h1>{{title}}</h1>
+    {{summary}}
+    <hr class="rule">
+    <div class="prose">
+{{content}}
+    </div>
+    {{pager}}
+    <p class="fine">Something wrong or missing? <a href="{{edit}}">Edit this page on GitHub</a> (<a href="{{source}}">source</a>) or <a href="https://github.com/ixaxaar/spikes/issues">open an issue</a>.</p>
+  </main>
+  {{toc}}
+</div>
+<dialog class="lb" id="lb" aria-label="Enlarged image">
+  <img id="lb-img" src="data:," alt="">
+  <div class="lbbar">
+    <figcaption id="lb-cap"></figcaption>
+    <button type="button" id="lb-prev" aria-label="Previous image">&larr;</button>
+    <button type="button" id="lb-next" aria-label="Next image">&rarr;</button>
+    <button type="button" id="lb-close">Close</button>
+  </div>
+</dialog>
+<script src="wiki.js" defer></script>
+</body>
+</html>

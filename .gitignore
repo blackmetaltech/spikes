@@ -23,3 +23,8 @@ docs/screenshots/critique-0.3/
 docs/screenshots/review/
 tools/connectome/.venv/
 third_party/nest-build-py/
+# the website: built by tools/site/build.py (the Pages workflow builds them too)
+/site/wiki/*.html
+/site/wiki/search.json
+/site/wiki/img/
+/site/sitemap.xml

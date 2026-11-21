@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spike: wire neurons, run a body</title>
+<meta name="description" content="Spike is a free game and research tool: wire small spiking neural circuits from real NEST neuron models, simulated live, and watch them run a body. A lamprey swims, a heart answers a stand-up, a leech heart beats. Linux, alpha.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="ixaxaar">
+<link rel="canonical" href="https://ixaxaar.github.io/spikes/">
+<meta property="og:site_name" content="Spike">
+<meta property="og:title" content="Spike: wire neurons, run a body">
+<meta property="og:description" content="Build spiking neural circuits from real NEST models and watch them swim a lamprey, steady a heart and beat a leech heart. Honest puzzles, a Bestiary of model organisms and a Theory wing.">
+<meta property="og:url" content="https://ixaxaar.github.io/spikes/">
+<meta property="og:image" content="https://ixaxaar.github.io/spikes/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Spike title screen: the word Spike with a sienna full stop beside Golgi-stained neurons in ink, sienna and Prussian blue">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Spike: wire neurons, run a body">
+<meta name="twitter:description" content="Spiking circuits from real NEST models, simulated live, running a body. Free, Linux, alpha.">
+<meta name="twitter:image" content="https://ixaxaar.github.io/spikes/assets/og.jpg">
+<meta name="theme-color" content="#EFE6D4">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Spike","description":"Wire small spiking neural circuits from real NEST neuron models, simulated live, and watch them run a body.","url":"https://ixaxaar.github.io/spikes/","image":"https://ixaxaar.github.io/spikes/assets/og.jpg","gamePlatform":"Linux","operatingSystem":"Linux x86_64","applicationCategory":"Game","genre":["Puzzle","Simulation","Educational"],"author":{"@type":"Person","name":"ixaxaar"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/ixaxaar/spikes"}</script>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="preload" href="assets/fonts/Fraunces.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/AtkinsonHyperlegible-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/media/lamprey-poster.webp" as="image" fetchpriority="high">
+<script>document.documentElement.classList.add("js")</script>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="home.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="top">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="Spike, back to the top">Spike<span>.</span></a>
+    <button class="menubtn" type="button" id="menubtn" aria-expanded="false" aria-controls="navlinks">Menu</button>
+    <nav class="links" id="navlinks" aria-label="Primary">
+      <a href="#do">What you do</a>
+      <a href="#wings">The wings</a>
+      <a href="#run">See it run</a>
+      <a href="#honest">Honest</a>
+      <a href="wiki/">Wiki</a>
+      <a href="https://github.com/ixaxaar/spikes">GitHub</a>
+    </nav>
+    <a class="btn ink mini" href="#download">Download</a>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- I. HERO -->
+<section class="hero">
+  <canvas class="cells" id="cells" aria-hidden="true"></canvas>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="runhead">Plate I <span aria-hidden="true">·</span> Histology of the nervous system of play</p>
+      <h1 class="wordmark">Spike<span>.</span></h1>
+      <p class="tagline">grow a nervous system</p>
+      <p class="lede">Wire small spiking neural circuits and watch them run a body. Sensory cells to interneurons to motor pools, and a leg kicks, a lamprey swims, a heart answers a stand-up, a leech heart beats in turn.</p>
+      <p class="lede2">Every neuron is a real <a href="https://www.nest-simulator.org/">NEST</a> model, simulated live inside the game in NEST's own names and units: mV, ms, pA, nS, Hz.</p>
+      <div class="cta">
+        <a class="btn ink" id="dl-main" href="https://github.com/ixaxaar/spikes/releases/latest">Download for Linux <i>free</i></a>
+        <a class="btn" href="#run">See it run</a>
+      </div>
+      <p class="alpha"><b>Alpha</b> Playable on desktop Linux, rough in places. <a href="https://github.com/ixaxaar/spikes/issues">Tell us what broke or confused you.</a></p>
+    </div>
+    <figure class="hero-fig">
+      <div class="frame clip" data-clip>
+        <video id="hero-video" width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/lamprey-poster.webp" aria-label="A lamprey swims: two groups of cells inhibit each other and take turns, the spike raster fills with alternating bursts and the body bends left and right">
+          <source src="assets/media/lamprey.webm" type="video/webm">
+          <source src="assets/media/lamprey.mp4" type="video/mp4">
+          <img src="assets/media/lamprey.gif" width="640" height="360" alt="A lamprey swimming on a half-centre oscillator in the Spike lab">
+        </video>
+        <button class="play" type="button" aria-label="Play the clip"></button>
+      </div>
+      <figcaption><b>Fig. 1.</b> A lamprey swims on a half-centre oscillator: left and right pools inhibit each other and tire, so they take turns. Live, at true speed.</figcaption>
+    </figure>
+  </div>
+  <div class="wrap">
+    <dl class="facts" aria-label="At a glance">
+      <div><dt>15</dt><dd>chapters in three wings: the body, a Bestiary, Theory</dd></div>
+      <div><dt>29</dt><dd>cell types from NEST and NESTML, integrate-and-fire to Hodgkin-Huxley</dd></div>
+      <div><dt>1 ms</dt><dd>closed loop: circuit and body step together</dd></div>
+      <div><dt>0</dt><dd>numbers in a verdict: it says what is missing, never the answer</dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- II. ONE SCREEN -->
+<section class="s" id="what">
+  <div class="wrap">
+    <p class="kicker">What it is</p>
+    <h2>A bench, a body and the scopes between them</h2>
+    <p class="sub">Each level gives you sensor and motor cards and an empty bench. You add neurons, drag connections and set weights; the circuit runs against a simplified body, one millisecond at a time, and you read what happened from the same instruments a physiologist would.</p>
+    <figure class="annot">
+      <div class="frame">
+        <div class="annot-img">
+          <picture>
+            <source media="(max-width: 700px)" srcset="assets/media/lab-lamprey-800.webp">
+            <img src="assets/media/lab-lamprey.webp" width="1600" height="900" loading="lazy" decoding="async" alt="The Spike lab running the lamprey level: the circuit of stained neurons on blue graph paper at left, the swimming lamprey, a score gauge, a spike raster, voltage traces and motor output bars at right, and the level brief below the circuit">
+          </picture>
+          <span class="pin" style="left:24%;top:40%" aria-hidden="true">A</span>
+          <span class="pin" style="left:4%;top:8.6%" aria-hidden="true">B</span>
+          <span class="pin" style="left:84%;top:12%" aria-hidden="true">C</span>
+          <span class="pin" style="left:63.5%;top:38%" aria-hidden="true">D</span>
+          <span class="pin" style="left:63.5%;top:55%" aria-hidden="true">E</span>
+          <span class="pin" style="left:63.5%;top:73%" aria-hidden="true">F</span>
+          <span class="pin" style="left:4%;top:80%" aria-hidden="true">G</span>
+        </div>
+      </div>
+      <figcaption><b>Fig. 2.</b> The lab on the lamprey level, with the reference circuit running.</figcaption>
+    </figure>
+    <ol class="legend" type="A">
+      <li><b>The bench.</b> Neurons are stained somata on engineering graph paper: sienna excites (an arrowhead), Prussian blue inhibits (a bar, &#8867;). A firing cell spreads a wash of stain.</li>
+      <li><b>Parts and wiring.</b> Pick a cell type from the parts bin, add excitatory or inhibitory groups, noise, connections.</li>
+      <li><b>The body.</b> Here a toy lamprey whose muscles the motor pools drive. Elsewhere a limb with spindles, a heart with blood pressure, lungs, an eye, a gut, a fly's heading.</li>
+      <li><b>The gauge and the verdict.</b> A running score and a sentence about what the circuit is doing, in words.</li>
+      <li><b>The spike raster.</b> Every spike of every cell, grouped by population.</li>
+      <li><b>The scopes.</b> Membrane potential traces, in mV, and the rates on each motor channel.</li>
+      <li><b>The brief.</b> One new idea per level, what to build and what passes. The numbers are in a recipe that costs a star.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- III. WHAT YOU DO -->
+<section class="s alt" id="do">
+  <div class="wrap">
+    <p class="kicker">What you actually do</p>
+    <h2>Six verbs, one circuit at a time</h2>
+    <div class="verbs">
+      <article class="verb plate">
+        <img src="assets/media/parts-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The parts bin open in the lab: cards for adaptive exponential, leaky integrate-and-fire and Izhikevich cells, each with a measured f-I curve and a voltage trace">
+        <div><h3><i>I.</i> Build</h3><p>An empty bench with the level's sensor and motor cards. Add cells from a parts bin of NEST and NESTML models (integrate-and-fire, adaptive exponential, Izhikevich, Hodgkin-Huxley, an SA-node pacemaker, a brainstem burster, a crab STG cell), drag connections, set weights.</p></div>
+      </article>
+      <article class="verb plate">
+        <img src="assets/media/heart-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The autonomic heart level running: a drawn heart with heart rate, pressure and stroke volume readouts, an ECG strip, and the circuit of sympathetic and vagal pools">
+        <div><h3><i>II.</i> Run</h3><p>A live spike raster, voltage traces, gauges and the body itself: a limb, a heart with blood pressure, lungs, an eye, a gut, a swimming lamprey, a crawling worm, a fly's compass.</p></div>
+      </article>
+      <article class="verb plate">
+        <img src="assets/media/check-fail-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="A CHECK result card reading Not passed: left and right are not alternating, the bursts of the two sides overlap too much">
+        <div><h3><i>III.</i> Check</h3><p>Instant headless scoring over several seeds. The verdict says what your circuit did and which part of the mechanism is missing, never the answer.</p></div>
+      </article>
+      <article class="verb plate">
+        <img src="assets/media/notebook-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The lab notebook: cards on rheobase, synaptic delay, coincidence detection and the reflex arc, each with its citations">
+        <div><h3><i>IV.</i> Learn</h3><p>One new idea per level, a three-tier hint ladder, a recipe you can buy with a star, a lab notebook of cited findings and a glossary of concepts.</p></div>
+      </article>
+      <article class="verb plate">
+        <img src="assets/media/diagnosis-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="A diagnosis case on the crab pyloric circuit: patient symptoms, a probe counter, the lesion lab button and five candidate lesions to choose from">
+        <div><h3><i>V.</i> Diagnose</h3><p>A patient's circuit with a hidden lesion and a list of symptoms. Probe it with the scopes and the lesion lab, then name the broken connection. Fewer probes, better score.</p></div>
+      </article>
+      <article class="verb plate">
+        <img src="assets/media/lesion-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The lesion lab on the leech heartbeat: a table of single lesions swept over several seeds, with the score of each">
+        <div><h3><i>VI.</i> Dissect</h3><p>A lesion lab with multi-seed re-runs, a motif census, burst and heart-rate-variability analysis, phase-response curves, a spike-triggered average and an energy bill.</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- IV. THE WINGS -->
+<section class="s" id="wings">
+  <div class="wrap">
+    <p class="kicker">The campaign</p>
+    <h2>Three wings of an atlas</h2>
+    <p class="sub">Every chapter is a hand-inked plate with its levels pinned to the anatomy: micro-puzzles that teach one idea each, a scored task, and diagnosis cases. Three modes change tolerance and noise, never the circuit: <b>Guided</b>, <b>Standard</b> and <b>Researcher</b>.</p>
+
+    <div class="wing">
+      <header class="winghead">
+        <p class="runhead">Plates I–V</p>
+        <h3>The body</h3>
+        <p>Five chapters climb from a single cell crossing threshold to a whole day of autonomic control: 19 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases.</p>
+        <ol class="chapters">
+          <li><span>Invertebrates</span><i>reflexes, a swimming rhythm, a nose for salt</i></li>
+          <li><span>Spinal cord</span><i>stretch, hold and reach</i></li>
+          <li><span>Heart</span><i>a pacemaker, the autonomic nerves, the baroreflex</i></li>
+          <li><span>Breathing</span><i>a bursting brainstem network tuned by CO<sub>2</sub></i></li>
+          <li><span>Autonomic</span><i>pupil, gut, fight or flight</i></li>
+        </ol>
+      </header>
+      <figure class="wingfig">
+        <button class="frame zoom" type="button" data-zoom="assets/media/map-body.webp" data-cap="Plate III. The heart chapter of the campaign map: levels pinned to the anatomy.">
+          <img src="assets/media/map-body-800.webp" srcset="assets/media/map-body-800.webp 800w, assets/media/map-body.webp 1600w" sizes="(max-width: 900px) 100vw, 60vw" width="1600" height="900" loading="lazy" decoding="async" alt="The campaign map on the heart chapter: a drawn heart with the sinoatrial node, vagus and sympathetic nerves, and level labels such as Pacemaking, Coupling and Baroreflex pinned to it">
+        </button>
+        <figcaption><b>Plate III.</b> The heart chapter: levels pinned to a drawn heart, nerves and node.</figcaption>
+      </figure>
+    </div>
+
+    <div class="wing">
+      <header class="winghead">
+        <p class="runhead">Plates VI–XI</p>
+        <h3>The Bestiary</h3>
+        <p>A chapter per model organism, built around the circuit neuroscience knows best. Open from the start. Each has micro-puzzles, the animal's behaviour as a scored task, and diagnosis cases on its circuit.</p>
+      </header>
+      <div class="plates">
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/worm.webp" data-cap="Plate VI. Caenorhabditis elegans: the touch switch, wired from the real connectome."><img src="assets/plates/worm-640.webp" srcset="assets/plates/worm-640.webp 640w, assets/plates/worm.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of C. elegans with its touch neurons and a circuit inset"></button>
+          <figcaption><b>VI.</b> <i>C. elegans</i>. Touch the head and it backs up, touch the tail and it goes: a command switch wired from the real connectome.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/leech.webp" data-cap="Plate VII. Hirudo medicinalis: the heartbeat, a half-centre with a slow cycle."><img src="assets/plates/leech-640.webp" srcset="assets/plates/leech-640.webp 640w, assets/plates/leech.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of the medicinal leech with its nerve cord, heart tubes and the HN(3), HN(4) heart interneurons, and an inset of two cells bursting in turn"></button>
+          <figcaption><b>VII.</b> The leech. Two heart interneurons that burst in turn: a half-centre with a slow cycle.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/aplysia.webp" data-cap="Plate VIII. Aplysia: a reflex that habituates, recovers and is sensitised."><img src="assets/plates/aplysia-640.webp" srcset="assets/plates/aplysia-640.webp 640w, assets/plates/aplysia.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of the sea slug Aplysia with its siphon, gill and tail, and a circuit inset of the gill-withdrawal reflex"></button>
+          <figcaption><b>VIII.</b> The sea slug. A reflex that habituates, recovers and is sensitised, all in one synapse.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/fly_compass.webp" data-cap="Plate IX. Drosophila: the compass, a bump of activity on a ring."><img src="assets/plates/fly_compass-640.webp" srcset="assets/plates/fly_compass-640.webp 640w, assets/plates/fly_compass.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of the fruit fly with its central complex and an inset of the ring of compass cells"></button>
+          <figcaption><b>IX.</b> The fly's compass. A bump of activity on a ring holds the heading in the dark and turns with the fly.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/fly_mb.webp" data-cap="Plate X. Drosophila: the mushroom body, a sparse odour code and dopamine-gated learning."><img src="assets/plates/fly_mb-640.webp" srcset="assets/plates/fly_mb-640.webp 640w, assets/plates/fly_mb.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of the fly brain with the mushroom body lobes, Kenyon cells and dopamine neurons"></button>
+          <figcaption><b>X.</b> The mushroom body. A sparse odour code, and a dopamine-gated depression that teaches the fly to avoid an odour.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/crab.webp" data-cap="Plate XI. The crab stomatogastric ganglion: the pyloric rhythm."><img src="assets/plates/crab-640.webp" srcset="assets/plates/crab-640.webp 640w, assets/plates/crab.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of a crab with its stomach and the stomatogastric ganglion, and an inset of the pyloric circuit"></button>
+          <figcaption><b>XI.</b> The crab. A conductance-based pacemaker kernel and two rebound followers make the pyloric rhythm.</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="wing">
+      <header class="winghead">
+        <p class="runhead">Plates XII–XV</p>
+        <h3>Theory</h3>
+        <p>What a computational-neuroscience course teaches, in four chapters of three levels, with lab views of their own: a live phase plane, rate strips, a pattern grid and a tuning ring. Plus a spike-triggered average in the Analysis screen.</p>
+      </header>
+      <div class="plates">
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/dynamics.webp" data-cap="Plate XII. Dynamics: the phase plane, a stable focus below the bifurcation and a limit cycle above it."><img src="assets/plates/dynamics-640.webp" srcset="assets/plates/dynamics-640.webp 640w, assets/plates/dynamics.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Plate of two phase-plane diagrams computed from the FitzHugh-Nagumo model: a stable focus, and a limit cycle around an unstable fixed point"></button>
+          <figcaption><b>XII.</b> Dynamics. Class I and II onset, a fixed point that ends firing, one neuron that remembers a pulse.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/rates.webp" data-cap="Plate XIII. Rate models: a Wilson-Cowan pair, winner take all, a network and its mean field."><img src="assets/plates/rates-640.webp" srcset="assets/plates/rates-640.webp 640w, assets/plates/rates.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Plate of rate-model figures computed from the Wilson-Cowan equations: an excitatory-inhibitory pair and its oscillation"></button>
+          <figcaption><b>XIII.</b> Rate models. A Wilson-Cowan pair that oscillates, a winner that holds, a spiking network against its mean field.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/memory.webp" data-cap="Plate XIV. Attractor memory: recall from a part, two patterns without blends, a pattern written by STDP."><img src="assets/plates/memory-640.webp" srcset="assets/plates/memory-640.webp 640w, assets/plates/memory.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Plate of Hopfield attractor figures: stored patterns on a grid of cells and an energy landscape"></button>
+          <figcaption><b>XIV.</b> Attractor memory. A whole recalled from a part, two memories without blends, a memory written by plasticity.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-zoom="assets/plates/tuning.webp" data-cap="Plate XV. Tuning and decoding: a tuned cell, sharpening, the population vector."><img src="assets/plates/tuning-640.webp" srcset="assets/plates/tuning-640.webp 640w, assets/plates/tuning.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Plate of von Mises tuning curves and a population vector diagram"></button>
+          <figcaption><b>XV.</b> Tuning and decoding. A cell tuned by its inputs, tuning sharpened by competition, a direction read from a crowd.</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- V. SEE IT RUN -->
+<section class="s alt" id="run">
+  <div class="wrap">
+    <p class="kicker">See it run</p>
+    <h2>Real circuits, running bodies</h2>
+    <p class="sub">Captured from the released game, at the speed shown in the corner of each lab. Clips play while they are on screen; with reduced motion turned on they wait for you.</p>
+    <div class="clips">
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/heart-poster.webp" aria-label="The heart level: the drawn heart beats, the ECG scrolls, and heart rate and blood pressure climb as exercise starts">
+          <source src="assets/media/heart.webm" type="video/webm"><source src="assets/media/heart.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 3.</b> The heart. Sympathetic and vagal pools steer a sinoatrial pacemaker; exercise starts and the rate climbs.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/baroreflex-poster.webp" aria-label="The baroreflex level: the body stands up, mean pressure falls on the gauge and the circuit pulls it back into the band">
+          <source src="assets/media/baroreflex.webm" type="video/webm"><source src="assets/media/baroreflex.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 4.</b> The baroreflex. The body stands up, blood pools, pressure falls; the brainstem circuit pulls it back within seconds.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/limb-poster.webp" aria-label="The stretch reflex level: tendon taps stretch the muscle, the spindle afferents fire and the motor pools answer within milliseconds">
+          <source src="assets/media/limb.webm" type="video/webm"><source src="assets/media/limb.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 5.</b> The stretch reflex. A tendon tap stretches the muscle, spindle Ia afferents fire, the motoneurons answer and the antagonist is held off.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/leech-poster.webp" aria-label="The leech heartbeat: two blue heart interneurons inhibit each other and burst in turn, and the motor neurons beneath them follow">
+          <source src="assets/media/leech.webm" type="video/webm"><source src="assets/media/leech.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 6.</b> The leech heartbeat. Two heart interneurons inhibit each other and burst in turn; each releases its own side's motor neuron.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/compass-poster.webp" aria-label="The fly compass: a bump of activity travels round the ring of compass cells as the fly turns in the dark, and the dial follows the heading">
+          <source src="assets/media/compass.webm" type="video/webm"><source src="assets/media/compass.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 7.</b> The fly's compass. A bump of activity moves round a ring of sixteen cells as the fly turns in the dark.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/phase-poster.webp" aria-label="The phase plane of one neuron: nullclines, fixed points and the live trajectory, which settles into a loop of repeated firing after a pulse">
+          <source src="assets/media/phase.webm" type="video/webm"><source src="assets/media/phase.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 8.</b> The phase plane. Nullclines and fixed points from the cell's live parameters; a pulse throws the trajectory onto a firing loop.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/raster-poster.webp" aria-label="The crab pyloric circuit starting up: the spike raster fills in with the triphasic pattern of PD, LP and PY bursts">
+          <source src="assets/media/raster.webm" type="video/webm"><source src="assets/media/raster.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 9.</b> The pyloric rhythm. Conductance-based STG cells start up and the raster fills with the triphasic pattern.</figcaption>
+      </figure>
+      <figure>
+        <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/check-poster.webp" aria-label="CHECK on a hand-built lamprey circuit: the episode is scored headless and a result card lands with a pass, a star and what to try next">
+          <source src="assets/media/check.webm" type="video/webm"><source src="assets/media/check.mp4" type="video/mp4"></video><button class="play" type="button" aria-label="Play the clip"></button></div>
+        <figcaption><b>Fig. 10.</b> CHECK. The episode is scored headless over the level's seeds and the result lands like a stamp.</figcaption>
+      </figure>
+    </div>
+    <p class="more"><a href="wiki/see-it-in-action.html">Every clip and screenshot, with notes &rarr;</a></p>
+  </div>
+</section>
+
+<!-- VI. HONEST BY DESIGN -->
+<section class="s" id="honest">
+  <div class="wrap honest">
+    <div>
+      <p class="kicker">Honest by design</p>
+      <h2>A cheap trick that hits the numbers fails</h2>
+      <ul class="tenets">
+        <li><b>The mechanism is checked, not the output.</b> Every level checks the mechanism it teaches through the circuit's structure: a swim without crossed inhibition does not pass, however well it wiggles.</li>
+        <li><b>A table of cheap circuits must fail.</b> Each level has one, in the test suite, and the reference circuit must pass on several seeds.</li>
+        <li><b>Verdicts carry no numbers.</b> Neither do the first three hint tiers. The verdict says what the circuit did and what is missing.</li>
+        <li><b>Sources are checked.</b> Citations are verified against PubMed with DOIs, and generated histograms are labelled as generated, not as other players.</li>
+      </ul>
+      <figure class="honest-fig">
+        <button class="frame zoom" type="button" data-zoom="assets/media/check-fail.webp" data-cap="A failing CHECK: the verdict names the missing mechanism, not a number to aim for.">
+          <img src="assets/media/check-fail-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The CHECK result card on a lamprey circuit without crossed inhibition: Not passed, left and right are not alternating, the bursts overlap too much">
+        </button>
+        <figcaption><b>Fig. 11.</b> The same lamprey without its crossed inhibition: not passed, and the verdict says why.</figcaption>
+      </figure>
+    </div>
+    <div class="real plate">
+      <p class="runhead">Plate VI of the game <span aria-hidden="true">·</span> Sources and simplifications</p>
+      <h3>What is real here</h3>
+      <p>Spike is built on real neuron models; the bodies and the circuits around them are simplified. A page in the game and in the docs says, layer by layer and level by level, which of five labels applies.</p>
+      <dl class="labels">
+        <div><dt class="tag t-nest">NEST</dt><dd>The equations are NEST's own, unmodified. Checked by golden checksums and PyNEST parity.</dd></div>
+        <div><dt class="tag t-refit">NESTML re-fit</dt><dd>A cell written in NESTML for the game, structure from a paper, numbers adjusted by hand. Not validated against recordings.</dd></div>
+        <div><dt class="tag t-tuned">Tuned in silico</dt><dd>Chosen by sweeping until the level passed: circuit weights, delays, gains, pass bands.</dd></div>
+        <div><dt class="tag t-illus">Illustrative</dt><dd>A body coefficient picked so the module behaves plausibly. Shapes are tested; values are not fitted.</dd></div>
+        <div><dt class="tag t-gen">Generated</dt><dd>Produced by a script: the post-solve histograms are variants of the reference, not players.</dd></div>
+      </dl>
+      <p class="more"><a href="wiki/what-is-real.html">Read What is real, level by level &rarr;</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- VII. SCREENS -->
+<section class="s alt" id="gallery">
+  <div class="wrap">
+    <p class="kicker">Screens</p>
+    <h2>Plates from the game</h2>
+    <p class="sub">Select any screenshot to see it full size; the arrow keys step through them.</p>
+    <ul class="shots">
+      <li><button class="zoom" type="button" data-zoom="assets/media/title.webp" data-cap="The title: Spike, beside procedurally inked Golgi cells."><img src="assets/media/title-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The title screen: the word Spike with a sienna full stop, a numbered menu, and Golgi-stained cells in ink, sienna and blue"><span>Title</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/map-bestiary.webp" data-cap="The Bestiary map: the leech plate with its levels pinned to the nerve cord."><img src="assets/media/map-bestiary-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The campaign map on the leech chapter of the Bestiary, with level labels pinned to the engraved leech"><span>The Bestiary</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/map-theory.webp" data-cap="The Theory map: the dynamics plate, phase planes computed from FitzHugh-Nagumo."><img src="assets/media/map-theory-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The campaign map on the dynamics chapter of the Theory wing, with phase-plane figures and pinned levels"><span>Theory</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/limb.webp" data-cap="The stretch reflex: a joint with spindles and tendon organs, and its angle against the target."><img src="assets/media/limb-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The stretch reflex level: Ia afferent and interneuron pools, a drawn limb with agonist and antagonist muscles and a joint-angle plot"><span>Stretch reflex</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/baroreflex.webp" data-cap="The baroreflex: mean arterial pressure held through standing, lying down and a haemorrhage."><img src="assets/media/baroreflex-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The baroreflex level: a mean pressure gauge near 97 mmHg, an events strip with stand up, lie down and haemorrhage, and the brainstem circuit"><span>Baroreflex</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/compass.webp" data-cap="The fly compass in the dark: the ring, the shifting cells and the heading dial."><img src="assets/media/compass-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The fly compass level: sixteen landmark cue sensors, a ring of compass cells with two rings of shifting cells, and a heading dial"><span>Fly compass</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/crab.webp" data-cap="The crab pyloric rhythm on conductance-based STG cells."><img src="assets/media/crab-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The crab pyloric level: AB, PD, LP and PY cells joined by inhibitory synapses, period and duty-cycle gauges, and the raster"><span>Crab STG</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/phase.webp" data-cap="A neuron that remembers a pulse: the V-w phase plane, live."><img src="assets/media/phase-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The one-neuron switch level of the Theory wing, with the phase plane of the cell above the raster and voltage trace"><span>Phase plane</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/check-pass.webp" data-cap="A hand-built circuit passes CHECK and earns its first star."><img src="assets/media/check-pass-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="A CHECK result card reading Passed, 100, one star, with the next star explained"><span>CHECK</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/lesion.webp" data-cap="The lesion lab: every single cut swept over several seeds."><img src="assets/media/lesion-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The lesion lab with its table of lesions and scores"><span>Lesion lab</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/analysis.webp" data-cap="Analysis: a motif census against degree-preserving rewiring, and spike statistics."><img src="assets/media/analysis-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The Analysis screen: three-node motif counts with z-scores, and per-neuron rates and ISI CV"><span>Analysis</span></button></li>
+      <li><button class="zoom" type="button" data-zoom="assets/media/real.webp" data-cap="What is real, inside the game."><img src="assets/media/real-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The What is real screen: the five labels and the table by layer"><span>What is real</span></button></li>
+    </ul>
+  </div>
+</section>
+
+<!-- VIII. DOWNLOAD -->
+<section class="s" id="download">
+  <div class="wrap dl">
+    <div>
+      <p class="kicker">Download</p>
+      <h2>Free, no account</h2>
+      <p class="sub" id="ver">The latest build is on <a href="https://github.com/ixaxaar/spikes/releases/latest">GitHub Releases</a>.</p>
+      <a class="dlcard plate" id="dl-linux" href="https://github.com/ixaxaar/spikes/releases/latest">
+        <span class="os">Linux</span>
+        <span class="det">x86_64 &middot; zip &middot; glibc 2.39 (Ubuntu 24.04 or newer)</span>
+        <span class="sz" id="dl-size">Extract, then run <code>Spike.x86_64</code></span>
+      </a>
+      <p class="fine">Windows is planned: the missing piece is cross-building NEST. Each release lists its files on GitHub; the game reads and writes only its own folder under <code>~/.local/share</code>.</p>
+    </div>
+    <div>
+      <p class="kicker">Run from source</p>
+      <h2>Build it yourself</h2>
+      <p class="sub">Needs a C++20 compiler, CMake 3.24+, static GSL, Python 3 and Godot 4.7.</p>
+<pre class="code"><code>git clone https://github.com/ixaxaar/spikes
+cd spikes
+scripts/build-all.sh --tests   # NEST (pinned), NESTML cells, engine, extension, tests
+godot --path godot</code></pre>
+      <p class="fine">Or in Docker: <code>docker build -t spike-build . &amp;&amp; docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests</code>. Packaging, tests and custom cells: <a href="https://github.com/ixaxaar/spikes/blob/master/docs/BUILD.md">docs/BUILD.md</a>.</p>
+      <h3 class="h3">A circuit is data</h3>
+      <p>One JSON file that the game, the C++ engine and the Python package all read, so a circuit built in the game runs unchanged in PyNEST, with identical spikes.</p>
+<pre class="code"><code>import spike                           # python/
+net = spike.build("my_circuit.json")   # the file you saved in the game
+spikes = spike.run(net, 1000.0)</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- IX. WIKI -->
+<section class="s alt" id="wiki">
+  <div class="wrap wikicall">
+    <div>
+      <p class="kicker">Read more</p>
+      <h2>The wiki</h2>
+      <p class="sub">How to play, what each wing teaches, the cells in the parts bin, and how the simulation works underneath.</p>
+      <a class="btn ink" href="wiki/">Open the wiki</a>
+    </div>
+    <ol class="toc">
+      <li><a href="wiki/">Start here</a><i>the wiki's index</i></li>
+      <li><a href="wiki/see-it-in-action.html">See it in action</a><i>every clip and screenshot</i></li>
+      <li><a href="wiki/what-is-real.html">What is real</a><i>NEST, re-fitted, tuned, illustrative</i></li>
+      <li><a href="https://github.com/ixaxaar/spikes/blob/master/CHANGELOG.md">Changelog</a><i>what landed, what is known broken</i></li>
+      <li><a href="https://github.com/ixaxaar/spikes">Source on GitHub</a><i>engine, game, Python package</i></li>
+      <li><a href="https://github.com/ixaxaar/spikes/issues">Issues</a><i>bugs, confusions, ideas</i></li>
+    </ol>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <hr class="rule">
+    <div class="cols">
+      <div>
+        <p class="logo" aria-hidden="true">Spike<span>.</span></p>
+        <p class="fig"><b>Fig. ultima.</b> Spiking circuits simulated with <a href="https://www.nest-simulator.org/">NEST</a>, drawn in India ink and Golgi stain. Sienna excites, Prussian blue inhibits.</p>
+      </div>
+      <div>
+        <h2>Play</h2>
+        <ul><li><a href="#download">Download</a></li><li><a href="https://github.com/ixaxaar/spikes/releases">All releases</a></li><li><a href="wiki/">Wiki</a></li><li><a href="wiki/see-it-in-action.html">See it in action</a></li></ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul><li><a href="https://github.com/ixaxaar/spikes">Source</a></li><li><a href="https://github.com/ixaxaar/spikes/blob/master/CHANGELOG.md">Changelog</a></li><li><a href="https://github.com/ixaxaar/spikes/issues">Issues</a></li><li><a href="https://github.com/ixaxaar/spikes/blob/master/docs/WHAT-IS-REAL.md">What is real</a></li></ul>
+      </div>
+      <div>
+        <h2>Type</h2>
+        <ul><li>Fraunces, Atkinson Hyperlegible and IBM Plex Mono, under the <a href="assets/fonts/OFL-Fraunces.txt">SIL Open Font License</a></li></ul>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<dialog class="lb" id="lb" aria-label="Enlarged image">
+  <img id="lb-img" src="data:," alt="">
+  <div class="lbbar">
+    <figcaption id="lb-cap"></figcaption>
+    <button type="button" id="lb-prev" aria-label="Previous image">&larr;</button>
+    <button type="button" id="lb-next" aria-label="Next image">&rarr;</button>
+    <button type="button" id="lb-close">Close</button>
+  </div>
+</dialog>
+
+<script src="app.js" defer></script>
+</body>
+</html>

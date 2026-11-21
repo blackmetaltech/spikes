@@ -1,6 +1,6 @@
 # 🧠 SPIKE — wire neurons, run a body
 
-**[Releases](https://github.com/ixaxaar/spikes/releases)** · **[What is real](docs/WHAT-IS-REAL.md)** · **[Changelog](CHANGELOG.md)** · **[Issues](https://github.com/ixaxaar/spikes/issues)**
+**[Website](https://ixaxaar.github.io/spikes/)** · **[Wiki](https://ixaxaar.github.io/spikes/wiki/)** · **[Releases](https://github.com/ixaxaar/spikes/releases)** · **[What is real](docs/WHAT-IS-REAL.md)** · **[Changelog](CHANGELOG.md)** · **[Issues](https://github.com/ixaxaar/spikes/issues)**
 
 **Build small spiking neural circuits and watch them run a body.** Wire sensory cells to interneurons to motor pools, and a leg kicks, a lamprey swims, a heart speeds up when you stand, a pupil narrows in the light, a worm backs away from a touch. Every neuron is a real [NEST](https://www.nest-simulator.org/) model, simulated live inside the game, in NEST's own names and units (mV, ms, pA, nS, Hz).
 
