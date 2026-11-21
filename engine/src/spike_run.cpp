@@ -70,13 +70,81 @@ static std::string find_circuits_dir( const std::string& given, const std::strin
   return "";
 }
 
+/// Strict number parsing for the command line: the whole token must be a number (no "x", no "12abc"), else false.
+static bool parse_ull( const std::string& tok, unsigned long long& out )
+{
+  if ( tok.empty() or tok[ 0 ] == '-' or tok[ 0 ] == '+' )
+    return false;
+  char* end = nullptr;
+  errno = 0;
+  out = std::strtoull( tok.c_str(), &end, 10 );
+  return errno == 0 and end and *end == '\0';
+}
+
+static bool parse_double( const std::string& tok, double& out )
+{
+  if ( tok.empty() )
+    return false;
+  char* end = nullptr;
+  errno = 0;
+  out = std::strtod( tok.c_str(), &end );
+  return errno == 0 and end and *end == '\0' and std::isfinite( out );
+}
+
+/// True when the JSON text nests brackets deeper than `limit` (a cheap scan, so a hostile file never reaches a recursive walk).
+static bool too_deep( const std::string& text, int limit = 64 )
+{
+  int depth = 0;
+  bool in_str = false, esc = false;
+  for ( char ch : text )
+  {
+    if ( in_str )
+    {
+      if ( esc )
+        esc = false;
+      else if ( ch == '\\' )
+        esc = true;
+      else if ( ch == '"' )
+        in_str = false;
+    }
+    else if ( ch == '"' )
+      in_str = true;
+    else if ( ch == '[' or ch == '{' )
+    {
+      if ( ++depth > limit )
+        return true;
+    }
+    else if ( ch == ']' or ch == '}' )
+      --depth;
+  }
+  return false;
+}
+
+/// Seeds: 1 .. kMaxTaskSeed. The circuit is reseeded with 1000 * seed + its own seed, which NEST accepts up to 2^32 - 1.
+static constexpr unsigned long long kMaxTaskSeed = 4000000ULL;
+
 struct Lesion
 {
   std::string pre, post;
   double factor;
 };
 
+static int run_task_mode_impl( int argc, char** argv );
+
 static int run_task_mode( int argc, char** argv )
+{
+  try
+  {
+    return run_task_mode_impl( argc, argv );
+  }
+  catch ( const std::exception& e )
+  {
+    std::fprintf( stderr, "spike-run: %s\n", e.what() );
+    return 1;
+  }
+}
+
+static int run_task_mode_impl( int argc, char** argv )
 {
   std::string task_id, circuit_file, dir, require, mode, variant;
   std::vector< unsigned long long > seeds, circuit_seeds;
@@ -105,24 +173,54 @@ static int run_task_mode( int argc, char** argv )
     else if ( a == "--variant" and more )
       variant = argv[ ++i ];
     else if ( a == "--threads" and more )
-      threads = std::atoi( argv[ ++i ] );
+    {
+      unsigned long long v = 0;
+      if ( not parse_ull( argv[ ++i ], v ) or v < 1 or v > 1024 )
+      {
+        std::fprintf( stderr, "spike-run: --threads needs a whole number of at least 1\n" );
+        return 2;
+      }
+      threads = static_cast< int >( v );
+    }
     else if ( a == "--jobs" and more )
-      jobs = std::atoi( argv[ ++i ] );
+    {
+      unsigned long long v = 0;
+      if ( not parse_ull( argv[ ++i ], v ) or v > 1024 )
+      {
+        std::fprintf( stderr, "spike-run: --jobs needs a whole number (0 = one per core)\n" );
+        return 2;
+      }
+      jobs = static_cast< int >( v );
+    }
     else if ( a == "--quick" )
       quick = true;
     else if ( ( a == "--seed" or a == "--seeds" ) and more )
     {
       std::stringstream ss( argv[ ++i ] );
       for ( std::string tok; std::getline( ss, tok, ',' ); )
-        if ( not tok.empty() )
-          seeds.push_back( std::strtoull( tok.c_str(), nullptr, 10 ) );
+      {
+        unsigned long long v = 0;
+        if ( not parse_ull( tok, v ) or v < 1 or v > kMaxTaskSeed )
+        {
+          std::fprintf( stderr, "spike-run: seed '%s' is not a whole number from 1 to %llu\n", tok.c_str(), kMaxTaskSeed );
+          return 2;
+        }
+        seeds.push_back( v );
+      }
     }
     else if ( ( a == "--circuit-seed" or a == "--circuit-seeds" ) and more )
     {
       std::stringstream ss( argv[ ++i ] );
       for ( std::string tok; std::getline( ss, tok, ',' ); )
-        if ( not tok.empty() )
-          circuit_seeds.push_back( std::strtoull( tok.c_str(), nullptr, 10 ) );
+      {
+        unsigned long long v = 0;
+        if ( not parse_ull( tok, v ) or v < 1 or v > 4294967295ULL )
+        {
+          std::fprintf( stderr, "spike-run: circuit seed '%s' is not a whole number from 1 to 4294967295\n", tok.c_str() );
+          return 2;
+        }
+        circuit_seeds.push_back( v );
+      }
     }
     else if ( a == "--lesion" and more )
     {
@@ -131,8 +229,11 @@ static int run_task_mode( int argc, char** argv )
       if ( gt == std::string::npos )
         return usage();
       Lesion x{ l.substr( 0, gt ), l.substr( gt + 1, st == std::string::npos ? std::string::npos : st - gt - 1 ), 0.0 };
-      if ( st != std::string::npos )
-        x.factor = std::atof( l.c_str() + st + 1 );
+      if ( st != std::string::npos and not parse_double( l.substr( st + 1 ), x.factor ) )
+      {
+        std::fprintf( stderr, "spike-run: --lesion %s: the factor after '*' is not a number\n", l.c_str() );
+        return 2;
+      }
       lesions.push_back( x );
     }
     else
@@ -150,11 +251,29 @@ static int run_task_mode( int argc, char** argv )
     std::fprintf( stderr, "spike-run: --circuit-seeds needs one value (for every seed) or one per seed (%zu)\n", seeds.size() );
     return 2;
   }
-  if ( not spike::make_task( task_id ) )
+  auto probe = spike::make_task( task_id );
+  if ( not probe )
   {
     std::fprintf( stderr, "spike-run: unknown task '%s'\n", task_id.c_str() );
     return 2;
   }
+  if ( not mode.empty() and mode != "guided" and mode != "standard" and mode != "researcher" )
+  {
+    std::fprintf( stderr, "spike-run: unknown --mode '%s' (guided, standard or researcher)\n", mode.c_str() );
+    return 2;
+  }
+  if ( not variant.empty() )
+  {
+    bool known = probe->variants().count( variant ) > 0;
+    for ( const auto& c : probe->diagnosis().candidates )
+      known = known or c == variant;
+    if ( not known )
+    {
+      std::fprintf( stderr, "spike-run: task '%s' has no variant '%s' (spike-run --list-variants %s lists them)\n", task_id.c_str(), variant.c_str(), task_id.c_str() );
+      return 2;
+    }
+  }
+  probe.reset();
   if ( circuit_file.empty() )
   {
     const std::string rel = spike::reference_circuit( task_id );
@@ -174,25 +293,47 @@ static int run_task_mode( int argc, char** argv )
   }
   std::stringstream buf;
   buf << f.rdbuf();
+  if ( too_deep( buf.str() ) )
+  {
+    std::fprintf( stderr, "spike-run: %s is nested too deeply to be a circuit\n", circuit_file.c_str() );
+    return 2;
+  }
   json base = json::parse( buf.str(), nullptr, false );
   if ( base.is_discarded() or not base.is_object() )
   {
     std::fprintf( stderr, "spike-run: %s is not a JSON circuit\n", circuit_file.c_str() );
     return 2;
   }
+  if ( not base.contains( "seed" ) )
+    base[ "seed" ] = 1;
+  if ( not base[ "seed" ].is_number_integer() )
+  {
+    std::fprintf( stderr, "spike-run: %s: \"seed\" must be an integer\n", circuit_file.c_str() );
+    return 2;
+  }
   for ( const auto& l : lesions )
   {
     bool hit = false;
+    if ( not base.contains( "projections" ) or not base[ "projections" ].is_array() )
+      break;
     for ( auto& p : base[ "projections" ] )
     {
-      if ( p[ "pre" ] != l.pre or p[ "post" ] != l.post )
+      if ( not p.is_object() or p.value( "pre", std::string() ) != l.pre or p.value( "post", std::string() ) != l.post )
         continue;
       hit = true;
-      if ( p.contains( "synapse" ) and p[ "synapse" ].contains( "weight" ) )
-        p[ "synapse" ][ "weight" ] = p[ "synapse" ][ "weight" ].get< double >() * l.factor;
-      if ( p.contains( "edges" ) )
-        for ( auto& e : p[ "edges" ] )
-          e[ 2 ] = e[ 2 ].get< double >() * l.factor;
+      try
+      {
+        if ( p.contains( "synapse" ) and p[ "synapse" ].is_object() and p[ "synapse" ].contains( "weight" ) )
+          p[ "synapse" ][ "weight" ] = p[ "synapse" ][ "weight" ].get< double >() * l.factor;
+        if ( p.contains( "edges" ) )
+          for ( auto& e : p[ "edges" ] )
+            e[ 2 ] = e[ 2 ].get< double >() * l.factor;
+      }
+      catch ( const std::exception& )
+      {
+        std::fprintf( stderr, "spike-run: --lesion %s>%s: this projection's weights are not plain numbers, so they cannot be scaled\n", l.pre.c_str(), l.post.c_str() );
+        return 2;
+      }
     }
     if ( not hit )
       std::fprintf( stderr, "spike-run: warning: lesion %s>%s matched no projection\n", l.pre.c_str(), l.post.c_str() );
@@ -212,7 +353,9 @@ static int run_task_mode( int argc, char** argv )
     const auto seed = seeds[ si ];
     json c = base;
     // default: task seed also reseeds the circuit (1000 * seed + circuit seed); --circuit-seed(s) pins the circuit seed exactly (the live run's)
-    c[ "seed" ] = circuit_seeds.empty() ? 1000 * seed + base.value( "seed", 1 ) : circuit_seeds[ circuit_seeds.size() == 1 ? 0 : si ];
+    c[ "seed" ] = circuit_seeds.empty() ? 1000 * seed + base[ "seed" ].get< unsigned long long >() : circuit_seeds[ circuit_seeds.size() == 1 ? 0 : si ];
+    if ( c[ "seed" ].get< unsigned long long >() > 4294967295ULL or c[ "seed" ].get< unsigned long long >() < 1 )
+      return { { "error", "seed " + std::to_string( seed ) + ": the circuit seed 1000 * seed + " + base[ "seed" ].dump() + " is outside 1 .. 4294967295 (use a smaller --seed)" } };
     spike::Engine e;
     if ( not e.load( c.dump() ) )
       return { { "error", "seed " + std::to_string( seed ) + ": " + e.error() } };
@@ -227,6 +370,8 @@ static int run_task_mode( int argc, char** argv )
     for ( long s = 0; s < steps; ++s )
     {
       task->step( e, 1.0 );
+      if ( not e.last_step_ok() and not e.error().empty() )
+        break;  // a failed step is final: report it instead of running on
       if ( s % 500 == 499 )
         spikes += e.drain_spikes().size();
     }
@@ -374,7 +519,7 @@ static int run_task_mode( int argc, char** argv )
   return 0;
 }
 
-int main( int argc, char** argv )
+static int main_impl( int argc, char** argv )
 {
   if ( argc == 2 and std::string( argv[ 1 ] ) == "--list-tasks" )  // one task id per line, in campaign order
   {
@@ -413,7 +558,15 @@ int main( int argc, char** argv )
   std::vector< SetAt > sets;
   for ( int i = 3; i < argc; ++i )
     if ( std::string( argv[ i ] ) == "--threads" and i + 1 < argc )
-      threads = std::atoi( argv[ ++i ] );
+    {
+      unsigned long long v = 0;
+      if ( not parse_ull( argv[ ++i ], v ) or v < 1 or v > 1024 )
+      {
+        std::fprintf( stderr, "spike-run: --threads needs a whole number of at least 1\n" );
+        return 2;
+      }
+      threads = static_cast< int >( v );
+    }
     else if ( std::string( argv[ i ] ) == "--sample" and i + 1 < argc )
     {
       std::stringstream q( argv[ ++i ] );
@@ -422,13 +575,21 @@ int main( int argc, char** argv )
     else if ( std::string( argv[ i ] ) == "--phase" and i + 1 < argc )
       phase_arg = argv[ ++i ];
     else if ( std::string( argv[ i ] ) == "--every" and i + 1 < argc )
-      every = std::atof( argv[ ++i ] );
+    {
+      if ( not parse_double( argv[ ++i ], every ) or not( every > 0 ) )
+      {
+        std::fprintf( stderr, "spike-run: --every needs a number of ms > 0\n" );
+        return 2;
+      }
+    }
     else if ( std::string( argv[ i ] ) == "--set" and i + 1 < argc )
     {
       const std::string a = argv[ ++i ];
       const size_t c1 = a.find( ':' ), c2 = a.find( '=' );
       if ( c1 == std::string::npos or c2 == std::string::npos ) { std::fprintf( stderr, "spike-run: --set t_ms:channel=value\n" ); return 2; }
-      sets.push_back( { std::atof( a.substr( 0, c1 ).c_str() ), a.substr( c1 + 1, c2 - c1 - 1 ), std::atof( a.substr( c2 + 1 ).c_str() ) } );
+      double t = 0, v = 0;
+      if ( not parse_double( a.substr( 0, c1 ), t ) or not parse_double( a.substr( c2 + 1 ), v ) ) { std::fprintf( stderr, "spike-run: --set t_ms:channel=value needs numbers for t_ms and value\n" ); return 2; }
+      sets.push_back( { t, a.substr( c1 + 1, c2 - c1 - 1 ), v } );
     }
     else
     {
@@ -445,12 +606,22 @@ int main( int argc, char** argv )
   ss << f.rdbuf();
   std::string text = ss.str();
   {  // accept a golden-trace file (engine/tests/golden/*.json) too: run its "circuit"
-    auto j = nlohmann::json::parse( text, nullptr, false );
+    auto j = too_deep( text ) ? nlohmann::json() : nlohmann::json::parse( text, nullptr, false );
     if ( j.is_object() and j.contains( "circuit" ) and not j.contains( "schema_version" ) )
       text = j[ "circuit" ].dump();
   }
-  double ms = std::atof( argv[ 2 ] );
+  double ms = 0;
+  if ( not parse_double( argv[ 2 ], ms ) or not( ms > 0 ) or ms > 1e8 )
+  {
+    std::fprintf( stderr, "spike-run: <ms> must be a number from 0 to 1e8 (got '%s')\n", argv[ 2 ] );
+    return 2;
+  }
 
+  if ( too_deep( text ) )
+  {
+    std::fprintf( stderr, "spike-run: %s is nested too deeply to be a circuit\n", argv[ 1 ] );
+    return 1;
+  }
   spike::set_threads( threads );
   spike::Engine e;
   if ( not e.load( text ) )
@@ -485,12 +656,17 @@ int main( int argc, char** argv )
       {
         st.done = true;
         e.set_input( st.ch, st.v );
+        if ( not e.error().empty() )
+        {
+          std::fprintf( stderr, "spike-run: %s\n", e.error().c_str() );
+          return 1;
+        }
       }
     double dt = ms - done < 1.0 ? ms - done : 1.0;
     dt = std::max( res, std::round( dt / res ) * res );
     e.step( dt );
     done += dt;
-    if ( not e.error().empty() )
+    if ( not e.last_step_ok() )
     {
       std::fprintf( stderr, "spike-run: %s\n", e.error().c_str() );
       return 1;
@@ -517,4 +693,17 @@ int main( int argc, char** argv )
   std::fprintf( stderr, "spike-run: t=%.3f ms spikes=%llu checksum=%016llx dropped=%llu\n", st.t_ms, static_cast< unsigned long long >( st.spikes ),
     static_cast< unsigned long long >( st.checksum ), static_cast< unsigned long long >( e.dropped() ) );
   return 0;
+}
+
+int main( int argc, char** argv )
+{
+  try
+  {
+    return main_impl( argc, argv );
+  }
+  catch ( const std::exception& e )  // bad values must end as a message and exit status 1, never as a core dump
+  {
+    std::fprintf( stderr, "spike-run: %s\n", e.what() );
+    return 1;
+  }
 }
