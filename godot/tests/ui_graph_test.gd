@@ -11,7 +11,7 @@ extends RefCounted
 ## it is listed as XFAIL and the run still passes; if it starts working the run fails until the marker is removed.
 
 const GRAPH := "res://tests/interaction_graph.json"
-const MODALS := ["MoreMenu", "PartsModal", "EndCard", "TestCard", "HistoCard"]   # roots in the lab's overlay layer (FileDlg is a Window)
+const MODALS := ["MoreMenu", "PartsModal", "EndCard", "TestCard", "HistoCard", "ImportModal"]   # roots in the lab's overlay layer (FileDlg is a Window)
 
 var app: Node
 var vp: Viewport
@@ -518,6 +518,7 @@ func _trigger_control(e: Dictionary, world: Dictionary, act: String, ctl: String
 		_:
 			if act.begins_with("press_after:"): await _pre(act.substr(12), from); await _press_id(ctl, from, "edge " + str(e["id"]))
 			elif act.begins_with("select:") or act == "link" or act == "lesion_pick" or act.begins_with("dx:"): await _editor_action(act)
+			elif act.begins_with("script:"): await _editor_script(act.substr(7), str(e["id"]))
 			else: _fail("unknown action '%s'" % act)
 
 func _pre(what: String, from: String) -> void:
@@ -557,6 +558,106 @@ func _editor_action(act: String) -> void:
 			for _i in DiagnosisPanel.REVEAL_AFTER: await _dx_submit(false)   # giving up is offered only after several misses
 			await _press_id("BtnRevealAnswer", "lab.insp.dx", "reveal")
 		_: _fail("unknown editor action '%s'" % act)
+	await _frames(3)
+
+# ---------------------------------------------------------------------------------------------------- editor scripts (undo, zoom, selection, clipboard, slots)
+## A key press through the viewport, as the player types it.
+func _key(code: Key, ctrl := false, shift := false) -> void:
+	for down in [true, false]:
+		var k := InputEventKey.new(); k.keycode = code; k.physical_keycode = code; k.pressed = down; k.ctrl_pressed = ctrl; k.shift_pressed = shift
+		vp.push_input(k)
+	await _frames(2)
+
+func _mouse(pos: Vector2, button: MouseButton, down: bool, shift := false) -> void:
+	var m := InputEventMouseButton.new(); m.position = pos; m.global_position = pos; m.button_index = button; m.pressed = down; m.shift_pressed = shift
+	m.button_mask = (1 << (button - 1)) if down else 0
+	vp.push_input(m, true)
+
+func _click_editor(local: Vector2, shift := false) -> void:
+	var ed := _lab().editor; var pos := ed.get_global_transform_with_canvas() * local
+	var mv := InputEventMouseMotion.new(); mv.position = pos; mv.global_position = pos; vp.push_input(mv, true)
+	_mouse(pos, MOUSE_BUTTON_LEFT, true, shift); _mouse(pos, MOUSE_BUTTON_LEFT, false, shift)
+	await _frames(2)
+
+func _text() -> String: return Circuits.to_json(_lab().circuit)
+
+func _settle() -> void:   # an edit becomes an undo step after a short quiet spell; the lab reloads after 0.3 s
+	await _wait(func(): return _lab().editor._pending < 0.0 and _lab()._dirty < 0.0, 5.0); await _frames(2)
+
+func _confirm_if_asked() -> void:
+	await _frames(2)
+	var yes := _find("BtnConfirmYes", _lab())
+	if yes != null: await _press_control(yes, "confirm")
+	await _settle()
+
+func _editor_script(name: String, eid: String) -> void:
+	var lab := _lab()
+	if lab == null: _fail("not in the lab for script %s" % name); return
+	var ed := lab.editor
+	match name:
+		"undo":
+			await _settle(); var before := _text()
+			await _press_id("BtnExcitatory", "lab.task", eid); await _settle()
+			if _text() == before: _fail("+ Excitatory changed nothing")
+			await _press_id("BtnUndo", "lab.task", eid); await _settle()
+			if _text() != before: _fail("Undo did not give the circuit back byte for byte")
+			await _key(KEY_Z, true, true); await _settle()
+			if Circuits.neuron_count(lab.circuit) == 0 and Circuits.neuron_count(Circuits.parse(before)) == 0: _fail("Ctrl+Shift+Z did not redo")
+			await _key(KEY_Z, true); await _settle()
+			if _text() != before: _fail("Ctrl+Z did not undo the redo")
+		"redo":
+			await _settle(); var n0 := Circuits.neuron_count(lab.circuit)
+			await _press_id("BtnExcitatory", "lab.task", eid); await _settle()
+			await _key(KEY_Z, true); await _settle()
+			if Circuits.neuron_count(lab.circuit) != n0: _fail("Ctrl+Z did not undo the new neuron")
+			await _press_id("BtnRedo", "lab.task", eid); await _settle()
+			if Circuits.neuron_count(lab.circuit) != n0 + 1: _fail("Redo did not bring the neuron back")
+		"zoom_fit":
+			await _settle(); ed._geo(); var s0 := ed.view_scale
+			var pos := ed.get_global_transform_with_canvas() * (ed.size * 0.5)
+			_mouse(pos, MOUSE_BUTTON_WHEEL_UP, true); _mouse(pos, MOUSE_BUTTON_WHEEL_UP, false); await _frames(2)
+			if not ed.view_scale > s0: _fail("the wheel did not zoom in (%s -> %s)" % [s0, ed.view_scale])
+			var o0 := ed.view_off
+			_mouse(pos, MOUSE_BUTTON_MIDDLE, true)
+			var mv := InputEventMouseMotion.new(); mv.position = pos + Vector2(40, 20); mv.global_position = mv.position; mv.button_mask = MOUSE_BUTTON_MASK_MIDDLE; vp.push_input(mv, true)
+			_mouse(pos + Vector2(40, 20), MOUSE_BUTTON_MIDDLE, false); await _frames(2)
+			if ed.view_off.distance_to(o0 + Vector2(40, 20)) > 1.0: _fail("middle-drag did not pan")
+			await _key(KEY_F); ed._geo()
+			if absf(ed.view_scale - s0) > 0.02: _fail("F did not fit (%s, fitted %s)" % [ed.view_scale, s0])
+		"multiselect":
+			while (lab.circuit.get("populations", []) as Array).size() < 2: lab._add_neuron("E")
+			await _settle(); ed.fit(); ed._geo()
+			var a := ed.pop_rect(0).get_center(); var b := ed.pop_rect(1).get_center()
+			await _click_editor(a); await _click_editor(b, true)
+			if ed.selected_pops().size() != 2: _fail("click then shift-click did not select two groups (%s)" % str(ed.selected_pops()))
+			await _click_editor(Vector2(4, 4))   # empty bench: nothing selected
+			if not ed.selected_pops().is_empty(): _fail("a click on the empty bench did not clear the selection")
+			ed._band_select(Rect2(Vector2.ZERO, ed.size), false)
+			if ed.selected_pops().size() != (lab.circuit["populations"] as Array).size(): _fail("a box over the bench did not select every group")
+		"copy_paste":
+			while (lab.circuit.get("populations", []) as Array).size() < 2: lab._add_neuron("E")
+			await _settle(); var n1 := Circuits.neuron_count(lab.circuit); var t1 := _text()
+			ed.grab_focus(); await _key(KEY_A, true); await _key(KEY_C, true); await _key(KEY_V, true); await _settle()
+			if Circuits.neuron_count(lab.circuit) != 2 * n1: _fail("Ctrl+A, Ctrl+C, Ctrl+V did not paste a copy (%d neurons, had %d)" % [Circuits.neuron_count(lab.circuit), n1])
+			await _key(KEY_D, true); await _settle()
+			if Circuits.neuron_count(lab.circuit) != 3 * n1: _fail("Ctrl+D did not duplicate the pasted groups")
+			await _key(KEY_Z, true); await _settle(); await _key(KEY_Z, true); await _settle()
+			if _text() != t1: _fail("two Ctrl+Z did not take the paste and the duplicate back")
+		"slot":
+			if (lab.circuit.get("populations", []) as Array).is_empty(): lab._add_neuron("E")
+			await _settle(); var saved := _text()
+			await _press_id("BtnMore", "lab.task", eid); await _press_id("BtnSaveToA", "lab.more", eid); await _settle()
+			lab._add_neuron("E"); await _settle()
+			await _press_id("BtnMore", "lab.task", eid); await _press_id("BtnLoadA", "lab.more", eid); await _confirm_if_asked()
+			if Circuits.fingerprint(lab.circuit) != Circuits.fingerprint(Circuits.parse(saved)): _fail("Load A did not put the saved circuit back")
+		"json":
+			if (lab.circuit.get("populations", []) as Array).is_empty(): lab._add_neuron("E")
+			await _settle(); var copied := _text()
+			await _press_id("BtnMore", "lab.task", eid); await _press_id("BtnCopyCircuitAsJson", "lab.more", eid); await _settle()
+			lab._add_neuron("E"); await _settle()
+			await _press_id("BtnMore", "lab.task", eid); await _press_id("BtnPasteCircuitJson", "lab.more", eid); await _confirm_if_asked()
+			if Circuits.fingerprint(lab.circuit) != Circuits.fingerprint(Circuits.parse(copied)): _fail("Paste circuit JSON did not put the copied circuit back")
+		_: _fail("unknown editor script '%s'" % name)
 	await _frames(3)
 
 func _dx_submit(right: bool) -> void:
