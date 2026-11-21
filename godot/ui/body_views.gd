@@ -225,11 +225,22 @@ static func _limb(c: Control, t: Telemetry, r: Rect2) -> void:
 	Gfx.dashed(c, PackedVector2Array([el + Vector2(-u * 0.25, 0.0), el + Vector2(u * 1.12, 0.0)]), Color(Kit.TEXT_SOFT, 0.55), 1.4, 6.0, 6.0)
 	var a1 := -ang
 	c.draw_arc(el, u * 0.36, minf(0.0, a1), maxf(0.0, a1), 24, Color(Kit.exc(), 0.9), 2.4, true)
+	# the body the arm belongs to: the trunk and shoulder, behind the arm (the arm never floats on its own)
+	var uw0 := u * 0.115
+	var trunk := PackedVector2Array([sh + Vector2(uw0 * 1.6, -uw0 * 0.4), sh + Vector2(uw0 * 0.6, -uw0 * 1.7), sh + Vector2(-uw0 * 1.4, -uw0 * 2.3), sh + Vector2(-uw0 * 3.6, -uw0 * 2.0),
+		Vector2(maxf(box.position.x, sh.x - uw0 * 4.6), box.end.y), Vector2(sh.x + uw0 * 1.4, box.end.y), sh + Vector2(uw0 * 1.8, uw0 * 1.4)])
+	trunk = Anatomy.closed_spline(trunk, 5)
+	var clipped := Geometry2D.intersect_polygons(trunk, PackedVector2Array([box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]))
+	if not clipped.is_empty():
+		var tp: PackedVector2Array = clipped[0]
+		c.draw_colored_polygon(tp, Color(Anatomy.TISSUE, 0.9)); Gfx.hatch(c, tp, 1.0, 7.0, Color(Gfx.BODY, 0.16), 1.0)
+		var tc := tp.duplicate(); tc.append(tp[0]); c.draw_polyline(tc, Color(Gfx.BODY, 0.6), 1.4, true)
+		c.draw_polyline(PackedVector2Array([sh + Vector2(-uw0 * 0.6, -uw0 * 1.2), sh + Vector2(-uw0 * 3.0, -uw0 * 1.1)]), Color(Anatomy.BONE, 0.5), 2.0, true)   # the clavicle
 	# the arm with its muscles and spindles
 	var res := Anatomy.limb(c, sh, el, hd, {"ag": acts[0], "ant": acts[1], "ia_ag": ias[0], "ia_ant": ias[1], "t": tt})
 	var uw: float = res["uw"]
 	if not small:
-		for lb in [["agonist", res["ag"], Vector2(0.0, -uw * 3.2), Kit.exc(), 0], ["antagonist", res["ant"], Vector2(0.0, uw * 4.6), Kit.inh(), 0], ["spindle Ia", res["ag_aff"], Vector2(-uw * 0.5, -uw * 0.6), Kit.GREEN, 1]]:
+		for lb in [["agonist", res["ag"], Vector2(0.0, -uw * 3.2), Kit.exc(), 0], ["antagonist", res["ant"], Vector2(0.0, uw * 4.6), Specimens.SLATE.darkened(0.3), 0], ["spindle Ia", res["ag_aff"], Vector2(-uw * 0.5, -uw * 0.6), Kit.GREEN, 1]]:
 			var tw: float = Fonts.regular.get_string_size(str(lb[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 6.0   # the box is as wide as the word (a fixed width clipped "antagonist")
 			var at: Vector2 = (lb[1] as Vector2) + (lb[2] as Vector2)
 			if int(lb[4]) == 1: c.draw_string(Fonts.regular, at + Vector2(-tw, 0.0), str(lb[0]), HORIZONTAL_ALIGNMENT_RIGHT, tw, fz, Color(lb[3], 0.9))
@@ -341,7 +352,7 @@ static func _heart(c: Control, t: Telemetry, r: Rect2) -> void:
 	elif d.has("heart_phase") or d.has("beat"): tms = rv(d, "heart_phase", rv(d, "beat")) * 60000.0 / maxf(hr, 20.0)
 	if tms > 2500.0: tms = -1.0
 	var hw := r.size.x * (0.30 if not small else 0.20)
-	var hbox := Rect2(r.position.x, r.position.y + 2.0, hw, r.size.y - strip_h - 4.0)
+	var hbox := Rect2(r.position.x, r.position.y + 12.0, hw, r.size.y - strip_h - 16.0)   # a margin above: the vena cava and carotid stub must not touch the plate's caption
 	var st := {"tms": tms, "t": t.t_ms * 0.001}
 	if d.has("NE") or d.has("ACh"): st["symp"] = clampf(rv(d, "NE"), 0.0, 1.0); st["vagus"] = clampf(rv(d, "ACh"), 0.0, 1.0)
 	Anatomy.heart(c, hbox, st)
@@ -416,7 +427,7 @@ static func _lungs(c: Control, t: Telemetry, r: Rect2) -> void:
 		var tw := (wd - gap * float(tiles.size() - 1)) / float(tiles.size())
 		_tile(c, Rect2(x + (tw + gap) * float(q), y, tw, th), tiles[q][0], tiles[q][1], tiles[q][2], 26 if small else 30)
 	var ey := y + (th + 8.0 if not tiles.is_empty() else 0.0); var er := Rect2(x, ey, wd, r.end.y - strip_h - ey - 2.0)
-	if er.size.y > 36.0: _spark(c, er, hist(t, "volume"), t, 30.0, 0.0, 1.0, Kit.CYAN, "lung volume, last 30 s")
+	if er.size.y > 36.0: _spark(c, er, hist(t, "volume"), t, 30.0, 0.0, 1.0, Kit.INK, "lung volume, last 30 s")
 	if strip_h > 0.0:
 		var extra := []
 		for kk in ["tidal_l", "flow_l_s", "phrenic_drive", "tissue_pco2_mmHg", "chemo_hz"]:
@@ -453,7 +464,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	if not d.has("pupil_mm"): _empty(c, r, "Waiting for pupil_mm in the task's readouts."); return
 	var small := r.size.y < 150.0; var strip_h := 0.0 if small else 30.0
 	var area := Rect2(r.position.x, r.position.y + 2.0, r.size.x * (0.66 if not small else 0.55), r.size.y - strip_h - 4.0)
-	var ew := minf(area.size.x * 0.34, area.size.y * 0.78)
+	var ew := minf(area.size.x * 0.32, area.size.y * 0.56)
 	var ec := Vector2(area.position.x + area.size.x * 0.46, area.get_center().y)
 	var light := clampf(rv(d, "light", 0.5), 0.0, 1.0)
 	for i in 5:   # light rays from the left
@@ -468,7 +479,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	var res := Anatomy.eye(c, ec, ew, {"pupil_mm": rv(d, "pupil_mm"), "sphincter": clampf(sph, 0.0, 1.0), "dilator": clampf(dil, 0.0, 1.0)})
 	if not small:   # callouts on the two muscles
 		var s1: Vector2 = res["sphincter"]; var s2: Vector2 = res["dilator"]
-		var p1 := Vector2(ec.x + ew * 0.45, ec.y - ew * 0.86); var p2 := Vector2(ec.x + ew * 0.45, ec.y + ew * 0.78)
+		var p1 := Vector2(ec.x + ew * 0.45, ec.y - ew * 0.86); var p2 := Vector2(ec.x + ew * 0.45, minf(ec.y + ew * 0.70, area.end.y - float(fz) * 2.0 - 6.0))
 		c.draw_line(s1, p1, Color(Kit.inh(), 0.7), 1.3, true); c.draw_circle(s1, 3.0, Kit.inh())
 		c.draw_line(s2, p2, Color(Kit.exc(), 0.7), 1.3, true); c.draw_circle(s2, 3.0, Kit.exc())
 		c.draw_string(Fonts.bold, p1 + Vector2(4, 0), "sphincter", HORIZONTAL_ALIGNMENT_LEFT, 120.0, fz, Kit.inh())
@@ -481,7 +492,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	c.draw_string(Fonts.bold, Vector2(rr.position.x, y0), "%s mm" % _n(rv(d, "pupil_mm"), 1), HORIZONTAL_ALIGNMENT_LEFT, rr.size.x, big, Kit.TEXT)
 	c.draw_string(Fonts.regular, Vector2(rr.position.x, y0 + float(fz) + 6.0), "pupil diameter", HORIZONTAL_ALIGNMENT_LEFT, rr.size.x, fz, Kit.TEXT_SOFT)
 	var er := Rect2(rr.position.x, y0 + float(fz) * 2.0 + 14.0, rr.size.x, rr.end.y - (y0 + float(fz) * 2.0 + 14.0))
-	if er.size.y > 46.0: _spark(c, er, hist(t, "pupil_mm"), t, 30.0, 0.0, 0.0, Kit.CYAN, "pupil, last 30 s")
+	if er.size.y > 46.0: _spark(c, er, hist(t, "pupil_mm"), t, 30.0, 0.0, 0.0, Kit.INK, "pupil, last 30 s")
 	if strip_h > 0.0:
 		var extra := []
 		for kk in ["light", "luminance_cdm2", "retinal_hz", "sphincter_hz", "dilator_hz", "threat"]:
@@ -503,16 +514,17 @@ static func _gut(c: Control, t: Telemetry, r: Rect2) -> void:
 	for i in 8:
 		if onset(t, "gut%d" % i, float(seg[i]), 0.4, 0.2): GameAudio.body("gut", clampf(0.3 + 0.5 * float(seg[i]), 0.0, 1.0))
 	var ban := _banner(c, t, r)
-	var area := Rect2(r.position.x, r.position.y + 6.0 + ban, r.size.x, r.size.y - strip_h - 8.0 - ban)
+	var leg_h := 0.0 if small else float(fz) + 10.0   # the legend's own line, below the bowel and its segment numbers
+	var area := Rect2(r.position.x, r.position.y + 6.0 + ban, r.size.x, r.size.y - strip_h - 8.0 - ban - leg_h)
 	var res := Anatomy.gut(c, area, {"seg": seg, "ex": ex, "inh": inh, "bolus": rv(d, "bolus"), "t": t.t_ms * 0.001, "labels": not small})
 	var R: float = res["R"]; var x0: float = res["x0"]; var x1: float = res["x1"]
 	if not small:
 		var ly := area.position.y + float(fz) + 2.0
 		c.draw_string(Fonts.regular, Vector2(x0 - R * 0.8, ly), "mouth end", HORIZONTAL_ALIGNMENT_LEFT, 120.0, fz, Kit.TEXT_SOFT)
 		c.draw_string(Fonts.regular, Vector2(x1 - 140.0 + R * 0.8, ly), "far end", HORIZONTAL_ALIGNMENT_RIGHT, 140.0, fz, Kit.TEXT_SOFT)
-		var lx := area.position.x + 12.0; var lyy := area.end.y - float(fz) * 0.6
+		var lx := area.position.x + 12.0; var lyy := area.end.y + leg_h - 2.0
 		c.draw_line(Vector2(lx, lyy - 4.0), Vector2(lx + 20.0, lyy - 4.0), Kit.exc(), 3.0, true); c.draw_string(Fonts.regular, Vector2(lx + 26.0, lyy), "ACh: circular muscle contracts", HORIZONTAL_ALIGNMENT_LEFT, 240.0, fz, Kit.TEXT_SOFT)
-		c.draw_line(Vector2(lx + 270.0, lyy - 4.0), Vector2(lx + 290.0, lyy - 4.0), Kit.CYAN, 3.0, true); c.draw_string(Fonts.regular, Vector2(lx + 296.0, lyy), "NO: it relaxes", HORIZONTAL_ALIGNMENT_LEFT, 200.0, fz, Kit.TEXT_SOFT)
+		c.draw_line(Vector2(lx + 270.0, lyy - 4.0), Vector2(lx + 290.0, lyy - 4.0), Kit.inh(), 3.0, true); c.draw_string(Fonts.regular, Vector2(lx + 296.0, lyy), "NO: it relaxes", HORIZONTAL_ALIGNMENT_LEFT, 200.0, fz, Kit.TEXT_SOFT)
 	if strip_h > 0.0:
 		var extra := [["bolus", "%d%% along" % int(roundf(100.0 * rv(d, "bolus")))]]
 		for kk in ["gut_motility", "bolus_vel", "ACh"]:
@@ -599,7 +611,7 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 		var hd: Vector2 = to.call(clampf(v_now, v_lo, v_hi), clampf(w_now, w_lo, w_hi)); c.draw_circle(hd, 5.5, Kit.GAMBOGE); c.draw_arc(hd, 5.5, 0.0, TAU, 16, Kit.INK, 1.2, true)
 	var txt := ("resting state: " + stable_kind) if stable_kind != "" else "no stable resting state at this current"
 	c.draw_string(Fonts.bold, Vector2(r.position.x + 6.0, r.end.y - 6.0), "current now %s pA   %s" % [String.num(float(pp["i_total"]), 1), txt], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT)
-	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - float(fz) - 12.0), "sienna: voltage nullcline; slate: %s nullcline; ink: the cell's path, gamboge its state now; filled point stable, ring unstable, cross saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - float(fz) - 12.0), "sienna: V nullcline; slate: %s nullcline; ink: the path, gamboge: now; filled: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- rate units (v0.6, Theory wing)
 ## The motor channels of a rate level as scrolling traces on one shared scale: a `rate_value` channel is the mean rate of rate units (arbitrary units, or spikes per second for a siegert
@@ -655,15 +667,14 @@ static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
 		if m.to_lower() in ["i", "inh", "inhibitory"]: col = Kit.inh()
 		elif not e_seen: col = Kit.exc(); e_seen = true
 		else: col = [Kit.INK, Kit.GAMBOGE, Kit.SENSOR][mi % 3]
-		var q := PackedVector2Array(); var acc := 0.0; var na := 0
-		for j2 in ts.size():
+		var q := PackedVector2Array(); var sm_v := 0.0
+		for j2 in ts.size():   # an exponential smoothing with a 12 ms time constant of model time: it takes the jitter off a spiking pool's rate, not the rhythm
 			if j2 >= a.size(): break
-			acc += a[j2]; na += 1
-			if na > 5: acc -= a[j2 - 5]; na = 5
+			sm_v = a[j2] if j2 == 0 else lerpf(sm_v, a[j2], 1.0 - exp(-(ts[j2] - ts[j2 - 1]) / 12.0))
 			if ts[j2] < t0: continue
-			q.append(Vector2(P.position.x + (ts[j2] - t0) / win * P.size.x, P.end.y - clampf((acc / float(na) - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
+			q.append(Vector2(P.position.x + (ts[j2] - t0) / win * P.size.x, P.end.y - clampf((sm_v - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
 		if q.size() >= 2: c.draw_polyline(q, col, 2.2, true)
-		var cur := a[a.size() - 1] if not a.is_empty() else 0.0
+		var cur := sm_v
 		var lab := "%s %s" % [m, ("%d Hz" % int(roundf(cur))) if (kinds.get(m, "") != "rate_value" or mx >= 20.0) else "%.2f" % cur]
 		ends.append([q[q.size() - 1].y if not q.is_empty() else P.end.y, lab, col])
 	ends.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
@@ -672,7 +683,7 @@ static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
 		var yy := maxf(float(e[0]) + 5.0, last_y + float(fz) + 2.0); last_y = yy
 		c.draw_line(Vector2(P.end.x + 2.0, float(e[0])), Vector2(P.end.x + 12.0, yy - 5.0), Color(e[2], 0.6), 1.0, true)
 		c.draw_string(Fonts.bold, Vector2(P.end.x + 14.0, yy), str(e[1]), HORIZONTAL_ALIGNMENT_LEFT, lab_w + 10.0, fz, (e[2] as Color).darkened(0.15))
-	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "the last 3 s; rate units in arbitrary units, spiking pools in spikes per second per cell; sienna excitatory, blue inhibitory", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "the last 3 s; rate units arbitrary, spiking pools in Hz per cell; blue: inhibitory", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- patterns of cells (v0.6, memory chapter)
 ## An engraved cell array per stored pattern (each motor channel's cells, in channel order), as on the Attractor memory plate: every cell an inked ring, its
@@ -733,7 +744,7 @@ static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 			if cued.has(id): c.draw_line(ctr + Vector2(rad * 0.75, -rad * 0.75), ctr + Vector2(rad * 1.15, -rad * 1.15), Kit.SENSOR, 3.0, true)
 		c.draw_string(Fonts.mono, Vector2(frame.position.x, frame.end.y + float(fz) + 4.0), "firing %d of %d" % [lit_n, n], HORIZONTAL_ALIGNMENT_LEFT, gw - 10.0, fz, Kit.TEXT)
 	if not small:
-		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "a cell fills with sienna as it fires; the dashed gamboge frame is the stored pattern; a verdigris tick marks a cell the cue reaches", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "sienna: a cell firing; dashed gamboge: the stored pattern; verdigris tick: a cued cell", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- tuning (v0.6)
 ## The dial, the cells' bars and a single cell's tuning curve: godot/ui/tuning_view.gd.

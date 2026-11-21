@@ -30,9 +30,14 @@ static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 	for ch in t.circuit.get("inputs", []):
 		if str(ch.get("kind", "")) == "tuned_poisson": stim = str(ch.get("name", "")); period = float(ch.get("period_deg", 360.0))
 	var y0 := r.position.y + BodyViews._banner(c, t, r)
-	var area := Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - float(fz) * 2.0 - 16.0)
+	var small := r.size.y < 150.0
+	var nfoot := 0 if small else (2 if period < 359.0 else 1)
+	var foot := (float(fz) + 6.0) * float(nfoot) + 8.0   # the footer lines are reserved before the drawing is laid out, so they never clip
+	var area := Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - foot - float(fz) - 6.0)
 	var rad := maxf(minf(area.size.y * 0.38, area.size.x * 0.2), 28.0); var cc := Vector2(area.position.x + rad + 40.0, area.get_center().y)
-	c.draw_circle(cc, rad + 3.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true)
+	c.draw_circle(cc, rad + 3.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true); c.draw_arc(cc, rad + 4.0, 0.0, TAU, 64, Color(Kit.INK, 0.35), 0.8, true)
+	for k in 72:   # fine graduation, as on an engraved instrument
+		var a := TAU * float(k) / 72.0; var dv := Vector2(cos(a), sin(a)); c.draw_line(cc + dv * rad, cc + dv * (rad - 3.0), Color(Kit.INK, 0.35), 0.8, true)
 	for k in 12:
 		var a := TAU * float(k) / 12.0 - PI * 0.5; var dv := Vector2(cos(a), sin(a))
 		c.draw_line(cc + dv * rad, cc + dv * (rad - (9.0 if k % 3 == 0 else 5.0)), Color(Kit.INK, 0.7), 1.2, true)
@@ -54,7 +59,8 @@ static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 			var st := float(t.sim.output_strength(str(m)))
 			if st > 0.02:
 				var ba := float(t.sim.output_angle(str(m))) - PI * 0.5; var bd := Vector2(cos(ba), sin(ba))
-				c.draw_line(cc, cc + bd * (rad - 6.0) * clampf(st / 0.8, 0.0, 1.0), Kit.CYAN, 5.0, true); c.draw_circle(cc + bd * (rad - 6.0) * clampf(st / 0.8, 0.0, 1.0), 6.0, Kit.CYAN)
+				var tip := cc + bd * (rad - 6.0) * clampf(st / 0.8, 0.0, 1.0)   # the decoded direction: gamboge (blue is for inhibition only)
+				c.draw_line(cc, tip, Color(Gfx.SHEET, 0.9), 6.0, true); c.draw_line(cc, tip, Kit.GAMBOGE, 3.5, true); Gfx.arrow_head(c, tip + bd * 4.0, bd, Kit.GAMBOGE, 11.0)
 	var cells := PackedInt32Array()
 	if not motors.is_empty() and kinds.has(str(motors[0])): cells = kinds[str(motors[0])]["neurons"]
 	var n := cells.size(); var bx := area.position.x + rad * 2.0 + 110.0
@@ -62,15 +68,18 @@ static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 	if not pts.is_empty(): _curve(c, Rect2(bx, area.position.y + float(fz), area.end.x - bx - 12.0, area.size.y - float(fz) * 2.0), pts, period, t, fz)
 	elif n > 0:
 		var bw := (area.end.x - bx - 10.0) / float(maxi(n, 1)); var base := area.end.y - 6.0
-		for k in n:
-			var lit := clampf(float(t.flash[cells[k]]) if cells[k] < t.flash.size() else 0.0, 0.0, 1.0)
-			c.draw_rect(Rect2(bx + bw * float(k) + 2.0, base - lit * area.size.y * 0.8, maxf(bw - 4.0, 2.0), maxf(lit * area.size.y * 0.8, 2.0)), Color(Kit.exc(), 0.3 + 0.7 * lit))
-		c.draw_line(Vector2(bx, base), Vector2(area.end.x - 6.0, base), Kit.INK, 1.2)
-		c.draw_string(Fonts.regular, Vector2(bx, base + float(fz) + 2.0), "cells, in circuit order (preferred angle rises to the right)", HORIZONTAL_ALIGNMENT_LEFT, area.end.x - bx - 8.0, fz, Kit.TEXT_SOFT)
+		for k in n:   # engraved columns: an ink outline, filled with sienna as the cell fires (its spikes in the last 120 ms of model time)
+			var lit := Specimens.cell_act(t, cells[k], 120.0)
+			var br := Rect2(bx + bw * float(k) + 2.0, base - lit * area.size.y * 0.8, maxf(bw - 4.0, 2.0), maxf(lit * area.size.y * 0.8, 1.0))
+			c.draw_rect(br, Color(Kit.exc(), 0.25 + 0.6 * lit))
+			if br.size.y > 3.0: c.draw_rect(br, Color(Kit.INK, 0.7), false, 1.0)
+		c.draw_line(Vector2(bx, base), Vector2(area.end.x - 6.0, base), Kit.INK, 1.4)
+		c.draw_string(Gfx.serif_italic(), Vector2(bx, base + float(fz) + 4.0), "cells, in circuit order (preferred angle rises to the right)", HORIZONTAL_ALIGNMENT_LEFT, area.end.x - bx - 8.0, fz, Kit.TEXT_SOFT)
 	var cap := "ink: the stimulus"
-	if decoded: cap += "; cyan: the decoded direction"
+	if decoded: cap += "; gamboge: the decoded direction"
 	cap += "; " + ("curve: the cell's response to each orientation" if not pts.is_empty() else "bars: each cell's activity")
 	var yb := r.end.y - 6.0
+	if small: return
 	if period < 359.0: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, yb - float(fz) - 4.0), "the full circle is %d° here: an orientation, not a direction" % int(roundf(period)), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, yb), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
