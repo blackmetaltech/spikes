@@ -186,7 +186,12 @@ static void test_stdp_wmax()
   Engine e;
   CHECK_MSG( e.load( c.dump() ), e.error() );
   int rule_ok = 0, edge_ok = 0, given_ok = 0;
-  for ( auto& d : conns_of( "stdp_synapse" ) )
+  // the three projections share (pre, post, model): each connects through its own model copy stdp_synapse__p<i>
+  std::vector< Dictionary > all;
+  for ( const char* m : { "stdp_synapse__p0", "stdp_synapse__p1", "stdp_synapse__p2" } )
+    for ( auto& d : conns_of( m ) )
+      all.push_back( d );
+  for ( auto& d : all )
   {
     const double w = d.get< double >( "weight" ), wm = d.get< double >( "Wmax" );
     if ( w == 7.0 and wm == 14.0 )
