@@ -86,7 +86,8 @@ func _display() -> void:
 	var u := _section("Interface", Kit.inh())
 	_add_row(u, "Layout", Kit.stepper([["auto", "Auto"], ["desktop", "Desktop"], ["handheld", "Handheld"], ["phone", "Phone"]], Settings.layout, func(id): Settings.layout = id; _commit(true)), "Auto picks from the device and window shape (now: %s)." % Layout.kind)
 	_add_row(u, "UI scale", Kit.stepper([["0", "Auto"], ["0.8", "80%"], ["1", "100%"], ["1.25", "125%"], ["1.5", "150%"], ["1.75", "175%"], ["2", "200%"]], _scale_id(), func(id): Settings.ui_scale = float(id); _commit(true)))
-	_add_row(u, "Text size", Kit.stepper([["1", "Normal"], ["1.15", "Large"], ["1.3", "Larger"], ["1.5", "Huge"]], _boost_id(), func(id): Settings.text_boost = float(id); _commit(true)))
+	_add_row(u, "Text size", Kit.stepper([["1", "Normal"], ["1.15", "Large"], ["1.3", "Larger"], ["1.5", "Huge"]], _boost_id(), func(id): Settings.text_boost = float(id); _commit(true)),
+		("UI scale and text size together are held at %d%% in this window, so the lab always fits 1280 x 720." % int(roundf(Settings.max_scale(get_window()) * 100.0))) if Settings.scale_capped(get_window()) else "")
 	var a := _section("Accessibility", Kit.GREEN)
 	_add_row(a, "Reduced motion", Kit.toggle(Settings.reduced_motion, func(v): Settings.reduced_motion = v; _commit()), "No sliding or drifting. Menus fade instead.")
 	_add_row(a, "Colour-blind safe colours", Kit.toggle(Settings.colorblind, func(v): Settings.colorblind = v; _commit(true)), "Sienna and Prussian blue already stay apart for every common colour vision type; this also pulls them apart in lightness.")
@@ -103,10 +104,45 @@ func _game() -> void:
 	_log_note = Kit.label("", 17, Kit.TEXT_SOFT, true); l.add_child(_log_note)
 	var br := HBoxContainer.new(); br.add_theme_constant_override("separation", 12); l.add_child(br)
 	br.add_child(Kit.btn("EXPORT JSON", func(): _export_log(), "panel", 22, Vector2(200, 0)))
-	br.add_child(Kit.btn("CLEAR", func(): Playlog.clear(); _log_refresh(), "panel", 22, Vector2(130, 0)))
+	br.add_child(Kit.btn("CLEAR", func(): ConfirmCard.ask(self, "Clear the play log?", "All %d recorded events are deleted. Your progress is not touched." % Playlog.count(), "Clear", func(): Playlog.clear(); _log_refresh()), "panel", 22, Vector2(130, 0)))
 	_log_refresh()
+	var sv := _section("Save and logs", Kit.inh())
+	sv.add_child(Kit.label("Progress, settings, goals, the play log and every circuit you have on a bench live in %s. Each file is written safely and keeps three backups." % ProjectSettings.globalize_path("user://"), 17, Kit.TEXT, true))
+	_save_note = Kit.label("", 17, Kit.TEXT_SOFT, true); sv.add_child(_save_note)
+	var sb := HFlowContainer.new(); sb.add_theme_constant_override("h_separation", 12); sb.add_theme_constant_override("v_separation", 8); sv.add_child(sb)
+	sb.add_child(Kit.btn("Export save", _export_save, "panel", 22))
+	sb.add_child(Kit.btn("Import save", _import_dialog, "panel", 22))
+	sb.add_child(Kit.btn("Open log folder", func(): OS.shell_open(SaveIO.log_dir()), "panel", 22))
+	sb.add_child(Kit.btn("Reset progress", func(): ConfirmCard.ask(self, "Reset all progress?", "Every star, score and unlock goes. Your circuits stay. The old progress file is kept next to the new one (progress.cfg.reset-...), so it can be put back by hand.", "Reset progress", _reset_progress, true), "danger", 22))
 
 var _mode_note: Label
+var _save_note: Label
+var _import_dlg: FileDialog
+func _say(msg: String) -> void:
+	if _save_note != null and is_instance_valid(_save_note): _save_note.text = msg
+
+func _export_save() -> void:
+	var dir := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	if dir == "" or not DirAccess.dir_exists_absolute(dir): dir = ProjectSettings.globalize_path("user://")
+	var path := dir.path_join("spike-save-%s.zip" % Time.get_datetime_string_from_system().replace(":", "").replace("-", ""))
+	var err := SaveIO.export_zip(path)
+	_say(("Saved to " + path) if err == "" else "Could not export: " + err)
+
+func _import_dialog() -> void:
+	if _import_dlg == null:
+		_import_dlg = FileDialog.new(); Kit.ident(_import_dlg, "ImportDlg"); _import_dlg.access = FileDialog.ACCESS_FILESYSTEM; _import_dlg.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_import_dlg.filters = PackedStringArray(["*.zip ; Spike save"]); _import_dlg.title = "Import save"; add_child(_import_dlg)
+		_import_dlg.file_selected.connect(func(p): ConfirmCard.ask(self, "Replace your save?", "Progress, settings, goals, the play log and circuits are replaced by the ones in %s. The files they replace keep their backups." % p.get_file(), "Import", func(): _do_import(p), true))
+	_import_dlg.popup_centered_clamped(Vector2i(900, 560), 0.9)
+
+func _do_import(p: String) -> void:
+	var err := SaveIO.import_zip(p)
+	if err == "": Progress.reload(); Settings.load_all(); Settings.apply(get_window()); app.relayout(); _say("Imported " + p.get_file() + ".")
+	else: _say("Nothing was imported: " + err)
+
+func _reset_progress() -> void:
+	var moved := Progress.reset()
+	_say("Progress reset." + ((" The old file is kept at " + moved) if moved != "" else ""))
 var _log_note: Label
 func _log_refresh(msg := "") -> void:
 	if _log_note == null or not is_instance_valid(_log_note): return

@@ -34,11 +34,14 @@ var _kind := ""
 
 func _ready() -> void:
 	if OS.get_environment("SP_BUDGET_US") != "": Telemetry.budget_us = int(OS.get_environment("SP_BUDGET_US"))
+	SaveIO.warn_hook = _show_notice   # a damaged save, a read-only disk: said once, with the path
 	Settings.load_all()
 	# --- audio init (item H): GameAudio.* helpers are no-ops until this exists ---
 	add_child(GameAudio.new())
 	# --- end audio init ---
 	Settings.apply(get_window()); Settings.write_log(get_window())
+	var runner_note := _ensure_runner_exec()
+	if runner_note != "": SaveIO.notice(runner_note, "runner")
 	Layout.update(get_window())
 	_kind = Layout.kind
 	get_window().content_scale_factor = Settings.effective_ui_scale(get_window())
@@ -92,8 +95,16 @@ func _shot() -> void:
 	print("SHOT ", OS.get_environment("SP_SHOT"), " ", img.get_size(), " err=", err)
 	get_tree().quit()
 
+## Everything that is only in memory goes to disk: the open circuit, the play log. Called on the window's close request, on Quit and when a phone pauses the app.
+func flush_all() -> void:
+	var lab := screen as LabScreen if screen is LabScreen else null
+	if lab != null: lab.flush_on_close()
+	Playlog.leave(); Playlog.flush()
+	SaveIO.log_line("closing")
+
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT: Settings.focused = false; Settings.apply_fps()
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED: flush_all()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT: Settings.focused = false; Settings.apply_fps()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN: Settings.focused = true; Settings.idle = false; Settings.apply_fps()
 
 func _input(e: InputEvent) -> void:
@@ -163,6 +174,7 @@ func hint_refresh() -> void:
 
 ## B / Esc: let the screen handle it, else go to the screen it came from.
 func back() -> void:
+	if ConfirmCard.dismiss(): return
 	if screen != null and screen.on_back(): return
 	if cur == "analysis": open_lab(analysis_task, false, true); return
 	if cur == "real": show_screen(real_back if SCREENS.has(real_back) else "title", true); return
@@ -183,7 +195,31 @@ func open_analysis(c: Dictionary, t: Telemetry, task: String) -> void:
 func open_real(from: String) -> void:
 	real_back = from; show_screen("real")
 
-func quit_game() -> void: get_tree().quit()
+func quit_game() -> void: flush_all(); get_tree().quit()
+
+# ---------- notices (SaveIO), the runner's executable bit ----------
+var _notice_box: PanelContainer
+func _show_notice(msg: String) -> void:
+	if ui == null: return
+	if _notice_box == null or not is_instance_valid(_notice_box):
+		_notice_box = PanelContainer.new(); Kit.ident(_notice_box, "SaveNotice"); _notice_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_notice_box.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.RED, 2, 12, 14, true))
+		var l := Kit.label("", 17, Kit.TEXT, true); l.mouse_filter = Control.MOUSE_FILTER_IGNORE; l.name = "Msg"; _notice_box.add_child(l)
+		ui.add_child(_notice_box); _notice_box.z_index = 200
+		_notice_box.set_anchors_preset(Control.PRESET_TOP_WIDE); _notice_box.offset_left = 120.0; _notice_box.offset_right = -120.0; _notice_box.offset_top = 10.0
+	(_notice_box.get_node("Msg") as Label).text = msg; _notice_box.visible = true
+	get_tree().create_timer(20.0).timeout.connect(func(): if _notice_box != null and is_instance_valid(_notice_box): _notice_box.visible = false)
+
+## CHECK runs the bundled spike-run next to the game. A zip that lost its executable bit (some unzippers, some file managers) would make Check fail with no hint:
+## set the bit when we can, say so plainly when we cannot. Returns "" or the message.
+func _ensure_runner_exec() -> String:
+	for p in [OS.get_executable_path().get_base_dir().path_join("spike-run"), ProjectSettings.globalize_path("res://bin/spike-run")]:
+		if not FileAccess.file_exists(p): continue
+		var perm := FileAccess.get_unix_permissions(p)
+		if perm & 0x49 == 0x49: return ""
+		if FileAccess.set_unix_permissions(p, perm | 0x1ED) == OK: SaveIO.log_line("set the executable bit on " + p); return ""
+		return "Check cannot run: %s is not executable and the game could not change that. In a terminal: chmod +x \"%s\"" % [p, p]
+	return ""
 
 # ---------- smoke test ----------
 var _fails := 0

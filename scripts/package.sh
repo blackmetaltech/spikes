@@ -28,6 +28,9 @@ cp -f build/gd-release/engine/spike-run godot/bin/spike-run 2>/dev/null || true
 if ldd godot/bin/libspike_gd_release.so godot/bin/spike-run | grep -i gsl; then echo "FAIL: GSL is linked dynamically" >&2; exit 1; fi
 
 rm -rf "$out"; mkdir -p "$out"
+# the build id the title shows (res://build_id.txt, packed by the export; gitignored)
+{ git rev-parse --short HEAD 2>/dev/null || echo dev; } | tr -d '\n' > godot/build_id.txt
+if ! git diff --quiet HEAD -- 2>/dev/null; then printf -- '-dirty' >> godot/build_id.txt; fi
 godot --headless --path godot --import >/dev/null 2>&1 || true
 godot --headless --path godot --export-release "Linux x86_64" "$root/$out/Spike.x86_64" 2>&1 | tee build/export.log | grep -E "ERROR|error" || true
 [ -x "$out/Spike.x86_64" ] && [ -f "$out/Spike.pck" ] || { echo "FAIL: export produced no binary/pck (build/export.log)" >&2; exit 1; }
@@ -44,7 +47,11 @@ echo "zip: $(du -h "$zip_path" | cut -f1)  $zip_path"
 # ---------------- smoke test of the zip ----------------
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 mkdir "$tmp/game" "$tmp/home"; unzip -q "$zip_path" -d "$tmp/game"
-chmod +x "$tmp/game/Spike.x86_64" "$tmp/game/spike-run"
+# the executable bits must come out of the zip as they are (no chmod here: a zip that loses them is a broken zip)
+for f in Spike.x86_64 spike-run; do
+  unzip -Z "$zip_path" "$f" | grep -q '^-rwx' || { echo "FAIL: $f is not executable inside the zip" >&2; exit 1; }
+  [ -x "$tmp/game/$f" ] || { echo "FAIL: $f is not executable after unzip" >&2; exit 1; }
+done
 clean() { env -i PATH=/usr/bin:/bin HOME="$tmp/home" LANG=C.UTF-8 "$@"; }
 log=$tmp/smoke.log; fail=0
 cd "$tmp/game"   # not the repo: nothing outside the zip is visible via ../

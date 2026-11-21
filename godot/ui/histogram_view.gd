@@ -88,18 +88,18 @@ static var _goals_loaded := false
 static func _gload() -> void:
 	if _goals_loaded: return
 	_goals_loaded = true
-	var c := ConfigFile.new()
-	if c.load(GOALS_PATH) != OK: return
+	var c := SaveIO.load_cfg(GOALS_PATH, "Your goals file")
+	if c == null: return
 	for k in c.get_section_keys("goals"): _goals[k] = float(c.get_value("goals", k))
 static func goal_of(task: String, m: String) -> float: _gload(); return float(_goals.get(task + ":" + m, NAN))
 static func set_goal(task: String, m: String, v: float) -> void:
 	_gload()
 	if is_nan(v): _goals.erase(task + ":" + m)
 	else: _goals[task + ":" + m] = v
-	if Settings.no_save or OS.has_environment("SP_NOAUTOSAVE"): return
+	if not SaveIO.enabled(): return
 	var c := ConfigFile.new()
 	for k in _goals: c.set_value("goals", k, _goals[k])
-	c.save(GOALS_PATH)
+	SaveIO.save_cfg(GOALS_PATH, c)
 
 # ---------- view ----------
 ## `raw`: the metric's entry of the distributions file ({} = none). unit / lower_is_better fall back to the file's, then to `unit_in` / `lower_in`.

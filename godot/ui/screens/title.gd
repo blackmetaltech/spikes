@@ -48,11 +48,14 @@ func build() -> void:
 	var foot := VBoxContainer.new(); foot.anchor_left = 0.0; foot.anchor_right = 1.0; foot.anchor_top = 1.0; foot.anchor_bottom = 1.0
 	foot.offset_left = mx; foot.offset_right = -int(80 * f) if not phone else -24; foot.offset_bottom = -int(26 * f) if not phone else -6
 	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN; foot.add_theme_constant_override("separation", int(10 * f) if not phone else 4); add_child(foot)
+	if not SaveIO.notices.is_empty():   # a damaged or newer save, a read-only disk: said here, with where the file is
+		var nl := Kit.ident(Kit.label("\n".join(SaveIO.notices.slice(-3)), 17 if not phone else 15, Kit.RED, true), "SaveNotices") as Label
+		nl.custom_minimum_size.x = 200.0; nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; foot.add_child(nl)
 	var rule := ColorRect.new(); rule.color = Kit.TEXT; rule.custom_minimum_size.y = 2; rule.mouse_filter = Control.MOUSE_FILTER_IGNORE; foot.add_child(rule)
 	var fr := HBoxContainer.new(); fr.add_theme_constant_override("separation", 24); foot.add_child(fr)
 	var cap := "A, pyramidal cell; a, excitatory neuron (Golgi stain); b, basket interneuron, inhibitory. Simulated with NEST." if not phone else "A, pyramidal cell; a, excitatory; b, basket cell, inhibitory."
 	var fc := Kit.fig_caption(1, cap, 19 if not phone else 18); fc.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fr.add_child(fc)
-	var ver := Kit.mono("v%s · Godot %s" % [str(ProjectSettings.get_setting("application/config/version", "dev")), Engine.get_version_info().string.get_slice("-", 0)], 15, Kit.TEXT_SOFT)
+	var ver := Kit.mono("v%s · build %s · Godot %s" % [str(ProjectSettings.get_setting("application/config/version", "dev")), SaveIO.build_id(), Engine.get_version_info().string.get_slice("-", 0)], 15, Kit.TEXT_SOFT)
 	ver.size_flags_vertical = Control.SIZE_SHRINK_END; fr.add_child(ver)
 
 func _press(id: String) -> void:

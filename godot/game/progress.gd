@@ -45,10 +45,27 @@ static func _load() -> void:
 		if OS.get_environment("SP_MODE") in MODES: _mode = OS.get_environment("SP_MODE")
 		for k in _best: _best[k]["modes"] = {_mode: {"value": _best[k]["value"], "passed": _best[k]["passed"], "stars": _best[k]["stars"]}}
 		return
-	var c := ConfigFile.new()
-	if c.load(PATH) != OK: return
-	for k in c.get_section_keys("best"): _best[k] = c.get_value("best", k)
+	var c := SaveIO.load_cfg(PATH, "Your progress file")   # damaged: its backup, else quarantined and saving off (SaveIO)
+	if c == null: return
+	for k in c.get_section_keys("best"):
+		var v: Variant = c.get_value("best", k)
+		if v is Dictionary: _best[k] = v
 	var m := str(c.get_value("meta", "mode", "standard")); _mode = m if m in MODES else "standard"
+
+## Forget what was loaded and read the file again (after a save import).
+static func reload() -> void:
+	_loaded = false; _best = {}; _mode = "standard"; _load(); Campaign.refresh()
+
+## Reset progress: the old file is moved aside (progress.cfg.reset-<time>), not deleted; the game starts from nothing.
+static func reset() -> String:
+	_load()
+	var moved := ""
+	if SaveIO.enabled():
+		moved = SaveIO.quarantine(PATH, "reset")
+		for i in range(1, SaveIO.BACKUPS + 1): SaveIO.remove_all(PATH + ".bak%d" % i)   # (remove_all of a backup name removes just that file)
+		SaveIO.readonly.erase(PATH); SaveIO.status.erase(PATH)
+	_best = {}; _mode = "standard"; Campaign.refresh()
+	return moved
 
 static func best(task: String) -> Dictionary:
 	_load()
@@ -101,11 +118,27 @@ static func record_variant(task: String, variant: String) -> void:
 	_best[task] = b; _save(); Playlog.event("variant_pass", {"task": task, "variant": variant})
 
 static func _save() -> void:
-	if Settings.no_save or OS.has_environment("SP_NOAUTOSAVE") or OS.get_environment("SP_PROGRESS") != "": return
+	if not SaveIO.enabled(): return
 	var c := ConfigFile.new()
 	for k in _best: c.set_value("best", k, _best[k])
 	c.set_value("meta", "mode", _mode)
-	c.save(PATH)
+	SaveIO.save_cfg(PATH, c)
+
+# ---- diagnosis cases (docs/DESIGN-0.3.md section 6): wrong picks, probes and Reveal are part of the save, so leaving the case and coming back does not wipe them ----
+## {tries, probes, probed:{key:true}, wrong:[candidate], revealed}. `revealed` is for good: the case then counts for at most one star.
+static func dx_state(task: String) -> Dictionary:
+	var d: Dictionary = best(task).get("dx", {})
+	return {"tries": int(d.get("tries", 0)), "probes": int(d.get("probes", 0)), "probed": (d.get("probed", {}) as Dictionary).duplicate() if d.get("probed", {}) is Dictionary else {},
+		"wrong": (d.get("wrong", []) as Array).duplicate() if d.get("wrong", []) is Array else [], "revealed": bool(d.get("revealed", false))}
+static func dx_put(task: String, st: Dictionary) -> void:
+	if task == "": return
+	_load(); var b := best(task)
+	b["dx"] = {"tries": int(st.get("tries", 0)), "probes": int(st.get("probes", 0)), "probed": st.get("probed", {}), "wrong": st.get("wrong", []), "revealed": bool(st.get("revealed", false))}
+	_best[task] = b; _save()
+static func dx_revealed(task: String) -> bool: return bool(dx_state(task)["revealed"])
+## The case was solved: the next visit starts with no wrong picks and no probes (the reveal flag stays).
+static func dx_solved(task: String) -> void:
+	var st := dx_state(task); st["tries"] = 0; st["probes"] = 0; st["probed"] = {}; st["wrong"] = []; dx_put(task, st)
 
 ## The task's own par (Task::par_neurons) when the engine gives one, else the 0.1 table.
 static func budget(task: String) -> int:
