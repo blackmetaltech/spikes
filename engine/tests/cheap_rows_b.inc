@@ -94,6 +94,10 @@ CHEAP_ROW_V( "m_reciprocal", "reference without the inhibitory interneuron's lin
 CHEAP_ROW_V( "m_reciprocal", "interneuron link left excitatory", "inhibitory", cheap::from_ref( "m_reciprocal", cheap::cut( "IN", "MN_E", -0.5 ) ) );
 CHEAP_ROW_V( "m_reciprocal", "ia_flexor cut from the interneuron", "interneuron", cheap::from_ref( "m_reciprocal", only_ia_to( "ia_flexor", "MN_F" ) ) );
 
+// the removed "every weight at an extreme" row, replaced: the level owns drive and kick (their weight scales them), so the extreme that could cheat is a bench WITHOUT the loop
+// whose motoneurons are driven into saturation (a saturated cell's rate cannot rise with the kick), and the same with the inhibitory half of the loop cut.
+CHEAP_ROW( "m_recurrent", "no loop, drive and kick at an extreme weight (saturated cells)", cheap::from_ref( "m_recurrent", cheap::all( maxw, cheap::cut( "RC", "MN" ), cheap::cut( "MN", "RC" ) ) ) );
+CHEAP_ROW( "m_recurrent", "Renshaw link back cut, every other weight at an extreme", cheap::from_ref( "m_recurrent", cheap::both( maxw, cheap::cut( "RC", "MN" ) ) ) );
 CHEAP_ROW_V( "m_recurrent", "reference without the Renshaw cells' link back", "inhibit", cheap::from_ref( "m_recurrent", cheap::cut( "RC", "MN" ) ) );
 CHEAP_ROW_V( "m_recurrent", "reference without the motoneurons driving the Renshaw cells", "drive", cheap::from_ref( "m_recurrent", cheap::cut( "MN", "RC" ) ) );
 CHEAP_ROW_V( "m_recurrent", "Renshaw cells set excitatory (wrong sign)", "inhibit", cheap::from_ref( "m_recurrent", cheap::cut( "RC", "MN", -1.0 ) ) );
