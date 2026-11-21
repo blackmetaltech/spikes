@@ -2,6 +2,7 @@
 // (lin_rate_ipn with rate_connection_instantaneous, rate_drive input, rate_value output, no spike recorder on them), siegert_neuron with a diffusion_connection (J, K),
 // the tuned_poisson input and the spike-triggered average.
 #include <cmath>
+#include <random>
 #include <string>
 #include <vector>
 #include "check.h"
@@ -216,8 +217,54 @@ static void test_sta()
   }
   auto r = theory::spike_triggered_average( s, 1.0, sp, 5.0, 2.0 );
   CHECK( r.n_used == 8 && r.mean.size() == 8 );
-  CHECK( std::fabs( r.mean[ 5 - 1 ] - 1.0 ) < 1e-12 && std::fabs( r.mean[ 5 - 2 ] - 0.5 ) < 1e-12 && std::fabs( r.mean[ 5 ] ) < 1e-12 );
+  // mean-subtracted: the stimulus average (8 * 1.5 / 1000) is taken off every sample of the average
+  CHECK( std::fabs( r.stim_mean - 0.012 ) < 1e-12 );
+  CHECK( std::fabs( r.mean[ 5 - 1 ] - ( 1.0 - r.stim_mean ) ) < 1e-12 && std::fabs( r.mean[ 5 - 2 ] - ( 0.5 - r.stim_mean ) ) < 1e-12 && std::fabs( r.mean[ 5 ] + r.stim_mean ) < 1e-12 );
   CHECK( theory::spike_triggered_average( s, 1.0, { 1.0, 999.0 }, 5.0, 2.0 ).n_used == 0 );
+}
+
+static void test_sta_lif_noise()
+{
+  // a leaky integrate-and-fire cell driven by Gaussian white noise (about its threshold current, sd large enough to fire it irregularly): the spike-triggered average, with the stimulus mean
+  // taken off, has a positive lobe in the tens of milliseconds before the spike (the cell integrates the recent past), is about zero long before it and has no lobe after it.
+  json c = one_cell( "iaf_psc_alpha", json::object() );
+  c[ "inputs" ][ 0 ][ "weight" ] = 1.0;
+  Engine e;
+  CHECK_MSG( e.load( c.dump() ), e.error() );
+  std::mt19937_64 rng( 7919 );
+  std::normal_distribution< double > nd( 0.0, 1.0 );
+  const double mu = 330.0, sd = 120.0;
+  std::vector< double > stim, spikes;
+  for ( int k = 0; k < 20000; ++k )
+  {
+    const double u = mu + sd * nd( rng );
+    e.set_input( "cur", u );
+    stim.push_back( u );
+    e.step( 1.0 );
+    for ( const auto& s : e.drain_spikes() ) spikes.push_back( s.t_ms );
+  }
+  const auto r = theory::spike_triggered_average( stim, 1.0, spikes, 80.0, 10.0 );
+  CHECK_MSG( r.n_used >= 100, "the cell fired " + std::to_string( r.n_used ) + " times under the noise" );
+  CHECK( std::fabs( r.stim_mean - mu ) < 5.0 && std::fabs( r.stim_sd - sd ) < 5.0 );
+  auto avg = [ & ]( int a, int b ) {   // mean of the average from a ms to b ms before the spike
+    double m = 0;
+    for ( int j = a; j <= b; ++j ) m += r.mean[ static_cast< size_t >( 80 - j ) ];
+    return m / ( b - a + 1 );
+  };
+  const double se = r.stim_sd / std::sqrt( static_cast< double >( r.n_used ) );   // what one bin of the average wanders by chance
+  const double lobe = avg( 1, 15 ), far = avg( 40, 80 );
+  double after = 0;
+  for ( int j = 1; j <= 10; ++j ) after += r.mean[ static_cast< size_t >( 80 + j ) ] / 10.0;
+  std::printf( "STA of a LIF under noise: %d spikes, lobe (1-15 ms before) %.1f pA, far (40-80 ms) %.1f pA, after %.1f pA, stimulus sd %.1f, chance %.1f\n", r.n_used, lobe, far, after, r.stim_sd, se );
+  CHECK_MSG( lobe > 3.0 * se, "no positive lobe before the spike: " + std::to_string( lobe ) );
+  CHECK_MSG( r.mean[ 79 ] > 5.0 * se, "the last millisecond before the spike is not above average: " + std::to_string( r.mean[ 79 ] ) );
+  CHECK_MSG( std::fabs( far ) < 2.0 * se, "the average is not back at zero long before the spike: " + std::to_string( far ) );
+  CHECK_MSG( std::fabs( after ) < 2.0 * se, "the average is not at zero after the spike: " + std::to_string( after ) );
+  // the peak of the lobe sits in the last tens of ms, not at the far end
+  int arg = 0;
+  for ( size_t k = 0; k < r.mean.size(); ++k )
+    if ( r.mean[ k ] > r.mean[ static_cast< size_t >( arg ) ] ) arg = static_cast< int >( k );
+  CHECK_MSG( arg >= 65 && arg <= 80, "the lobe peaks " + std::to_string( 80 - arg ) + " ms before the spike" );
 }
 
 int main()
@@ -228,5 +275,6 @@ int main()
   test_siegert_projection();
   test_tuned_poisson();
   test_sta();
+  test_sta_lif_noise();
   return chk::finish( "test_theory" );
 }
