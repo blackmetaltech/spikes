@@ -376,6 +376,8 @@ int main( int argc, char** argv )
     const int n = neuron_count( ref );
     if ( id == "m_pacemaking" )  // the lab opens on a plain cell: finding the pacemaker card in the parts bin is the puzzle
       CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == "sa_node_pacemaker" && microlab::part_of( t->default_model() ).model == "iaf_psc_alpha", id + ": the lab must open on a plain cell, the reference is the SA node cell" );
+    else if ( id == "m_half_centre" )  // the lab opens on a plain cell (nothing wears a side out): switching to the adaptive cell is the puzzle
+      CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == "aeif_cond_alpha" && microlab::part_of( t->default_model() ).model == "iaf_psc_alpha", id + ": the lab must open on a plain cell, the reference is the adaptive cell" );
     else
       CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == microlab::part_of( t->default_model() ).model, id + ": default_model " + t->default_model() + " is the reference's first cell type" );
     CHECK_MSG( n >= 1 && n <= 4, id + " reference has " + std::to_string( n ) + " neurons" );
@@ -646,12 +648,15 @@ int main( int argc, char** argv )
     reads( "m_half_centre", { "inhibit each other", "drive", "left", "right", "wear" } );
     State s;
     s.knob( "drive", microlab::sensor_weight( *make_task( "m_half_centre" ), "drive", microlab::part_of( make_task( "m_half_centre" )->default_model() ) ) );
-    s.knob( "link", lab_w( "m_half_centre" ) );
+    s.knob( "link", 1.0 );   // a multiple of the first-connection weight of the cell in use (80 pA on the plain cell, 8 nS on the adaptive one the lab offers when the player changes the part)
     novice[ "m_half_centre" ] = play( "m_half_centre", s,
       []( const State& s ) {
-        const json extra = s.f.count( "adapting" ) ? ADAPT_PRESET() : json::object();
-        return Bench( "m_half_centre" ).cell( "N1", 1, extra ).cell( "N2", 1, extra ).sense( "drive", { "N1", "N2" }, s( "drive" ) ).out( "left", { "N1" } ).out( "right", { "N2" } )
-          .proj( "N1", "N2", -s( "link" ) ).proj( "N2", "N1", -s( "link" ) ).c;
+        const bool ad = s.f.count( "adapting" ) > 0;
+        const double w = s( "link" ) * microlab::part_of( ad ? "aeif_cond_alpha" : "iaf_psc_alpha" ).weight;
+        Bench b( "m_half_centre" );
+        if ( ad ) b.pop( "N1", "aeif_cond_alpha", 1, ADAPT_PRESET() ).pop( "N2", "aeif_cond_alpha", 1, ADAPT_PRESET() );
+        else b.cell( "N1" ).cell( "N2" );
+        return b.sense( "drive", { "N1", "N2" }, s( "drive" ) ).out( "left", { "N1" } ).out( "right", { "N2" } ).proj( "N1", "N2", -w ).proj( "N2", "N1", -w ).c;
       },
       [ & ]( State& s, const std::string& v ) {
         if ( says( v, "adapting preset" ) && !s.f.count( "adapting" ) ) s.f.insert( "adapting" );
@@ -683,12 +688,14 @@ int main( int argc, char** argv )
     reads( "m_neuromodulation", { "vagus", "vagal", "pacemaker cell on 'beat'" } );
     State s;
     s.knob( "n", 1.0, 64.0 );
+    s.knob( "w", microlab::sensor_weight( *make_task( "m_neuromodulation" ), "vagus", microlab::part_of( make_task( "m_neuromodulation" )->default_model() ) ) );
     novice[ "m_neuromodulation" ] = play( "m_neuromodulation", s,
       [ & ]( const State& s ) {
-        return Bench( "m_neuromodulation" ).cell( "N1", static_cast< int >( std::lround( s( "n" ) ) ) ).pop( "N2", "sa_node_pacemaker" ).sense( "vagus", { "N1" } ).out( "beat", { "N2" } ).out( "vagal", { "N1" }, MODACH ).c;
+        return Bench( "m_neuromodulation" ).cell( "N1", static_cast< int >( std::lround( s( "n" ) ) ) ).pop( "N2", "sa_node_pacemaker" ).sense( "vagus", { "N1" }, s( "w" ) ).out( "beat", { "N2" } ).out( "vagal", { "N1" }, MODACH ).c;
       },
       [ & ]( State& s, const std::string& v ) {
-        if ( says( v, "too much" ) || says( v, "fewer cells" ) ) s.k[ "n" ].down( 2 );
+        if ( says( v, "strengthen the vagus" ) ) s.k[ "w" ].up( 1.6 );
+        else if ( says( v, "too much" ) || says( v, "fewer cells" ) ) s.k[ "n" ].down( 2 );
         else if ( says( v, "more cells" ) ) s.k[ "n" ].up( 2 );
       } );
   }
@@ -745,6 +752,8 @@ int main( int argc, char** argv )
   {
     std::printf( "  %-20s %s after %d run%s\n", k.c_str(), pl.solved ? "solved" : "NOT SOLVED", pl.runs, pl.runs == 1 ? "" : "s" );
     if ( !pl.solved ) unsolved.insert( k );
+    if ( k.rfind( "m_", 0 ) == 0 )
+      CHECK_MSG( pl.runs >= 2, k + ": the untouched lab default passes on the first run, so nothing is learned (curriculum: the default must fail with a verdict that names the concept)" );
   }
   // the honest list: levels this novice cannot solve are named here, so that a change that makes one solvable (or one unsolvable) shows up
   const std::set< std::string >& expected_unsolved = kNoviceUnsolved;

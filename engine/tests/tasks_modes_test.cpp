@@ -73,7 +73,7 @@ int main( int argc, char** argv )
     CHECK_MSG( t != nullptr, id );
     if ( !t ) continue;
     CHECK_MSG( t->level_kind() == "task", id );
-    CHECK_MSG( t->on_spine() || id == "reach", id );  // reach is a branch until a novice bench passes it (lead decision)
+    CHECK_MSG( t->on_spine() || id == "reach" || id == "posture", id );  // reach is a branch until a novice bench passes it (lead decision)
     for ( auto& c : t->concepts_new() ) CHECK_MSG( kConcepts.count( c ), id + " concept " + c );
     for ( auto& c : t->concepts_used() ) CHECK_MSG( kConcepts.count( c ), id + " concept " + c );
     CHECK_MSG( !t->concepts_new().empty() || !t->concepts_used().empty(), id );

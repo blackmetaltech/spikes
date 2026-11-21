@@ -134,6 +134,15 @@ public:
     }
     return best;
   }
+  /// The cells of population `p` carry an adaptation current of their own (the adaptive exponential cells with the jump b on, an Izhikevich cell with its recovery jump,
+  /// the spike-triggered conductances of the sfa cell, the threshold steps of the mat2 cells, the kernels of the gif cells). Whether it adapts ENOUGH is behaviour.
+  bool adaptive( int p ) const
+  {
+    const std::string& m = pop( p ).model;
+    auto on = [ & ]( const char* k, bool default_on ) { const double v = param( p, k ); return std::isnan( v ) ? default_on : v > 0; };
+    return ( m.rfind( "aeif", 0 ) == 0 && on( "b", true ) ) || ( m == "izhikevich" && on( "d", true ) ) || ( m.rfind( "iaf_cond_exp_sfa_rr", 0 ) == 0 && ( on( "q_sfa", true ) || on( "q_rr", true ) ) ) ||
+           ( m.rfind( "gif_", 0 ) == 0 ) || ( ( m == "mat2_psc_exp" || m == "amat2_psc_exp" ) && ( on( "alpha_1", false ) || on( "alpha_2", false ) ) );
+  }
   /// Value of a numeric parameter the player set on a population (nan when the card's own value is used).
   double param( int i, const std::string& name ) const
   {

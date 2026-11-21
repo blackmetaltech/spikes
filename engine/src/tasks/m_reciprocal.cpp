@@ -53,11 +53,11 @@ public:
     i.concepts_used = { "excitation", "inhibition" };
     i.par_neurons = 3;
     i.default_model = "iaf_psc_alpha";
-    i.recipe = "tone onto a flexor group and an extensor group (2 cells each; the first connection sets 300 pA per unit, which "
-               "is right). ia_flexor onto the flexor group (the stretch adds 600 pA) and onto an interneuron group of 2 cells "
-               "set to inhibitory, which projects to the extensor group at the default weight (-80 pA); raise it to about -160 "
-               "pA if the extensor does not fall silent.";
-    i.kinds = { { "tone", dc( kTone ) }, { "ia_flexor", dc( kIa ) }, { "flexor", rate() }, { "extensor", rate() } };
+    i.recipe = "tone onto a flexor group and an extensor group (2 cells each; the lab starts the tone sensor at 450 pA per unit; "
+               "300 is gentler, and the recipe below works at either). ia_flexor onto the flexor group (the stretch adds 600 pA) and onto an interneuron group of 2 cells "
+               "set to inhibitory, which projects to the extensor group at about -640 pA at the lab's 450 (the default -80 pA is far too weak; with the tone at 300, "
+               "-160 is enough).";
+    i.kinds = { { "tone", dc( kTone, 450.0 ) }, { "ia_flexor", dc( kIa ) }, { "flexor", rate() }, { "extensor", rate() } };
     i.bands = { { "extensor_vs_rest", "", 0.0, 0.3 } };
     i.timeline = { { kOn, kOff - kOn, "flexor stretched" } };
     i.concept_hint = "Reciprocal inhibition: the afferent of a stretched muscle excites that muscle and, through an inhibitory interneuron, "

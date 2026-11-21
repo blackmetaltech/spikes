@@ -164,6 +164,7 @@ protected:
     readouts_[ "cue" ] = lvl_;
     readouts_[ "rate_hz" ] = rate_now_;
     readouts_[ "rest_hz" ] = rest_.rate_hz( pool_ );
+    readouts_[ "cue_over_rest" ] = rest_.rate_hz( pool_ ) > 0 ? cue_.rate_hz( pool_ ) / rest_.rate_hz( pool_ ) : 0.0;
   }
 
 private:
