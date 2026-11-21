@@ -3,13 +3,15 @@ extends VBoxContainer
 ## The diagnosis case card (docs/DESIGN-0.3.md section 6): a working circuit with a hidden lesion and the patient's symptoms. The player probes it with the scopes
 ## and the lesion lab, forms a hypothesis from the candidate list, submits it, and gets the reveal with the explanation. The panel only draws; the lab keeps the
 ## state dictionary and the live view:
-##   state = {picked: String, tries: int, solved: bool, gave_up: bool}
+##   state = {picked: String, tries: int, probes: int, solved: bool, gave_up: bool, verdict: String, score: float}
 ## and answers the signals. `dx` is Task::diagnosis() ({circuit, symptoms, candidates, answer, labels, explain}: plain-language name and authored "why not" per candidate); `note` is Task::notebook() ({title, text, citation}), the reveal's explanation.
+## SCORING (0.5): the case is scored on what it took: 100 minus a cost for every wrong guess and for every probe (a scope opened, a cut tried, a lesion re-run) beyond the first few, with a floor.
+## A wrong pick says only that it is not that one: the reasons (`explain`) appear on the result card, once the case is solved or revealed.
 
 signal picked(cand: String)
 signal submit_pressed
-## Wrong submissions before "Reveal answer" is offered (one wrong pick is not a reason to give up).
-const REVEAL_AFTER := 2
+## Wrong submissions before "Reveal answer" is offered (probing comes first; giving up is for after several misses).
+const REVEAL_AFTER := 3
 signal reveal_pressed
 signal lesion_lab_pressed
 
@@ -28,6 +30,9 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	var pr := HFlowContainer.new(); pr.add_theme_constant_override("h_separation", 8); pr.add_theme_constant_override("v_separation", 6); add_child(pr)
 	pr.add_child(Kit.ident(Kit.btn("LEAVE LESION LAB" if lesion_lab_on else "LESION LAB", func(): lesion_lab_pressed.emit(), "amber" if lesion_lab_on else "cyan", 18), "BtnLesionLab"))
 	pr.add_child(Kit.label("Scopes on the right; click a group to trace it." if Layout.phone else "Probes: every candidate connection is drawn, but one of them is dead. Watch which groups fire and which do not answer; or open the lesion lab and cut a suspected connection: a working one changes the symptoms or the activity downstream, the dead one changes nothing. Then name the lesion.", fs - 1, Kit.TEXT_SOFT, true))
+	if not done:
+		var pn := int(state.get("probes", 0)); var wn := int(state.get("tries", 0))
+		add_child(Kit.ident(Kit.label("Used so far: %d probe%s (the first 3 are free), %d wrong guess%s. Each wrong guess and each probe beyond the free ones lowers the score of the case." % [pn, "" if pn == 1 else "s", wn, "" if wn == 1 else "es"], fs - 1, Kit.AMBER, true), "DxUsed"))
 	# candidates
 	add_child(Kit.label("Which connection is missing or lesioned?", fs, Kit.TEXT))
 	var answer := str(dx.get("answer", ""))
@@ -48,9 +53,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 		var sb := Kit.btn("SUBMIT DIAGNOSIS", func(): state["last_submitted"] = str(state.get("picked", "")); submit_pressed.emit(), "green", 20); sb.disabled = str(state.get("picked", "")) == ""; br.add_child(sb)
 		if int(state.get("tries", 0)) >= REVEAL_AFTER: br.add_child(Kit.btn("REVEAL ANSWER", func(): reveal_pressed.emit(), "panel", 18))   # not after the first wrong pick: probing comes first
 		if int(state.get("tries", 0)) >= 1:
-			var pk := str(state.get("last_submitted", ""))   # the wrong answer just submitted (not a pick made since)
-			var why := str(explain.get(pk, ""))
-			add_child(Kit.label("Not that one (%d wrong so far)." % int(state.get("tries", 0)) + ((" " + why) if why != "" else ""), fs, Kit.RED, true))
+			add_child(Kit.label("Not that one (%d wrong so far)." % int(state.get("tries", 0)), fs, Kit.RED, true))
 			add_child(Kit.label("Probe again: watch the groups at both ends of each candidate, or cut it in the lesion lab; a working connection changes something, the dead one does not.", fs - 1, Kit.TEXT_SOFT, true))
 		return self
 	var ok := bool(state.get("solved", false))
@@ -58,7 +61,21 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	var rv := VBoxContainer.new(); rv.add_theme_constant_override("separation", 4); rc.add_child(rv)
 	rv.add_child(Kit.shout("CORRECT" if ok else "THE ANSWER", 28 if not Layout.phone else 22, Kit.GREEN if ok else Kit.AMBER))
 	rv.add_child(Kit.label("The lesion: %s." % (str(labels.get(answer, "")) if str(labels.get(answer, "")) != "" else Circuits.candidate_text(answer)), fs, Kit.TEXT, true))
-	if str(explain.get(answer, "")) != "": rv.add_child(Kit.label(str(explain[answer]), fs, Kit.TEXT_SOFT, true))
+	var pn := int(state.get("probes", 0)); var wn := int(state.get("tries", 0))
+	var tally := "Used: %d probe%s (the first 3 are free), %d wrong guess%s." % [pn, "" if pn == 1 else "s", wn, "" if wn == 1 else "es"]
+	if ok: tally = "Score %d of 100.  " % int(roundf(float(state.get("score", 0.0)))) + tally   # the engine's verdict says it in words (no digits); the numbers are shown here
+	rv.add_child(Kit.ident(Kit.label(tally, fs, Kit.AMBER, true), "DxTally"))
+	if str(state.get("verdict", "")) != "": rv.add_child(Kit.ident(Kit.label(str(state["verdict"]), fs, Kit.TEXT_SOFT, true), "DxResult"))
+	if (not ok or str(state.get("verdict", "")) == "") and str(explain.get(answer, "")) != "": rv.add_child(Kit.label(str(explain[answer]), fs, Kit.TEXT_SOFT, true))
+	# why each of the other candidates does not fit: shown only now, never after a wrong pick
+	var others := []
+	for cand in dx.get("candidates", []):
+		if str(cand) != answer and str(explain.get(str(cand), "")) != "": others.append(str(cand))
+	if not others.is_empty():
+		rv.add_child(Kit.label("Why not the others", fs, Kit.TEXT))
+		for cs in others:
+			var pl := str(labels.get(cs, "")); var nm := _cap(pl) if pl != "" else _cap(Circuits.candidate_text(cs))
+			rv.add_child(Kit.label("%s: %s" % [nm, str(explain[cs])], fs - 1, Kit.TEXT_SOFT, true))
 	if str(note.get("text", "")) != "":
 		rv.add_child(Kit.label(str(note.get("title", "")), fs, Kit.TEXT))
 		rv.add_child(Kit.label(str(note["text"]), fs, Kit.TEXT_SOFT, true))

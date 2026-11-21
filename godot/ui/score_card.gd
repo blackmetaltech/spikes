@@ -25,6 +25,8 @@ func _draw() -> void:
 	var c := Vector2(60, size.y * 0.5 - 4.0); var r := minf(46.0, size.y * 0.5 - 10.0)
 	var sc: Dictionary = tele.score if tele != null else {}
 	var v := float(sc.get("value", 0.0)); var passed := bool(sc.get("passed", false)); var has_task := tele != null and tele.task != null
+	var built := has_task and tele.sim != null   # nothing runs on an empty bench: its "score" is the task's reading of silence, not a result, so the card shows none
+	if has_task and not built: v = 0.0; passed = false; sc = {}
 	if not passed: v = minf(v, 99.0)   # 100 is a pass: a run that is still short of it (or failed on a band) never reads 100, not even rounded up
 	v = floorf(v) if not passed else roundf(v)
 	var col := Kit.GREEN if passed else (Kit.exc() if v >= 40.0 else Kit.RED)
@@ -40,11 +42,11 @@ func _draw() -> void:
 			var a := PI * 1.08 + PI * 0.84 * float(i) / 10.0; var d := Vector2(cos(a), sin(a))
 			draw_line(gc + d * gr, gc + d * (gr - (8.0 if i % 5 == 0 else 4.5)), Color(Kit.INK, 0.8), 1.2 if i % 5 == 0 else 1.0, true)
 		draw_arc(gc, gr - 2.0, PI * 1.08 + PI * 0.84 * 0.95, PI * 1.92, 8, Kit.GREEN, 4.0, true)
-		if has_task:
+		if built:
 			var na := PI * 1.08 + PI * 0.84 * clampf(v / 100.0, 0.0, 1.0); var nd := Vector2(cos(na), sin(na))
 			draw_line(gc, gc + nd * (gr - 6.0), col.darkened(0.1), 2.2, true); draw_circle(gc, 4.0, Kit.INK)
 		var big := Kit.fs(26)
-		draw_string(Fonts.display_heavy, gc + Vector2(-r, big * 0.9), "%d" % int(v) if has_task else "-", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, big, Kit.TEXT)
+		draw_string(Fonts.display_heavy, gc + Vector2(-r, big * 0.9), "%d" % int(v) if built else "-", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, big, Kit.TEXT)
 	if has_task and tele.task != null:   # earned stars under the number
 		var st := int(Progress.best(str(tele.task.id()))["stars"])
 		for k in 3: draw_star(Vector2(c.x + (float(k) - 1.0) * 17.0, size.y - 11.0), 7.0, Kit.GAMBOGE if k < st else Color(Kit.LINE, 0.9))

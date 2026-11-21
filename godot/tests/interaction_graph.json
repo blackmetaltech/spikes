@@ -633,7 +633,7 @@
   },
   "lab.insp.dx": {
    "kind": "panel",
-   "label": "Diagnosis case card: symptoms, candidates, submit",
+   "label": "Diagnosis case card: symptoms, candidates, submit (shows probes and wrong guesses used)",
    "detect": {
     "screen": "lab",
     "view": "dx"
@@ -683,7 +683,7 @@
   },
   "lab.dx.revealed": {
    "kind": "state",
-   "label": "Diagnosis: answer revealed after two wrong tries",
+   "label": "Diagnosis: answer revealed after three wrong tries",
    "detect": {
     "screen": "lab",
     "dx": "revealed"
@@ -1841,7 +1841,7 @@
     "level": "$dx",
     "unlock_all": true
    },
-   "guard": "after two wrong answers",
+   "guard": "after three wrong answers",
    "dx_only": true
   },
   {
