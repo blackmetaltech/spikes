@@ -82,7 +82,8 @@ func _draw() -> void:
 					run.append(p); _flush(run, run_out); run = PackedVector2Array()
 				run_out = out; run.append(p)
 			_flush(run, run_out)
-			var cur := arr[arr.size() - 1]
+			var cur := tele.display(name) if tele != null else arr[arr.size() - 1]   # the same 500 ms mean as the gauge and the motor bar
+			if is_nan(cur): cur = arr[arr.size() - 1]
 			var tw := f.get_string_size(_num(cur), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 10.0
 			draw_rect(Rect2(Vector2(r.end.x - tw - 2.0, r.position.y + 2.0), Vector2(tw, float(fz) + 6.0)), Color(Gfx.SHEET, 0.9))
 			draw_string(fb, Vector2(r.end.x - tw + 3.0, r.position.y + float(fz) + 2.0), _num(cur), HORIZONTAL_ALIGNMENT_LEFT, tw, fz, Kit.RED if (cur < lo or cur > hi) else Kit.TEXT)
@@ -95,6 +96,7 @@ func _draw() -> void:
 		draw_line(Vector2(x, strip.end.y), Vector2(x, span_bottom), Color(Kit.LINE, 0.4), 1.0)
 		draw_string(f, Vector2(minf(x - 24.0, size.x - 50.0), size.y - 6.0), "%ds" % int(roundf(tt)), HORIZONTAL_ALIGNMENT_CENTER, 48.0, fz, Kit.TEXT_SOFT)
 		tt += tick
+	if nb > 0: draw_string(Gfx.serif_italic(), Vector2(10, size.y - 6.0), "0.5 s mean", HORIZONTAL_ALIGNMENT_LEFT, x0 - 40.0, fz, Kit.TEXT_SOFT)
 	var cx := x0 + w * clampf(tnow / dur, 0.0, 1.0)
 	draw_line(Vector2(cx, strip.position.y - 2.0), Vector2(cx, span_bottom), Color(Kit.exc(), 0.95), 2.0, true)
 	draw_circle(Vector2(cx, strip.position.y - 1.0), 3.5, Kit.exc())
