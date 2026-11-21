@@ -418,6 +418,15 @@
  "meta": {
   "author": "spike",
   "task": "dx_orthostatic",
-  "notes": "docs/circuits/dx_orthostatic.md"
+  "notes": "docs/circuits/dx_orthostatic.md",
+  "dx_types": [
+   "E",
+   "E",
+   "E",
+   "E",
+   "I",
+   "E",
+   "E"
+  ]
  }
 }

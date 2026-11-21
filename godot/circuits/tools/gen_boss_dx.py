@@ -5,6 +5,7 @@ the missing connection is the one whose cell is silent although its source fires
 Run from anywhere:  python3 circuits/tools/gen_boss_dx.py [dx_clonus ...]
 Lesion ids are the lesion lab's: 'pre>post' (all projections pre -> post), several joined with '+'. Cases: docs/circuits/dx_*.md."""
 import json, os, sys
+import dx_types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(HERE, ".."))
@@ -46,6 +47,7 @@ def main():
         c = lesion(c, lid)
         c["name"] = "Patient circuit: " + cid[3:]
         c["meta"] = {"author": "spike", "task": cid, "notes": f"docs/circuits/{cid}.md"}
+        dx_types.annotate(c, json.load(open(os.path.join(OUT, ref))))
         with open(os.path.join(OUT, cid + ".json"), "w") as f:
             json.dump(c, f, indent=1)
             f.write("\n")

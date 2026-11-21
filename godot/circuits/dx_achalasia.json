@@ -866,7 +866,15 @@
  "meta": {
   "author": "spike",
   "task": "dx_achalasia",
-  "notes": "docs/circuits/dx_achalasia.md"
+  "notes": "docs/circuits/dx_achalasia.md",
+  "dx_types": [
+   "E",
+   "E",
+   "E",
+   "E",
+   "E",
+   "E"
+  ]
  },
  "record": {
   "spikes": "all"

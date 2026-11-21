@@ -163,6 +163,12 @@
  "meta": {
   "author": "spike",
   "task": "dx_leech",
-  "notes": "docs/circuits/bestiary_a.md"
+  "notes": "docs/circuits/bestiary_a.md",
+  "dx_types": [
+   "I",
+   "I",
+   "I",
+   "I"
+  ]
  }
 }

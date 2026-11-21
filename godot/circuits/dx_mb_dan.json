@@ -1366,6 +1366,13 @@
  "meta": {
   "author": "spike",
   "task": "dx_mb_dan",
-  "notes": "docs/circuits/bestiary_b.md"
+  "notes": "docs/circuits/bestiary_b.md",
+  "dx_types": [
+   "E",
+   "E",
+   "I",
+   "E",
+   "E"
+  ]
  }
 }

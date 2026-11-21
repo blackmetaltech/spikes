@@ -397,6 +397,16 @@
  "meta": {
   "author": "spike",
   "task": "dx_vagal",
-  "notes": "docs/circuits/dx_vagal.md"
+  "notes": "docs/circuits/dx_vagal.md",
+  "dx_types": [
+   "I",
+   "E",
+   "I",
+   "E",
+   "E",
+   "E",
+   "I",
+   "E"
+  ]
  }
 }
