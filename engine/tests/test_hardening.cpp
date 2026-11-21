@@ -128,7 +128,7 @@ static void test_budgets()
   c = base();
   c[ "populations" ][ 0 ][ "model" ] = "butera_burster";
   c[ "inputs" ][ 0 ][ "value" ] = 5000.0;
-  CHECK_MSG( has( load_error( c ), "2000 pA" ), load_error( c ) );
+  CHECK_MSG( has( load_error( c ), "1000 pA" ), load_error( c ) );
   c = base();
   c[ "populations" ][ 1 ][ "model" ] = "sa_node_pacemaker";
   c[ "projections" ][ 0 ][ "synapse" ][ "weight" ] = 1e8;
