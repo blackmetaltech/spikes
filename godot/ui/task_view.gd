@@ -184,7 +184,7 @@ func _draw_worm_charts(font: Font, fz: int, c: Vector2, rad: float) -> void:
 	if left_w > 110.0:   # the two sensory cells as engraved bars, hatched in their stain
 		var x0 := 28.0; var top := 70.0; var h := size.y - 150.0
 		for k in 2:
-			var hz := float(ro.get("ASEL_hz" if k == 0 else "ASER_hz", 5.0)); var col := Kit.exc() if k == 0 else Kit.inh()
+			var hz := float(ro.get("ASEL_hz" if k == 0 else "ASER_hz", 5.0)); var col := Kit.exc() if k == 0 else Kit.SENSOR
 			var bx := x0 + k * 62.0; var u := clampf((hz - 5.0) / 400.0, 0.0, 1.0)
 			var fr := Rect2(bx, top + h * (1.0 - u), 22, h * u)
 			draw_rect(Rect2(bx, top, 22, h), Color("#FBF7EE"))
@@ -221,7 +221,7 @@ func _draw_water(font: Font, fz: int) -> void:
 			var prev := s0
 			for k in range(1, 7):   # a short wavy engraver's stroke
 				var q := s0 + Vector2(L * float(k) / 6.0, sin(float(k) * 1.2) * 1.6); waves.append(prev); waves.append(q); prev = q
-	if waves.size() > 1: draw_multiline(waves, Color(Kit.INH, 0.22), 1.0, true)
+	if waves.size() > 1: draw_multiline(waves, Color(Specimens.SLATE, 0.22), 1.0, true)
 	var tl := w2s(Vector2(_bounds.position.x, _bounds.end.y)); var br := w2s(Vector2(_bounds.end.x, _bounds.position.y))
 	draw_rect(Rect2(tl, br - tl), Color(Kit.INK, 0.55), false, 1.2)
 	var s0b := w2s(Vector2(0, _bounds.end.y)); var s1 := w2s(Vector2(0, _bounds.position.y))
@@ -275,8 +275,8 @@ func _draw_worm(pts: PackedVector2Array, ro: Dictionary) -> void:
 	var h := sp[0]; var dir := (sp[0] - sp[mini(6, sp.size() - 1)]).normalized(); var nrm := dir.orthogonal()
 	var l := clampf((float(ro.get("ASEL_hz", 5.0)) - 5.0) / 150.0, 0.0, 1.0); var r := clampf((float(ro.get("ASER_hz", 5.0)) - 5.0) / 150.0, 0.0, 1.0)
 	var pl := h + dir * W * 0.9 - nrm * W * 0.55; var pr := h + dir * W * 0.9 + nrm * W * 0.55   # left of heading = -orthogonal (screen y down)
-	Gfx.wash(self, pl, W * (1.0 + 1.6 * l), Kit.exc(), 0.15 + 0.5 * l, 3); Gfx.wash(self, pr, W * (1.0 + 1.6 * r), Kit.inh(), 0.15 + 0.5 * r, 4)
-	Gfx.soma(self, pl, W * 0.36, Kit.exc(), 11, l, 0.0, false); Gfx.soma(self, pr, W * 0.36, Kit.inh(), 12, r, 0.0, false)
+	Gfx.wash(self, pl, W * (1.0 + 1.6 * l), Kit.exc(), 0.15 + 0.5 * l, 3); Gfx.wash(self, pr, W * (1.0 + 1.6 * r), Kit.SENSOR, 0.15 + 0.5 * r, 4)
+	Gfx.soma(self, pl, W * 0.36, Kit.exc(), 11, l, 0.0, false); Gfx.soma(self, pr, W * 0.36, Kit.SENSOR, 12, r, 0.0, false)
 	var fz := Kit.fs(14)
 	draw_string(Gfx.mono(), Vector2(14, size.y - 24), "worm ×%.0f   ASEL %d Hz   ASER %d Hz   dist %.1f mm" % [mag, int(float(ro.get("ASEL_hz", 0))), int(float(ro.get("ASER_hz", 0))), float(ro.get("dist_mm", 0))], HORIZONTAL_ALIGNMENT_LEFT, size.x - 28, fz, Kit.TEXT_SOFT)
 
@@ -303,7 +303,7 @@ func _draw_lamprey(pts: PackedVector2Array, ro: Dictionary) -> void:
 	# muscle activation: the contracting flank is washed with its pool's stain (left motor pool: left side of travel)
 	var rl := clampf(float(ro.get("rate_left", 0.0)) / 40.0, 0.0, 1.0); var rr := clampf(float(ro.get("rate_right", 0.0)) / 40.0, 0.0, 1.0)
 	Gfx.tube(self, sp, func(u): return W * _width_u(u, "fish") * 0.95, Color(Kit.exc(), 0.08 + 0.62 * rl), -1.0)
-	Gfx.tube(self, sp, func(u): return W * _width_u(u, "fish") * 0.95, Color(Kit.inh(), 0.08 + 0.62 * rr), 1.0)
+	Gfx.tube(self, sp, func(u): return W * _width_u(u, "fish") * 0.95, Color(Specimens.SLATE, 0.08 + 0.62 * rr), 1.0)
 	# myomere chevrons, finely inked
 	for k in range(1, 22):
 		var i := int(float(k) / 22.0 * (sp.size() - 1)); var u := float(i) / float(sp.size() - 1)

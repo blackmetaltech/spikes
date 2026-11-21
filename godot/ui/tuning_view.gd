@@ -2,7 +2,7 @@ class_name TuningView
 extends RefCounted
 ## The tuning wing's world view (BodyViews kind "tuning"): a dial for the stimulus the task shows, with angle labels, and beside it what the level is about. A level whose readout is one cell
 ## (t_tuned) shows that cell's tuning curve, its response against the orientation shown, filled in as the orientations come round; a level with a ring of cells shows a bar per cell and,
-## where a ring readout decodes something (t_decode), the decoded direction as a cyan arrow. The period of the tuned input is the full circle: for an orientation it is 180 degrees and the dial
+## where a ring readout decodes something (t_decode), the decoded direction as a gamboge arrow. The period of the tuned input is the full circle: for an orientation it is 180 degrees and the dial
 ## says so. Called from BodyViews._tuning.
 
 ## Score parts "rate_<angle>_hz" (the measured response at each orientation) as {angle: hz}, in angle order; {} when the level reports none.
@@ -23,6 +23,9 @@ static func dial_labels(period: float) -> Array:
 	for k in 4: out.append(period * float(k) / 4.0)
 	return out
 
+## The least height of the tuning plot (px, before the text scale): the curve must show its peak on a phone too.
+const MIN_PLOT_H := 100.0
+
 static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 	var fz := Kit.fs(14)
 	if t == null or t.sim == null or t.task == null: BodyViews._empty(c, r, "Build the cells: the tuning appears here."); return
@@ -32,9 +35,13 @@ static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 	var y0 := r.position.y + BodyViews._banner(c, t, r)
 	var small := r.size.y < 150.0
 	var nfoot := 0 if small else (2 if period < 359.0 else 1)
-	var foot := (float(fz) + 6.0) * float(nfoot) + 8.0   # the footer lines are reserved before the drawing is laid out, so they never clip
-	var area := Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - foot - float(fz) - 6.0)
-	var rad := maxf(minf(area.size.y * 0.38, area.size.x * 0.2), 28.0); var cc := Vector2(area.position.x + rad + 40.0, area.get_center().y)
+	var foot := 0.0; var area := Rect2()
+	while true:   # the footer lines are reserved before the drawing is laid out, so they never clip; a phone drops them one by one so the plot keeps MIN_PLOT_H
+		foot = (float(fz) + 6.0) * float(nfoot) + 8.0
+		area = Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - foot - float(fz) - 6.0)
+		if nfoot == 0 or area.size.y >= MIN_PLOT_H + float(fz) * 1.6 + 4.0: break
+		nfoot -= 1
+	var rad := maxf(minf(minf(area.size.y * 0.5 - float(fz) * 1.8, area.size.y * 0.38 + 6.0), area.size.x * 0.2), 24.0); var cc := Vector2(area.position.x + rad + 40.0, area.get_center().y)
 	c.draw_circle(cc, rad + 3.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true); c.draw_arc(cc, rad + 4.0, 0.0, TAU, 64, Color(Kit.INK, 0.35), 0.8, true)
 	for k in 72:   # fine graduation, as on an engraved instrument
 		var a := TAU * float(k) / 72.0; var dv := Vector2(cos(a), sin(a)); c.draw_line(cc + dv * rad, cc + dv * (rad - 3.0), Color(Kit.INK, 0.35), 0.8, true)
@@ -65,7 +72,7 @@ static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 	if not motors.is_empty() and kinds.has(str(motors[0])): cells = kinds[str(motors[0])]["neurons"]
 	var n := cells.size(); var bx := area.position.x + rad * 2.0 + 110.0
 	var pts := curve_points(t) if n == 1 else {}
-	if not pts.is_empty(): _curve(c, Rect2(bx, area.position.y + float(fz), area.end.x - bx - 12.0, area.size.y - float(fz) * 2.0), pts, period, t, fz)
+	if not pts.is_empty(): _curve(c, Rect2(bx, area.position.y + float(fz) * 0.5, area.end.x - bx - 12.0, maxf(area.size.y - float(fz) * 1.6 - 4.0, MIN_PLOT_H)), pts, period, t, fz)   # never a flat sliver: at least MIN_PLOT_H tall
 	elif n > 0:
 		var bw := (area.end.x - bx - 10.0) / float(maxi(n, 1)); var base := area.end.y - 6.0
 		for k in n:   # engraved columns: an ink outline, filled with sienna as the cell fires (its spikes in the last 120 ms of model time)
@@ -74,14 +81,14 @@ static func draw(c: Control, t: Telemetry, r: Rect2) -> void:
 			c.draw_rect(br, Color(Kit.exc(), 0.25 + 0.6 * lit))
 			if br.size.y > 3.0: c.draw_rect(br, Color(Kit.INK, 0.7), false, 1.0)
 		c.draw_line(Vector2(bx, base), Vector2(area.end.x - 6.0, base), Kit.INK, 1.4)
-		c.draw_string(Gfx.serif_italic(), Vector2(bx, base + float(fz) + 4.0), "cells, in circuit order (preferred angle rises to the right)", HORIZONTAL_ALIGNMENT_LEFT, area.end.x - bx - 8.0, fz, Kit.TEXT_SOFT)
+		c.draw_string(Gfx.serif_italic(), Vector2(bx, base + float(fz) + 4.0), Kit.fit_words(Gfx.serif_italic(), "cells, in circuit order (preferred angle rises to the right)", area.end.x - bx - 8.0, fz), HORIZONTAL_ALIGNMENT_LEFT, area.end.x - bx - 8.0, fz, Kit.TEXT_SOFT)
 	var cap := "ink: the stimulus"
 	if decoded: cap += "; gamboge: the decoded direction"
 	cap += "; " + ("curve: the cell's response to each orientation" if not pts.is_empty() else "bars: each cell's activity")
 	var yb := r.end.y - 6.0
-	if small: return
-	if period < 359.0: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, yb - float(fz) - 4.0), "the full circle is %d° here: an orientation, not a direction" % int(roundf(period)), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
-	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, yb), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+	if nfoot == 0: return
+	if nfoot == 2: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, yb - float(fz) - 4.0), Kit.fit_words(Gfx.serif_italic(), "the full circle is %d° here: an orientation, not a direction" % int(roundf(period)), r.size.x - 12.0, fz), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, yb), Kit.fit_words(Gfx.serif_italic(), cap, r.size.x - 12.0, fz), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 ## The tuning curve of one cell: response (Hz) against orientation (degrees), the points joined and the axes labelled.
 static func _curve(c: Control, P: Rect2, pts: Dictionary, period: float, t: Telemetry, fz: int) -> void:
