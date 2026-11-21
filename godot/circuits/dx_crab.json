@@ -248,6 +248,17 @@
  "meta": {
   "author": "spike",
   "task": "dx_crab",
-  "notes": "docs/circuits/bestiary_b.md"
+  "notes": "docs/circuits/bestiary_b.md",
+  "dx_types": [
+   "E",
+   "E",
+   "I",
+   "I",
+   "I",
+   "I",
+   "I",
+   "I",
+   "I"
+  ]
  }
 }

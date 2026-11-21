@@ -87,7 +87,8 @@ func _card_cols(count: int) -> int:
 func _card_centre(count: int, i: int, side: int, x0: float, cy: float, pitch: float) -> Vector2:
 	var cols := _card_cols(count); var per := ceili(float(count) / float(cols)); var col := i / per; var row := i % per
 	var rows_here := mini(per, count - col * per)
-	return Vector2(x0 + float(side) * float(col) * (_card_size().x + 14.0), cy + (float(row) - float(rows_here - 1) * 0.5) * pitch)
+	var shown_col := col if side > 0 else (cols - 1 - col)   # reading order: on the left the first column is the OUTER one, so cue0..cue7 stand on the left and cue8..cue15 next to the neurons
+	return Vector2(x0 + float(side) * float(shown_col) * (_card_size().x + 14.0), cy + (float(row) - float(rows_here - 1) * 0.5) * pitch)
 
 ## Fit the neuron block into the canvas, leaving room (in screen px) for the sensor cards on the left and the motor cards on the right.
 func _do_fit(ns: Array) -> void:
@@ -233,7 +234,7 @@ func _draw() -> void:
 		var pa := _pop_dict(pops, Circuits.proj_pop(pr.get("pre", ""))); var pb := _pop_dict(pops, Circuits.proj_pop(pr.get("post", "")))
 		if pa.is_empty() or pb.is_empty(): geo.append(PackedVector2Array()); continue
 		var cp := _axon(pa, pb); geo.append(cp)
-		var w := Circuits.proj_weight(pr); var col := _kind_col("I" if w < 0.0 else "E")
+		var w := Circuits.proj_weight_shown(circuit, pj); var col := _kind_col("I" if w < 0.0 else "E")
 		var isel: bool = sel.get("t", "") == "proj" and int(sel.get("i", -1)) == pj
 		var ihov: bool = _hover.get("t", "") == "proj" and int(_hover.get("i", -1)) == pj
 		var width := (1.6 + clampf(sqrt(absf(w) / Circuits.weight_of(str(circuit["populations"][Circuits.pop_index(circuit, str(pb["id"]))].get("model", "")))), 0.0, 2.0) * 1.2) * clampf(view_scale, 0.85, 1.2)
@@ -252,7 +253,7 @@ func _draw() -> void:
 	if tele != null and tele.sim != null:
 		for pj in projs.size():
 			var cp: PackedVector2Array = geo[pj]; if cp.size() < 4: continue
-			var pr: Dictionary = projs[pj]; var col := _kind_col("I" if Circuits.proj_weight(pr) < 0.0 else "E")
+			var pr: Dictionary = projs[pj]; var col := _kind_col("I" if Circuits.proj_weight_shown(circuit, pj) < 0.0 else "E")
 			var trav := Telemetry.pulse_seconds(Circuits.proj_delay(pr))
 			if pj >= tele.pulses.size(): continue   # a new axon is drawn before the debounced reload has made its pulse list
 			var pa: PackedFloat64Array = tele.pulses[pj]
@@ -319,9 +320,10 @@ func _draw() -> void:
 	if sel.get("t", "") == "proj" and int(sel.get("i", -1)) < projs.size() and int(sel.get("i", -1)) >= 0:
 		var cp: PackedVector2Array = geo[int(sel["i"])]
 		if cp.size() == 4:
-			var pr: Dictionary = projs[int(sel["i"])]; var w := Circuits.proj_weight(pr)
+			var pr: Dictionary = projs[int(sel["i"])]; var w := Circuits.proj_weight_shown(circuit, int(sel["i"]))
 			var pi2 := Circuits.pop_index(circuit, Circuits.proj_pop(pr.get("post", ""))); var unit := "nS" if pi2 >= 0 and str(circuit["populations"][pi2].get("model", "")).contains("cond") else "pA"
 			var txt := "%s%s %s   %s ms" % ["+" if w >= 0.0 else "-", str(snappedf(absf(w), 0.1)), unit, str(snappedf(Circuits.proj_delay(pr), 0.1))]
+			if Circuits.has_dx_types(circuit): txt = "%s   %s ms" % ["inhibitory" if w < 0.0 else "excitatory", str(snappedf(Circuits.proj_delay(pr), 0.1))]   # a patient's axon: its type, never its strength
 			var mid := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
 			var rect := Rect2(mid - Vector2(tw * 0.5, float(fz) * 0.9 + 4.0), Vector2(tw, float(fz) + 8.0))
 			draw_rect(Rect2(rect.position + Vector2(3, 3), rect.size), Color(Gfx.INK, 0.12)); draw_rect(rect, Color("#FBF7EE")); draw_rect(rect, _kind_col("I" if w < 0.0 else "E"), false, 1.4)

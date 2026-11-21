@@ -3,6 +3,7 @@
 Run from anywhere:  python3 circuits/tools/gen_bestiary_b.py [name ...]      Docs: docs/circuits/bestiary_b.md
 The compass wiring is a ring-attractor model after the Turner-Evans / Hulse cell types, not synapse-level data."""
 import json, math, os, sys
+import dx_types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gen_bestiary_a import OUT, circuit, inp, lesion, out, pop, proj, write  # noqa: E402
@@ -27,14 +28,14 @@ def eproj(pre, post, E):
 
 
 def ring_ref(w1=100.0, Ie=320.0, tse=15.0, nD=4, wd=150.0, wi=-400.0, wc=400.0, shifters=True, wep=300.0, wt=3.0, wpe=110.0, name="Fly: the compass in the dark", task="fly_compass"):
-    pops = [popp("EPG", "iaf_psc_alpha", N, {"I_e": Ie, "tau_syn_ex": tse}, ring_pos(80)),
-            popp("DELTA", "iaf_psc_alpha", nD, {}, [[320 + 14 * k - 7 * (nD - 1), 200] for k in range(nD)])]
+    pops = [popp("EPG", "iaf_psc_alpha", N, {"I_e": Ie, "tau_syn_ex": tse}, ring_pos(80, cx=230.0)),
+            popp("DELTA", "iaf_psc_alpha", nD, {}, [[230 + 18 * k - 9 * (nD - 1), 385] for k in range(nD)])]   # the groups sit apart: no group's outline lies on another (the lab draws a box round every group)
     projs = [eproj("EPG", "EPG", edges(N, -1, w1) + edges(N, 1, w1)), proj("EPG", "DELTA", wd), proj("DELTA", "EPG", wi)]
     ins = [{"name": "cue%d" % k, "kind": "poisson", "targets": [{"pop": "EPG", "idx": [k]}], "weight": wc, "value": 0.0} for k in range(N)]
     outs = [out("heading", ["EPG"], kind="population_vector")]
     outs[0]["neurons"] = [{"pop": "EPG", "idx": list(range(N))}]
     if shifters:
-        pops += [popp("PENL", "iaf_psc_alpha", N, {}, ring_pos(130, phase=-math.pi / 2 - 0.06)), popp("PENR", "iaf_psc_alpha", N, {}, ring_pos(160, phase=-math.pi / 2 + 0.06))]
+        pops += [popp("PENL", "iaf_psc_alpha", N, {}, ring_pos(44, cx=430.0, cy=60.0)), popp("PENR", "iaf_psc_alpha", N, {}, ring_pos(44, cx=430.0, cy=340.0))]
         projs += [proj("EPG", "PENL", wep, rule="one_to_one"), proj("EPG", "PENR", wep, rule="one_to_one"), eproj("PENL", "EPG", edges(N, -1, wpe)), eproj("PENR", "EPG", edges(N, 1, wpe))]
         ins += [inp("turn_left", "dc", wt, ["PENL"], 40.0), inp("turn_right", "dc", wt, ["PENR"], 40.0)]
     return circuit(name, task, pops, projs, ins, outs, notes="docs/circuits/bestiary_b.md")
@@ -61,6 +62,7 @@ def write_dx(name):
     c = lesion(c, lid)
     c["name"] = "Patient circuit: " + name[3:]
     c["meta"] = {"author": "spike", "task": name, "notes": "docs/circuits/bestiary_b.md"}
+    dx_types.annotate(c, json.load(open(os.path.join(OUT, ref))))
     with open(os.path.join(OUT, name + ".json"), "w") as f:
         json.dump(c, f, indent=1)
         f.write("\n")

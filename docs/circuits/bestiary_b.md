@@ -7,7 +7,7 @@ Fifteen levels (`engine/src/tasks/{c_ring,c_shift,fly_compass,dx_compass,k_spars
 | `c_ring` | ring attractor | `heading` read as a population vector over the ring; excitatory loop on the ring; net-inhibitory loop (Delta7); every landmark sensor wired | 20 cells |
 | `c_shift` | path integration | the above, plus two separate shifter groups, each excited by the ring and exciting it, driven by `turn_left` and `turn_right` | 52 cells |
 | `fly_compass` | heading in the dark | the same; scored on the heading error through the population vector after holding still and after four turns | 52 cells |
-| `k_sparse` | sparse coding | glomeruli > PN > KC with at most 8 inputs per KC; KC > APL > KC net inhibition; 30 or more KCs | 224 cells |
+| `k_sparse` | sparse coding | glomeruli > PN > KC with at most 8 inputs per KC; KC > APL > KC net inhibition; 30 or more KCs; the reference has 200 KCs (224 cells), par 250 | 224 cells |
 | `k_depress` | dopamine-gated depression | a `stdp_dopamine_synapse` from the odour cells to the avoidance cells whose dopamine source is driven by the punishment sensor | 18 cells |
 | `fly_mb` | the whole learning loop | both of the above; KC reaches the MBON; odour B is spared | 231 cells |
 | `s_pacemaker` | pacemaker kernel | AB and PD are conductance-based cells (not integrate-and-fire) and coupled both ways | 3 cells |

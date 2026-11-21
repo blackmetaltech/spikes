@@ -142,6 +142,23 @@ inline std::string ring_dynamics_missing( const Graph& g, const std::string& ch,
     return "Nothing inhibits the ring broadly: with local excitation only, the activity spreads until the whole ring fires. Add a cell that the ring excites and that inhibits the ring cells (global inhibition), so that one bump wins.";
   return "";
 }
+/// "" when the ring cells excite their NEIGHBOURS on the ring (cell k onto cell k+-1): a cell that only excites itself holds a bump of its own, but no cell recruits the next one, so there is no ring.
+/// Used by c_ring, where the ring itself is the whole circuit (c_shift and fly_compass keep ring_dynamics_missing: there the shifting groups may close the loop).
+inline std::string ring_neighbours_missing( const Graph& g, const std::string& ch )
+{
+  const auto h = g.out_pops( ch );
+  if ( h.empty() ) return "";
+  double self_w = 0, nbr_w = 0;
+  for ( const auto& p : g.st.projections )
+    if ( Graph::overlap( { p.pre_index }, h ) && Graph::overlap( { p.post_index }, h ) )
+    {
+      self_w = std::max( self_w, p.self_w_max );
+      if ( p.n_ring_edges > 0 ) nbr_w = std::max( nbr_w, p.ring_w_max );
+    }
+  // the neighbour excitation has to matter: at least a quarter of the strongest self-latch (a token neighbour weight beside strong latches is still sixteen latches)
+  if ( nbr_w > 0 && nbr_w >= 0.25 * self_w ) return "";
+  return "The ring cells excite themselves but hardly each other: a bump is held by each cell driving its two neighbours on the ring (each cell onto the cell before it and the cell after it), so that the activity can spread to the next cell and back. A cell that only re-excites itself is a latch, not a ring.";
+}
 /// "" when the turn inputs reach two separate shifter groups, each driven by the heading and returning to it.
 inline std::string shifters_missing( const Graph& g, const std::string& heading, const std::string& left, const std::string& right )
 {

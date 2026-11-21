@@ -17,8 +17,8 @@ DxSpec spec()
   s.chapter = "fly_mb";
   s.vignette = "(A laboratory animal.) A fruit fly from a mutant line is trained to avoid one odour. You are given the circuit model of its mushroom body: the glomeruli, the projection neurons, the Kenyon cells, the giant "
                "inhibitory neuron APL, the output neurons that drive avoidance, and the punishment pathway to the dopamine neurons.";
-  s.symptoms = "The fly answers both odours before training, the punishment pathway works, and the output neurons are weakened for the punished odour. But the weakening is not specific: after training the fly avoids both odours. "
-               "Recording the Kenyon cells, a large share of them fire for each odour, and the two odours excite many of the same cells. The APL fires whenever the Kenyon cells are active.";
+  s.symptoms = "Before training the fly answers both odours, but far more strongly than a normal fly does. After training it no longer answers the punished odour, so the punishment pathway works and the learning happens. "
+               "Recording the Kenyon cells: for each odour about a third of them fire, where a normal fly uses a small handful, and about a quarter of the cells that answer one odour answer the other odour too (a normal fly shares almost none).";
   s.candidates = { "PN>KC", "KC>APL", "APL>KC", "KC>MBON", "TSN>DAN" };
   s.answer = "APL>KC";
   s.labels = {
@@ -30,14 +30,16 @@ DxSpec spec()
   s.explain = {
     { "PN>KC", "Then no Kenyon cell would fire for an odour, and nothing could be learned or answered. Here the Kenyon cells fire, in large numbers." },
     { "KC>APL", "That would also leave the Kenyon cells without feedback inhibition, but then the APL would be silent. Here the APL fires when the Kenyon cells do, so it still hears them; its output is what is missing." },
-    { "APL>KC", "The APL is driven by the Kenyon cells but its inhibition no longer reaches them: the feedback loop is open, the code is dense, the odours overlap, and what is learned about one odour is learned about the other." },
+    { "APL>KC", "The APL is driven by the Kenyon cells but its inhibition no longer reaches them: the feedback loop is open, so the code is dense (a third of the cells fire), the answers are far too strong, and the two odours share a quarter of their cells, so a memory of one odour rests on cells that the other odour also uses." },
     { "KC>MBON", "Then the output neurons would not answer the odours at all. Here they answer both odours and are weakened by the training." },
-    { "TSN>DAN", "Then the dopamine neurons would be silent in the punishment and nothing would be learned. Here the output neurons are weakened by the pairing, only too widely." } };
+    { "TSN>DAN", "Then the dopamine neurons would be silent in the punishment and nothing would be learned. Here the output neurons are weakened by the pairing, so the teaching signal arrives." } };
   s.concepts_new = { "diagnosis" };
   s.concepts_used = { "sparse_coding", "dopamine_gated_depression" };
   s.hint1 = "A memory that spreads to the wrong odour means the codes of the two odours overlap. What keeps a code sparse?";
   s.hint2 = "Watch the Kenyon cells and the APL while an odour is on: how many Kenyon cells fire, and does the APL's activity reach them?";
   s.hint2_target = "APL";
+  s.hint3 = "The break is in the front part of the circuit, where the odour becomes a pattern of Kenyon cells and the feedback loop around them keeps that pattern small, not in the output or the punishment stage.";
+  s.hint3_target = "KC";
   s.note = { "A dense code cannot be specific",
              "In the mushroom body each odour excites a small subset of the Kenyon cells, and the giant APL neuron keeps it small by feedback inhibition. When that inhibition is removed the code becomes dense and the "
              "subsets of different odours overlap, so a synapse that is weakened by dopamine for one odour is shared by others: the memory generalises. In flies the overlap between the sparse representations of two odours "

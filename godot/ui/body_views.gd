@@ -543,7 +543,7 @@ static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
 		c.draw_line(cc, cc + bd * ((rad - 6.0) * st), Kit.CYAN, 5.0, true); c.draw_circle(cc + bd * ((rad - 6.0) * st), 6.0, Kit.CYAN)
 	c.draw_circle(cc, 5.0, Kit.INK)
 	var err := absf(wrapf(rv(d, "bump_deg") - rv(d, "true_deg"), -180.0, 180.0)) if st > 0.02 else 180.0
-	var txt := "heading error %d deg   (ink: the fly's heading, cyan: the circuit's bump)" % int(roundf(err))
+	var txt := ("heading error %d deg   (ink: the fly's heading, cyan: the circuit's bump)" % int(roundf(err))) if st > 0.02 else "no bump on the ring yet   (ink: the fly's heading, cyan: the circuit's bump)"   # no bump, no error: 180 deg for nothing read as a score
 	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- phase plane (v0.6, Theory wing)

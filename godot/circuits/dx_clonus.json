@@ -1995,6 +1995,24 @@
  "meta": {
   "author": "spike",
   "task": "dx_clonus",
-  "notes": "docs/circuits/dx_clonus.md"
+  "notes": "docs/circuits/dx_clonus.md",
+  "dx_types": [
+   "E",
+   "E",
+   "I",
+   "E",
+   "I",
+   "I",
+   "I",
+   "E",
+   "E",
+   "E",
+   "I",
+   "E",
+   "I",
+   "I",
+   "I",
+   "E"
+  ]
  }
 }

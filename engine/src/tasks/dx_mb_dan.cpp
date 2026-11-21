@@ -17,8 +17,7 @@ DxSpec spec()
   s.chapter = "fly_mb";
   s.vignette = "(A laboratory animal.) A fruit fly from a mutant line is trained to avoid one odour, with the usual pairings of the odour and a punishment. You are given the circuit model of its mushroom body: the glomeruli, the "
                "projection neurons, the Kenyon cells, the APL, the output neurons that drive avoidance, and the punishment pathway to the dopamine neurons.";
-  s.symptoms = "Before training the fly answers both odours, and the Kenyon-cell code is sparse and different for the two. After training nothing has changed: it answers the punished odour exactly as before. The punishment cell fires "
-               "during the punishment, but the dopamine neurons stay silent.";
+  s.symptoms = "Before training the fly answers both odours, and the Kenyon-cell code is sparse and different for the two. After training nothing has changed: it answers the punished odour exactly as before. It does react to the shock itself, so it feels the punishment.";
   s.candidates = { "PN>KC", "KC>APL", "APL>KC", "KC>MBON", "TSN>DAN" };
   s.answer = "TSN>DAN";
   s.labels = {
@@ -38,6 +37,8 @@ DxSpec spec()
   s.hint1 = "Learning needs a teaching signal. Which cells carry it, and do they fire when the fly is punished?";
   s.hint2 = "Watch the dopamine neurons during the punishment: do they fire when the punishment cell does?";
   s.hint2_target = "DAN";
+  s.hint3 = "The break is in the learning stage of the circuit (the pathway of the punishment and the output neurons), not in the part that makes the odour code.";
+  s.hint3_target = "DAN";
   s.note = { "No teaching signal, no memory",
              "In the mushroom body the synapses of the Kenyon cells onto an output neuron change only when dopamine neurons of that compartment fire at the right time after the odour. A fly whose dopamine neurons are silent "
              "or disconnected can smell and respond normally, yet it does not learn to avoid the odour: the memory needs the odour, the output cell and the dopamine signal together. This case is fictional; the lesion is one missing connection in the model.",
