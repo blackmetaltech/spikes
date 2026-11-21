@@ -46,6 +46,10 @@ var editable := true
 var view_scale := 1.0
 var view_off := Vector2.ZERO
 var _hover := {}
+var _paper: Control                 # behind the editor: the graph paper (redrawn when the view moves)
+var _ink: Control                   # behind the editor, above the paper: axons and resting cells, drawn once per geometry (pan and zoom move it as a transform)
+var _gen := 0                       # bumped at every geometry rebuild: the ink layer's cache key
+var _ink_key := []; var _paper_key := []
 var _drag := {}                    # {mode: move|connect|pan|band, ...}
 var _connect_from := {}            # tool == connect: the first tap
 var _cards := {}                   # channel card rects (scaled space) by "in:name" / "out:name" (a member of a closed bus: the bus card)
@@ -86,6 +90,11 @@ var _stale := false
 
 func _ready() -> void:
 	clip_contents = true; mouse_filter = Control.MOUSE_FILTER_STOP; focus_mode = Control.FOCUS_ALL
+	_paper = Control.new(); _paper.name = "Paper"; _paper.mouse_filter = Control.MOUSE_FILTER_IGNORE; _paper.show_behind_parent = true
+	_paper.set_anchors_preset(Control.PRESET_FULL_RECT); add_child(_paper, false, Node.INTERNAL_MODE_FRONT)
+	_paper.draw.connect(func(): Gfx.graph_paper(_paper, Rect2(Vector2.ZERO, size), clampf(22.0 * view_scale, 12.0, 40.0), Gfx.SHEET, view_off))
+	_ink = Control.new(); _ink.name = "Ink"; _ink.mouse_filter = Control.MOUSE_FILTER_IGNORE; _ink.show_behind_parent = true
+	add_child(_ink, false, Node.INTERNAL_MODE_FRONT); _ink.draw.connect(_draw_ink)
 	resized.connect(func(): _fit_pending = true)
 	focus_entered.connect(queue_redraw); focus_exited.connect(func(): _kbd = false; queue_redraw())
 
@@ -99,6 +108,7 @@ func _process(dt: float) -> void:
 		if _note_t < 0.0: _note = ""
 		queue_redraw()
 	if _stale: queue_redraw()
+	if is_visible_in_tree() and _ink != null: _sync_layers()
 	if is_visible_in_tree() and ((tele != null and (tele.sim != null or tele.running)) or hint_target != "" or verdict_target != "" or trail_u >= 0.0): queue_redraw()
 
 ## Camera push: zoom in on the canvas centre by `k` (0.15 = 15%) and back over `dur` seconds, easing out and in (a transform: nothing is rebuilt).
@@ -290,7 +300,7 @@ func _geo() -> Dictionary:
 	if key != _gkey or _g.is_empty():
 		var only_zoom: bool = not _g.is_empty() and _gkey.size() == key.size() and key[0] == _gkey[0] and key[2] == _gkey[2] and key[3] == _gkey[3] and key[5] == _gkey[5]
 		if only_zoom and Time.get_ticks_msec() - _zoom_ms < 160: _stale = true; return _g
-		_g = _build(); _gkey = key
+		_g = _build(); _gkey = key; _gen += 1
 	return _g
 
 ## Cached geometry was built at _g["scale"]: the factor that maps it to the current zoom (1 except while a zoom is in progress).
@@ -756,8 +766,42 @@ func proj_mid(i: int) -> Vector2:
 func hit_at(p: Vector2) -> Dictionary: return _hit(p)
 
 # ---------- draw ----------
+## The two cached layers behind the editor follow the view: the paper redraws when the view moves; the ink only when the geometry (or a lesion) changed,
+## and otherwise just takes the view transform (pan and zoom cost nothing there).
+func _sync_layers() -> void:
+	var pk := [view_off, view_scale, size]
+	if pk != _paper_key: _paper_key = pk; _paper.queue_redraw()
+	if circuit.is_empty():
+		if not _ink_key.is_empty(): _ink_key = []; _ink.queue_redraw()
+		return
+	_geo()
+	var xf := _world_xf(); _ink.position = xf.origin; _ink.scale = xf.get_scale()
+	var ik := [_gen, lesions.hash(), Settings.colorblind, editable]
+	if ik != _ink_key: _ink_key = ik; _ink.queue_redraw()
+
+## The ink layer (in geometry space; the layer's transform is the view): every axon and every cell at rest. The editor's own _draw adds what moves.
+func _draw_ink() -> void:
+	if circuit.is_empty() or _g.is_empty(): return
+	var ci := _ink; var axons: Array = _g["axons"]
+	for pj in axons.size():
+		var ax: Dictionary = axons[pj]
+		if ax.is_empty(): continue
+		var cp: PackedVector2Array = ax["cp"]; var pts: PackedVector2Array = ax["pts"]
+		var w: float = ax["w"]; var col := _kind_col("I" if w < 0.0 else "E"); var width: float = ax["width"]
+		ci.draw_polyline(pts, Color(col, 0.86), width, true)
+		if w < 0.0: Gfx.bar_head(ci, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
+		else: Gfx.arrow_head(ci, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
+		if lesions.has("proj:%d" % pj):   # a cut axon: dashed red with an X at its middle
+			ci.draw_polyline(pts, Color(Gfx.SHEET, 0.85), width + 6.0, true); Gfx.dashed(ci, pts, Color(Kit.RED, 0.95), 2.2, 5.0, 7.0)
+			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); ci.draw_circle(cm, 13.0, Gfx.SHEET); ci.draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
+			ci.draw_line(cm + Vector2(-6, -6), cm + Vector2(6, 6), Kit.RED, 3.0, true); ci.draw_line(cm + Vector2(-6, 6), cm + Vector2(6, -6), Kit.RED, 3.0, true)
+	for p in _g["pops"]:
+		var col := _kind_col(str(p["kind"])); var silenced := lesions.has("pop:" + str(p["id"]))
+		if p["ens"]: _ink_ensemble(ci, p, col, silenced)
+		else: _ink_cells(ci, p, col, silenced)
+
 func _draw() -> void:
-	Gfx.graph_paper(self, Rect2(Vector2.ZERO, size), clampf(22.0 * view_scale, 12.0, 40.0), Gfx.SHEET, view_off)
+	if _ink != null: _sync_layers()
 	if circuit.is_empty(): return
 	var g := _geo()
 	var P: Array = g["pops"]; var axons: Array = g["axons"]
@@ -793,14 +837,11 @@ func _draw() -> void:
 		var w: float = ax["w"]; var col := _kind_col("I" if w < 0.0 else "E"); var width: float = ax["width"]
 		var isel: bool = sel.get("t", "") == "proj" and int(sel.get("i", -1)) == pj
 		var ihov: bool = _hover.get("t", "") == "proj" and int(_hover.get("i", -1)) == pj
-		if isel or ihov: draw_polyline(pts, Color(Kit.GAMBOGE, 0.42 if isel else 0.24), width + 8.0, true)   # a highlighter stroke under the ink
-		draw_polyline(pts, Color(col.darkened(0.15 if isel else 0.0), 0.95 if (isel or ihov) else 0.86), width + (0.8 if isel else 0.0), true)
+		if not (isel or ihov): continue   # at rest it is on the ink layer; selected or hovered it is inked again over a highlighter stroke
+		draw_polyline(pts, Color(Kit.GAMBOGE, 0.42 if isel else 0.24), width + 8.0, true)
+		draw_polyline(pts, Color(col.darkened(0.15 if isel else 0.0), 0.95), width + (0.8 if isel else 0.0), true)
 		if w < 0.0: Gfx.bar_head(self, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
 		else: Gfx.arrow_head(self, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
-		if lesions.has("proj:%d" % pj):   # a cut axon: dashed red with an X at its middle
-			draw_polyline(pts, Color(Gfx.SHEET, 0.85), width + 6.0, true); Gfx.dashed(self, pts, Color(Kit.RED, 0.95), 2.2, 5.0, 7.0)
-			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); draw_circle(cm, 13.0, Gfx.SHEET); draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
-			draw_line(cm + Vector2(-6, -6), cm + Vector2(6, 6), Kit.RED, 3.0, true); draw_line(cm + Vector2(-6, 6), cm + Vector2(6, -6), Kit.RED, 3.0, true)
 	# --- pulses
 	if live:
 		for pj in axons.size():
@@ -827,8 +868,8 @@ func _draw() -> void:
 		var ihov: bool = _hover.get("t", "") == "pop" and _hover.get("id", "") == id
 		var silenced := lesions.has("pop:" + id)
 		if not view.intersects(p["box"]): continue
-		if p["ens"]: _draw_ensemble(p, col, isel, ihov, silenced)
-		else: _draw_cells(p, col, isel, ihov, silenced)
+		if p["ens"]: _live_ensemble(p, col, isel, ihov, silenced)
+		else: _live_cells(p, col, isel, ihov, silenced)
 	# --- the selected axon names its weight and delay
 	var projs: Array = circuit.get("projections", [])
 	if sel.get("t", "") == "proj" and int(sel.get("i", -1)) < axons.size() and int(sel.get("i", -1)) >= 0 and not (axons[int(sel["i"])] as Dictionary).is_empty():
@@ -896,41 +937,70 @@ func _chan(key: String, name: String) -> Dictionary:
 
 func _flash(gi: int) -> float: return tele.flash[gi] if tele != null and gi >= 0 and gi < tele.flash.size() else 0.0
 
-func _draw_cells(p: Dictionary, col: Color, isel: bool, ihov: bool, silenced: bool) -> void:
+## A small group at rest, on the ink layer: its dashed outline, the stains and the inked cells (silenced: faded and struck through).
+func _ink_cells(ci: CanvasItem, p: Dictionary, col: Color, silenced: bool) -> void:
 	var pts: PackedVector2Array = p["pts"]; var first: int = p["first"]
-	if int(p["n"]) > 1 and p.has("box"):   # a group: a dashed rounded outline of the group's stain
-		var bx: Rect2 = p["box"]; var gpts := PackedVector2Array(); var cnr := minf(minf(bx.size.x, bx.size.y) * 0.5, 30.0)
-		for k in 32:
-			var q := k / 8; var a := PI + float(q) * PI * 0.5 + (float(k % 8) / 7.0) * PI * 0.5
-			var cc := [bx.position + Vector2(cnr, cnr), Vector2(bx.end.x - cnr, bx.position.y + cnr), bx.end - Vector2(cnr, cnr), Vector2(bx.position.x + cnr, bx.end.y - cnr)][q] as Vector2
-			gpts.append(cc + Vector2(cos(a), sin(a)) * cnr)
-		var gl := gpts.duplicate(); gl.append(gpts[0]); Gfx.dashed(self, gl, Color(col, 0.3 if not isel else 0.7), 1.0 if not isel else 1.6, 2.0, 5.0)
-	if silenced: pass
-	else:
-		for k in pts.size():
-			Gfx.wash(self, pts[k], _r * 1.5, col, 0.09, (first + k) * 3 + 1)
-			Gfx.spike_stain(self, pts[k], _r, col, _flash(first + k), (first + k) * 3 + 2)
+	if int(p["n"]) > 1 and p.has("box"): Gfx.dashed(ci, _group_outline(p["box"]), Color(col, 0.3), 1.0, 2.0, 5.0)
+	if not silenced:
+		for k in pts.size(): Gfx.wash(ci, pts[k], _r * 1.5, col, 0.09, (first + k) * 3 + 1)
+	for k in pts.size():
+		var gi := first + k; var q := pts[k]
+		Gfx.soma(ci, q, _r, col, gi * 7 + 3, 0.0, 0.65 if silenced else 0.0, _r >= 9.0)
+		if silenced:
+			ci.draw_arc(q, _r + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
+			ci.draw_line(q + Vector2(-_r, _r) * 0.75, q + Vector2(_r, -_r) * 0.75, Kit.RED, 3.0, true)
+
+func _group_outline(bx: Rect2) -> PackedVector2Array:   # a rounded rectangle round a group's stain, closed
+	var gpts := PackedVector2Array(); var cnr := minf(minf(bx.size.x, bx.size.y) * 0.5, 30.0)
+	for k in 32:
+		var q := k / 8; var a := PI + float(q) * PI * 0.5 + (float(k % 8) / 7.0) * PI * 0.5
+		var cc := [bx.position + Vector2(cnr, cnr), Vector2(bx.end.x - cnr, bx.position.y + cnr), bx.end - Vector2(cnr, cnr), Vector2(bx.position.x + cnr, bx.end.y - cnr)][q] as Vector2
+		gpts.append(cc + Vector2(cos(a), sin(a)) * cnr)
+	gpts.append(gpts[0]); return gpts
+
+## What moves on a small group, over the ink: firing cells (stain and a brighter soma), the hover glow, the selection, voltage arcs and trace pins.
+func _live_cells(p: Dictionary, col: Color, isel: bool, ihov: bool, silenced: bool) -> void:
+	var pts: PackedVector2Array = p["pts"]; var first: int = p["first"]
+	if isel and int(p["n"]) > 1 and p.has("box"): Gfx.dashed(self, _group_outline(p["box"]), Color(col, 0.7), 1.6, 2.0, 5.0)
 	for k in pts.size():
 		var gi := first + k; var q := pts[k]; var f := _flash(gi)
+		var volt: bool = tele != null and tele.volt.has(gi); var pin: bool = tele != null and tele.watched.has(gi)
+		if f <= 0.02 and not (isel or ihov or volt or pin): continue
 		var rr := _r * (1.0 + (0.08 * f if Kit.motion() else 0.0))
 		if ihov and not isel: draw_circle(q, rr + 5.0, Color(Kit.GAMBOGE, 0.25))
-		Gfx.soma(self, q, rr, col, gi * 7 + 3, f, 0.65 if silenced else 0.0, rr >= 9.0)
-		if tele != null and tele.volt.has(gi):   # membrane potential as a thin arc of the traced neurons
+		if not silenced and (f > 0.02 or (ihov and not isel)):
+			Gfx.spike_stain(self, q, _r, col, f, gi * 3 + 2)
+			Gfx.soma(self, q, rr, col, gi * 7 + 3, f, 0.0, false)
+		if volt:   # membrane potential as a thin arc of the traced neurons
 			var a: PackedFloat32Array = tele.volt[gi]
 			if a.size() > 0 and is_finite(a[a.size() - 1]):   # a model without a membrane (relay, generator) reports NaN
 				var u := clampf((float(a[a.size() - 1]) + 80.0) / 50.0, 0.0, 1.0)
 				draw_arc(q, rr + 4.5, -PI * 0.5, -PI * 0.5 + TAU * u, 40, Color(Gfx.INK, 0.7), 1.6, true)
 		if isel: draw_arc(q, rr + 8.0, 0, TAU, 48, Color(Kit.GAMBOGE, 0.95), 2.4, true); draw_arc(q, rr + 10.5, 0, TAU, 48, Color(Gfx.INK, 0.5), 1.0, true)
-		if silenced:
-			draw_arc(q, rr + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
-			draw_line(q + Vector2(-rr, rr) * 0.75, q + Vector2(rr, -rr) * 0.75, Kit.RED, 3.0, true)
-		if tele != null and tele.watched.has(gi):   # traced on the scope: a small inked pin
+		if pin:   # traced on the scope: a small inked pin
 			var wp := q + Vector2(rr * 0.9, -rr * 0.9)
 			draw_circle(wp, 6.5, Gfx.SHEET); draw_arc(wp, 6.5, 0, TAU, 20, Gfx.INK, 1.4, true); draw_circle(wp, 3.2, col)
 
-## A large population: a stained ellipse (deeper while the group fires), an inked rim, and a ring of sample cells, each standing for n/k cells and
-## flashing with the strongest of them. Name and count are drawn inside by _draw_label.
-func _draw_ensemble(p: Dictionary, col: Color, isel: bool, ihov: bool, silenced: bool) -> void:
+## A large population at rest, on the ink layer: a stained ellipse, an inked rim, and a ring of sample cells (each standing for n/k cells).
+## Name and count are drawn inside by _draw_label.
+func _ink_ensemble(ci: CanvasItem, p: Dictionary, col: Color, silenced: bool) -> void:
+	var c: Vector2 = p["c"]; var rx: float = p["rx"]; var ry: float = p["ry"]; var first: int = p["first"]
+	var ring: PackedVector2Array = p["ring"]
+	var fade := 0.65 if silenced else 0.0
+	var shape := Gfx.ellipse(c, rx, ry, 64)
+	ci.draw_colored_polygon(shape, Color(col.lerp(Gfx.SHEET, 0.55 + 0.3 * fade), 0.42))
+	Gfx.wash(ci, c, minf(rx, ry) * 0.9, col, 0.12 * (1.0 - fade), int(p["pi"]) * 11 + 5)
+	var rim := shape.duplicate(); rim.append(shape[0])
+	ci.draw_polyline(rim, Color(Gfx.INK, 0.85 * (1.0 - 0.5 * fade)), 1.8, true)
+	var inner := Gfx.ellipse(c, rx * 0.93, ry * 0.93, 64); inner.append(inner[0]); Gfx.dashed(ci, inner, Color(col.darkened(0.3), 0.45), 1.0, 2.0, 4.0)
+	var dot: float = p["dot"]
+	for i in ring.size(): Gfx.soma(ci, ring[i], dot, col, first * 7 + i, 0.0, fade, false)
+	if silenced:
+		ci.draw_line(c + Vector2(-rx, ry) * 0.6, c + Vector2(rx, -ry) * 0.6, Kit.RED, 3.0, true)
+		var sx := Gfx.ellipse(c, rx + 3.0, ry + 3.0, 64); sx.append(sx[0]); ci.draw_polyline(sx, Color(Kit.RED, 0.95), 2.4, true)
+
+## What moves on a large population: the stain deepens while it fires, and each sample cell flashes with the strongest of the cells it stands for.
+func _live_ensemble(p: Dictionary, col: Color, isel: bool, ihov: bool, silenced: bool) -> void:
 	var c: Vector2 = p["c"]; var rx: float = p["rx"]; var ry: float = p["ry"]; var n: int = p["n"]; var first: int = p["first"]
 	var ring: PackedVector2Array = p["ring"]; var k := ring.size()
 	var acts := PackedFloat32Array(); acts.resize(k); var tot := 0.0
@@ -938,28 +1008,22 @@ func _draw_ensemble(p: Dictionary, col: Color, isel: bool, ihov: bool, silenced:
 		var a0 := (i * n) / k; var a1 := ((i + 1) * n) / k; var m := 0.0
 		for gi in range(first + a0, first + maxi(a1, a0 + 1)): m = maxf(m, _flash(gi))
 		acts[i] = m; tot += m
-	var fade := 0.65 if silenced else 0.0
-	var shape := Gfx.ellipse(c, rx, ry, 64)
-	if ihov and not isel: draw_colored_polygon(Gfx.ellipse(c, rx + 6.0, ry + 6.0, 64), Color(Kit.GAMBOGE, 0.18))
-	draw_colored_polygon(shape, Color(col.lerp(Gfx.SHEET, 0.55 + 0.3 * fade), 0.42 + 0.25 * clampf(tot / float(maxi(k, 1)) * 2.0, 0.0, 1.0) * (1.0 - fade)))
-	Gfx.wash(self, c, minf(rx, ry) * 0.9, col, 0.12 * (1.0 - fade), int(p["pi"]) * 11 + 5)
-	var rim := shape.duplicate(); rim.append(shape[0])
-	draw_polyline(rim, Color(Gfx.INK, 0.85 * (1.0 - 0.5 * fade)), 1.8, true)
-	var inner := Gfx.ellipse(c, rx * 0.93, ry * 0.93, 64); inner.append(inner[0]); Gfx.dashed(self, inner, Color(col.darkened(0.3), 0.45), 1.0, 2.0, 4.0)
+	if ihov and not isel:
+		var hr := Gfx.ellipse(c, rx + 4.0, ry + 4.0, 64); hr.append(hr[0]); draw_polyline(hr, Color(Kit.GAMBOGE, 0.3), 6.0, true)
+	var deep := 0.25 * clampf(tot / float(maxi(k, 1)) * 2.0, 0.0, 1.0) * (0.0 if silenced else 1.0)
+	if deep > 0.004: draw_colored_polygon(Gfx.ellipse(c, rx * 0.97, ry * 0.97, 48), Color(col.lerp(Gfx.SHEET, 0.55), deep))
 	var dot: float = p["dot"]
 	for i in k:
-		if not silenced: Gfx.spike_stain(self, ring[i], dot, col, acts[i], first * 3 + i)
-		Gfx.soma(self, ring[i], dot * (1.0 + (0.1 * acts[i] if Kit.motion() else 0.0)), col, first * 7 + i, acts[i], fade, false)
-		if tele != null:
+		if not silenced and acts[i] > 0.02:
+			Gfx.spike_stain(self, ring[i], dot, col, acts[i], first * 3 + i)
+			Gfx.soma(self, ring[i], dot * (1.0 + (0.1 * acts[i] if Kit.motion() else 0.0)), col, first * 7 + i, acts[i], 0.0, false)
+		if tele != null and not tele.watched.is_empty():
 			var a0 := (i * n) / k; var a1 := maxi(((i + 1) * n) / k, a0 + 1)
 			for gi in range(first + a0, first + a1):
 				if tele.watched.has(gi): draw_arc(ring[i], dot + 3.0, 0, TAU, 16, Gfx.INK, 1.4, true); break
 	if isel:
 		var sr := Gfx.ellipse(c, rx + 7.0, ry + 7.0, 64); sr.append(sr[0]); draw_polyline(sr, Color(Kit.GAMBOGE, 0.95), 2.6, true)
 		var sr2 := Gfx.ellipse(c, rx + 10.0, ry + 10.0, 64); sr2.append(sr2[0]); draw_polyline(sr2, Color(Gfx.INK, 0.5), 1.0, true)
-	if silenced:
-		draw_line(c + Vector2(-rx, ry) * 0.6, c + Vector2(rx, -ry) * 0.6, Kit.RED, 3.0, true)
-		var sx := Gfx.ellipse(c, rx + 3.0, ry + 3.0, 64); sx.append(sx[0]); draw_polyline(sx, Color(Kit.RED, 0.95), 2.4, true)
 
 func _draw_label(p: Dictionary, fz: int) -> void:
 	var lr: Rect2 = p["lab"]; var id: String = p["id"]; var n: int = p["n"]

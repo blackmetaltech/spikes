@@ -168,9 +168,14 @@ func _layouts() -> void:
 			_check(float(m["gap"]) >= CircuitEditor.POP_GAP - 1.0, "%s: two population outlines are %.0f px apart (at least %d)" % [tag, m["gap"], int(CircuitEditor.POP_GAP)])
 			if name.ends_with("h_big.json") and sz.x > 1000.0:
 				# cheap: a pan rebuilds nothing, a zoom step rebuilds within a frame budget, hit tests use the grid
-				ed._geo(); var g0 := ed._g
-				ed.pan_by(Vector2(30, 10)); ed._geo()
+				ed._geo(); var g0 := ed._g; ed._sync_layers(); var ik0: Array = ed._ink_key.duplicate(); var ip0: Vector2 = ed._ink.position
+				ed.pan_by(Vector2(30, 10)); ed._geo(); ed._sync_layers()
 				_check(is_same(ed._g, g0), "a pan does not rebuild the geometry")
+				_check(ed._ink_key == ik0 and ed._ink.position.distance_to(ip0 + Vector2(30, 10)) < 0.01, "a pan moves the ink layer without redrawing it")
+				var mk := {"t": "pop", "id": str((ed._g["pops"] as Array)[0]["id"])}
+				ed._hover = mk; ed.select(mk); ed._sync_layers()
+				_check(ed._ink_key == ik0, "hover and selection are drawn over the ink layer, not into it")
+				ed.select({}); ed._hover = {}
 				ed.zoom_at(sz * 0.5, 1.12); ed._geo()
 				_check(is_same(ed._g, g0) and ed._stale, "while zooming the cached geometry is drawn scaled (no rebuild per wheel step)")
 				ed._zoom_ms = -100000
