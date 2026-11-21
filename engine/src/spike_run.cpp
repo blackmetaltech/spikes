@@ -2,7 +2,7 @@
 //   {"neuron":3,"t":12.5,"step":125}   (neuron = circuit-level index, t in ms, step = NEST time stamp in steps)
 // sorted by (step, neuron). A summary line goes to stderr so stdout holds spikes only.
 //
-// spike-run --list-tasks prints the registered task ids, one per line.
+// spike-run --list-tasks prints the registered task ids, one per line. spike-run --list-variants <task> prints the ids that task accepts for --variant.
 // spike-run --task <id> [--quick] [--jobs n]   (--quick: run Task::quick_duration_ms() instead of the full episode; --jobs: seeds run in parallel child processes, default = cores, 1 = in-process)
 // spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--circuit-seed n | --circuit-seeds a,b,c] [--lesion pre>post*k ...] [--require any|all] [--circuits-dir dir]
 //   [--circuit-seed n | --circuit-seeds a,b,c]: pin the circuit seed (one for all seeds, or one per seed) instead of the 1000 * seed + circuit seed reseed,
@@ -380,6 +380,20 @@ int main( int argc, char** argv )
   {
     for ( const auto& id : spike::task_ids() )
       std::printf( "%s\n", id.c_str() );
+    return 0;
+  }
+  if ( argc == 3 and std::string( argv[ 1 ] ) == "--list-variants" )  // the ids a task accepts for --variant (a diagnosis case's candidates), one per line
+  {
+    auto task = spike::make_task( argv[ 2 ] );
+    if ( not task )
+    {
+      std::fprintf( stderr, "unknown task %s\n", argv[ 2 ] );
+      return 2;
+    }
+    for ( const auto& v : task->variants() )
+      std::printf( "%s\n", v.first.c_str() );
+    for ( const auto& c : task->diagnosis().candidates )  // a diagnosis case is answered through --variant too (never prints which one is right)
+      std::printf( "%s\n", c.c_str() );
     return 0;
   }
   for ( int i = 1; i < argc; ++i )
