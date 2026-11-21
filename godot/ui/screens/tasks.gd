@@ -147,7 +147,7 @@ func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, 
 func _star_tiers(par: int, diagnosis := false, tid := "") -> Array:
 	var m := Progress.mode()
 	if diagnosis:   # a diagnosis case is a pass by naming the cause: the second star is a right first answer
-		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try, with %s or fewer" % Progress.neurons_text(par) if par > 0 else "First try, with a small circuit", 3]]
+		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try and few probes (a score of 85 or more)", 3]]
 	var t1 := "Pass the task"; var t2 := "Pass on 5 random seeds (“Test x5”)"
 	var t3 := "Pass with %s or fewer" % Progress.neurons_text(par) if par > 0 else "Pass on 5 seeds, small circuit"
 	if m == "guided": t1 = "Pass the task (wide bands, hints free)"
@@ -241,7 +241,7 @@ class _Star extends Control:
 	func _draw() -> void: ScoreCard.draw_star_on(self, size * 0.5, minf(size.x, size.y) * 0.46, Kit.AMBER if lit else Color(Kit.LINE, 0.95))
 
 ## One level on the map: a pin on the anatomy. Tasks and bosses carry a small label plate (title, stars); micro-puzzles (small pin), variants (diamond) and
-## diagnosis cases (square) are bare pins, and their name and concept chips show on hover or selection (MapCanvas overlay). Bosses are large pins.
+## diagnosis cases (square pin, with a label plate) carry their name; micro-puzzles and variants are bare pins, and their name and concept chips show on hover or selection (MapCanvas overlay). Bosses are large pins.
 ## The detail (brief, lock reason, best score) lives in the side panel.
 class NodeCard extends Button:
 	var node := {}
@@ -257,7 +257,7 @@ class NodeCard extends Button:
 		for n in ["normal", "hover", "pressed", "disabled", "focus"]: add_theme_stylebox_override(n, StyleBoxEmpty.new())
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func kind() -> String: return str(node.get("kind", "task"))
-	func has_plate() -> bool: return kind() == "task" or kind() == "boss"
+	func has_plate() -> bool: return kind() == "task" or kind() == "boss" or kind() == "diagnosis"   # a diagnosis case carries its name too: a bare square told the player nothing
 	func _R() -> float:
 		var k := kind(); var ph := Layout.phone
 		match k:

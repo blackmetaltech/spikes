@@ -553,7 +553,7 @@ func _editor_action(act: String) -> void:
 		"dx:right": await _dx_submit(true)
 		"dx:wrong": await _dx_submit(false)
 		"dx:reveal":
-			await _dx_submit(false)
+			for _i in DiagnosisPanel.REVEAL_AFTER: await _dx_submit(false)   # giving up is offered only after several misses
 			await _press_id("BtnRevealAnswer", "lab.insp.dx", "reveal")
 		_: _fail("unknown editor action '%s'" % act)
 	await _frames(3)

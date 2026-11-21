@@ -21,7 +21,7 @@ static func available(mode: String, fails: int) -> bool:
 ## One line for the button that opens the card: what the player can do about hints right now.
 static func button_text(mode: String, fails: int, shown: int) -> String:
 	if mode == "researcher": return ""
-	if not available(mode, fails): return "Hint %d/%d" % [fails, UNLOCK_FAILS]
+	if not available(mode, fails): return "Hint after %d missed run%s (%d so far)" % [UNLOCK_FAILS, "" if UNLOCK_FAILS == 1 else "s", fails]   # not "0/2": that read as a count of the tiers
 	return "Hint" if shown == 0 else "Hint %d" % shown
 
 ## `hints`: [{tier, text, target}] from Task::hints(); `shown`: highest tier revealed (0 = none).

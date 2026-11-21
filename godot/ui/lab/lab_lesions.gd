@@ -60,7 +60,9 @@ func click(h: Dictionary) -> void:
 				if str(ch.get("name", "")) == str(h["name"]) and not (ch.get("targets", []) as Array).is_empty(): key = "in:" + str(h["name"])
 	if key == "": return
 	if lab.lesions.has(key): lab.lesions.erase(key)
-	else: lab.lesions[key] = true
+	else:
+		lab.lesions[key] = true
+		if lab._is_dx(): lab._dx_probe("cut", key)   # a cut tried on the patient is a probe
 	lab.editor.lesions = lab.lesions; lab.editor.queue_redraw(); lab._lesion_note = ""
 	GameAudio.event("lesion_cut")
 	lab._dirty = 0.0; lab._build_inspector()   # the live view restarts on the lesioned circuit
@@ -73,6 +75,8 @@ func run(sets: Array) -> void:
 		if (r["lesions"] as Array).is_empty(): have_base = true
 	if not have_base: jobs.append({"label": Lesion.label(lab.circuit, {}), "lesions": {}})
 	for ls in sets: jobs.append({"label": Lesion.label(lab.circuit, ls), "lesions": ls})
+	if lab._is_dx():
+		for ls in sets: lab._dx_probe("run", Lesion.label(lab.circuit, ls))   # every lesion re-run is a probe: a sweep of all single lesions is as many as there are lesions
 	if lab.tele.sim != null: lab.tele.sim.stop()
 	lab._lrun = Lesion.Runner.new(); lab._lrun.mode = lab.mode; lab._lrun.variant = lab.variant; lab._lrun.begin(lab.task_id, lab.circuit, jobs); lab._lesion_note = ""
 	lab._build_inspector()

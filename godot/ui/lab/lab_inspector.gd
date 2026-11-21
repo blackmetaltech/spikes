@@ -205,6 +205,7 @@ func toggle_trace(id: String) -> void:
 		w.append(g)
 		if w.size() > 4: w.pop_front()
 	if tele.sim != null: tele.set_watched(w)
+	if lab._is_dx() and w.has(g): lab._dx_probe("scope", id)   # opening a scope on a group of the patient is a probe
 	build()
 
 func flip_kind(id: String) -> void:
@@ -457,6 +458,7 @@ func inspect_dx_pick(sel: Dictionary, small: int) -> void:
 	elif str(sel["t"]) == "proj":
 		var i := int(sel["i"])
 		if i < circuit["projections"].size():
-			var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight(pr)
-			add(Kit.label("%s > %s, %s, weight %s, delay %s ms." % [Circuits.proj_pop(pr.get("pre", "")), Circuits.proj_pop(pr.get("post", "")), "inhibitory" if w < 0.0 else "excitatory", num(absf(w)), num(Circuits.proj_delay(pr))], small, Kit.TEXT_SOFT, true))
+			var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight_shown(circuit, i)
+			# a patient's axon: its type and delay only. The strength is not shown: the dead connection has none, and that must be found by probing, not read off a number.
+			add(Kit.label("%s > %s, %s, delay %s ms." % [Circuits.proj_pop(pr.get("pre", "")), Circuits.proj_pop(pr.get("post", "")), "inhibitory" if w < 0.0 else "excitatory", num(Circuits.proj_delay(pr))], small, Kit.TEXT_SOFT, true))
 	add(Kit.btn("Back to the case", func(): lab.editor.select({}); lab._brief_forced = true; build(), "ghost", 18))

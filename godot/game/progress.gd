@@ -168,6 +168,7 @@ static func record_result(task: String, score_mean: float, flags: Dictionary) ->
 	var passed := bool(flags.get("passed", false))
 	var st := stars_for(task, passed, bool(flags.get("five_seeds", false)), int(flags.get("neurons", 0)), float(flags.get("rate_hz", -1.0)))
 	if bool(flags.get("recipe_used", false)): st = mini(st, 2)   # the recipe was shown (Standard): no third star
+	if flags.has("max_stars"): st = mini(st, int(flags["max_stars"]))   # a diagnosis case caps its stars by what it cost (wrong guesses, probes)
 	record(task, score_mean, passed, st, str(flags.get("mode", "")))
 	return st
 

@@ -100,11 +100,11 @@ flowchart LR
   lab_insp_in("Inspector: a sensor / noise input selected")
   lab_insp_out("Inspector: a motor output selected")
   lab_insp_lesion("Lesion lab (after a pass): cut, silence, re-run, sweep")
-  lab_insp_dx("Diagnosis case card: symptoms, candidates, submit")
+  lab_insp_dx("Diagnosis case card: symptoms, candidates, submit (shows probes and wrong guesses used)")
   lab_insp_dxpick("Diagnosis: a group or axon picked (read-only facts)")
   lab_dx_wrong("Diagnosis: a wrong answer was submitted")
   lab_dx_solved("Diagnosis: solved (CORRECT card, notebook entry)")
-  lab_dx_revealed("Diagnosis: answer revealed after two wrong tries")
+  lab_dx_revealed("Diagnosis: answer revealed after three wrong tries")
   lab_more[["More menu (speed, level, tools)"]]
   lab_parts_modal[["Parts bin (pick the next neuron's type)"]]
   lab_endcard[["End-of-episode card (score, stars, next steps)"]]
@@ -206,7 +206,7 @@ flowchart LR
   lab_insp_dx -->|Cand_*| lab_insp_dx
   lab_insp_dx -->|BtnSubmitDiagnosis| lab_dx_wrong
   lab_insp_dx -->|BtnSubmitDiagnosis| lab_dx_solved
-  lab_dx_wrong -->|BtnRevealAnswer (after two wrong answers)| lab_dx_revealed
+  lab_dx_wrong -->|BtnRevealAnswer (after three wrong answers)| lab_dx_revealed
   lab_insp_dx -->|BtnLesionLab| lab_insp_lesion
   lab_insp_dx -->|Editor| lab_insp_dxpick
   lab_insp_dxpick -->|BtnBackToTheCase| lab_insp_dx
@@ -260,11 +260,11 @@ flowchart LR
 | `lab.insp.in` | panel | Inspector: a sensor / noise input selected | `BtnDisconnectAll`, `Stepper?`, `BtnWireAll?`, `BtnRemoveInput?` |
 | `lab.insp.out` | panel | Inspector: a motor output selected | `BtnDisconnectAll`, `Stepper?`, `BtnWireAll?` |
 | `lab.insp.lesion` | panel | Lesion lab (after a pass): cut, silence, re-run, sweep | `BtnRunLesion`, `BtnSweepAllSingles`, `BtnClearSet`, `BtnExit`, `BtnTable?`, `BtnCancel?`, `BtnCopyMarkdown?`, `BtnCopyCsv?`, `BtnSaveFiles?` |
-| `lab.insp.dx` | panel | Diagnosis case card: symptoms, candidates, submit | `BtnLesionLab`, `Cand_*`, `BtnSubmitDiagnosis`, `BtnRevealAnswer?` |
+| `lab.insp.dx` | panel | Diagnosis case card: symptoms, candidates, submit (shows probes and wrong guesses used) | `BtnLesionLab`, `Cand_*`, `BtnSubmitDiagnosis`, `BtnRevealAnswer?` |
 | `lab.insp.dxpick` | panel | Diagnosis: a group or axon picked (read-only facts) | `BtnBackToTheCase`, `BtnTrace?` |
 | `lab.dx.wrong` | state | Diagnosis: a wrong answer was submitted |  |
 | `lab.dx.solved` | state | Diagnosis: solved (CORRECT card, notebook entry) |  |
-| `lab.dx.revealed` | state | Diagnosis: answer revealed after two wrong tries |  |
+| `lab.dx.revealed` | state | Diagnosis: answer revealed after three wrong tries |  |
 | `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?` |
 | `lab.parts_modal` | modal | Parts bin (pick the next neuron's type) | `BtnClose`, `PartsBin`, `Use_*`, `Select_*` |
 | `lab.endcard` | modal | End-of-episode card (score, stars, next steps) | `BtnRunAgain`, `BtnTestX5`, `BtnClose`, `BtnResults?`, `BtnHint?`, `BtnNextTask?`, `BtnLesionLab?`, `BtnAnalysis?` |

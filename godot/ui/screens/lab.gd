@@ -80,7 +80,7 @@ var _last_edit_ms := -10000        # play-log edit coalescing: a slider drag is 
 var _half_warned := false
 var _surprise_done := {}
 var _surprise_clock := 0.0
-var _dx := {}                      # diagnosis case state {picked, tries, solved, gave_up}
+var _dx := {}                      # diagnosis case state {picked, tries, probes, probed, solved, gave_up, verdict, score}
 var _dx_info := {}                 # Task::diagnosis()
 var _ref_cache := {"n": -1, "fp": "", "v": false}
 
@@ -575,22 +575,30 @@ func _celebrate() -> void:
 	Playlog.event("celebrate", {"task": task_id})
 
 # ---------- diagnosis cases ----------
+## A probe of a diagnosis case (a scope opened on a group, a cut tried on the live view, a lesion run): counted once per thing probed, so that looking again is free.
+## The count goes to the engine with the answer (Task variant "candidate@probes:wrong", engine/src/tasks/dx_common.h), where it lowers the case's score beyond the first few.
+func _dx_probe(kind: String, key: String) -> void:
+	if not _is_dx() or bool(_dx.get("solved", false)) or bool(_dx.get("gave_up", false)): return
+	var seen: Dictionary = _dx.get("probed", {}); var k := kind + ":" + key
+	if seen.has(k): return
+	seen[k] = true; _dx["probed"] = seen; _dx["probes"] = seen.size()
+
 func _dx_submit() -> void:
 	var cand := str(_dx.get("picked", ""))
 	if cand == "" or tele == null or tele.task == null or not tele.task.has_method("set_variant"): return
-	tele.task.set_variant(cand)   # the diagnosis tasks take the answer through the variant slot (engine/src/tasks/dx_common.h)
+	tele.task.set_variant("%s@%d:%d" % [cand, int(_dx.get("probes", 0)), int(_dx.get("tries", 0))])   # the diagnosis tasks take the answer through the variant slot (engine/src/tasks/dx_common.h)
 	var sc: Dictionary = tele.task.score(); var ok := bool(sc.get("passed", false))
-	Playlog.event("diagnosis", {"task": task_id, "answer": cand, "correct": ok})
+	_dx["verdict"] = str(sc.get("verdict", "")); _dx["score"] = float(sc.get("value", 0.0))
+	Playlog.event("diagnosis", {"task": task_id, "answer": cand, "correct": ok, "probes": int(_dx.get("probes", 0)), "wrong_before": int(_dx.get("tries", 0))})
 	if ok:
 		_dx["solved"] = true; editor.verdict_target = Circuits.candidate_focus(cand); editor.verdict_ok = true
 		var first := not bool(Progress.best(task_id)["passed"])
-		Progress.record_result(task_id, 100.0, {"passed": true, "five_seeds": int(_dx.get("tries", 0)) == 0, "neurons": Circuits.neuron_count(circuit), "rate_hz": -1.0, "reference_derived": false})
+		Progress.record_result(task_id, float(sc.get("value", 100.0)), {"passed": true, "five_seeds": int(_dx.get("tries", 0)) == 0, "neurons": 0, "rate_hz": -1.0, "reference_derived": false,
+			"max_stars": 3 if float(sc.get("value", 0.0)) >= 85.0 else 2})   # one star for the cause, two for no wrong answer, three for no wrong answer and few probes (a score of 85 or more)
 		GameAudio.event("pass")
 		if first: celebration.first_pass(editor, tele, Circuits.critical_path(circuit, Circuits.pop_activity(circuit, tele.count), Array(tele.task.sensor_channels()), Array(tele.task.motor_channels())), Campaign.notebook(task_id))
 	else:
-		_dx["tries"] = int(_dx.get("tries", 0)) + 1; GameAudio.event("fail")
-		var wrong := Circuits.candidate_focus(cand)
-		if wrong != "" and play.hint_open: play.hint_render()
+		_dx["tries"] = int(_dx.get("tries", 0)) + 1; GameAudio.event("fail")   # a wrong pick says only "not that one": no lit-up connection, no reason (the reasons come with the solved or revealed case)
 	_build_inspector(); _scroll_end.call_deferred()
 
 ## Bring the bottom of the inspector (a diagnosis reveal) into view once the new content is laid out.
@@ -600,7 +608,9 @@ func _scroll_end() -> void:
 
 func _dx_reveal() -> void:
 	_dx["gave_up"] = true
-	if tele != null and tele.task != null and tele.task.has_method("set_variant"): tele.task.set_variant(str(_dx_info.get("answer", "")))
+	if tele != null and tele.task != null and tele.task.has_method("set_variant"):
+		tele.task.set_variant("%s@revealed" % str(_dx_info.get("answer", "")))
+		_dx["verdict"] = str(tele.task.score().get("verdict", ""))
 	editor.verdict_target = Circuits.candidate_focus(str(_dx_info.get("answer", ""))); editor.verdict_ok = false
 	_build_inspector(); _scroll_end.call_deferred()
 
