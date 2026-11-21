@@ -126,11 +126,13 @@ func build() -> void:
 	if OS.get_environment("SP_LESION") != "": les.env.call_deferred()
 	_demo_hooks.call_deferred()
 	if OS.get_environment("SP_TESTNOW") != "": _test_start.call_deferred()   # dev hook: run TEST x5 at once, print the result, quit
+	if app != null and app.tutorial != null: app.tutorial.lab_opened(self)   # Plate 0, the sensor ring and the one-step pointers (ui/tutorial.gd)
 
 ## The circuit the live view runs: the player's, with the lesion set applied in the lesion lab.
 func _live_circuit() -> Dictionary: return Lesion.apply(circuit, lesions) if lesion_on and not lesions.is_empty() else circuit
 
 func _exit_tree() -> void:
+	if app != null and app.tutorial != null: app.tutorial.lab_closed(self)
 	play.check_cancel()
 	flush_on_close()
 	if task_id != "": Playlog.level_end(task_id, _rec_pass or bool(_dx.get("solved", false)))
@@ -567,7 +569,7 @@ func _watch_episode() -> void:
 		_rec_done = true
 		_record(passed, false)
 		if not passed: play.note_fail()
-		if not _overlay_dismissed: layout.overlay_show()
+		if not _overlay_dismissed and not (app != null and app.tutorial != null and app.tutorial.holds_endcard()): layout.overlay_show()   # Plate 0: the end card would cover the lit control
 
 ## Record a result: a pass in a challenge variant goes on the variant list (no stars), everything else is the task's own best.
 func _record(passed: bool, five_seeds: bool, mean := -1.0, rate := -2.0) -> void:

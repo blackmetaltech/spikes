@@ -6,6 +6,7 @@ extends Node
 ##             SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
 ##             SP_SCREEN=title|tasks|parts|lab|analysis|settings|credits|notebook|real   SP_CHAPTER=<chapter id> + SP_NODE=<task id> (campaign map)   SP_MOCK=1 (synthetic body-system tasks; debug builds only)
 ##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
+##             SP_TUTORIAL=1 (start Plate 0)   SP_TUT_STEP=<n> (walk it to step n with Do it for me)   SP_TUT_LOG=1   SP_PICKER=1 (the mode picker over the map)
 ##             SP_UIGRAPH=1 (walk the interaction graph, tests/interaction_graph.json, print UIGRAPH OK, quit)   SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
 const SCREENS := {"title": "res://ui/screens/title.gd", "tasks": "res://ui/screens/tasks.gd", "lab": "res://ui/screens/lab.gd", "analysis": "res://ui/screens/analysis.gd", "settings": "res://ui/screens/settings.gd", "credits": "res://ui/screens/credits.gd", "parts": "res://ui/screens/parts.gd", "notebook": "res://ui/screens/notebook.gd", "real": "res://ui/screens/real.gd"}
@@ -26,6 +27,7 @@ var real_back := "title"      # where Back on the "What is real" page goes (it o
 var ui: CanvasLayer
 var root: Control
 var holder: Control
+var tutorial: Tutorial             # Plate 0, the mode picker and the one-step pointers (ui/tutorial.gd), above the screens
 var pad: Pad
 var cur := ""
 var screen: Screen
@@ -53,6 +55,7 @@ func _ready() -> void:
 	ui = CanvasLayer.new(); ui.layer = 10; add_child(ui)
 	root = Control.new(); root.name = "Root"; root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.theme = Kit.make_theme(); ui.add_child(root)
 	holder = Control.new(); holder.name = "Screens"; holder.set_anchors_preset(Control.PRESET_FULL_RECT); holder.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(holder)
+	tutorial = Tutorial.new(); tutorial.app = self; root.add_child(tutorial)
 	pad = Pad.new(); pad.app = self; add_child(pad)
 	_update_metrics()
 	if OS.get_environment("SP_PAD") != "": pad.set_active(true)
@@ -64,6 +67,8 @@ func _ready() -> void:
 	if OS.get_environment("SP_NODE") != "": campaign_node = OS.get_environment("SP_NODE")
 	var start := OS.get_environment("SP_SCREEN") if SCREENS.has(OS.get_environment("SP_SCREEN")) else "title"
 	show_screen("title", false, true)
+	if OS.get_environment("SP_TUTORIAL") != "": tutorial.begin(); start = ""   # dev: Plate 0 now (SP_TUT_STEP=n walks it to step n with "Do it for me"; SP_TUT_LOG=1 prints the steps)
+	if OS.get_environment("SP_PICKER") != "": show_screen("tasks", false, true); tutorial.show_picker(); start = ""   # dev: the mode picker over the map
 	if start == "analysis": _analysis_demo(); 
 	elif start == "lab": open_lab(OS.get_environment("SP_TASK"), OS.get_environment("SP_REF") != "", true)
 	elif start != "title": show_screen(start, false, true)
@@ -176,6 +181,7 @@ func hint_refresh() -> void:
 ## B / Esc: let the screen handle it, else go to the screen it came from.
 func back() -> void:
 	if ConfirmCard.dismiss(): return
+	if tutorial != null and tutorial.on_back(): return   # Esc / B always leaves the tutorial or the mode picker
 	if screen != null and screen.on_back(): return
 	if cur == "analysis": open_lab(analysis_task, false, true); return
 	if cur == "real": show_screen(real_back if SCREENS.has(real_back) else "title", true); return
@@ -195,6 +201,9 @@ func open_analysis(c: Dictionary, t: Telemetry, task: String) -> void:
 ## The "What is real" page (docs/WHAT-IS-REAL.md), opened from `from` (title, credits, notebook), where Back returns.
 func open_real(from: String) -> void:
 	real_back = from; show_screen("real")
+
+## Plate 0 (replayable any time from the campaign map).
+func start_tutorial() -> void: tutorial.begin()
 
 func quit_game() -> void: flush_all(); get_tree().quit()
 
