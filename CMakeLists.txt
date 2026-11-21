@@ -29,6 +29,9 @@ if(SPIKE_BUILD_TESTS)
   # The save layer (godot/tests/test_save.gd): damaged / future / read-only saves, hostile circuits, the Reference and reference-lock repros. Needs only godot.
   add_test(NAME save_io COMMAND ${CMAKE_SOURCE_DIR}/scripts/save_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(save_io PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77)
+  # The circuit editor (godot/tests/test_editor.gd): undo / redo, large-circuit layout, clipboard, keyboard cursor. Needs only godot.
+  add_test(NAME godot_editor COMMAND ${CMAKE_SOURCE_DIR}/scripts/editor_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  set_tests_properties(godot_editor PROPERTIES TIMEOUT 400 SKIP_RETURN_CODE 77)
   add_test(NAME godot_polish COMMAND ${CMAKE_SOURCE_DIR}/scripts/polish_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(godot_polish PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
   # The lab's specimen layers (godot/assets/specimens) against the plate drawings they are cut from; skips (77) without pycairo.

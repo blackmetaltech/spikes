@@ -303,16 +303,19 @@ func _diagnosis() -> void:
 func _zip() -> void:
 	_wipe(); _progress_with_two_levels()
 	_put(_user("circuits/last_reflex.json"), _text(FIX + "mine_reflex.json"))
+	_put(_user("circuits/reflex/slot_B.json"), _text(FIX + "mine_reflex.json"))   # a lab solution slot travels with the save
 	var zp := ProjectSettings.globalize_path("user://t_save.zip")
 	_check(SaveIO.export_zip(zp) == "", "export failed")
 	Progress.reset(); _check(not bool(Progress.best("reflex")["passed"]), "reset left progress")
 	_check(not _files_like("user://", "progress.cfg.reset").is_empty(), "reset did not keep the old file")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://circuits/last_reflex.json"))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://circuits/reflex/slot_B.json"))
 	_check(SaveIO.import_zip(zp) == "", "import failed")
 	Progress.reload()
 	_check(bool(Progress.best("reflex")["passed"]) and bool(Progress.best("worm")["passed"]) and _exists("circuits/last_reflex.json"), "import did not restore the save")
+	_check(_exists("circuits/reflex/slot_B.json"), "import did not restore the solution slot")
 	# a zip with a hostile entry and one with a damaged circuit are refused whole
-	for case in [["../evil.cfg", "x"], ["circuits/last_reflex.json", _text(FIX + "h_types.json")], ["progress.cfg", "[best]\n\nreflex={"]]:
+	for case in [["../evil.cfg", "x"], ["circuits/../progress/slot_A.json", _text(FIX + "mine_reflex.json")], ["circuits/reflex/slot_D.json", _text(FIX + "mine_reflex.json")], ["circuits/last_reflex.json", _text(FIX + "h_types.json")], ["progress.cfg", "[best]\n\nreflex={"]]:
 		var z := ZIPPacker.new(); var bp := ProjectSettings.globalize_path("user://t_bad.zip"); z.open(bp)
 		z.start_file(SaveIO.MANIFEST); z.write_file(JSON.stringify({"format": "spike-save-1", "save_version": 1}).to_utf8_buffer()); z.close_file()
 		z.start_file(case[0]); z.write_file(str(case[1]).to_utf8_buffer()); z.close_file(); z.close()
