@@ -36,6 +36,22 @@ LEVELS = {
     "dynamics": ["d_class", "d_phasic", "d_switch"], "rates": ["r_oscillate", "r_choose", "r_meanfield"],
     "memory": ["h_complete", "h_two", "h_learn"], "tuning": ["t_tuned", "t_sharpen", "t_decode"]}
 
+# Spots for the diagnosis cases, which hang off a spine level: a quiet patch near their parent with room for a label plate
+# beside it (fractions of the canvas, like PINS). A chapter left out here lets the map find a spot itself.
+BRANCH = {
+    "leech": {"dx_leech": (0.91, 0.36)}, "aplysia": {"dx_aplysia": (0.64, 0.86)},
+    "fly_mb": {"dx_mb_apl": (0.66, 0.92), "dx_mb_dan": (0.36, 0.90)}}
+
+# Keep-out rects (image px, weight) for the insets beside the specimen: the little figures, traces, legs and scale bars that
+# carry no lettered call-out of their own, so the map's label plates do not land on them.
+FIGS = {
+    "worm": [(1190, 200, 640, 210, 40), (870, 855, 260, 260, 40), (1680, 1140, 200, 50, 40)],
+    "leech": [(120, 180, 710, 260, 40), (1650, 770, 170, 170, 40), (1690, 1150, 190, 50, 40)],
+    "aplysia": [(130, 170, 560, 200, 40), (1740, 680, 200, 130, 40), (1700, 1140, 200, 60, 40)],
+    "fly_compass": [(90, 180, 320, 360, 40), (1450, 180, 420, 200, 40), (1370, 960, 610, 130, 40), (1740, 1150, 160, 60, 40)],
+    "fly_mb": [(90, 180, 230, 260, 40), (1620, 1150, 260, 60, 40)],
+    "crab": [(70, 120, 310, 290, 40), (1390, 140, 520, 250, 40), (190, 500, 1620, 700, 15), (1680, 1130, 220, 70, 40)]}
+
 
 def pin_px(i):
     return np.array([PINS[i][0] * W, PINS[i][1] * H])
@@ -1370,10 +1386,12 @@ def write(ids):
     man = json.loads(man_path.read_text()) if man_path.exists() else {}
     for pid in ids:
         pl = PLATES[pid]()
+        for r in FIGS.get(pid, []):
+            pl.keep_rect(*r)
         im = pl.image()
         im.save(OUT / f"{pid}.png", optimize=True)
         man[pid] = {"file": f"res://assets/plates/{pid}.png", "size": [W, H],
-                    "pins": {lv: list(PINS[i]) for i, lv in enumerate(LEVELS[pid])},
+                    "pins": {**{lv: list(PINS[i]) for i, lv in enumerate(LEVELS[pid])}, **{k: list(v) for k, v in BRANCH.get(pid, {}).items()}},
                     "keep": [[round(k[0] / W, 4), round(k[1] / H, 4), round(k[2] / W, 4), round(k[3] / H, 4), k[4]] for k in pl.keep]}
         print("wrote", OUT / f"{pid}.png")
     man = {k: man[k] for k in sorted(man)}
