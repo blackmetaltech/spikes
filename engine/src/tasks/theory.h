@@ -164,7 +164,7 @@ struct CellGraph
     const Structure st = e.structure();
     for ( const auto& c : e.connections() )
     {
-      if ( !functional_edge( st, e, c.post, c.weight ) ) continue;   // a token weight is no connection (the functional floor of task_util.h)
+      if ( !functional_edge( st, e, c.post, c.weight, c.k != 0.0 ) ) continue;   // a token weight is no connection (the functional floor of task_util.h)
       w[ { c.pre, c.post } ] += c.weight;
     }
     for ( const auto& [ k, v ] : w )

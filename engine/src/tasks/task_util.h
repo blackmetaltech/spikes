@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "spike/engine.h"
@@ -68,10 +69,11 @@ struct Lowpass
 /// mechanism. Current cells (pA), delta and rate units (dimensionless) and conductance cells (nS, the NESTML models) each have their own scale; the limits sit
 /// a factor of 20 or more under the weakest weight of any reference circuit and far above the 0.001 to 0.01 that the cheat circuits use. A parrot cell relays
 /// whatever it hears, whatever the weight.
-inline double weight_floor( const std::string& model, bool sensor = false )
+inline double weight_floor( const std::string& model, bool sensor = false, const std::string& kind = "" )
 {
   auto has = [ & ]( const char* s ) { return model.find( s ) != std::string::npos; };
   if ( model == "parrot_neuron" ) return 0.0;
+  if ( sensor && kind == "dc" ) return 0.001;   // a dc sensor's weight multiplies a level of any size (pA per unit): only a vanishing weight is token wiring
   if ( has( "rate" ) || has( "siegert" ) || has( "delta" ) ) return 0.05;
   if ( has( "psc" ) || model == "izhikevich" || has( "izhikevich" ) || has( "hh_" ) || has( "mat2" ) || has( "gif_" ) ) return 0.5;
   return sensor ? 0.002 : 0.01;  // (a sensor's weight multiplies a Poisson rate: the weakest reference sensor weight onto a conductance cell is 0.005)
@@ -80,12 +82,15 @@ inline double weight_floor( const std::string& model, bool sensor = false )
 inline bool functional( const Structure& st, const ProjectionInfo& pr )
 {
   if ( pr.n_edges <= 0 || pr.sign == 0 || pr.post_index < 0 || pr.post_index >= static_cast< int >( st.populations.size() ) ) return false;
+  // a mean-field (diffusion_connection) projection reports its drift factor, whose scale is J x K x tau, not a synaptic weight: only a vanishing one is token wiring
+  if ( pr.synapse_model == "diffusion_connection" ) return std::max( std::fabs( pr.w_min ), std::fabs( pr.w_max ) ) >= 1e-4;
   return std::max( std::fabs( pr.w_min ), std::fabs( pr.w_max ) ) >= weight_floor( st.populations[ static_cast< size_t >( pr.post_index ) ].model );
 }
 /// The same for one live connection: the model of the target cell's population.
-inline bool functional_edge( const Structure& st, const Engine& e, int32_t post, double weight )
+inline bool functional_edge( const Structure& st, const Engine& e, int32_t post, double weight, bool diffusion = false )
 {
   if ( weight == 0.0 ) return false;
+  if ( diffusion ) return std::fabs( weight ) >= 1e-4;
   const std::string id = e.neuron_population( post );
   for ( const auto& p : st.populations )  // (a local lookup: Structure::population lives in engine.cpp, which the stub-engine physics test does not link)
     if ( p.id == id ) return std::fabs( weight ) >= weight_floor( p.model );
@@ -100,6 +105,87 @@ inline double owned_level( const Engine& e, const std::string& ch, double level,
   const double w = e.input_weight( ch );
   return w != 0.0 ? level * nominal_w / std::fabs( w ) : 0.0;
 }
+
+/// "Does the group that should do the work ever fire?" (gameplay review, finding 3). A verdict that says "strengthen X" is no help when X's input cells never fire: no weight of X changes anything.
+/// A task arms a SourceWatch on the populations that feed a target (the opposing motoneurons, a dilator pool, a turn command) and calls tick() every slice; silent() / say() then tell, in words,
+/// whether some feeding group never fired. Spikes are not drained from the engine (the lab's raster owns them): a few cells per group are sampled through their membrane state, and a cell counts as
+/// having fired when its last-spike time is set, its voltage falls by 5 mV or more between two slices (a reset), or it reaches its own threshold.
+class SourceWatch
+{
+public:
+  void reset()
+  {
+    groups_.clear();
+    armed_ = false;
+  }
+  /// The populations (indices into st.populations) with a functional projection of `sign` (0 = any) onto a population of `targets`, not themselves among the targets.
+  void arm( const Structure& st, const std::set< int >& targets, int sign = 0 )
+  {
+    armed_ = true;
+    for ( const auto& pr : st.projections )
+    {
+      if ( !functional( st, pr ) || !targets.count( pr.post_index ) || targets.count( pr.pre_index ) || ( sign != 0 && pr.sign != sign ) ) continue;
+      bool have = false;
+      for ( const auto& g : groups_ ) have = have || g.pop == pr.pre_index;
+      if ( have ) continue;
+      Group g;
+      g.pop = pr.pre_index;
+      const auto& p = st.populations[ static_cast< size_t >( pr.pre_index ) ];
+      const int n = std::min( p.n, 4 );
+      for ( int k = 0; k < n; ++k ) g.cells.push_back( p.first_index + ( p.n > n ? k * ( p.n / n ) : k ) );
+      g.prev.assign( g.cells.size(), -1e9 );
+      groups_.push_back( g );
+    }
+  }
+  bool armed() const { return armed_; }
+  /// Call after every slice.
+  void tick( const Engine& e )
+  {
+    for ( auto& g : groups_ )
+    {
+      if ( g.fired ) continue;
+      for ( size_t i = 0; i < g.cells.size() && !g.fired; ++i )
+      {
+        const int32_t n = g.cells[ i ];
+        const double ts = e.neuron_state( n, "t_spike" ), v = e.voltage( n ), vth = e.neuron_state( n, "V_th" );
+        if ( std::isfinite( ts ) && ts >= 0.0 ) g.fired = true;
+        else if ( g.prev[ i ] > -1e8 && g.prev[ i ] - v >= 5.0 ) g.fired = true;
+        else if ( std::isfinite( vth ) && v >= vth - 0.5 ) g.fired = true;
+        g.prev[ i ] = v;
+      }
+    }
+  }
+  /// Some feeding group exists and none of its sampled cells has fired (so far).
+  bool all_silent() const
+  {
+    if ( groups_.empty() ) return false;
+    for ( const auto& g : groups_ ) if ( g.fired ) return false;
+    return true;
+  }
+  bool some_silent() const
+  {
+    for ( const auto& g : groups_ ) if ( !g.fired ) return true;
+    return false;
+  }
+  /// "The <what> never fires: ..." when a feeding group is silent, else "" (no digits, no population names).
+  std::string say( const std::string& what ) const
+  {
+    if ( all_silent() ) return "The " + what + " never fire: give them input or a steady drive (a bias current) before changing any weight downstream of them.";
+    if ( some_silent() ) return "One of the groups among the " + what + " never fires: give it input or a steady drive (a bias current).";
+    return "";
+  }
+
+private:
+  struct Group
+  {
+    int pop = -1;
+    std::vector< int32_t > cells;
+    std::vector< double > prev;
+    bool fired = false;
+  };
+  std::vector< Group > groups_;
+  bool armed_ = false;
+};
 
 /// Reads motor channels from the engine. Engine::output_rate() is the spike count of the channel's neurons during the
 /// last step divided by the step length, i.e. the summed rate of the population in Hz. Tasks use the mean rate per
@@ -177,9 +263,9 @@ public:
         if ( cs.name == w )
           for ( const auto& pid : cs.pops )
             for ( const auto& p : st.populations )
-              if ( p.id == pid ) floor = std::min( floor, weight_floor( p.model, true ) );
+              if ( p.id == pid ) floor = std::min( floor, weight_floor( p.model, true, cs.kind ) );
       const double wt = std::fabs( e.input_weight( w ) );
-      if ( floor < 1e9 && floor > 0 && wt < floor ) weak_.push_back( w );
+      if ( floor < 1e9 && floor > 0 && wt > 0.0 && wt < floor ) weak_.push_back( w );
     }
   }
   bool ok() const { return unwired_.empty() && weak_.empty(); }

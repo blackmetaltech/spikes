@@ -83,6 +83,7 @@ public:
     begin( seed );
     j_ = rng_.uniform( 0, 100 );
     base_ = 50;
+    dead_input_ = false;
   }
 
   std::map< std::string, Metric > metrics() const override
@@ -129,7 +130,8 @@ protected:
   void drive( Engine& e, double ) override
   {
     const double k = kick_at( t_ );
-    e.set_input( "drive", kDrive * ( 1.0 + 0.03 * noise() * rng_.normal() ) );
+    e.set_input( "drive", owned_level( e, "drive", kDrive * ( 1.0 + 0.03 * noise() * rng_.normal() ), 300.0 ) );   // so is the base drive: a weight cranked up must not saturate the cells and hide the kicks
+    if ( e.input_weight( "kick" ) == 0.0 || e.input_weight( "drive" ) == 0.0 ) dead_input_ = true;
     e.set_input( "kick", k > 0 ? owned_level( e, "kick", k * ( 1.0 + 0.03 * noise() * rng_.normal() ), 300.0 ) : 0.0 );   // the volley is the level's: 300 pA per unit whatever weight the player gave it
   }
 
@@ -155,6 +157,16 @@ protected:
     parts[ "rise_double_kick_hz" ] = dc;
     parts[ "ratio_c" ] = rc / std::max( ra, 1.0 );
     const double lim_b = kUnprotB * 0.45 * tl, lim_c = kUnprotC * 0.40 * tl;
+
+    Crit live;
+    live.key = "inputs";
+    live.ok = !dead_input_;
+    live.soft = 0.0;
+    live.fail = "'drive' or 'kick' is wired with a weight of zero: it carries nothing. Wire both onto the motoneurons.";
+    live.place = "The weights of the 'drive' and 'kick' sensors.";
+    live.target = "mn";
+    live.recipe = "Give 'drive' and 'kick' a weight above zero onto the motoneurons.";
+    crits.push_back( live );
 
     Crit base;
     base.key = "alive";
@@ -194,6 +206,7 @@ protected:
 
 private:
   double j_ = 0, base_ = 50;
+  bool dead_input_ = false;
 };
 
 } // namespace

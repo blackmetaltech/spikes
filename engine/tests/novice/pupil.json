@@ -1,0 +1,300 @@
+{
+ "schema_version": 1,
+ "name": "novice",
+ "resolution_ms": 0.1,
+ "seed": 1,
+ "populations": [
+  {
+   "id": "RGC",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "PON",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "EW",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "CG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "HYP",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "IML",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 400.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "SCG",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {
+    "I_e": 400.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "RGC",
+   "post": "PON",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 640,
+    "delay": 25
+   }
+  },
+  {
+   "pre": "PON",
+   "post": "EW",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 640,
+    "delay": 25
+   }
+  },
+  {
+   "pre": "EW",
+   "post": "CG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 640,
+    "delay": 25
+   }
+  },
+  {
+   "pre": "HYP",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 5000,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "IML",
+   "post": "SCG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 5000,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "PON",
+   "post": "IML",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -640,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "retina",
+   "kind": "poisson",
+   "weight": 280,
+   "value": 0,
+   "targets": [
+    {
+     "pop": "RGC"
+    }
+   ]
+  },
+  {
+   "name": "threat",
+   "kind": "poisson",
+   "weight": 280,
+   "value": 0,
+   "targets": [
+    {
+     "pop": "HYP"
+    }
+   ]
+  }
+ ],
+ "outputs": [
+  {
+   "name": "sphincter",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "CG"
+    }
+   ]
+  },
+  {
+   "name": "dilator",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "SCG"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "novice",
+  "task": "pupil"
+ }
+}

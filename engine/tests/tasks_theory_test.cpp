@@ -268,7 +268,7 @@ int main( int argc, char** argv )
       { "h_complete", "hc_hopfield.json", true, "" },        // the same, one pattern
       { "h_complete", "hc_rand.json", false, "symmetric" },  // a directed random graph completes the pattern but is not symmetric
       { "r_choose", "ch_novice1.json", true, "" },
-      { "r_choose", "ch_bias.json", false, "bias" },         // feed-forward gain bias, loops of 0.01: holds only its favourite
+      { "r_choose", "ch_bias.json", false, "excite itself" },        // feed-forward gain bias, loops of 0.01 (token weights: the floor names the missing self-excitation first)
       { "r_oscillate", "osc_eq.json", true, "" },            // equal time constants oscillate: the inhibition need not be slower
       { "r_oscillate", "osc_b.json", false, "too strong" },  // the loop through the inhibitory unit pins the excitation just above the drive
       { "r_meanfield", "mf_k1_tuned.json", false, "network's k" },     // K = 1 with the J tuned to match the rates: not the network's description
