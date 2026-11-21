@@ -38,10 +38,10 @@ Spec spec()
   i.concepts_new = { "bursting" };
   i.concepts_used = { "adaptation" };
   i.par_neurons = 1;
-  i.default_model = "izhikevich_CH";
+  i.default_model = "izhikevich_RS";   // the lab opens on the regular-spiking cell: finding the chattering (bursting) card is the puzzle
   i.kinds = { { "drive", micro::dc( 2.0, 5.0 ) }, { "burst", micro::rate() } };
   i.bands = { { "burst_hz", "Hz", 0, 400 } };
-  i.recipe = "One Izhikevich cell with the chattering preset (a 0.02, b 0.2, c -50, d 2); drive > the cell at the default weight of 5 pA per unit (10 pA at the level the task uses); "
+  i.recipe = "One Izhikevich cell with the chattering preset (the Chattering card; the lab opens on the regular-spiking one) (a 0.02, b 0.2, c -50, d 2); drive > the cell at the default weight of 5 pA per unit (10 pA at the level the task uses); "
              "the cell > 'burst'. It fires bursts of three to five spikes with silent gaps.";
   i.note = { "Neurons that fire in bursts",
     "The two oscillator interneurons of each segmental heartbeat oscillator in the medicinal leech fire alternating bursts: while one bursts the other is silent. "

@@ -30,13 +30,13 @@ DxSpec spec()
     { "LP>PD", "LP no longer inhibits the pacemaker's PD cells" } };
   s.explain = {
     { "LP>PY", "PY is held back by the pacemaker and, in the second half of the quiet period, by LP. Without LP's inhibition PY fires as soon as the pacemaker lets go, together with LP: the order PD, LP, PY is lost, as here." },
-    { "AB>PY", "PY has three sources of inhibition (AB, PD and LP) and the network is degenerate: losing the one from AB changes the pattern very little, and PY would still wait for LP. Here PY does not wait." },
+    { "AB>PY", "PY has three sources of inhibition (AB, PD and LP) and the network has overlapping routes: losing the one from AB changes the pattern very little, and PY would still wait for LP. Here PY does not wait." },
     { "PD>PY", "As with AB, losing PD's inhibition of PY leaves the other two and the order intact. Here PY does not wait for LP." },
     { "PY>LP", "Without PY's inhibition of LP the alternation of the two followers breaks down (in this model one of them then fires twice or not at all in a cycle). Here every cycle is clean and only the last burst is early." },
     { "LP>PD", "LP's inhibition of the PD cells shortens the cycle slightly when it is lost, but it does not change when PY starts. Here PY fires early." } };
   s.concepts_new = { "diagnosis" };
-  s.concepts_used = { "pacemaker_kernel", "rebound", "degeneracy" };
-  s.hint1 = "PY has several sources of inhibition and the network can compensate for losing some of them. Which one is it that puts PY after LP?";
+  s.concepts_used = { "pacemaker_kernel", "rebound" };   // degeneracy is not taught by any level, so the case does not use it
+  s.hint1 = "PY has several sources of inhibition and the network can still work when some of them are lost. Which one is it that puts PY after LP?";
   s.hint2 = "Watch PY while LP fires: does LP's burst do anything to PY, as it should? Compare with what the pacemaker's burst does to it.";
   s.hint2_target = "PY";
   s.hint3 = "The break is in the part of the circuit that sets the timing of the follower cells at the end of the cycle: it touches the last follower, one of the connections that arrive on it or leave it.";
