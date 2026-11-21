@@ -32,7 +32,7 @@ var open_notebook: Callable = Callable()
 class StampMark extends Control:
 	var k := 1.0
 	var score := 100
-	func _draw() -> void: Gfx.stamp(self, size * 0.5, minf(size.x, size.y) * 0.5 - 6.0, "FIRST PASS", "%d" % score, "of 100", Kit.GREEN, -0.2, k)
+	func _draw() -> void: Gfx.stamp(self, size * 0.5, minf(size.x, size.y) * 0.5 - 6.0, "FIRST PASS", "%d" % score, "of 100", Kit.success(), -0.2, k)
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); mouse_filter = Control.MOUSE_FILTER_IGNORE

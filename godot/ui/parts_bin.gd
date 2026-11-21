@@ -55,6 +55,7 @@ func _new_grid(parent: Control, f: float, phone: bool) -> Container:
 		grid = VBoxContainer.new(); grid.add_theme_constant_override("separation", 6)
 	else:
 		var g := HFlowContainer.new(); g.add_theme_constant_override("h_separation", int(14 * f)); g.add_theme_constant_override("v_separation", int(14 * f)); grid = g
+		g.last_wrap_alignment = FlowContainer.LAST_WRAP_ALIGNMENT_BEGIN   # cards stretch to fill each row (no empty gutter at the right); the last row keeps the column widths
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(grid)
 	return grid
@@ -104,7 +105,7 @@ func _card(m: String, f: float, phone: bool) -> Control:
 	var usable := _usable(m); var avail := Catalog.available(m); var open := usable or Catalog.unlocked(m, sandbox)
 	var is_sel := m == selected
 	var w := (360.0 * f) if not phone else 300.0
-	var p := PanelContainer.new(); p.custom_minimum_size = Vector2(w, 0)
+	var p := PanelContainer.new(); p.custom_minimum_size = Vector2(w, 0); p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var edge := Kit.exc() if is_sel else (Kit.LINE if usable else Color(Kit.LINE, 0.6))
 	p.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL if usable else Kit.WELL, edge, 2 if is_sel else 1, 12, 14, false))
 	p.mouse_filter = Control.MOUSE_FILTER_STOP; p.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT: _select(m))
@@ -112,7 +113,7 @@ func _card(m: String, f: float, phone: bool) -> Control:
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", int(7 * f) if not phone else 5); p.add_child(v)
 	var tcol := Kit.TEXT if usable else Kit.TEXT_SOFT
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 8); v.add_child(hd)
-	var tl := Kit.shout(Catalog.title(m), int(21 * f) if not phone else 18, tcol); tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; hd.add_child(tl)
+	var tl := Kit.shout(Catalog.title(m), int(21 * f) if not phone else 18, tcol); tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tl.autowrap_mode = TextServer.AUTOWRAP_WORD; hd.add_child(tl)   # break at word boundaries only ("integrate-and-fir / e")
 	var chap: String = Catalog.chapter_of(m)
 	var tag := "AVAILABLE"; var tc := Kit.GREEN
 	if not avail: tag = "NOT IN THIS BUILD"; tc = Kit.TEXT_SOFT
