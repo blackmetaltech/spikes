@@ -14,6 +14,7 @@ signal submit_pressed
 const REVEAL_AFTER := 3
 signal reveal_pressed
 signal lesion_lab_pressed
+var submit_row: Control = null   # the Submit / Reveal row: the inspector pins it below its scroll area, so it is never cut by the scroll edge
 
 func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: bool) -> DiagnosisPanel:
 	for c in get_children(): remove_child(c); c.queue_free()
@@ -49,7 +50,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT; row.add_child(b)
 	# submit and reveal
 	if not done:
-		var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 8); add_child(br)
+		var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 8); add_child(br); submit_row = br
 		var sb := Kit.btn("SUBMIT DIAGNOSIS", func(): state["last_submitted"] = str(state.get("picked", "")); submit_pressed.emit(), "green", 20); sb.disabled = str(state.get("picked", "")) == ""; br.add_child(sb)
 		if int(state.get("tries", 0)) >= REVEAL_AFTER: br.add_child(Kit.btn("REVEAL ANSWER", func(): reveal_pressed.emit(), "panel", 18))   # not after the first wrong pick: probing comes first
 		if int(state.get("tries", 0)) >= 1:

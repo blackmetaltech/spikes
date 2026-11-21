@@ -17,7 +17,7 @@ const MARK_BAD := "✗"
 const MARK_WAIT := "•"
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(300, 104 if Layout.phone else 134); clip_contents = true
+	custom_minimum_size = Vector2(300, 104 if Layout.phone or Kit.vh < 900.0 else 134); clip_contents = true   # a short window: the stamp shrinks, two criteria rows
 	_details_btn = Kit.btn("Details", toggle_details, "ghost", 15 if not Layout.phone else 14, Vector2(0, 0)); Kit.ident(_details_btn, "BtnDetails")
 	_details_btn.custom_minimum_size = Vector2(0, 30); _details_btn.tooltip_text = "Every number the score is computed from"
 	add_child(_details_btn)
@@ -50,7 +50,7 @@ func _bare() -> bool:
 # ---------------------------------------------------------------- human labels
 ## Words the engine abbreviates in its score-part keys.
 const PART_WORDS := {"net": "network", "mf": "mean-field prediction", "mae": "mean error", "err": "error", "pct": "", "hz": "", "ms": "", "s": "", "mm": "",
-	"rad": "", "bpm": "", "mmhg": "", "kc": "Kenyon cells", "apl": "APL", "dan": "dopamine cells", "mbon": "output cells", "ia": "Ia", "ib": "Ib", "ii": "II",
+	"rad": "", "bpm": "", "mmhg": "", "kc": "KC", "apl": "APL", "dan": "dopamine cells", "mbon": "output cells", "ia": "Ia", "ib": "Ib", "ii": "II",
 	"ach": "ACh", "ne": "NE", "da": "DA", "co2": "CO2", "paco2": "arterial CO2", "hr": "heart rate", "ve": "ventilation", "sa": "SA", "cv": "variability",
 	"rmssd": "RMSSD", "sdnn": "SDNN", "iv": "interval", "eff": "effective", "seg2": "segment 2", "ab": "AB", "pd": "PD", "lp": "LP", "py": "PY",
 	"hn": "HN", "he": "HE", "ava": "AVA", "avb": "AVB", "avd": "AVD", "pvc": "PVC", "epg": "EPG", "max": "largest", "min": "smallest", "abs": "absolute"}
@@ -159,7 +159,7 @@ func _draw() -> void:
 	if bare: v = 0.0; passed = false
 	if not passed: v = minf(v, 99.0)   # 100 is a pass: a run still short of it never reads 100, not even rounded up
 	v = floorf(v) if not passed else roundf(v)
-	var col := Kit.GREEN if passed else Kit.RED
+	var col := Kit.success() if passed else Kit.RED
 	# the stamp ring: lands when the run first passes
 	var k := clampf(_pulse / 0.35, 0.0, 1.0) if _pulse >= 0.0 else 1.0
 	_stamp_ring(c, r, "%d" % int(v) if has_task and not bare else "–", ("PASSED" if passed else "SCORE") if has_task and not bare else "", col if has_task and not bare else Kit.TEXT_SOFT, k, not (has_task and not bare))
@@ -169,7 +169,7 @@ func _draw() -> void:
 	if has_task:
 		status = "PASSED" if passed else ("RUNNING" if (tele.running and not tele.finished) else ("FINISHED: NOT PASSED" if tele.finished else "PAUSED"))
 		if tele.sim == null or bare: status = "BUILD A CIRCUIT"
-	var scol := Kit.GREEN if passed else (Kit.TEXT_SOFT if status in ["RUNNING", "PAUSED", "BUILD A CIRCUIT", "NO TASK"] else Kit.RED)
+	var scol := Kit.success() if passed else (Kit.TEXT_SOFT if status in ["RUNNING", "PAUSED", "BUILD A CIRCUIT", "NO TASK"] else Kit.RED)
 	var sw := fb.get_string_size(status, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 16.0
 	var hy := 10.0
 	draw_rect(Rect2(x, hy, sw, float(fz) + 8.0), Color(scol, 0.08)); draw_rect(Rect2(x, hy, sw, float(fz) + 8.0), scol, false, 1.4)

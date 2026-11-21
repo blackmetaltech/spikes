@@ -47,8 +47,11 @@ func build() -> void:
 	editor.lesion_clicked.connect(lab.les.click)
 	editor.editable = not lab._is_dx()   # a diagnosis case is probed, never rebuilt
 	var inspector := PanelContainer.new(); Kit.ident(inspector, "Inspector"); lab.inspector = inspector; inspector.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 12, 12 if phone else 14, false))
-	lab.insp_scroll = ScrollContainer.new(); lab.insp_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; inspector.add_child(lab.insp_scroll)
+	var insp_box := VBoxContainer.new(); insp_box.add_theme_constant_override("separation", 8); inspector.add_child(insp_box)
+	lab.insp_scroll = ScrollContainer.new(); lab.insp_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; lab.insp_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; insp_box.add_child(lab.insp_scroll)
+	var insp_footer := VBoxContainer.new(); Kit.ident(insp_footer, "InspFooter"); insp_footer.visible = false; insp_box.add_child(insp_footer)   # pinned below the scroll: the diagnosis Submit row
 	lab.insp_body = VBoxContainer.new(); lab.insp_body.add_theme_constant_override("separation", 8); lab.insp_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; lab.insp_scroll.add_child(lab.insp_body)
+	lab.insp_body.set_meta("footer", insp_footer)
 	var ov := Control.new(); lab.ov = ov; ov.set_anchors_preset(Control.PRESET_FULL_RECT); ov.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if phone:   # the inspector is a bottom sheet over the editor, so the canvas keeps the whole screen when nothing is selected
 		inspector.set_anchors_preset(Control.PRESET_BOTTOM_WIDE); inspector.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -73,13 +76,13 @@ func build() -> void:
 	if lab._is_dx(): lab.score_card.visible = false   # the case has no score to watch: the answer is the score
 	world.size_flags_stretch_ratio = 5.6 if has_tl else 3.0
 	var body_view := has_tl or str(info.get("view", "polyline")) != "polyline"
-	if body_view: lab.task_view.custom_minimum_size.y = 110.0 if phone else 230.0   # a body view needs room for its readouts
+	if body_view: lab.task_view.custom_minimum_size.y = 110.0 if phone else (230.0 if Kit.vh >= 900.0 else 150.0)   # a body view needs room for its readouts (less in a short window: 1366x768, Large text)
 	var scopes := VBoxContainer.new(); scopes.size_flags_vertical = Control.SIZE_EXPAND_FILL; scopes.size_flags_stretch_ratio = 3.1 if has_tl else 4.1; scopes.add_theme_constant_override("separation", int(8 * f)); right.add_child(scopes)
 	lab.panels["scopes_only"] = scopes
 	lab.raster = RasterView.new(); lab.raster.size_flags_vertical = Control.SIZE_EXPAND_FILL; lab.raster.size_flags_stretch_ratio = 0.8; scopes.add_child(lab.raster)
 	lab.traces = TraceView.new(); lab.traces.size_flags_vertical = Control.SIZE_EXPAND_FILL; lab.traces.size_flags_stretch_ratio = 1.3; scopes.add_child(lab.traces)
-	if body_view and not phone: lab.raster.custom_minimum_size.y = 90.0; lab.traces.custom_minimum_size.y = 90.0   # the scopes give way to the body view and its timeline
-	lab.gauges = GaugeView.new(); lab.gauges.custom_minimum_size = Vector2(0, 40.0 + 30.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2)); scopes.add_child(lab.gauges)
+	if body_view and not phone: lab.raster.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 70.0; lab.traces.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 64.0   # the scopes give way to the body view and its timeline
+	lab.gauges = GaugeView.new(); lab.gauges.custom_minimum_size = Vector2(0, (40.0 + 30.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2)) if Kit.vh >= 900.0 else (32.0 + 24.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2))); scopes.add_child(lab.gauges)
 	if tid != "" and not (info.get("modulators", []) as Array).is_empty() and ModDials.available():   # task-driven neuromodulators: read-only gauges
 		lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false, tid); scopes.add_child(lab.mod_dials)
 	lab.banner = Kit.label("", 17, Kit.RED, true); lab.banner.visible = false; v.add_child(lab.banner)
@@ -350,7 +353,7 @@ func overlay_show(testing := false) -> void:
 	# a rubber stamp beside "N of 100" and the stars; one soft line for a reference circuit; one primary button (the next level after a pass, else run
 	# again), the rest outlined. The energy bill lives in Results (its Energy row), not here.
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 22 if not phone else 14); v.add_child(hd)
-	var col := Kit.GREEN if passed else Kit.RED
+	var col := Kit.success() if passed else Kit.RED
 	var ref := lab._is_reference()
 	var seeds := not lab._test_result.is_empty()
 	var stp := Kit.stamp(str(val), "PASSED" if passed else "NOT PASSED", "of 100", col, 120.0 if not phone else 88.0); Kit.ident(stp, "EndStamp"); hd.add_child(stp)
@@ -361,6 +364,7 @@ func overlay_show(testing := false) -> void:
 	else:
 		var sr := HBoxContainer.new(); sr.add_theme_constant_override("separation", 14); hv.add_child(sr)
 		var ev := _OvStars.new(); ev.n = int(best["stars"]); ev.custom_minimum_size = Vector2(110, 30); sr.add_child(ev)
+		if passed and int(best["stars"]) > 0: GameAudio.event("star%d" % clampi(int(best["stars"]), 1, 3))   # the stars ring as the card rises
 		var bl := Kit.label("best %d" % int(roundf(float(best["value"]))), 18 if not phone else 16, Kit.TEXT_SOFT); bl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(bl)
 	var et := _end_text()
 	if et != "": v.add_child(Kit.label(et, 19 if not phone else 16, Kit.TEXT, true))
