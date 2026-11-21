@@ -59,7 +59,7 @@ Spec spec()
             "bump and to its own turn sensor ('turn_left' or 'turn_right'), and excites the compass cells one step to its own side. Both turn sensors carry a steady background and the side of "
             "the turn carries more: when the fly is still the two groups push equally and the bump stays; during a turn one group pushes harder and the bump moves. Read 'heading' as a "
             "population vector over the ring. You are scored on the heading error in the dark: how far the bump is from the true heading, after holding still and after each turn. "
-            "A ring alone cannot move; shifters on one side cannot turn both ways. Each unit of a turn sensor is only a small current: the weight from a turn sensor onto the shifting cells must be small compared with the ring's own weights (a few picoamps per unit, not hundreds).";
+            "A ring alone cannot move; shifters on one side cannot turn both ways. Each unit of a turn sensor is only a small current, so the weight from a turn sensor onto the shifting cells is small next to the ring's own weights (a few picoamps per unit, not hundreds).";
   i.chapter = "fly_compass";
   i.view = "compass";
   i.sensors = cue_family();

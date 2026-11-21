@@ -31,7 +31,7 @@ Spec spec()
             "'turn_left' and 'turn_right' both carry a steady level, equal while the fly is still, and during a turn the sensor of that side carries more and the other less. While the fly is "
             "still the two groups push equally and the bump stays; during a turn one side pushes harder, and the bump moves in that direction. Build it: the bump must form at the landmark, stay while "
             "the fly is still, move to the right during a turn to the right, and move back during a turn to the left. A shifting group that listened only to the turn sensor would "
-            "push everywhere on the ring; it must also need the bump, so that the push acts where the bump is. Each unit of a turn sensor is only a small current: the weight from a turn sensor onto the shifting cells must be small compared with the ring's own weights (a few picoamps per unit, not hundreds).";
+            "push everywhere on the ring; it must also need the bump, so that the push acts where the bump is. Each unit of a turn sensor is only a small current, so the weight from a turn sensor onto the shifting cells is small next to the ring's own weights (a few picoamps per unit, not hundreds).";
   i.chapter = "fly_compass";
   i.view = "compass";
   i.sensors = cue_family();
