@@ -32,7 +32,7 @@ Spec spec()
             "synapses lose strength. The wiring is a model after the fly's cell types, not synapse-level data. The sensors 'odor_a' and 'odor_b' drive two groups of Kenyon cells, one for each odour; "
             "'punish' drives the dopamine neurons; read 'avoid' from the avoidance neurons. Both odours must make the avoidance cells fire before training. Then odour A is paired with punishment twice. "
             "Afterwards the avoidance cells must answer odour A much less than before, and odour B as much as before. Use a dopamine-gated synapse from each group of Kenyon cells onto the avoidance cells (a depressing "
-            "synapse whose change is gated by a dopamine source), and let the punishment drive the dopamine neurons. This synapse rule also looks at the avoidance cells' own spikes (as well as the odour cells' and the dopamine), so the odours must make the avoidance cells fire during the pairing; nothing else is needed.";
+            "synapse whose change is gated by a dopamine source), and let the punishment drive the dopamine neurons. This synapse rule also looks at the avoidance cells' own spikes (as well as the odour cells' and the dopamine), so the odours have to make the avoidance cells fire during the pairing; nothing else is needed.";
   i.chapter = "fly_mb";
   i.sensors = { "odor_a", "odor_b", "punish" };
   i.motors = { "avoid" };
