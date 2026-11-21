@@ -79,7 +79,7 @@ P("aeif_divergent", base(populations=[{"id": "A", "model": "aeif_cond_alpha", "n
 P("hh_dc_huge", base(populations=[{"id": "A", "model": "hh_psc_alpha", "n": 2}, {"id": "B", "model": "hh_psc_alpha", "n": 2}], inputs=[{"name": "s", "kind": "dc", "targets": ["A"], "value": 1e12}]))
 P("seed_zero", base(seed=0))
 P("seed_missing", {k: v for k, v in base().items() if k != "seed"})
-P("nestml_dc_1e3", base(populations=[{"id": "A", "model": "butera_burster", "n": 2}, {"id": "B", "model": "iaf_psc_alpha", "n": 2}], inputs=[{"name": "s", "kind": "dc", "targets": ["A"], "value": 1000.0}]))
+P("nestml_dc_1e3", base(populations=[{"id": "A", "model": "butera_burster", "n": 2}, {"id": "B", "model": "iaf_psc_alpha", "n": 2}], inputs=[{"name": "s", "kind": "dc", "targets": ["A"], "value": 2500.0}]))
 P("nestml_dc_neg_1e4", base(populations=[{"id": "A", "model": "stg_cell", "n": 2}, {"id": "B", "model": "iaf_psc_alpha", "n": 2}], inputs=[{"name": "s", "kind": "dc", "targets": ["A"], "value": -1e4}]))
 P("nestml_weight_1e8", base(populations=[{"id": "A", "model": "iaf_psc_alpha", "n": 2}, {"id": "B", "model": "sa_node_pacemaker", "n": 2}], projections=[{"pre": "A", "post": "B", "rule": "all_to_all", "synapse": {"weight": 1e8}}]))
 P("nestml_I_e_param", base(populations=[{"id": "A", "model": "butera_burster", "n": 2, "params": {"I_e": 1e6}}, {"id": "B", "model": "iaf_psc_alpha", "n": 2}]))

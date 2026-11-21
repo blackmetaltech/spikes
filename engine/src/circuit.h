@@ -95,9 +95,9 @@ double spread_weight( double w, int kind, double amount, unsigned long long seed
 constexpr double kMaxConductanceNs = 500.0;
 constexpr double kMaxCurrentPa = 10000.0;
 /// NESTML cells (models/nestml: butera_burster, stg_cell, sa_node_pacemaker, icc_slow_wave): their adaptive integrator can stall on huge inputs, so synaptic weights are capped
-/// at kMaxNestmlWeightNs (nS) and constant currents at kMaxNestmlDcPa (pA). True for those model names.
-constexpr double kMaxNestmlWeightNs = 250.0;
-constexpr double kMaxNestmlDcPa = 1000.0;
+/// at kMaxNestmlWeightNs (nS; the references use up to 400, a test circuit 1000) and constant currents at kMaxNestmlDcPa (pA; references up to 1500); the step guard of the generated cell catches the rest. True for those model names.
+constexpr double kMaxNestmlWeightNs = 2000.0;
+constexpr double kMaxNestmlDcPa = 2000.0;
 bool is_nestml_model( const std::string& model );
 
 /// Parse-time budgets (add-only): a circuit that exceeds one is refused with a plain message rather than hanging or exhausting memory.

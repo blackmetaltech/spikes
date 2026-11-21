@@ -277,7 +277,7 @@ MAX_CURRENT_PA = 10000.0
 def weight_limit(neuron_model: str):
     """(limit, unit) of |weight| onto `neuron_model`: nS for "_cond_" models, pA for "_psc_" / "_curr_" models, else (0.0, None)."""
     if neuron_model in ("butera_burster", "stg_cell", "sa_node_pacemaker", "icc_slow_wave"):
-        return 250.0, "nS"  # NESTML cells (engine/src/circuit.cpp kMaxNestmlWeightNs)
+        return 2000.0, "nS"  # NESTML cells (engine/src/circuit.cpp kMaxNestmlWeightNs)
     if "_cond_" in neuron_model:
         return MAX_CONDUCTANCE_NS, "nS"
     if "_psc_" in neuron_model or "_curr_" in neuron_model:
