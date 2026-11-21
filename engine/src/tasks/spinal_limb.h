@@ -408,7 +408,7 @@ inline double psth_latency( const std::vector< double >& cnt, const std::vector<
         if ( o - pre < 0 || o + post > static_cast< long >( cnt.size() ) )
           continue;
         double sum = 0;
-        for ( int j = 0; j < 4 * bin; ++j )
+        for ( int j = 0; j < 4 * bin && o - pre + i * bin + j < static_cast< long >( cnt.size() ); ++j )  // the last windows reach up to 1 ms past o + post: stay inside cnt
           sum += cnt[ o - pre + i * bin + j ];
         if ( sum >= 0.15 * n_pool )
           ++consistent;

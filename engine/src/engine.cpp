@@ -11,6 +11,7 @@
 #include <limits>
 #include <map>
 #include <stdexcept>
+#include <gsl/gsl_errno.h>
 
 #include "circuit.h"
 #include "ring_backend.h"
@@ -105,6 +106,20 @@ Dictionary to_dict( const nlohmann::json& o )
   return d;
 }
 
+// Rate drives (mean / mu of rate neurons) are clamped: siegert_neuron's integral fails for a mean below about -1000 (the references drive it at 6000..10000 Hz), and a
+// failed GSL integral must not be reachable by a player.
+constexpr double kDriveMin = -500.0, kDriveMax = 1.0e6;
+double clamp_drive( double x )
+{
+  if ( not std::isfinite( x ) )
+    return 0.0;
+  return std::max( kDriveMin, std::min( kDriveMax, x ) );
+}
+
+// Watchdog thresholds: wall clock per ms of model time of one slice (<= 100 ms), and the minimum wall time before it trips.
+constexpr double kWatchdogUsPerModelMs = 250000.0;  // 0.25 s per model ms = 4000x slower than real time is never a legitimate circuit (the largest budgeted one runs ~50x real time)
+constexpr double kWatchdogMinUs = 5e6;
+
 std::vector< size_t > node_ids( const std::vector< int32_t >& neurons )
 {
   std::vector< size_t > ids( neurons.size() );
@@ -138,6 +153,7 @@ struct Engine::Impl
     // 0.6 (add-only): kind 3 "rate_drive" (no device: `param` = mu | mean written to every target), kind 4 "tuned_poisson" (one poisson_generator per target, in `gens`)
     std::vector< size_t > gens, targets;   // kind 4: generator node ids and the (1-based) target node ids; kind 3: the target node ids
     double weight = 1.0;                   // kinds 3: drive = weight * value
+    double vmax = 1e300;                   // kinds 0 / 2: the largest |value| set_input accepts (rate: kMaxRateHz; dc: the current cap / |weight|)
     double rate_max = 50, rate_base = 0, kappa = 2, period_deg = 360;
     /// kind 4: set every generator's rate for a stimulus angle (degrees): von Mises tuning around the preferred angle period_deg * k / N of target k
     void apply_tuning( double angle_deg ) const
@@ -165,7 +181,8 @@ struct Engine::Impl
   struct Proj
   {
     nest::NodeCollectionPTR src, tgt;
-    std::string model;
+    std::string model;  // the NEST synapse model the connections use: a private copy "<base>__p<i>" for a plastic projection and for projections that share (pre, post, model)
+    std::string base;   // the synapse model as the circuit names it
   };
   std::vector< Proj > projs;
 
@@ -284,6 +301,7 @@ struct Engine::Impl
   void build_projection_modulation();
   void decay_pools();
   double read_vm( int32_t neuron ) const;
+  bool finite_ok() const;  // spot check: V_m / rate of the first neuron of each population is finite
   std::deque< nest::ConnectionID > find_conns( const Proj& p, int32_t pre_neuron, int32_t post_neuron ) const;
 };
 
@@ -454,7 +472,7 @@ void Engine::Impl::build()
           for ( size_t id : d.targets )
           {
             Dictionary v;
-            v[ d.param ] = in.weight * in.value;
+            v[ d.param ] = clamp_drive( in.weight * in.value );
             nest::set_node_status( id, v );
           }
         }
@@ -480,6 +498,17 @@ void Engine::Impl::build()
       const char* model = in.kind == "dc" ? "dc_generator" : in.kind == "spike_generator" ? "spike_generator" : in.kind == "sinusoidal_poisson" ? "sinusoidal_poisson_generator" : "poisson_generator";
       auto nc = nest::create( model, 1 );
       Dev d{ in.kind == "dc" ? "amplitude" : "rate", ( *nc )[ 0 ], in.value, false };
+      if ( in.kind == "dc" )
+      {
+        double cap = kMaxDcPa;
+        for ( int32_t t : in.targets )
+          for ( const auto& q : spec.pops )
+            if ( t >= q.first and t < q.first + q.n and is_nestml_model( q.model ) )
+              cap = std::min( cap, kMaxNestmlInputPa );
+        d.vmax = in.weight != 0.0 ? cap / std::fabs( in.weight ) : 1e300;
+      }
+      else
+        d.vmax = kMaxRateHz;
       Dictionary v;
       if ( in.kind == "spike_generator" )
       {
@@ -572,7 +601,11 @@ void Engine::Impl::build()
   {
     const ProjSpec& p = spec.projs[ i ];
     std::string path = "projections[" + std::to_string( i ) + "]";
-    Proj pr{ pop_nc[ p.pre_pop ], pop_nc[ p.post_pop ], p.synapse[ "synapse_model" ].get< std::string >() };
+    Proj pr{ pop_nc[ p.pre_pop ], pop_nc[ p.post_pop ], p.synapse[ "synapse_model" ].get< std::string >(), p.synapse[ "synapse_model" ].get< std::string >() };
+    bool shares = false;  // another projection joins the same populations with the same synapse model: give each its own model copy so find_conns() tells them apart
+    for ( size_t j = 0; j < spec.projs.size(); ++j )
+      if ( j != i and spec.projs[ j ].pre_pop == p.pre_pop and spec.projs[ j ].post_pop == p.post_pop and spec.projs[ j ].synapse[ "synapse_model" ] == p.synapse[ "synapse_model" ] )
+        shares = true;
     try
     {
       if ( p.dopamine )
@@ -582,6 +615,11 @@ void Engine::Impl::build()
         Dictionary cm = to_dict( p.common );
         cm[ "volume_transmitter" ] = vt_of[ p.dopamine_pop ];
         nest::copy_model( "stdp_dopamine_synapse", pr.model, cm );
+      }
+      else if ( shares )
+      {
+        pr.model = pr.base + "__p" + std::to_string( i );
+        nest::copy_model( pr.base, pr.model, Dictionary() );
       }
       if ( not p.has_edges )
       {
@@ -651,7 +689,7 @@ void Engine::Impl::build()
         for ( size_t kx = 0; kx < keys.size(); ++kx )
           for ( size_t e = 0; e < n; ++e )
             vals[ e * keys.size() + kx ] = p.synapse[ keys[ kx ] ].get< double >();
-        nest::connect_arrays( src.data(), tgt.data(), w.data(), ( p.gap or pr.model == "rate_connection_instantaneous" ) ? nullptr : d.data(), keys, vals.empty() ? nullptr : vals.data(), n, pr.model );
+        nest::connect_arrays( src.data(), tgt.data(), w.data(), ( p.gap or pr.base == "rate_connection_instantaneous" ) ? nullptr : d.data(), keys, vals.empty() ? nullptr : vals.data(), n, pr.model );
       }
       projs.push_back( pr );
     }
@@ -770,7 +808,7 @@ void Engine::Impl::build_projection_modulation()
       {
         std::vector< Dictionary > st = nest::get_connection_status( t.conns );
         if ( not st[ 0 ].known( m.param ) )
-          throw std::runtime_error( path + ".param: synapse model " + projs[ m.proj_index ].model + " has no parameter '" + m.param + "'" );
+          throw std::runtime_error( path + ".param: synapse model " + projs[ m.proj_index ].base + " has no parameter '" + m.param + "'" );
         for ( const Dictionary& d : st )
         {
           try
@@ -786,7 +824,7 @@ void Engine::Impl::build_projection_modulation()
             }
             catch ( const std::exception& )
             {
-              throw std::runtime_error( path + ".param: '" + m.param + "' of " + projs[ m.proj_index ].model + " is not a scalar number" );
+              throw std::runtime_error( path + ".param: '" + m.param + "' of " + projs[ m.proj_index ].base + " is not a scalar number" );
             }
           }
         }
@@ -951,6 +989,25 @@ void Engine::Impl::collect()
   }
 }
 
+bool Engine::Impl::finite_ok() const
+{
+  // spot check after a step: the first neuron of every population (V_m, or the rate of rate models) must be finite
+  try
+  {
+    for ( const auto& q : spec.pops )
+    {
+      Dictionary d = nest::get_node_status( static_cast< size_t >( q.first ) + 1 );
+      for ( const char* key : { "V_m", "rate" } )
+        if ( d.known( key ) and not std::isfinite( d.get< double >( key ) ) )
+          return false;
+    }
+  }
+  catch ( ... )
+  {
+  }
+  return true;
+}
+
 double Engine::Impl::read_vm( int32_t neuron ) const
 {
   try
@@ -988,11 +1045,13 @@ Engine::Engine() : impl_( nullptr )
   {
     if ( not g_nest_ready )
     {
+      gsl_set_error_handler_off();  // a failed GSL integral returns a status NEST turns into an exception (a clean "faulted" error) instead of abort()
       static char arg0[] = "spike";
       static char* argv[] = { arg0, nullptr };
       char** pargv = argv;
       int argc = 1;
       nest::init_nest( &argc, &pargv );
+      gsl_set_error_handler_off();
       g_nest_ready = true;
     }
     impl_ = new Impl();
@@ -1071,6 +1130,14 @@ void Engine::set_input( const std::string& channel, double value )
     m.error = "set_input: '" + channel + "' is a spike_generator: use queue_spikes()";
     return;
   }
+  if ( not std::isfinite( value ) )
+  {
+    m.error = "set_input: '" + channel + "' must be a finite number";
+    return;
+  }
+  // input ranges (parse-time budgets mirror these): rates 0..kMaxRateHz, currents |I| <= kMaxDcPa; rate drives are clamped where they are written
+  if ( d.kind == 0 or d.kind == 2 )
+    value = d.param == "amplitude" ? std::max( -d.vmax, std::min( d.vmax, value ) ) : std::max( 0.0, std::min( d.vmax, value ) );
   if ( d.value != value )
   {
     d.value = value;
@@ -1201,7 +1268,7 @@ void Engine::step( double ms )
         for ( size_t id : d.targets )
         {
           Dictionary v;
-          v[ d.param ] = d.weight * d.value;
+          v[ d.param ] = clamp_drive( d.weight * d.value );
           nest::set_node_status( id, v );
         }
         d.dirty = false;
@@ -1264,7 +1331,15 @@ void Engine::step( double ms )
       m.steps_done += k;
       m.collect();
       done += k;
+      // watchdog: a chunk that costs seconds of wall clock per ms of model time is a stalled integrator (strong input on a stiff cell); nest::run cannot be
+      // interrupted, so this is checked between slices. Cells generated by NESTML also carry their own step-count guard (scripts/nestml_generate.py).
+      const double model_ms = static_cast< double >( k ) * res;
+      if ( us_since( t0 ) > kWatchdogMinUs and us_since( t0 ) > kWatchdogUsPerModelMs * model_ms )
+        throw std::runtime_error( "the simulation is not keeping up (" + std::to_string( static_cast< long >( us_since( t0 ) / 1e6 ) ) + " s of computing for " + std::to_string( static_cast< long >( model_ms ) ) +
+                                  " ms of model time): a cell is stalling, usually from a very strong input" );
     }
+    if ( not m.finite_ok() )
+      throw std::runtime_error( "a membrane potential became NaN or infinite" );
     m.last_step_ms = ms;
     m.decay_pools();
     for ( auto& w : m.watched )
@@ -1274,6 +1349,7 @@ void Engine::step( double ms )
         w.second.pop_front();
     }
     m.step_ok = true;
+    m.error.clear();  // a stale set_input / set_weight message must not fail a run whose steps all succeeded (the live run ignores them too)
   }
   catch ( const std::exception& e )
   {
@@ -1472,7 +1548,7 @@ bool Engine::set_weight( int32_t projection, int32_t edge, double weight )
       return false;
     }
     Dictionary d;
-    if ( pr.model == "diffusion_connection" )
+    if ( pr.base == "diffusion_connection" )
     {
       // 0.6: the weight of a mean-field projection is J (mV); NEST wants drift_factor = tau_m K J / 1000 and diffusion_factor = tau_m K J^2 / 1000
       const double K = ps.common.value( "K", 1.0 ), tau = ps.common.value( "tau_m", 10.0 );
@@ -1567,7 +1643,9 @@ const PopulationInfo* Structure::population( const std::string& id ) const
 
 Structure Engine::structure() const { return impl_->structure_of(); }
 
-std::vector< Engine::Connection > Engine::connections() const
+std::vector< Engine::Connection > Engine::connections() const { return connections( 0.0 ); }
+
+std::vector< Engine::Connection > Engine::connections( double min_abs_weight ) const
 {
   std::vector< Connection > out;
   Impl& m = *impl_;
@@ -1580,11 +1658,11 @@ std::vector< Engine::Connection > Engine::connections() const
       for ( const auto& c : m.find_conns( m.projs[ k ], -1, -1 ) )
       {
         const Dictionary cs = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 );
-        const double w = ( m.projs[ k ].model == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );
-        if ( w == 0.0 )
+        const double w = ( m.projs[ k ].base == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );
+        if ( w == 0.0 or std::fabs( w ) < min_abs_weight )
           continue;
         Connection x{ static_cast< int32_t >( c.get_source_node_id() ) - 1, static_cast< int32_t >( c.get_target_node_id() ) - 1, w, static_cast< int32_t >( k ), 0.0, 0.0 };
-        if ( m.projs[ k ].model == "diffusion_connection" and w != 0.0 and cs.known( "diffusion_factor" ) )
+        if ( m.projs[ k ].base == "diffusion_connection" and w != 0.0 and cs.known( "diffusion_factor" ) )
         {
           x.j = cs.get< double >( "diffusion_factor" ) / w;   // drift = tau K J, diffusion = tau K J^2
           x.k = m.spec.projs[ k ].common.value( "K", 1.0 );
@@ -1634,7 +1712,7 @@ const Structure& Engine::Impl::structure_of()
     pi.pre_index = ps.pre_pop;
     pi.post_index = ps.post_pop;
     pi.rule = ps.has_edges ? std::string( "edges" ) : ps.rule.value( "rule", std::string( "all_to_all" ) );
-    pi.synapse_model = m.projs[ k ].model;
+    pi.synapse_model = m.projs[ k ].base;
     if ( ps.dopamine && ps.dopamine_pop >= 0 )
     {
       pi.dopamine_index = ps.dopamine_pop;
@@ -1651,7 +1729,10 @@ const Structure& Engine::Impl::structure_of()
       for ( const auto& c : m.find_conns( m.projs[ k ], -1, -1 ) )
       {
         const Dictionary cs = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 );
-        const double w = ( m.projs[ k ].model == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );  // 0.6: a diffusion_connection has no weight: its sign is the drift's
+        const double w = ( m.projs[ k ].base == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );  // 0.6: a diffusion_connection has no weight: its sign is the drift's
+        if ( w == 0.0 )
+          continue;  // a zero-weight connection is not a connection (connections() drops it too)
+        pi.w_abs_max = std::max( pi.w_abs_max, std::fabs( w ) );
         if ( n == 0 )
           pi.w_min = pi.w_max = w;
         pi.w_min = std::min( pi.w_min, w );
@@ -1731,7 +1812,7 @@ const Structure& Engine::Impl::structure_of()
 
 // Shortest hop counts over the usable projections (non-zero mean weight, at least one connection, sign filter), from population `src`.
 // dist[src] = 0; unreachable = -1.
-static std::vector< int > hop_dist( const Structure& s, int src, int sign_filter )
+static std::vector< int > hop_dist( const Structure& s, int src, int sign_filter, double min_w = 0.0 )
 {
   std::vector< int > d( s.populations.size(), -1 );
   if ( src < 0 )
@@ -1740,7 +1821,7 @@ static std::vector< int > hop_dist( const Structure& s, int src, int sign_filter
   std::vector< int > q{ src };
   for ( size_t h = 0; h < q.size(); ++h )
     for ( const auto& p : s.projections )
-      if ( p.pre_index == q[ h ] and p.post_index >= 0 and p.n_edges > 0 and p.sign != 0 and ( sign_filter == 0 or p.sign == sign_filter ) and d[ p.post_index ] < 0 )
+      if ( p.pre_index == q[ h ] and p.post_index >= 0 and p.n_edges > 0 and p.sign != 0 and p.w_abs_max >= min_w and ( sign_filter == 0 or p.sign == sign_filter ) and d[ p.post_index ] < 0 )
       {
         d[ p.post_index ] = d[ q[ h ] ] + 1;
         q.push_back( p.post_index );
@@ -1748,7 +1829,9 @@ static std::vector< int > hop_dist( const Structure& s, int src, int sign_filter
   return d;
 }
 
-bool Engine::has_path( const std::string& from, const std::string& to, int max_hops, int sign_filter ) const
+bool Engine::has_path( const std::string& from, const std::string& to, int max_hops, int sign_filter ) const { return has_path( from, to, max_hops, sign_filter, 0.0 ); }
+
+bool Engine::has_path( const std::string& from, const std::string& to, int max_hops, int sign_filter, double min_weight ) const
 {
   const Structure& s = impl_->structure_of();
   const int a = s.population_index( from ), b = s.population_index( to );
@@ -1756,50 +1839,54 @@ bool Engine::has_path( const std::string& from, const std::string& to, int max_h
     return false;
   if ( a != b )
   {
-    const int d = hop_dist( s, a, sign_filter )[ b ];
+    const int d = hop_dist( s, a, sign_filter, min_weight )[ b ];
     return d > 0 and ( max_hops <= 0 or d <= max_hops );
   }
   // a cycle: one projection out, then the shortest way back
   for ( const auto& p : s.projections )
-    if ( p.pre_index == a and p.n_edges > 0 and p.sign != 0 and ( sign_filter == 0 or p.sign == sign_filter ) )
+    if ( p.pre_index == a and p.n_edges > 0 and p.sign != 0 and p.w_abs_max >= min_weight and ( sign_filter == 0 or p.sign == sign_filter ) )
     {
-      const int back = p.post_index == a ? 0 : hop_dist( s, p.post_index, sign_filter )[ a ];
+      const int back = p.post_index == a ? 0 : hop_dist( s, p.post_index, sign_filter, min_weight )[ a ];
       if ( back >= 0 and ( max_hops <= 0 or 1 + back <= max_hops ) )
         return true;
     }
   return false;
 }
 
-bool Engine::has_loop( const std::string& pop, int max_hops, int via_sign ) const
+bool Engine::has_loop( const std::string& pop, int max_hops, int via_sign ) const { return has_loop( pop, max_hops, via_sign, 0.0 ); }
+
+bool Engine::has_loop( const std::string& pop, int max_hops, int via_sign, double min_weight ) const
 {
   const Structure& s = impl_->structure_of();
   const int a = s.population_index( pop );
   if ( a < 0 )
     return false;
-  const auto from_a = hop_dist( s, a, 0 );
+  const auto from_a = hop_dist( s, a, 0, min_weight );
   for ( const auto& p : s.projections )
   {
-    if ( p.n_edges == 0 or p.sign == 0 or ( via_sign != 0 and p.sign != via_sign ) or p.pre_index < 0 or p.post_index < 0 )
+    if ( p.n_edges == 0 or p.sign == 0 or p.w_abs_max < min_weight or ( via_sign != 0 and p.sign != via_sign ) or p.pre_index < 0 or p.post_index < 0 )
       continue;
     const int to_u = from_a[ p.pre_index ];
     if ( to_u < 0 )
       continue;
-    const int back = p.post_index == a ? 0 : hop_dist( s, p.post_index, 0 )[ a ];
+    const int back = p.post_index == a ? 0 : hop_dist( s, p.post_index, 0, min_weight )[ a ];
     if ( back >= 0 and ( max_hops <= 0 or to_u + 1 + back <= max_hops ) )
       return true;
   }
   return false;
 }
 
-bool Engine::has_loop_via( const std::string& pop, const std::string& via, int max_hops, int sign_filter ) const
+bool Engine::has_loop_via( const std::string& pop, const std::string& via, int max_hops, int sign_filter ) const { return has_loop_via( pop, via, max_hops, sign_filter, 0.0 ); }
+
+bool Engine::has_loop_via( const std::string& pop, const std::string& via, int max_hops, int sign_filter, double min_weight ) const
 {
   const Structure& s = impl_->structure_of();
   const int a = s.population_index( pop ), v = s.population_index( via );
   if ( a < 0 or v < 0 )
     return false;
   if ( a == v )
-    return has_path( pop, pop, max_hops, sign_filter );
-  const int out = hop_dist( s, a, sign_filter )[ v ], back = hop_dist( s, v, sign_filter )[ a ];
+    return has_path( pop, pop, max_hops, sign_filter, min_weight );
+  const int out = hop_dist( s, a, sign_filter, min_weight )[ v ], back = hop_dist( s, v, sign_filter, min_weight )[ a ];
   return out > 0 and back > 0 and ( max_hops <= 0 or out + back <= max_hops );
 }
 

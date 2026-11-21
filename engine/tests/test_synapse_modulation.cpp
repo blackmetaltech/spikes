@@ -252,12 +252,11 @@ static void test_modulation_errors()
   // a neuron-parameter row still works next to a synapse row, and the old shape is unchanged
   json both = json::array( { row, { { "modulator", "NE" }, { "pop", "POST" }, { "param", "I_e" }, { "gain", 10.0 } } } );
   CHECK_MSG( err( both ).empty(), err( both ) );
-  // two projections between the same populations with the same synapse model cannot be told apart: refused
+  // two projections between the same populations with the same synapse model are accepted: each keeps its own synapse model copy, so a row modulates only its projection
   json c = psp_circuit( tsodyks2( 0.5, 800.0 ), json::array( { row } ) );
   c[ "projections" ].push_back( c[ "projections" ][ 0 ] );
   Engine f;
-  CHECK( not f.load( c.dump() ) );
-  CHECK_MSG( has( f.error(), "same populations" ), f.error() );
+  CHECK_MSG( f.load( c.dump() ), f.error() );
 }
 
 int main()
