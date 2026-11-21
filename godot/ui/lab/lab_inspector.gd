@@ -14,6 +14,10 @@ func build() -> void:
 	var editor := lab.editor
 	if not editor.sel.is_empty(): lab._brief_forced = false
 	for c in lab.insp_body.get_children(): lab.insp_body.remove_child(c); c.queue_free()
+	var foot: Control = lab.insp_body.get_meta("footer", null)
+	if foot != null:
+		for c in foot.get_children(): foot.remove_child(c); c.queue_free()
+		foot.visible = false
 	lab._autosave()
 	var sel := editor.sel if editor != null else {}
 	var small := 17 if not Layout.phone else 16
@@ -178,7 +182,7 @@ func inspect_pop(id: String, small: int) -> void:
 	for i in presets.size(): po.append([str(i), presets[i][0]])
 	var cur := Circuits.preset_of(p)
 	if not po.is_empty(): row.add_child(Kit.stepper(po, str(maxi(cur, 0)), func(i): Circuits.set_model(circuit, id, model, int(i)); lab._on_structure(); build(), 190.0 if not Layout.phone else 140.0, 18, 40.0))
-	row.add_child(Kit.btn("Trace", func(): toggle_trace(id), "cyan" if tele.watched.has(Circuits.pop_first(circuit, pi)) else "panel", 18))
+	row.add_child(Kit.btn("Trace", func(): toggle_trace(id), "on" if tele.watched.has(Circuits.pop_first(circuit, pi)) else "panel", 18))
 	row.add_child(Kit.btn("E / I", func(): flip_kind(id), "panel", 18))
 	row.add_child(Kit.btn("Delete", func(): lab.editor.delete_selected(), "danger", 18))
 	var nrow := HBoxContainer.new(); nrow.add_theme_constant_override("separation", 10)
@@ -339,7 +343,7 @@ func _aplysia_synapse(pr: Dictionary, i: int, small: int) -> void:
 			var row := {"modulator": "NE", "projection": i, "param": param}
 			if param == "U": row["gain"] = 3.0; row["min"] = 0.0; row["max"] = 1.0   # a gain of about 1 to 5 sensitises the reflex; 1.0 was at the weak end and U 0.2 below it too deep a depression
 			else: row["scale_per_unit"] = 4.0
-			rr.append(row); circuit["modulation"] = rr; lab._on_structure(); build(), "cyan", 18))
+			rr.append(row); circuit["modulation"] = rr; lab._on_structure(); build(), "panel", 18))
 	else:
 		var row: Dictionary = rows2[row_i]; var key := "scale_per_unit" if row.has("scale_per_unit") else "gain"
 		add(Kit.label("The released modulator changes this synapse's %s." % str(row.get("param", param)), small, Kit.TEXT_SOFT, true))
@@ -397,7 +401,7 @@ func inspect_channel(key: String, name: String, small: int) -> void:
 		for pp in circuit.get("populations", []):
 			if Circuits.pop_n(pp) == fnames.size():
 				var pid := str(pp.get("id", ""))
-				fr.add_child(Kit.ident(Kit.btn("Wire %s (%d) to all" % [pid, fnames.size()] if not is_in else "Wire all to %s" % pid, func(): Circuits.wire_family(circuit, key, name, pid); lab._on_structure(); build(), "cyan", 18), "BtnWireAll"))
+				fr.add_child(Kit.ident(Kit.btn("Wire %s (%d) to all" % [pid, fnames.size()] if not is_in else "Wire all to %s" % pid, func(): Circuits.wire_family(circuit, key, name, pid); lab._on_structure(); build(), "panel", 18), "BtnWireAll"))
 	if is_in:
 		var kind := str(ch.get("kind", "dc")); var unit := "pA" if kind == "dc" else "Hz"
 		if kind == "rate_drive": add(Kit.label("A rate drive: the level the task sets is written to the drive of the rate units it reaches (times the weight below).", small, Kit.TEXT_SOFT, true))
@@ -467,6 +471,9 @@ func inspect_dx(small: int) -> void:
 	panel.picked.connect(func(c): lab._dx["picked"] = c; build())
 	panel.submit_pressed.connect(lab._dx_submit); panel.reveal_pressed.connect(lab._dx_reveal); panel.lesion_lab_pressed.connect(lab._lesion_toggle)
 	add(panel.setup(lab._dx_info, lab._dx, note if (bool(lab._dx.get("solved", false)) or bool(lab._dx.get("gave_up", false))) else {}, lab.lesion_on))
+	var foot: Control = lab.insp_body.get_meta("footer", null)
+	if foot != null and panel.submit_row != null and is_instance_valid(panel.submit_row):   # Submit stays on screen, outside the scroll area
+		panel.submit_row.get_parent().remove_child(panel.submit_row); foot.add_child(panel.submit_row); foot.visible = true
 
 ## A population or axon picked in a diagnosis case: read-only facts, a Trace button, a way back to the case card.
 func inspect_dx_pick(sel: Dictionary, small: int) -> void:
@@ -478,7 +485,7 @@ func inspect_dx_pick(sel: Dictionary, small: int) -> void:
 		if pi >= 0:
 			var p: Dictionary = circuit["populations"][pi]
 			add(Kit.label("%s, %d cell%s. Trace it to watch its membrane voltage, or select it and listen: only its spikes click." % [str(p.get("model", "")), Circuits.pop_n(p), "" if Circuits.pop_n(p) == 1 else "s"], small, Kit.TEXT_SOFT, true))
-			add(Kit.btn("Trace", func(): toggle_trace(id), "cyan" if lab.tele.watched.has(Circuits.pop_first(circuit, pi)) else "panel", 18))
+			add(Kit.btn("Trace", func(): toggle_trace(id), "on" if lab.tele.watched.has(Circuits.pop_first(circuit, pi)) else "panel", 18))
 	elif str(sel["t"]) == "proj":
 		var i := int(sel["i"])
 		if i < circuit["projections"].size():

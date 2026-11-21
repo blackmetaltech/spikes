@@ -22,12 +22,17 @@ var _slowed := false
 var _note := {}
 var _note_shown := false
 var _banner: StampMark = null
+var _note_card: PanelContainer = null  # the notebook entry a first pass unlocks: two lines and "Open notebook", pinned to the editor's bottom-left corner
+var _note_age := 0.0
+const NOTE_LIFE := 9.0
+## () -> void, set by the lab: opens the notebook (the lab keeps its circuit). Unset: the card has no button.
+var open_notebook: Callable = Callable()
 
-## The first-pass banner: a vermilion rubber stamp ("FIRST PASS", the score, "of 100") that lands on the lab.
+## The first-pass banner: a viridian rubber stamp ("FIRST PASS", the score, "of 100") that lands on the lab.
 class StampMark extends Control:
 	var k := 1.0
 	var score := 100
-	func _draw() -> void: Gfx.stamp(self, size * 0.5, minf(size.x, size.y) * 0.5 - 6.0, "FIRST PASS", "%d" % score, "of 100", Kit.RED, -0.2, k)
+	func _draw() -> void: Gfx.stamp(self, size * 0.5, minf(size.x, size.y) * 0.5 - 6.0, "FIRST PASS", "%d" % score, "of 100", Kit.success(), -0.2, k)
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -39,6 +44,7 @@ func _ready() -> void:
 ## Toasts are queued: only one is on screen at a time, the next one appears when it has gone (and none while the result modal is open).
 func toast(title: String, text: String, col: Color = Kit.AMBER, life := 5.0) -> void:
 	if _col == null: return
+	if col.is_equal_approx(Kit.CYAN) or col.is_equal_approx(Kit.CYAN_CB): col = Kit.TEXT   # Prussian blue means inhibition only: neutral messages are ink
 	for q in _queue:
 		if str(q["title"]) == title and str(q["text"]) == text: return   # the same message twice in a row is one message
 	_queue.append({"title": title, "text": text, "col": col, "life": life})
@@ -64,6 +70,39 @@ func _show_toast(title: String, text: String, col: Color, life: float) -> void:
 func clear_toasts() -> void:
 	for t in _toasts: (t["node"] as Node).queue_free()
 	_toasts.clear(); _queue.clear()
+	if _note_card != null: _note_card.queue_free(); _note_card = null
+
+## The first sentence of `text` (the notebook entry's lead), for a two-line card. The full entry, citation and all, is in the notebook.
+static func lead(text: String) -> String:
+	var t := text.strip_edges(); var cut := -1
+	for mark in [". ", "! ", "? "]:
+		var i := t.find(mark)
+		if i > 0 and (cut < 0 or i < cut): cut = i
+	return t.substr(0, cut + 1) if cut > 0 else t
+
+## The notebook card: "Notebook: <title>", one line of the entry, and "Open notebook →", pinned to the bottom-left of the circuit editor so it
+## never covers the circuit's middle, the body view or the score. Fades after NOTE_LIFE seconds; a new pass replaces it.
+func _show_note(title: String, text: String) -> void:
+	if _note_card != null: _note_card.queue_free()
+	var pn := PanelContainer.new(); Kit.ident(pn, "NotebookToast"); pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.TEXT, 2, 4, 10 if Layout.phone else 14, true))
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 4); v.mouse_filter = Control.MOUSE_FILTER_IGNORE; pn.add_child(v)
+	var w := 380.0 if Layout.phone else 460.0
+	var hl := Kit.italic("Notebook: " + title, 20 if not Layout.phone else 17, Kit.TEXT); hl.custom_minimum_size.x = w; hl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS; hl.clip_text = true; v.add_child(hl)
+	var l := Kit.label(lead(text), 16 if not Layout.phone else 15, Kit.TEXT_SOFT, true); l.custom_minimum_size.x = w; l.max_lines_visible = 1 if Layout.phone else 2; l.text_overrun_behavior = TextServer.OVERRUN_TRIM_WORD_ELLIPSIS; v.add_child(l)
+	if open_notebook.is_valid():
+		var b := Kit.btn("Open notebook →", func(): open_notebook.call(), "panel", 17); Kit.ident(b, "BtnOpenNotebook"); b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; b.mouse_filter = Control.MOUSE_FILTER_STOP; v.add_child(b)
+	add_child(pn); _note_card = pn; _note_age = 0.0
+	_place_note()
+
+func _place_note() -> void:
+	if _note_card == null: return
+	var ms := _note_card.get_combined_minimum_size(); _note_card.size = ms
+	var r := Rect2(Vector2(12, size.y - 12), Vector2.ZERO)
+	if _editor != null and is_instance_valid(_editor) and _editor.is_inside_tree():
+		var g := _editor.get_global_rect(); r = Rect2(g.position - get_global_rect().position, g.size)
+		_note_card.position = Vector2(r.position.x + 12.0, r.end.y - ms.y - 12.0)
+	else: _note_card.position = Vector2(12.0, size.y - ms.y - 12.0)
 
 ## Start the first-pass celebration on `editor` / `tele`: `path` is the critical path (Circuits.critical_path), `note` the notebook entry (Task::notebook()).
 func first_pass(editor: CircuitEditor, tele: Telemetry, path: Array, note: Dictionary) -> void:
@@ -93,6 +132,13 @@ func _process(dt: float) -> void:
 		var left := float(t["life"]) - float(t["age"])
 		if left < 0.0: (t["node"] as Node).queue_free(); _toasts.remove_at(i)
 		elif left < 0.5: (t["node"] as Control).modulate.a = left / 0.5
+	if _note_card != null:
+		if held: _note_card.visible = false
+		else:
+			_note_card.visible = true; _note_age += dt; _place_note()
+			var left := NOTE_LIFE - _note_age
+			if left < 0.0: _note_card.queue_free(); _note_card = null
+			elif left < 0.6: _note_card.modulate.a = left / 0.6
 	if _t < 0.0: return
 	_t += dt
 	# banner: pops in over 0.25 s, holds, fades from 2.2 s
@@ -107,7 +153,7 @@ func _process(dt: float) -> void:
 		_tele.speed = _saved_speed; _slowed = false
 	if not _note_shown and _t >= 1.0:
 		_note_shown = true
-		if str(_note.get("title", "")) != "": toast("Notebook: " + str(_note["title"]), str(_note.get("text", "")) + ("  " + str(_note["citation"]) if str(_note.get("citation", "")) != "" else ""), Kit.CYAN, 8.0)
+		if str(_note.get("title", "")) != "": _show_note(str(_note["title"]), str(_note.get("text", "")))
 	if _t >= 3.2:
 		_t = -1.0
 		if _banner != null: _banner.visible = false

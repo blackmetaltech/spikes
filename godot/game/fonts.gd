@@ -21,7 +21,7 @@ static func _tag(s: String) -> int: return TextServerManager.get_primary_interfa
 
 static func _var(base: FontFile, wght: int, opsz: int, soft: int) -> FontVariation:
 	var v := FontVariation.new(); v.base_font = base
-	v.variation_opentype = {_tag("wght"): wght, _tag("opsz"): opsz, _tag("SOFT"): soft, _tag("WONK"): 1}
+	v.variation_opentype = {_tag("wght"): wght, _tag("opsz"): opsz, _tag("SOFT"): soft, _tag("WONK"): 0}   # WONK 1 swaps italic h and b for leaning forms that read as "6" ("6pm" for "bpm")
 	v.fallbacks = [regular]
 	return v
 

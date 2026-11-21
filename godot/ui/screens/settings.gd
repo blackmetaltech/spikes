@@ -31,7 +31,10 @@ func build() -> void:
 	var pad := MarginContainer.new(); pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for side in ["right", "bottom"]: pad.add_theme_constant_override("margin_" + side, int(Kit.SHADOW) + 14)   # room for the plates' offset shadows and the scroll bar
 	scroll.add_child(pad)
-	body = VBoxContainer.new(); body.size_flags_horizontal = Control.SIZE_EXPAND_FILL; body.add_theme_constant_override("separation", int(22 * f) if not phone else 12); pad.add_child(body)
+	body = VBoxContainer.new(); body.add_theme_constant_override("separation", int(22 * f) if not phone else 12); pad.add_child(body)
+	# one card width on every tab (it was 800 px on one tab and 1800 on another): a readable column under the tabs
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone else Control.SIZE_SHRINK_BEGIN
+	if not phone: body.custom_minimum_size.x = minf(1180.0 * f, get_viewport_rect().size.x - 2.0 * float(mx) - 40.0)
 	_fill()
 
 func set_tab(t: String) -> void:
@@ -83,7 +86,7 @@ func _display() -> void:
 	_add_row(s, "V-sync", Kit.stepper([["0", "Off"], ["1", "On"], ["2", "Adaptive"]], str(Settings.vsync), func(id): Settings.vsync = int(id); _commit()))
 	_add_row(s, "Frame cap", Kit.stepper([["0", "None"], ["30", "30"], ["60", "60"], ["90", "90"], ["120", "120"], ["144", "144"], ["240", "240"]], str(Settings.fps_cap), func(id): Settings.fps_cap = int(id); _commit()),
 		"The app sleeps at 10 fps when unfocused.")
-	var u := _section("Interface", Kit.inh())
+	var u := _section("Interface")
 	_add_row(u, "Layout", Kit.stepper([["auto", "Auto"], ["desktop", "Desktop"], ["handheld", "Handheld"], ["phone", "Phone"]], Settings.layout, func(id): Settings.layout = id; _commit(true)), "Auto picks from the device and window shape (now: %s)." % Layout.kind)
 	_add_row(u, "UI scale", Kit.stepper([["0", "Auto"], ["0.8", "80%"], ["1", "100%"], ["1.25", "125%"], ["1.5", "150%"], ["1.75", "175%"], ["2", "200%"]], _scale_id(), func(id): Settings.ui_scale = float(id); _commit(true)))
 	_add_row(u, "Text size", Kit.stepper([["1", "Normal"], ["1.15", "Large"], ["1.3", "Larger"], ["1.5", "Huge"]], _boost_id(), func(id): Settings.text_boost = float(id); _commit(true)),
@@ -167,13 +170,13 @@ func _audio() -> void:   # audio section (item H)
 	_add_row(s, "Spike clicks", Kit.slider(Settings.spike_volume, func(x): Settings.spike_volume = x; _commit()))
 	_add_row(s, "Body and UI", Kit.slider(Settings.sfx_volume, func(x): Settings.sfx_volume = x; _commit()))
 	_add_row(s, "Ambience", Kit.slider(Settings.music_volume, func(x): Settings.music_volume = x; _commit()))
-	var n := _section("Note", Kit.inh())
+	var n := _section("Note")
 	n.add_child(Kit.label("Every spike is a soft click: warm for excitatory neurons, cool for inhibitory, pitch set by the population. Dense firing is thinned into a crackle. The heartbeat and breathing follow the body.", 17, Kit.TEXT, true))
 
 func _controls() -> void:
 	var intro := Kit.label("Spike is mouse and touch first. Keyboard and gamepad can drive every menu.", 18, Kit.TEXT, true)
 	body.add_child(intro)
-	for def in [["Keyboard", Kit.AMBER, [["Move focus", "Arrow keys"], ["Press", "Enter"], ["Back", "Esc"]]], ["Gamepad", Kit.inh(), [["Move focus", "D-pad"], ["Press", "A"], ["Back", "B"]]], ["Touch and mouse", Kit.GREEN, [["Press", "Tap or click"], ["Scroll lists", "Drag"]]]]:
+	for def in [["Keyboard", Kit.AMBER, [["Move focus", "Arrow keys"], ["Press", "Enter"], ["Back", "Esc"]]], ["Gamepad", Kit.TEXT, [["Move focus", "D-pad"], ["Press", "A"], ["Back", "B"]]], ["Touch and mouse", Kit.GREEN, [["Press", "Tap or click"], ["Scroll lists", "Drag"]]]]:
 		_fig += 1
 		var c := Kit.fig_card(_fig, def[0], "", Kit.PANEL, 22 if not Layout.phone else 14); body.add_child(c[0])
 		for r in def[2]:

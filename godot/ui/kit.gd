@@ -70,6 +70,10 @@ const OUTLINE := 2                     # ink outline width
 ## Excitatory / inhibitory colours, honouring the colour-blind setting.
 static func exc() -> Color: return AMBER_CB if Settings.colorblind else AMBER
 static func inh() -> Color: return CYAN_CB if Settings.colorblind else CYAN
+## Pass green, honouring the colour-blind setting: verdigris sensors and viridian passes sit close under deuteranopia, so the setting moves the pass
+## colour to a deep, yellower green (lightness apart from the sensor teal) and every pass also keeps its shape code (a tick, a stamp ring).
+const GREEN_CB := Color("#1E5A2A")
+static func success() -> Color: return GREEN_CB if Settings.colorblind else GREEN
 
 ## Smallest font on screen, in PHYSICAL px, asserted by the smoke test (logical size x Kit.ppl).
 const MIN_FONT := 14
@@ -190,11 +194,13 @@ class RingBox extends StyleBox:
 static var _ring := RingBox.new()
 static func ring_sb() -> StyleBox: return _ring
 
-## [fill, text, border, offset-shadow colour] of a button kind.
+## [fill, text, border, offset-shadow colour] of a button kind. Prussian blue means inhibition and nothing else, so no button is blue:
+## the old "cyan" kind is the outlined secondary now (kept as an alias so older call sites compile), and a secondary that is switched ON
+## (a watched trace, an open drawer) is "on": the outlined card with a gamboge offset, gamboge being the identity's highlight.
 static func kind_colors(kind: String) -> Array:
 	match kind:
-		"cyan": return [inh(), PANEL, TEXT, TEXT]
-		"panel": return [PANEL, TEXT, TEXT, LINE]
+		"cyan", "panel": return [PANEL, TEXT, TEXT, LINE]
+		"on": return [PANEL_HI, TEXT, TEXT, GAMBOGE]
 		"ghost": return [Color(PANEL, 0.0), TEXT, LINE, Color(0, 0, 0, 0)]
 		"danger": return [RED, PANEL, TEXT, TEXT]
 		"green": return [GREEN, PANEL, TEXT, TEXT]
@@ -220,6 +226,23 @@ static func ls_font(font: Font, size: int, col: Color = TEXT, spacing := 0) -> L
 			var v := FontVariation.new(); v.base_font = font; v.spacing_glyph = spacing; s.font = v
 		else: s.font = font
 	_ls_cache[k] = s; return s
+
+## Fit-to-box: the largest size from `size` down to `floor_size` (in 2 px steps) at which `text` is no wider than `width`; never below the floor
+## (a value then wraps or is shortened at a word by the caller, it is never cut mid-number). Use it for tile values and captions in painted views.
+static func fit_size(font: Font, text: String, width: float, size: int, floor_size := 20) -> int:
+	var z := fs(size); var lo := fs(mini(floor_size, size))
+	while z > lo and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, z).x > width: z -= 2
+	return maxi(z, lo)
+
+## `text` shortened at a word boundary with "…" until it fits `width` at `size` (captions in painted views: "heart rate (bpm)" -> "heart rate…").
+static func fit_words(font: Font, text: String, width: float, size: int) -> String:
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x <= width: return text
+	var out := ""
+	for w in text.split(" "):
+		var nt := (out + " " + w) if out != "" else w
+		if font.get_string_size(nt + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width: break
+		out = nt
+	return out + "…" if out != "" else ""
 
 static func label(t: String, size := 18, col: Color = TEXT, wrap := false) -> Label:
 	var l := Label.new(); l.text = t; l.label_settings = ls(size, col)
@@ -269,7 +292,7 @@ static func _btn_style_set(kind: String, pad: int) -> Dictionary:
 	var normal := plate_sb(fill, pad, sh, edge, off)
 	var hover: StyleBoxFlat
 	if kind == "ghost": hover = plate_sb(PANEL, pad, Color(0, 0, 0, 0), TEXT, off)
-	elif kind == "panel": hover = plate_sb(PANEL_HI, pad, TEXT_SOFT, edge, off)
+	elif kind == "panel" or kind == "cyan": hover = plate_sb(PANEL_HI, pad, TEXT_SOFT, edge, off)
 	else: hover = plate_sb(fill.lightened(0.1) if fill.get_luminance() < 0.2 else fill.darkened(0.08), pad, sh, edge, off)
 	var pressed := plate_sb(fill if kind != "ghost" else PANEL, pad, Color(0, 0, 0, 0), edge, off)
 	pressed.expand_margin_left = -2.0; pressed.expand_margin_right = 2.0; pressed.expand_margin_top = -2.0; pressed.expand_margin_bottom = 2.0   # pressed into its shadow
@@ -277,8 +300,8 @@ static func _btn_style_set(kind: String, pad: int) -> Dictionary:
 	var st := {"normal": normal, "hover": hover, "pressed": pressed, "disabled": disabled, "focus": ring_sb(), "ink": ink}
 	_btn_styles[key] = st; return st
 
-## A button: Fraunces lettering on a cut card. kind: amber (primary: ink-filled, sienna offset), panel (outlined card), ghost, cyan (Prussian blue),
-## danger (vermilion), green (viridian). Labels in capitals get a little tracking, like engraved plate lettering.
+## A button: Fraunces lettering on a cut card. kind: amber (primary: ink-filled, sienna offset), panel (outlined secondary), on (a secondary that is
+## switched on: gamboge offset), ghost, danger (vermilion), green (viridian). "cyan" is a retired alias of panel (blue = inhibition only). Labels in capitals get a little tracking, like engraved plate lettering.
 ## The id of a control for the interaction graph (godot/tests/interaction_graph.json): "Btn" + the button's text in CamelCase ("Test x5" -> "BtnTestX5",
 ## "More…" -> "BtnMoreEllipsis"). It is the node's name and its meta "sp"; the meta is what the graph looks up, because Godot renames a node whose name a
 ## sibling already has. Callers give a control whose text changes (Run / Pause, Hint 1/2) an explicit id with `ident`.
@@ -299,6 +322,8 @@ static func btn(t: String, cb: Callable, kind := "amber", size := 26, min_size :
 	_btn_font(b, b.text, size)
 	skin(b, kind, int(size * 0.6))
 	b.custom_minimum_size = Vector2(min_size.x, maxf(min_size.y, maxf(size * 1.9, Layout.tap())))
+	var back := t.begins_with("←") or t.to_lower() == "back" or t.to_lower() == "close"
+	b.pressed.connect(func(): GameAudio.event("back" if back else "click"))   # every button answers: a soft click, a lower "back" for Back and Close
 	b.pressed.connect(cb); return b
 
 ## Words kept in capitals by label_case (acronyms and units).
@@ -450,8 +475,8 @@ static func paper() -> ColorRect: return bench()
 static func row(text: String, ctl: Control, hint := "") -> Control:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 16); h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var left := VBoxContainer.new(); left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left.add_theme_constant_override("separation", 0); left.alignment = BoxContainer.ALIGNMENT_CENTER
-	left.add_child(label(text, 20, TEXT))
-	if hint != "": left.add_child(label(hint, 15, TEXT_SOFT, true))
+	left.add_child(label(text, 21, TEXT))
+	if hint != "": left.add_child(label(hint, 17, TEXT_SOFT, true))
 	h.add_child(left); h.add_child(ctl); return h
 
 ## A faint rule between rows.
@@ -568,11 +593,9 @@ class Stamp extends Control:
 			landed = 0.0
 			create_tween().tween_property(self, "landed", 1.0, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	func _draw() -> void:
-		var r := minf(size.x, size.y) * 0.5 - 4.0
 		var k := lerpf(1.35, 1.0, landed)
-		draw_set_transform(size * 0.5, 0.0, Vector2(k, k))
-		Kit.draw_stamp(self, Vector2.ZERO, r, big, top, bottom, Color(col, clampf(landed * 1.4, 0.0, 1.0)))
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var r := (minf(size.x, size.y) * 0.5 - 4.0) * k   # draw_stamp sets its own transform (a nested one would be replaced, not composed): scale the radius
+		Kit.draw_stamp(self, size * 0.5, r, big, top, bottom, Color(col, clampf(landed * 1.4, 0.0, 1.0)))
 
 # ---------- canvas helpers (any CanvasItem, inside its _draw) ----------
 ## A plate drawn by hand: hard offset shadow, card fill, ink outline.
