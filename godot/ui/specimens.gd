@@ -122,6 +122,7 @@ static func inp(t: Telemetry, ch: String) -> float: return float(t.sim.input_val
 ## Spike times (ms) of every output channel's cells, collected incrementally from Telemetry.sp_n / sp_t (once per frame), the last 15 s.
 static var _lg := {}
 static func spikes(t: Telemetry) -> Dictionary:
+	if int(_lg.get("fr", -1)) == Engine.get_process_frames() and int(_lg.get("id", 0)) == t.get_instance_id() and int(_lg.get("ep", -1)) == t.episode: return _lg   # once a frame (cell_act asks for every cell)
 	if int(_lg.get("id", 0)) != t.get_instance_id() or int(_lg.get("ep", -1)) != t.episode or t.t_ms < float(_lg.get("now", 0.0)) - 0.5 or _lg.get("keys", []) != t.out_mask.keys():
 		_lg = {"id": t.get_instance_id(), "ep": t.episode, "now": t.t_ms, "last": -1.0, "fr": -1, "ch": {}, "keys": t.out_mask.keys(), "cell": PackedFloat32Array()}
 		for k in t.out_mask: _lg["ch"][k] = PackedFloat32Array()
@@ -220,6 +221,7 @@ static func bands(c: Control, t: Telemetry, r: Rect2, row := false) -> void:
 	var d := BodyViews.ro(t); var bs: Array = Campaign.info(str(t.task.id()))["bands"]
 	if bs.is_empty() or r.size.x < 40.0 or r.size.y < 30.0: return
 	var n := bs.size(); var gh := minf(r.size.y / float(n), 86.0) if not row else r.size.y; var gw := r.size.x if not row else r.size.x / float(n)
+	if gh < float(Kit.fs(24)) + float(Kit.fs(14)) + 26.0: return   # too short for a readable gauge (a phone): the score card carries the numbers
 	for i in n:
 		var b: Dictionary = bs[i]; var cr := Rect2(r.position + (Vector2(gw * float(i), 0) if row else Vector2(0, gh * float(i))), Vector2(gw, gh)).grow(-3.0)
 		BodyViews._gauge(c, t, cr, b, BodyViews.rv(d, str(b["name"])), true, d.has(str(b["name"])))
@@ -240,7 +242,7 @@ static func record(c: Control, r: Rect2, rows: Array, t_now: float, win: float) 
 			var a := clampf((float(sp[0]) - t0) / win, 0.0, 1.0); var b := clampf((float(sp[1]) - t0) / win, 0.0, 1.0)
 			if b > a: c.draw_rect(Rect2(x0 + w * a, y1 - hh, w * (b - a), hh), Color(row.get("span_col", Kit.SENSOR), 0.16))
 		c.draw_line(Vector2(x0, y1), Vector2(x0 + w, y1), Color(Kit.INK, 0.35), 1.0)
-		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x, y1 - 2.0), str(row["label"]), HORIZONTAL_ALIGNMENT_LEFT, gut, f, Kit.TEXT)
+		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x, y1 - 2.0), str(row["label"]), HORIZONTAL_ALIGNMENT_LEFT, gut, f if rh >= float(f) + 2.0 else Kit.fs(10), Kit.TEXT)
 		var a2: PackedFloat32Array = row.get("times", PackedFloat32Array())
 		_sticks.clear(); var j := a2.size() - 1
 		while j >= 0 and a2[j] >= t0:
@@ -492,7 +494,7 @@ static func _crab(c: Control, t: Telemetry, r: Rect2) -> void:
 		if a > 0.03: Gfx.wash(c, p, cr * (1.6 + 1.0 * a), Kit.inh(), 0.25 + 0.6 * a, nm.length() + int(p.x))
 		Gfx.soma(c, p, cr, Kit.inh() if known else Color(Kit.inh(), 0.0).lerp(Gfx.SHEET, 0.7), int(p.x), 0.0, 0.0 if known else 0.7)
 		var lx := p.x - cr * 1.25 - 40.0 if (cl[1] as Vector2).x < 0.0 else p.x + cr * 1.25
-		c.draw_string(Fonts.bold, Vector2(lx, p.y + 5.0), nm, HORIZONTAL_ALIGNMENT_RIGHT if (cl[1] as Vector2).x < 0.0 else HORIZONTAL_ALIGNMENT_LEFT, 40.0, Kit.fs(12), Kit.TEXT if known else Kit.TEXT_SOFT)
+		if cr >= 9.0: c.draw_string(Fonts.bold, Vector2(lx, p.y + 5.0), nm, HORIZONTAL_ALIGNMENT_RIGHT if (cl[1] as Vector2).x < 0.0 else HORIZONTAL_ALIGNMENT_LEFT, 40.0, Kit.fs(12), Kit.TEXT if known else Kit.TEXT_SOFT)
 	if not sm:
 		tag(c, "STG", mc + Vector2(-mr * 0.25, mr + float(f) + 4.0), Kit.EXC_INK, HORIZONTAL_ALIGNMENT_CENTER)
 		fig(c, Vector2(box.position.x, box.end.y - 4.0), 1, "Cancer borealis; the STG magnified.", box.size.x)

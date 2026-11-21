@@ -552,9 +552,10 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 	if not bool(pp.get("ok", false)): _empty(c, r, str(pp.get("note", "This cell has no phase plane."))); return
 	var y0 := r.position.y + _banner(c, t, r)
 	var small := r.size.y < 150.0
-	var foot := (float(fz) + 6.0) * (1.0 if small else 2.0) + 6.0   # the footer lines are reserved before the plot is laid out
-	var P := Rect2(r.position.x + 56.0, y0 + 12.0, r.size.x - 76.0, r.end.y - y0 - 12.0 - float(fz) - 10.0 - foot)
-	if P.size.x < 60.0 or P.size.y < 30.0: return
+	var foot := (float(fz) + 6.0) * (1.0 if small else 2.0) + (6.0 if not small else 0.0)   # the footer lines are reserved before the plot is laid out
+	if small: y0 = r.position.y   # a phone: the event slip sits over the plot's empty top-left corner
+	var P := Rect2(r.position.x + 56.0 + (110.0 if small else 0.0), y0 + 12.0, r.size.x - 76.0 - (110.0 if small else 0.0), r.end.y - y0 - 12.0 - float(fz) - 8.0 - foot)
+	if P.size.x < 60.0 or P.size.y < 24.0: return
 	var v_lo := float(pp["v_lo"]); var v_hi := float(pp["v_hi"]); var w_lo := float(pp["w_lo"]); var w_hi := float(pp["w_hi"])
 	var to := func(v: float, w: float) -> Vector2: return Vector2(P.position.x + (v - v_lo) / maxf(v_hi - v_lo, 1e-6) * P.size.x, P.end.y - (w - w_lo) / maxf(w_hi - w_lo, 1e-6) * P.size.y)
 	c.draw_rect(P, Color(Gfx.SHEET, 0.9))
@@ -570,7 +571,7 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 		var px: float = (to.call(v, w_lo) as Vector2).x; var py: float = (to.call(v_lo, w) as Vector2).y
 		c.draw_line(Vector2(px, P.end.y), Vector2(px, P.end.y + 4.0), Kit.INK, 1.0); c.draw_line(Vector2(P.position.x - 4.0, py), Vector2(P.position.x, py), Kit.INK, 1.0)
 		c.draw_string(Fonts.regular, Vector2(px - 14.0, P.end.y + float(fz) + 4.0), "%d" % int(roundf(v)), HORIZONTAL_ALIGNMENT_LEFT, 40.0, fz, Kit.TEXT_SOFT)
-		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
+		if not small or k % 2 == 0: c.draw_string(Fonts.regular, Vector2(P.position.x - 56.0, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
 	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 120.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 116.0, fz, Kit.TEXT)
 	Anatomy.tag(c, "%s (%s)" % [wn, "pA" if wn == "w" else "recovery, arbitrary units"], Vector2(P.position.x + 10.0, P.position.y + float(fz) + 2.0), Kit.TEXT, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.8)
 	var line := func(pts: PackedVector2Array, col: Color) -> void:
@@ -649,6 +650,7 @@ static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
 	c.draw_line(org, Vector2(P.end.x + 8.0, org.y), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.end.x + 12.0, org.y), Vector2(1, 0), Kit.INK, 8.0)
 	c.draw_line(org, Vector2(org.x, P.position.y - 6.0), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(org.x, P.position.y - 10.0), Vector2(0, -1), Kit.INK, 8.0)
 	for k in 5:
+		if small and k % 2 == 1: continue   # a short plot: three ticks, so the numbers never touch
 		var vv := mn + (mx - mn) * float(k) / 4.0; var py := P.end.y - (vv - mn) / maxf(mx - mn, 1e-6) * P.size.y
 		c.draw_line(Vector2(org.x - 4.0, py), Vector2(org.x, py), Kit.INK, 1.0)
 		if k > 0: c.draw_line(Vector2(org.x, py), Vector2(P.end.x, py), Color(Kit.INK, 0.07), 1.0)
@@ -716,7 +718,7 @@ static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 		var cells: Array = groups[gi][1]; var n := cells.size()
 		var cols := maxi(1, int(ceilf(sqrt(float(maxi(n, 1))))))
 		var rows := maxi(1, int(ceilf(float(n) / float(cols))))
-		var cell := minf(minf((gw - 40.0) / float(cols), (area.size.y - cap_h * 2.0 - 16.0) / float(rows)), 58.0)
+		var cell := minf(minf((gw - 40.0) / float(cols), (area.size.y - cap_h * (2.0 if not small else 1.0) - 16.0) / float(rows)), 58.0)
 		if cell < 6.0: continue
 		var frame := Rect2(area.position.x + gw * float(gi) + (gw - cell * float(cols)) * 0.5 - 10.0, area.position.y + cap_h + 8.0, cell * float(cols) + 20.0, cell * float(rows) + 20.0)
 		frame.position.y += maxf(0.0, (area.size.y - cap_h * 2.0 - 16.0 - frame.size.y) * 0.5)
@@ -742,7 +744,8 @@ static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 			if lit > 0.02: c.draw_circle(ctr, rad * (0.55 + 0.45 * lit), Color(Kit.exc(), 0.2 + 0.8 * lit))
 			c.draw_arc(ctr, rad, 0.0, TAU, 28, Kit.INK, 1.3, true)
 			if cued.has(id): c.draw_line(ctr + Vector2(rad * 0.75, -rad * 0.75), ctr + Vector2(rad * 1.15, -rad * 1.15), Kit.SENSOR, 3.0, true)
-		c.draw_string(Fonts.mono, Vector2(frame.position.x, frame.end.y + float(fz) + 4.0), "firing %d of %d" % [lit_n, n], HORIZONTAL_ALIGNMENT_LEFT, gw - 10.0, fz, Kit.TEXT)
+		var rp := Vector2(frame.position.x, frame.end.y + float(fz) + 4.0) if not small else Vector2(frame.end.x + 8.0, frame.get_center().y + 5.0)
+		c.draw_string(Fonts.mono, rp, "firing %d of %d" % [lit_n, n], HORIZONTAL_ALIGNMENT_LEFT, gw - 10.0, fz, Kit.TEXT)
 	if not small:
 		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "sienna: a cell firing; dashed gamboge: the stored pattern; verdigris tick: a cued cell", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
