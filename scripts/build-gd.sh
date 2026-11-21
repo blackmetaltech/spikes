@@ -7,17 +7,21 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd); cd "$root"
 mode=${1:-debug}
+. "$root/scripts/prebuilt.sh"
 case $mode in
+  fetch) ;;   # only clone godot-cpp at the pin (the toolchain image does this)
   debug) cfg=Debug; gdtarget=template_debug ;;
   release) cfg=Release; gdtarget=template_release ;;
   *) echo "usage: $0 [debug|release]" >&2; exit 2 ;;
 esac
 GODOT_CPP_TAG=${GODOT_CPP_TAG:-godot-4.5-stable}
+[ -e third_party/godot-cpp ] || { [ -z "${SPIKE_NO_PREBUILT:-}" ] && use_prebuilt godot-cpp || true; }   # the image's checkout, if it has this pin
 if [ ! -f third_party/godot-cpp/CMakeLists.txt ]; then
   git clone --depth 1 --branch "$GODOT_CPP_TAG" https://github.com/godotengine/godot-cpp third_party/godot-cpp
 elif [ "$(git -C third_party/godot-cpp describe --tags --exact-match 2>/dev/null || true)" != "$GODOT_CPP_TAG" ]; then
   git -C third_party/godot-cpp fetch -q --depth 1 origin tag "$GODOT_CPP_TAG" && git -C third_party/godot-cpp checkout -q "$GODOT_CPP_TAG"
 fi
+[ "$mode" != fetch ] || exit 0
 bdir=build/gd-$mode
 mkdir -p build
 cmake -S . -B "$bdir" -DCMAKE_BUILD_TYPE=$cfg -DSPIKE_BUILD_TESTS=ON -DSPIKE_BUILD_GDEXT=ON -DGODOTCPP_TARGET=$gdtarget >"$bdir.configure.log" 2>&1 || { cat "$bdir.configure.log"; exit 1; }

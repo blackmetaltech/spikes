@@ -5,6 +5,7 @@
 #   docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests      # everything, incl. engine tests
 #   docker run --rm -v "$PWD":/src spike-build scripts/package.sh                # -> build/spike-linux-x86_64.zip (+ headless smoke of the zip)
 #
+# The NEST/NESTML/godot-cpp trees are built into the image (see below); CI publishes it as ghcr.io/ixaxaar/spike-build:<hash> (docs/BUILD.md).
 # Pins (also the single place CI reads them from): NEST commit in scripts/build-nest.sh, NESTML in scripts/build-nestml.sh, godot-cpp in
 # scripts/build-gd.sh; Godot below.
 FROM ubuntu:24.04
@@ -29,9 +30,18 @@ RUN set -eux; base=https://github.com/godotengine/godot-builds/releases/download
     unzip -q -j /tmp/tpl.tpz 'templates/linux_release.x86_64' 'templates/version.txt' -d "$d"; \
     rm -f /tmp/godot.zip /tmp/tpl.tpz; godot --version
 
-# The checkout and the restored CI cache (third_party/) are mounted from the host and owned by another uid; git refuses those as "dubious ownership" without this.
+# The checkout is mounted from the host and owned by another uid; git refuses it as "dubious ownership" without this.
 RUN git config --system --add safe.directory '*'
-WORKDIR /src
-# third_party/ (NEST clone + static build, NESTML venv, godot-cpp) lives under the mounted /src, so re-runs are incremental.
+
+# The pinned third_party trees, built once here instead of on every CI run: NEST (static libs for the engine + PyNEST install), the NESTML venv,
+# godot-cpp. Only the pin scripts are copied in, so this layer (the expensive one) is rebuilt only when a pin changes; CI tags the image with a hash of
+# the Dockerfile and these scripts. SPIKE_OPENMP is part of the NEST build and must match what the engine and PyNEST use at run time.
 ENV SPIKE_OPENMP=OFF
+COPY scripts/prebuilt.sh scripts/build-nest.sh scripts/build-nestml.sh scripts/build-gd.sh /opt/spike-prebuilt/scripts/
+RUN set -eux; cd /opt/spike-prebuilt; export SPIKE_STAMP=1; \
+    scripts/build-nest.sh; scripts/build-nest.sh --pynest; rm -rf third_party/nest-build-py; \
+    scripts/build-nestml.sh --venv-only; scripts/build-gd.sh fetch
+# build-*.sh link these into /src/third_party when the pin matches, and build locally otherwise (so the same scripts work without the image).
+ENV SPIKE_PREBUILT=/opt/spike-prebuilt
+WORKDIR /src
 CMD ["scripts/build-all.sh", "--tests"]

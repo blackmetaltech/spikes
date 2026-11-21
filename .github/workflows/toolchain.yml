@@ -1,0 +1,59 @@
+name: toolchain
+# Builds the toolchain image (Godot, pinned NEST static + PyNEST, NESTML venv, godot-cpp; ~1.5 h cold) and publishes it to
+# ghcr.io/ixaxaar/spike-build:<tag>, tag = scripts/toolchain-tag.sh (hash of the Dockerfile and the pin scripts). ci.yml pulls that tag.
+# Runs only when those files change on master, or by hand (Actions > toolchain > Run workflow). An existing tag is not rebuilt unless forced.
+on:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - scripts/prebuilt.sh
+      - scripts/build-nest.sh
+      - scripts/build-nestml.sh
+      - scripts/build-gd.sh
+      - scripts/toolchain-tag.sh
+      - .github/workflows/toolchain.yml
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild and push even if the tag already exists
+        type: boolean
+        default: false
+
+concurrency:
+  group: toolchain
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag
+        id: tag
+        run: |
+          echo "tag=$(scripts/toolchain-tag.sh)" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/spike-build" >> "$GITHUB_OUTPUT"
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Already published?
+        id: have
+        run: |
+          if [ "${{ inputs.force }}" != "true" ] && docker manifest inspect "${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"; echo "${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }} already exists, nothing to do"
+          else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Build
+        if: steps.have.outputs.exists != 'true'
+        run: docker build -t "${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}" .
+      - name: Push
+        if: steps.have.outputs.exists != 'true'
+        run: |
+          img="${{ steps.tag.outputs.image }}"
+          docker tag "$img:${{ steps.tag.outputs.tag }}" "$img:latest"
+          docker push "$img:${{ steps.tag.outputs.tag }}"
+          docker push "$img:latest"

@@ -1,50 +1,62 @@
 name: ci
+# Runs inside the prebuilt toolchain image ghcr.io/ixaxaar/spike-build:<tag> (built by toolchain.yml; NEST static + PyNEST, NESTML venv, godot-cpp, Godot
+# are already in it), so a run only compiles the engine, extension and tests: ~15-25 min. If the image for the current pins does not exist yet, the job
+# fails at once with instructions (run the toolchain workflow, then re-run) rather than silently spending ~1.5 h building it.
+# Budget: docs-only pushes do not run; one run per ref (newer pushes cancel older ones); push runs on master only, other branches run via their pull request.
 on:
   push:
+    branches: [master]
+    paths-ignore: &ignore
+      - 'docs/**'
+      - 'research/**'
+      - '**.md'
   pull_request:
+    paths-ignore: *ignore
+  workflow_dispatch:
 
-# One job builds the toolchain image (Dockerfile, pinned NEST/NESTML/godot-cpp/Godot) and runs everything inside it.
-# third_party/ (NEST clone + static build, NESTML venv, godot-cpp) is cached between runs; the cache key is the pin scripts + Dockerfile.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/cache@v4
-        with:
-          path: |
-            third_party/nest-simulator
-            third_party/nest-build
-            third_party/nest-install
-            third_party/nestml-venv
-            third_party/godot-cpp
-          key: third-party-${{ hashFiles('Dockerfile', 'scripts/build-nest.sh', 'scripts/build-nestml.sh', 'scripts/build-gd.sh') }}
-
-      - name: Build the toolchain image
-        run: docker build -t spike-build .
-
-      # Every later step runs in the image with the checkout mounted at /src (same user, so files stay writable).
-      - name: Build (NEST, NESTML, engine, extension, tests; PyNEST for the Python parity tests)
+      - name: Toolchain image
         run: |
-          docker run --rm -v "$PWD":/src -w /src spike-build scripts/build-all.sh --tests --debug --pynest
+          tag=$(scripts/toolchain-tag.sh); img="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/spike-build:$tag"
+          echo "SPIKE_IMAGE=$img" >> "$GITHUB_ENV"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull "$img" || {
+            echo "::error::Toolchain image $img not found. The Dockerfile or a pin script (scripts/build-nest.sh, build-nestml.sh, build-gd.sh, prebuilt.sh) changed and the image for those pins has not been published. Run the 'toolchain' workflow (Actions > toolchain > Run workflow, ~1.5 h), then re-run this job."
+            exit 1; }
+
+      # Every step runs in the image with the checkout mounted at /src. The image's NEST/NESTML/godot-cpp trees are linked into third_party/ by the build scripts.
+      - name: Build (engine, extension, tests; PyNEST for the Python parity tests)
+        run: docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" scripts/build-all.sh --tests --debug --pynest
 
       - name: ctest
         run: |
-          docker run --rm -v "$PWD":/src -w /src spike-build \
+          docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" \
             bash -c 'cd build && ctest --output-on-failure -j"$(nproc)"'
 
       - name: pytest
         run: |
-          docker run --rm -v "$PWD":/src -w /src spike-build \
+          docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" \
             bash -c 'export SPIKE_RUN=/src/godot/bin/spike-run; python3 -m pytest -q python/tests'
 
       - name: Smoke (headless game, every screen and task)
-        run: docker run --rm -v "$PWD":/src -w /src spike-build scripts/smoke.sh
+        run: docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" scripts/smoke.sh
 
       - name: Package (Linux zip + headless smoke of the exported build)
-        run: docker run --rm -v "$PWD":/src -w /src spike-build scripts/package.sh
+        run: docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" scripts/package.sh
 
       - uses: actions/upload-artifact@v4
         with:
