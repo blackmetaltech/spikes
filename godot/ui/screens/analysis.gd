@@ -292,12 +292,12 @@ class MotifChart extends Control:
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(380, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
-		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
+		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold   # the table reads at 16 px (it was 11-14)
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
 		Kit.draw_fig(self, Vector2(18, 32), 1, "Three-node motifs" + (": count, and z-score against degree-preserving rewiring" if size.x > 900.0 else ""), size.x - 44, "", 19)
 		if message != "" or not result.has("motifs"):
 			draw_string(f, Vector2(0, size.y * 0.5), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_CENTER, size.x, Kit.fs(20), Kit.TEXT_SOFT); return
-		var ms: Array = result["motifs"]; var top := 46.0
+		var ms: Array = result["motifs"]; var top := 46.0 + float(fz) + 6.0   # a header row for the axis label, below the caption
 		var degenerate := bool(result.get("degenerate", false)); var acc := float(result.get("swap_acceptance", 0.0))
 		var foot_txt := _footer(degenerate, acc)
 		var fw := size.x - 32.0; var foot_h := f.get_multiline_string_size(foot_txt, HORIZONTAL_ALIGNMENT_LEFT, fw, fz).y + 8.0
@@ -310,7 +310,7 @@ class MotifChart extends Control:
 		draw_line(Vector2(mid, top), Vector2(mid, top + rh * 13.0), Color(Kit.LINE, 1.0), 1.5)
 		for zz in [-4, -2, 2, 4]:
 			var x := mid + bw * 0.5 * float(zz) / zmax; draw_line(Vector2(x, top), Vector2(x, top + rh * 13.0), Color(Kit.LINE, 0.4), 1.0)
-		draw_string(f, Vector2(mid - 12, top - 4), "z=0", HORIZONTAL_ALIGNMENT_CENTER, 24, fz, Kit.TEXT_SOFT)
+		draw_string(Gfx.serif_italic(), Vector2(mid - 40, top - 6), "z = 0", HORIZONTAL_ALIGNMENT_CENTER, 80, fz, Kit.TEXT_SOFT)
 		var maxc := 1.0
 		for m in ms: maxc = maxf(maxc, float(m["count"]))
 		for i in ms.size():
@@ -324,7 +324,7 @@ class MotifChart extends Control:
 			if not defined:   # sd = 0: the count is fixed by the degree sequence, so z is undefined (not infinite): no bar, greyed
 				draw_string(f, Vector2(mid - 60.0, cy + float(fz) * 0.35), "n/a (fixed by degrees)" if bw > 300.0 else "n/a", HORIZONTAL_ALIGNMENT_CENTER, 120.0 if bw > 300.0 else 60.0, fz, Color(Kit.TEXT_SOFT, 0.6))
 				continue
-			var z := clampf(float(zv), -zmax, zmax); var x1 := mid + bw * 0.5 * z / zmax; var col := Kit.exc() if z > 0.0 else Kit.inh()
+			var z := clampf(float(zv), -zmax, zmax); var x1 := mid + bw * 0.5 * z / zmax; var col := Kit.exc() if z > 0.0 else Color("#4F5C66")   # under-represented: slate (blue means inhibition)
 			if absf(z) > 0.02:
 				Gfx.glow(self, Vector2(x1, cy), rh * 0.9, Color(col, 0.12 if sig else 0.0))
 				draw_rect(Rect2(minf(mid, x1), cy - rh * 0.27, absf(x1 - mid), rh * 0.54), Color(col, 0.95 if sig else 0.4))
@@ -371,7 +371,7 @@ class SeriesPanel extends Control:
 		return {"m4": "Four-node motifs", "hrv": "Heart-rate variability", "prc": "Phase-response curve", "bursts": "Bursts", "energy": "Energy", "sta": "Spike-triggered average"}.get(kind, "")
 	func _num(v: Variant, fmt := "%.1f") -> String: return "-" if v == null else fmt % float(v)
 	func _draw() -> void:
-		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
+		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold   # tables at 16 px on a desktop (they were 11-14)
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
 		Kit.draw_fig(self, Vector2(18, 32), 1, _title(), size.x - 44, "", 19)
 		if message != "" or data.is_empty():
@@ -401,7 +401,7 @@ class SeriesPanel extends Control:
 		y += 8.0
 		for c in cl.slice(0, 10):
 			y += 26.0; var sig := bool(c.get("significant", false))
-			var z := float(c["z"]); var col: Color = (Kit.exc() if z > 0.0 else Kit.inh()) if sig else Kit.TEXT
+			var z := float(c["z"]); var col: Color = (Kit.exc() if z > 0.0 else Color("#4F5C66")) if sig else Kit.TEXT
 			draw_string(f, Vector2(cols[0], y), "#%d (id %d)" % [int(c["index"]), int(c["id"])], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.2, fz, Kit.TEXT)
 			draw_string(f, Vector2(cols[1], y), "%d / %d" % [int(c["edges"]), int(c["mutual_pairs"])], HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.17, fz, Kit.TEXT)
 			draw_string(fb, Vector2(cols[2], y), str(int(c["count"])), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.17, fz, Kit.TEXT)
@@ -538,7 +538,7 @@ class StatsView extends Control:
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(300, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
-		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
+		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold   # tables at 16 px on a desktop (they were 11-14)
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
 		Kit.draw_fig(self, Vector2(18, 32), 2, "Spike statistics", size.x - 44, "", 19)
 		if tele == null or tele.n == 0 or tele.t_ms < 200.0:

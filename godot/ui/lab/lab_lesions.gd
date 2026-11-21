@@ -144,7 +144,7 @@ func inspect(small: int) -> void:
 		I.add(Kit.label(("Lesioned now: " + ", ".join(names)) if not names.is_empty() else "Nothing lesioned yet.", small, Kit.RED if not names.is_empty() else Kit.TEXT_SOFT, true))
 	var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 8); br.add_theme_constant_override("v_separation", 6); I.add(br)
 	var rb := Kit.btn("Run" if Layout.phone else "Run lesion", func(): run([lab.lesions.duplicate()]), "amber", 18); rb.disabled = lesions.is_empty() or running; br.add_child(rb)
-	var sw := Kit.btn("Sweep" if Layout.phone else "Sweep all singles", sweep, "cyan", 18); sw.disabled = running; br.add_child(sw)
+	var sw := Kit.btn("Sweep" if Layout.phone else "Sweep all singles", sweep, "panel", 18); sw.disabled = running; br.add_child(sw)
 	var cl := Kit.btn("Clear" if Layout.phone else "Clear set", func(): lab.lesions.clear(); lab.editor.queue_redraw(); lab._dirty = 0.0; lab._build_inspector(), "panel", 18); cl.disabled = lesions.is_empty() or running; br.add_child(cl)
 	if Layout.phone and not running and not rows.is_empty():
 		br.add_child(Kit.ident(Kit.btn(("Hide table" if lab._lesion_open else "Table (%d)" % rows.size()), func(): lab._lesion_open = not lab._lesion_open; lab._build_inspector(), "green" if not lab._lesion_open else "panel", 18), "BtnTable"))

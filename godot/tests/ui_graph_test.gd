@@ -484,6 +484,7 @@ func _select_level(level: String) -> void:
 	var scr = app.screen
 	if app.cur != "tasks": _fail("cannot pick level %s: the campaign is not open" % tid); return
 	var ch := Campaign.chapter_of(tid)
+	if str(scr.chapter) != ch and Campaign.wing_of(ch) != Campaign.wing_of(str(scr.chapter)): await _press_id("Wing_" + Campaign.wing_of(ch), "campaign", "wing switch")   # the map shows one wing's chapters at a time
 	if str(scr.chapter) != ch: await _press_id("Chapter_" + ch, "campaign", "chapter tab")
 	await _press_id("Pin_" + tid, "campaign", "pin")
 	if str(app.campaign_node) != tid: _fail("pressing the pin of %s selected '%s'" % [tid, app.campaign_node])

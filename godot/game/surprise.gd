@@ -30,9 +30,13 @@ static func is_rhythm_task(task_id: String, concepts: Array) -> bool:
 
 ## The periodicity of the spike record: {found, period_ms, acf, spikes_per_cycle, on_fraction, pop} for the most rhythmic population (or the whole network),
 ## over the last WINDOW_MS of model time. found is false for a short record, a silent network, a tonic cell, or an irregular one.
+## Not a surprise, so never found: a circuit whose only loops are excitatory self-loops (a latch holds a state, it does not tick), and spiking that is
+## locked to the task's scheduled stimuli (Task::timeline()).
 static func rhythm(tele: Telemetry) -> Dictionary:
 	var out := {"found": false, "period_ms": 0.0, "acf": 0.0, "spikes_per_cycle": 0.0, "on_fraction": 0.0, "pop": ""}
 	if tele == null or tele.sim == null or tele.n < 1: return out
+	if not has_rhythm_loop(tele.circuit): return out
+	var tl: Array = Campaign.info(tele.task_id).get("timeline", []) if tele.task_id != "" else []
 	var t1 := tele.t_ms; var t0 := maxf(t1 - WINDOW_MS, 0.0)
 	if t1 - t0 < MIN_WINDOW_MS: return out
 	var nb := int((t1 - t0) / BIN_MS)
@@ -54,6 +58,7 @@ static func rhythm(tele: Telemetry) -> Dictionary:
 			if b >= 0 and b < nb: bins[b] += 1.0; total += 1
 		if total < MIN_SPIKES: continue
 		var r := _analyse(bins, total)
+		if bool(r["found"]) and stimulus_locked(tl, tele, t0, t1, int(g[1]), int(g[2])): continue
 		if bool(r["found"]) and float(r["acf"]) > best_acf:
 			best_acf = float(r["acf"]); out = r; out["pop"] = str(g[0])
 	return out
@@ -100,11 +105,57 @@ static func stimulus_is_periodic(timeline: Array, period_ms: float) -> bool:
 		if period_ms > 0.0 and absf(float(g) - period_ms) <= 0.2 * period_ms: return true
 	return false
 
+## A loop that can make a rhythm: a cycle through two or more populations, or a population that inhibits itself. An EXCITATORY self-loop alone is a
+## latch (worm_touch's AVA and AVD, w_latch): it holds a state and is never reported as a rhythm.
+static func has_rhythm_loop(c: Dictionary) -> bool:
+	var adj := {}
+	for pr in c.get("projections", []):
+		var w := Circuits.proj_weight(pr)
+		if is_zero_approx(w) and not (pr.has("edges") and not (pr["edges"] as Array).is_empty()): continue
+		var a := Circuits.proj_pop(pr.get("pre", "")); var b := Circuits.proj_pop(pr.get("post", ""))
+		if a == b:
+			if w < 0.0: return true
+			continue
+		if not adj.has(a): adj[a] = []
+		(adj[a] as Array).append(b)
+	var state := {}
+	var cyc := [false]
+	var visit := func(self_fn: Callable, n: String) -> void:
+		state[n] = 1
+		for m in adj.get(n, []):
+			if cyc[0]: return
+			if int(state.get(m, 0)) == 1: cyc[0] = true; return
+			if int(state.get(m, 0)) == 0: self_fn.call(self_fn, m)
+		state[n] = 2
+	for n in adj.keys():
+		if cyc[0]: break
+		if int(state.get(n, 0)) == 0: visit.call(visit, n)
+	return cyc[0]
+
+## True when the spikes of neurons [lo, hi) (lo < 0: all) in [t0, t1) mostly fall inside the task's scheduled stimuli (each span and the 400 ms after it):
+## the bursts are the circuit answering the task's pokes, not a rhythm of its own.
+static func stimulus_locked(timeline: Array, tele: Telemetry, t0: float, t1: float, lo := -1, hi := -1) -> bool:
+	if timeline.is_empty(): return false
+	var spans := []
+	for e in timeline:
+		var a := float((e as Dictionary).get("t_ms", 0.0)); spans.append(Vector2(a, a + float((e as Dictionary).get("dur_ms", 0.0)) + 400.0))
+	var inside := 0; var total := 0
+	for j in tele.sp_t.size():
+		var t := tele.sp_t[j]
+		if t < t0 or t >= t1: continue
+		var id := int(tele.sp_n[j])
+		if lo >= 0 and (id < lo or id >= hi): continue
+		total += 1
+		for sp in spans:
+			if t >= (sp as Vector2).x and t < (sp as Vector2).y: inside += 1; break
+	return total > 0 and float(inside) >= 0.5 * float(total)
+
 ## The toast text for an oscillation found by `rhythm()` ({title, text}).
 static func oscillation_text(r: Dictionary) -> Dictionary:
 	var hz := 1000.0 / maxf(float(r["period_ms"]), 1.0)
 	var where := ("in %s " % str(r["pop"])) if str(r["pop"]) != "" else ""
-	return {"title": "You built a rhythm by accident!", "text": "Your circuit bursts %severy %d ms (%.1f Hz) although the task never asked for it. Feedback loops of excitation and inhibition make clocks: this is how real central pattern generators begin." % [where, int(roundf(float(r["period_ms"]))), hz]}
+	var pace := "slow, steady" if hz < 2.0 else ("steady" if hz < 8.0 else "fast, steady")
+	return {"title": "You built a rhythm by accident", "text": "Your circuit bursts %sin a %s beat that the task never asked for. A feedback loop makes a clock: this is how central pattern generators begin." % [where, pace]}
 
 ## The lesion row (not the intact baseline) whose score beats the baseline by at least `margin` points, the best one; {} when none does. Rows as in Lesion.Runner.
 static func lesion_improves(rows: Array, margin := 4.0) -> Dictionary:

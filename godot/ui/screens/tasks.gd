@@ -71,47 +71,109 @@ func _default_chapter() -> String:
 			if Campaign.unlocked(id) and not Campaign.passed(id): return c["id"]
 	return Campaign.CHAPTERS[0]["id"]
 
-## The chapter tabs. Desktop: two rows, "Body" (the five body chapters) over "Bestiary" (one tab per model organism), so eleven chapters fit at 1920 px and the
-## detail panel and the Sandbox button stay on screen however many chapters there are. Phone: one row of short names in a horizontal scroll strip.
+## The chapter tabs: a wing selector (Body / Bestiary / Theory) and ONE row with the chapters of the current wing (three rows of sixteen equal tabs took a
+## quarter of the screen), and "Continue: <next level>" at the right. Phone: the wing switch over a sideways strip of the wing's chapters, whose right
+## edge fades when more chapters are off screen.
+const WINGS := [["body", "Body"], ["bestiary", "Bestiary"], ["theory", "Theory"]]
+var wing := ""
+var _wing_btns := {}
+var _chapter_row: HBoxContainer
+var _strip: ScrollContainer
+var _fade: Control
 func _tabs(f: float, phone: bool) -> Control:
-	var roman := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV"]
+	wing = Campaign.wing_of(chapter); _wing_btns = {}
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 8 if not phone else 4)
+	var top := HBoxContainer.new(); top.add_theme_constant_override("separation", 8 if not phone else 4); v.add_child(top)
+	for w in WINGS:
+		var wid: String = w[0]
+		var b := Kit.btn(str(w[1]), func(): _show_wing(wid), "amber" if wid == wing else "panel", int(22 * f) if not phone else 16, Vector2(0, 0)); Kit.ident(b, "Wing_" + wid)
+		b.tooltip_text = ROW_SUB[wid]; _wing_btns[wid] = b; top.add_child(b)
+	var sub := Kit.italic(ROW_SUB.get(wing, ""), int(16 * f) if not phone else 15, Kit.TEXT_SOFT); sub.name = "WingSub"; sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if not phone: top.add_child(sub)
+	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sp.mouse_filter = Control.MOUSE_FILTER_IGNORE; top.add_child(sp)
+	var nx := _continue_target()
+	if nx != "":
+		var cb := Kit.btn(("Continue: %s →" % str(Campaign.info(nx).get("title", nx))) if not phone else "Continue →", func(): _continue(nx), "amber", int(22 * f) if not phone else 16, Vector2(0, 0)); Kit.ident(cb, "BtnContinue")
+		cb.tooltip_text = "Open the next level you have not passed: %s" % str(Campaign.info(nx).get("title", nx)); top.add_child(cb)
+	_chapter_row = HBoxContainer.new(); _chapter_row.add_theme_constant_override("separation", 10 if not phone else 6)
+	if phone:
+		var holder := Control.new(); holder.custom_minimum_size.y = 44.0; v.add_child(holder)
+		_strip = ScrollContainer.new(); _strip.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; _strip.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		_strip.set_anchors_preset(Control.PRESET_FULL_RECT); _strip.set_meta("nowrap", true)   # WrapGuard must not turn this strip into a wrapping flow: it scrolls sideways on purpose
+		_strip.add_child(_chapter_row); holder.add_child(_strip)
+		_fade = _Fade.new(); _fade.set_anchors_preset(Control.PRESET_RIGHT_WIDE); _fade.offset_left = -48.0; holder.add_child(_fade)
+		_strip.get_h_scroll_bar().value_changed.connect(func(_x): _update_fade())
+		_strip.resized.connect(_update_fade)
+	else: v.add_child(_chapter_row)
+	_fill_chapters(f, phone)
+	return v
+
+## The right-edge fade of the phone's chapter strip: paper fading in over the last 48 px while more chapters are off screen.
+class _Fade extends Control:
+	func _init() -> void: mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		for i in 12:
+			var x := size.x * float(i) / 12.0
+			draw_rect(Rect2(x, 0, size.x / 12.0 + 0.5, size.y), Color(Kit.PAPER, float(i + 1) / 13.0))
+		draw_string(Fonts.bold, Vector2(size.x - 16.0, size.y * 0.5 + 6.0), "›", HORIZONTAL_ALIGNMENT_LEFT, -1, Kit.fs(18), Kit.TEXT_SOFT)
+
+func _update_fade() -> void:
+	if _fade == null or _strip == null: return
+	var bar := _strip.get_h_scroll_bar()
+	_fade.visible = bar.max_value - bar.page > 1.0 and bar.value < bar.max_value - bar.page - 2.0
+
+func _fill_chapters(f: float, phone: bool) -> void:
+	for c in _chapter_row.get_children(): _chapter_row.remove_child(c); c.queue_free()
+	tab_btns = {}
+	var roman := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"]
 	var ci := 0
-	var rows := {"body": HBoxContainer.new(), "bestiary": HBoxContainer.new(), "theory": HBoxContainer.new()}
-	for r in rows: (rows[r] as HBoxContainer).add_theme_constant_override("separation", 10 if not phone else 6)
 	for c in Campaign.CHAPTERS:
 		ci += 1
-		var id: String = c["id"]; var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id)
-		var st := Campaign.star_total(id)
-		var wing := Campaign.wing_of(id)
+		var id: String = c["id"]
+		if Campaign.wing_of(id) != wing: continue
+		var open := Campaign.chapter_open(id); var n := Campaign.installed_count(id); var st := Campaign.star_total(id)
 		var txt := str(SHORT[id]) if phone else (("%s. %s" % [roman[mini(ci - 1, roman.size() - 1)], str(c["title"])]) if wing == "body" else str(c["title"]).trim_prefix("Bestiary: ").trim_prefix("Theory: "))
 		if not open and not phone: txt += "  (locked)"
-		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(22 * f) if not phone else 18, Vector2(0, 0)); Kit.ident(b, "Chapter_" + id)
+		var b := Kit.btn(txt, func(): _show_chapter(id), "amber" if id == chapter else "panel", int(20 * f) if not phone else 16, Vector2(0, 0)); Kit.ident(b, "Chapter_" + id)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not phone else Control.SIZE_SHRINK_BEGIN
-		b.clip_text = false
 		b.tooltip_text = ("%s: %d of %d levels passed, %d of %d stars" % [c["title"], Campaign.passed_count(id), n, st.x, st.y]) if n > 0 else ("%s: no tasks installed yet" % c["title"])
-		tab_btns[id] = b; (rows[wing] as HBoxContainer).add_child(b)
-	if phone:
-		var sc := ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-		sc.custom_minimum_size.y = 44.0; sc.set_meta("nowrap", true)   # WrapGuard must not turn this strip into a wrapping flow: it scrolls sideways on purpose
-		var one := HBoxContainer.new(); one.add_theme_constant_override("separation", 6)
-		for r in ["body", "bestiary", "theory"]:
-			for k in (rows[r] as HBoxContainer).get_children().duplicate(): (rows[r] as HBoxContainer).remove_child(k); one.add_child(k)
-		for r in rows: (rows[r] as Node).free()   # the two row containers were only a place to collect the tabs (never in the tree)
-		sc.add_child(one)
-		return sc
-	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6)
-	for r in ["body", "bestiary", "theory"]:
-		var hb := HBoxContainer.new(); hb.add_theme_constant_override("separation", 12)
-		var lab := Kit.small_caps("BODY" if r == "body" else ("BESTIARY" if r == "bestiary" else "THEORY"), int(15 * f), Kit.TEXT_SOFT)
-		var lbox := VBoxContainer.new(); lbox.custom_minimum_size.x = 190.0 * f; lbox.size_flags_vertical = Control.SIZE_SHRINK_CENTER; lbox.add_theme_constant_override("separation", 0); lbox.add_child(lab)
-		var sub := Kit.italic(ROW_SUB[r], int(13 * f), Kit.TEXT_SOFT); sub.autowrap_mode = TextServer.AUTOWRAP_OFF; lbox.add_child(sub)
-		hb.add_child(lbox); (rows[r] as HBoxContainer).size_flags_horizontal = Control.SIZE_EXPAND_FILL; hb.add_child(rows[r]); v.add_child(hb)
-	return v
+		tab_btns[id] = b; _chapter_row.add_child(b)
+	if phone: call_deferred("_update_fade")
+
+## Switch wing: its chapters fill the row and the map shows the wing's chapter you were last on (else its first open one).
+var _wing_last := {}
+func _show_wing(w: String) -> void:
+	if w == wing and chapter != "": return
+	if chapter != "": _wing_last[wing] = chapter
+	var target := str(_wing_last.get(w, ""))
+	if target == "":
+		for c in Campaign.CHAPTERS:
+			if target == "" and Campaign.wing_of(str(c["id"])) == w and Campaign.chapter_open(str(c["id"])): target = str(c["id"])
+		for c in Campaign.CHAPTERS:
+			if target == "" and Campaign.wing_of(str(c["id"])) == w: target = str(c["id"])
+	_show_chapter(target)
+
+## The level "Continue" opens: the first open, unpassed spine level in campaign order (none once everything open is passed).
+func _continue_target() -> String:
+	for id in Campaign.order():
+		var tid := str(id)
+		if Campaign.unlocked(tid) and not Campaign.passed(tid) and bool(Campaign.info(tid).get("spine", true)): return tid
+	return ""
+
+func _continue(tid: String) -> void:
+	if app == null: return
+	app.campaign_chapter = Campaign.chapter_of(tid); app.campaign_node = tid
+	app.open_lab(tid)
 
 func _show_chapter(id: String) -> void:
 	chapter = id
 	if app != null: app.campaign_chapter = id
-	for k in tab_btns: Kit.skin(tab_btns[k], "amber" if k == id else "panel", 11 if Layout.phone else int(22 * f() * 0.6))
+	if _chapter_row != null and Campaign.wing_of(id) != wing:
+		wing = Campaign.wing_of(id); _fill_chapters(f(), Layout.phone)
+		for w in _wing_btns: Kit.skin(_wing_btns[w], "amber" if w == wing else "panel", 10 if Layout.phone else int(22 * f() * 0.6))
+		var ws := find_child("WingSub", true, false) as Label
+		if ws != null: ws.text = ROW_SUB.get(wing, "")
+	for k in tab_btns: Kit.skin(tab_btns[k], "amber" if k == id else "panel", 10 if Layout.phone else int(20 * f() * 0.6))
 	var nodes := Campaign.nodes(id)
 	var ok := false
 	for n in nodes:
@@ -131,6 +193,7 @@ func select_node(id: String) -> void:
 	if id != sel: _brief_full = false
 	sel = id
 	if app != null: app.campaign_node = id
+	map.update_labels(id)
 	map.queue_redraw()
 	if map.overlay != null: map.overlay.queue_redraw()
 	for c in map.cards: c.queue_redraw()
@@ -144,7 +207,7 @@ func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, 
 		var c := Kit.chip(str(it), col, 15)
 		if soft:
 			(c.get_child(0) as Label).label_settings = Kit.ls(15, Kit.TEXT, true)
-			c.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.inh(), 1, 6, 8, false))
+			c.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.TEXT_SOFT, 1, 6, 8, false))
 		row.add_child(c)
 
 ## The three star conditions, worded for the difficulty mode (Progress.stars_for decides what earns them; the mode only changes how the pass is judged).
@@ -184,10 +247,10 @@ func _fill_detail() -> void:
 	if is_var: best = {"value": 0.0, "passed": done, "stars": 1 if done else 0, "modes": {}, "hints": {}, "variants": []}
 	var chips := HFlowContainer.new(); chips.add_theme_constant_override("h_separation", 8); chips.add_theme_constant_override("v_separation", 6); detail_box.add_child(chips)
 	chips.add_child(Kit.chip("%d s episode" % int(round(float(info["duration_ms"]) / 1000.0)), Kit.PANEL_HI, 15)); (chips.get_child(0).get_child(0) as Label).label_settings = Kit.ls(15, Kit.TEXT, true)
-	if not is_var: chips.add_child(Kit.chip("BEST %d" % int(round(float(best["value"]))) if float(best["value"]) > 0.0 else "NOT TRIED", Kit.GREEN if bool(best["passed"]) else Kit.exc(), 15))
-	if done: chips.add_child(Kit.chip("PASSED" if not is_var else "DONE", Kit.GREEN, 15))
+	if not is_var: chips.add_child(Kit.chip("BEST %d" % int(round(float(best["value"]))) if float(best["value"]) > 0.0 else "NOT TRIED", Kit.success() if bool(best["passed"]) else Kit.exc(), 15))
+	if done: chips.add_child(Kit.chip("PASSED" if not is_var else "DONE", Kit.success(), 15))
 	if not open: chips.add_child(Kit.chip("LOCKED", Kit.RED, 15))
-	if not bool(node["spine"]): chips.add_child(Kit.chip("OPTIONAL", Kit.inh(), 15))
+	if not bool(node["spine"]): chips.add_child(Kit.chip("OPTIONAL", Kit.TEXT_SOFT, 15))
 	if str(info["view"]) != "polyline": chips.add_child(Kit.chip(str(info["view"]).to_upper() + " VIEW", Kit.MOTOR, 15))
 	var bt := HBoxContainer.new(); bt.add_theme_constant_override("separation", 10); detail_box.add_child(bt)
 	var sid := tid; var vid := str(node["variant"]); var synth := bool(info.get("synthetic", false))
@@ -233,7 +296,7 @@ func _fill_detail() -> void:
 		var mb := Kit.btn("Less" if _brief_full else "More…", func(): _brief_full = not _brief_full; _fill_detail(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; detail_box.add_child(mb)
 	if str(info.get("symptoms", "")) != "": detail_box.add_child(Kit.label("Patient: " + str(info["symptoms"]), small, Kit.TEXT, true))
 	_chips_row("NEW IDEA", (node["concepts_new"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.exc(), f, phone)
-	_chips_row("USES", (node["concepts_used"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.inh(), f, phone, true)
+	_chips_row("USES", (node["concepts_used"] as Array).map(func(c): return Campaign.concept_short(str(c))), Kit.GAMBOGE, f, phone, true)
 	if not is_var:
 		var hu := Progress.hints_used(tid)
 		if int(hu["count"]) > 0: detail_box.add_child(Kit.label("Hints used: %d (highest tier %d). Recorded, never punished." % [int(hu["count"]), int(hu["max_tier"])], 15, Kit.TEXT_SOFT, true))
@@ -261,12 +324,18 @@ class NodeCard extends Button:
 	var disc := Vector2.ZERO      # centre of the pin disc in local coordinates
 	var _plate := Rect2()
 	var _leader := false          # the plate sits away from its pin: a leader line joins them
+	var spine_no := 0             # 1, 2, 3 ... along the chapter's spine (play order); 0 = a branch
 	func _init() -> void:
 		flat = true; focus_mode = Kit.focus_mode()
 		for n in ["normal", "hover", "pressed", "disabled", "focus"]: add_theme_stylebox_override(n, StyleBoxEmpty.new())
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func kind() -> String: return str(node.get("kind", "task"))
-	func has_plate() -> bool: return kind() in ["task", "boss", "micro", "diagnosis"]   # every level carries its name on the map: a bare square or pin told the player nothing
+	## Only the selected pin and its neighbours on the spine (and the branches of the selected level) carry a label plate: twelve plates at once buried the
+	## anatomy. The others are numbered pins; hovering one names it.
+	func has_plate() -> bool:
+		if not (kind() in ["task", "boss", "micro", "diagnosis"]): return false
+		var m := get_parent() as MapCanvas
+		return m == null or m.labelled.is_empty() or m.labelled.has(str(node["id"]))
 	func _R() -> float:
 		var k := kind(); var ph := Layout.phone
 		match k:
@@ -336,7 +405,7 @@ class NodeCard extends Button:
 		# a lettered call-out on the plate: an inked ring with an italic letter (a, b, c ... in play order), a paper slip with the title and stars
 		var id := str(node["id"]); var inst: bool = node["installed"]; var st := _status(); var best: Dictionary = st[2]
 		var open := inst and Campaign.unlocked(id); var passed := bool(best["passed"]); var selected := screen != null and screen.sel == id
-		var edge := Kit.GREEN if passed else (Kit.exc() if open else Color(Kit.INK, 0.45))
+		var edge := Kit.success() if passed else (Kit.exc() if open else Color(Kit.INK, 0.45))
 		var hov := is_hovered(); var R := _R(); var k := kind()
 		var ft := Kit.fs(16 if not Layout.phone else 15); var fz := Kit.fs(14)
 		var paper := Color("#FBF7EE")
@@ -363,11 +432,11 @@ class NodeCard extends Button:
 		match k:
 			"variant":
 				var dm := _diamond(disc, R)
-				draw_colored_polygon(dm, Kit.GREEN if passed else paper); draw_polyline(dm, edge, lw, true)
+				draw_colored_polygon(dm, Kit.success() if passed else paper); draw_polyline(dm, edge, lw, true)
 				if passed: draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.4, 0), disc + Vector2(-R * 0.08, R * 0.32), disc + Vector2(R * 0.42, -R * 0.3)]), paper, 2.0, true)
 			"diagnosis":
 				var rr := Rect2(disc - Vector2(R, R), Vector2(R, R) * 2.0)
-				draw_rect(rr, Kit.GREEN if passed else paper); draw_rect(rr, edge, false, lw)
+				draw_rect(rr, Kit.success() if passed else paper); draw_rect(rr, edge, false, lw)
 				var cc := paper if passed else edge
 				draw_line(disc + Vector2(-R * 0.5, 0), disc + Vector2(R * 0.5, 0), cc, 2.0, true); draw_line(disc + Vector2(0, -R * 0.5), disc + Vector2(0, R * 0.5), cc, 2.0, true)
 			_:
@@ -378,7 +447,7 @@ class NodeCard extends Button:
 				else: draw_arc(disc, R, 0, TAU, 40, edge, lw, true)
 				if not inst: pass
 				elif passed:
-					draw_circle(disc, R - 3.0, Kit.GREEN)
+					draw_circle(disc, R - 3.0, Kit.success())
 					if k == "boss": ScoreCard.draw_star_on(self, disc, R * 0.62, paper)
 					else: draw_polyline(PackedVector2Array([disc + Vector2(-R * 0.35, 0), disc + Vector2(-R * 0.08, R * 0.28), disc + Vector2(R * 0.40, -R * 0.26)]), paper, 2.4 if k == "task" else 2.0, true)
 				elif not open:
@@ -386,10 +455,11 @@ class NodeCard extends Button:
 					else:
 						draw_rect(Rect2(disc + Vector2(-R * 0.30, -R * 0.02), Vector2(R * 0.60, R * 0.46)), Kit.TEXT_SOFT); draw_arc(disc + Vector2(0, -R * 0.02), R * 0.22, PI, TAU, 10, Kit.TEXT_SOFT, 1.8, true)
 				elif k == "boss": ScoreCard.draw_star_on(self, disc, R * 0.6, Kit.exc())
+				elif spine_no > 0:   # a numbered gamboge disc: the play order, readable at a glance
+					draw_circle(disc, R - 2.0, Color(Kit.GAMBOGE, 0.9))
+					var lz := Kit.fs(16 if R >= 13.0 else 14)
+					draw_string(Fonts.bold, disc + Vector2(-R - 4.0, float(lz) * 0.34), str(spine_no), HORIZONTAL_ALIGNMENT_CENTER, R * 2.0 + 8.0, lz, Kit.INK)
 				elif k == "micro": draw_circle(disc, R * 0.36, Kit.exc())
-				else:
-					var letter := char(97 + idx) if idx < 26 else str(idx + 1); var lz := Kit.fs(18 if not Layout.phone else 16)
-					draw_string(Gfx.serif_italic(), disc + Vector2(-R, float(lz) * 0.32), letter, HORIZONTAL_ALIGNMENT_CENTER, R * 2.0, lz, Kit.INK)
 		if has_focus(): draw_style_box(Kit.ring_sb(), Rect2(Vector2.ZERO, size) if has_plate() else Rect2(disc - Vector2(R, R) - Vector2(5, 5), Vector2(R, R) * 2.0 + Vector2(10, 10)))
 	static func _diamond(c: Vector2, r: float) -> PackedVector2Array:
 		return PackedVector2Array([c + Vector2(0, -r * 1.2), c + Vector2(r * 1.2, 0), c + Vector2(0, r * 1.2), c + Vector2(-r * 1.2, 0), c + Vector2(0, -r * 1.2)])
@@ -410,8 +480,7 @@ class MapOverlay extends Control:
 		var fz := Kit.fs(14); var ft := Kit.fs(15)
 		var rows := []   # [[text, kind]] per row of chips, kind: "new" | "used"
 		var chips := []
-		for c in card.node["concepts_new"]: chips.append([Campaign.concept_short(str(c)), true])
-		for c in card.node["concepts_used"]: chips.append([Campaign.concept_short(str(c)), false])
+		# no concept chips over the map (the level card on the right lists the concepts): only the name of a pin that has no label plate
 		var bare := not card.has_plate()
 		if chips.is_empty() and not bare: return
 		var maxw := minf(size.x - 16.0, 360.0 if not Layout.phone else 300.0)
@@ -469,7 +538,24 @@ class MapCanvas extends Control:
 	var cards: Array = []
 	var overlay: MapOverlay
 	var _t := 0.35
+	var labelled := {}   # pin ids that carry a label plate: the selected one, its spine neighbours, its branches
 	func _ready() -> void: clip_contents = true
+	func update_labels(sel_id: String) -> void:
+		labelled = {}
+		var sp := cards.filter(func(c): return bool(c.node["spine"]))
+		var si := -1
+		for i in sp.size():
+			if str(sp[i].node["id"]) == sel_id: si = i
+		var parent := sel_id
+		for c in cards:
+			if str(c.node["id"]) == sel_id and not bool(c.node["spine"]): parent = str(c.node["parent"])
+		for i in sp.size():
+			if str(sp[i].node["id"]) == parent: si = i
+		for i in range(si - 1, si + 2):
+			if si >= 0 and i >= 0 and i < sp.size(): labelled[str(sp[i].node["id"])] = true
+		labelled[sel_id] = true
+		for c in cards:
+			if not bool(c.node["spine"]) and str(c.node["parent"]) == parent: labelled[str(c.node["id"])] = true
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func first_card() -> Control:
 		for c in cards:
@@ -486,9 +572,9 @@ class MapCanvas extends Control:
 		if overlay.get_parent() != null: remove_child(overlay)
 		for i in ns.size():
 			var n: Dictionary = ns[i]
-			var c := NodeCard.new(); Kit.ident(c, "Pin_" + str(n["id"])); c.node = n; c.idx = i; c.screen = screen; c.pressed.connect(func(): screen.select_node(str(n["id"])))
+			var c := NodeCard.new(); Kit.ident(c, "Pin_" + str(n["id"])); c.node = n; c.idx = i; c.screen = screen; c.spine_no = (ns.slice(0, i + 1).filter(func(x): return bool(x["spine"])).size()) if bool(n["spine"]) else 0; c.pressed.connect(func(): screen.select_node(str(n["id"])))
 			c.tooltip_text = ""; c.mouse_entered.connect(overlay.queue_redraw); c.mouse_exited.connect(overlay.queue_redraw); add_child(c); cards.append(c)
-		add_child(overlay); queue_redraw()
+		add_child(overlay); update_labels(screen.sel if screen != null else ""); queue_redraw()
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_RESIZED: queue_redraw()
 	func _process(dt: float) -> void:
@@ -572,9 +658,10 @@ class MapCanvas extends Control:
 			var pts := PackedVector2Array()
 			for k in 11: pts.append(_bez(sg[0], sg[1], sg[2], lerpf(float(sg[3]), float(sg[4]), float(k) / 10.0)))
 			keep_path(pts, 30.0)
-			if bool(pc.node["installed"]) and Campaign.passed(str(pc.node["id"])): draw_polyline(pts, Color(Kit.GREEN, 0.9), 2.0, true)
-			elif bool(pc.node["installed"]) and Campaign.unlocked(str(pc.node["id"])) and bool(nc.node["installed"]): Gfx.dashed(self, pts, Color(Kit.exc(), 0.85), 1.8, 6.0, 5.0, _t * 10.0)
-			else: Gfx.dashed(self, pts, Color(Kit.INK, 0.35), 1.2, 2.0, 4.0)
+			# the spine is one SOLID inked path (branches are dashed): green where it is walked, ink for the way ahead, faint where it is not open
+			if bool(pc.node["installed"]) and Campaign.passed(str(pc.node["id"])): draw_polyline(pts, Color(Kit.success(), 0.9), 2.6, true)
+			elif bool(pc.node["installed"]) and Campaign.unlocked(str(pc.node["id"])) and bool(nc.node["installed"]): draw_polyline(pts, Color(Kit.INK, 0.8), 2.2, true)
+			else: draw_polyline(pts, Color(Kit.INK, 0.3), 1.6, true)
 		# branches hang off their spine pin: the free direction with the most room
 		var pins := []
 		for c in sp: pins.append((c as NodeCard).pin_rect())
@@ -610,10 +697,10 @@ class MapCanvas extends Control:
 				c.place_disc(bestp)
 				pins.append(c.pin_rect())
 				keep_path(PackedVector2Array([centre, centre.lerp(bestp, 0.5), bestp]), 20.0)
-				draw_line(centre, bestp, Color(Kit.GREEN, 0.9) if Campaign.passed(str(c.node["id"])) else Color(Kit.INK, 0.45), 1.0, true)
+				Gfx.dashed(self, PackedVector2Array([centre, bestp]), Color(Kit.success(), 0.9) if Campaign.passed(str(c.node["id"])) else Color(Kit.INK, 0.5), 1.2, 4.0, 4.0)   # a branch: dashed
 		# 2. the label plates of tasks and bosses: each takes the free spot nearest its pin that covers no other pin or plate, as little anatomy and
 		# lettering as it can, and stays on the page; a leader line joins a plate that had to move away from its pin
-		keep.append([Rect2(0, size.y - float(Kit.fs(15)) - 26.0, minf(size.x * 0.5, 520.0), float(Kit.fs(15)) + 26.0), 400.0])   # the plate caption
+		keep.append([Rect2(0, size.y - float(Kit.fs(15)) - 26.0 - (0.0 if Layout.phone else float(Kit.fs(14)) + 16.0), minf(size.x * 0.62, 760.0), float(Kit.fs(15)) + 26.0 + (0.0 if Layout.phone else float(Kit.fs(14)) + 16.0)), 400.0])   # the plate caption and the key
 		if not Campaign.chapter_open(chapter): keep.append([Rect2(0, 0, minf(size.x * 0.7, 640.0), 44.0), 400.0])   # the lock notice
 		var plates := []; _leaders = []
 		for c in sp + cards.filter(func(c): return not bool(c.node["spine"]) and c.visible):   # spine levels first, then the diagnosis cases and micro-puzzles off them
@@ -626,13 +713,34 @@ class MapCanvas extends Control:
 			if nc._leader: _leaders.append([nc.position + nc.disc, Vector2(clampf(nc.position.x + nc.disc.x, pr.position.x, pr.end.x), clampf(nc.position.y + nc.disc.y, pr.position.y, pr.end.y))])
 		var cd := Campaign.chapter_def(chapter); var st := Campaign.star_total(chapter); var fz := Kit.fs(14)
 		var cap := ("%s.  %d of %d stars" % [str(cd["title"]), st.x, st.y]) if st.y > 0 else str(cd["title"]) + "."
-		var pz := Kit.fs(15); var pl := "Plate %s." % NotebookScreen._roman(Campaign.chapter_index(chapter) + 1)   # one numeral per chapter, in campaign order (I. Invertebrates ... XV. Tuning)
+		var pz := Kit.fs(15); var pl := "Atlas %s." % NotebookScreen._roman(Campaign.chapter_index(chapter) + 1)   # one numeral per chapter, in campaign order (I. Invertebrates ... XV. Tuning); "Atlas", so it never collides with the screens' "Plate I-VI" running heads
 		draw_rect(Rect2(10, size.y - float(pz) - 18.0, Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x + Gfx.serif_italic().get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x + 26.0, float(pz) + 10.0), Color(Gfx.SHEET, 0.85))
 		draw_string(Fonts.bold, Vector2(16, size.y - 14), pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
 		draw_string(Gfx.serif_italic(), Vector2(22 + Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x, size.y - 14), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
+		_draw_key(pz)
 		if not Campaign.chapter_open(chapter):
 			var g := Campaign.gate_chapter(chapter)
 			Anatomy.tag(self, ("Locked. Pass the %s spine first." % str(Campaign.chapter_def(g)["title"])) if g != "" else "Locked.", Vector2(14, 10.0 + float(fz)), Kit.RED, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.7)
+
+	## The key to the pin glyphs, a small italic legend in the bottom-left corner above the plate caption (not on a phone: the level card names the kind).
+	func _draw_key(pz: int) -> void:
+		if Layout.phone: return
+		var fz := Kit.fs(14); var fi := Gfx.serif_italic(); var y := size.y - float(pz) - 30.0; var x := 18.0
+		var items := [["num", "level, in play order"], ["boss", "chapter finale"], ["diag", "diagnosis case"], ["var", "variant"], ["done", "passed"]]
+		var w := 0.0
+		for it in items: w += 26.0 + fi.get_string_size(str(it[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 14.0
+		draw_rect(Rect2(10, y - float(fz) - 4.0, w + 12.0, float(fz) + 12.0), Color(Gfx.SHEET, 0.85))
+		var paper := Color("#FBF7EE")
+		for it in items:
+			var c := Vector2(x + 8.0, y - float(fz) * 0.32); var R := 7.0
+			match str(it[0]):
+				"num": draw_circle(c, R, Color(Kit.GAMBOGE, 0.9)); draw_arc(c, R, 0, TAU, 20, Kit.exc(), 1.4, true); draw_string(Fonts.bold, c + Vector2(-R, 4.0), "1", HORIZONTAL_ALIGNMENT_CENTER, R * 2.0, Kit.fs(11), Kit.INK)
+				"boss": draw_circle(c, R, paper); draw_arc(c, R, 0, TAU, 20, Kit.exc(), 1.4, true); ScoreCard.draw_star_on(self, c, R * 0.7, Kit.exc())
+				"diag": draw_rect(Rect2(c - Vector2(R, R), Vector2(R, R) * 2.0), paper); draw_rect(Rect2(c - Vector2(R, R), Vector2(R, R) * 2.0), Kit.exc(), false, 1.4); draw_line(c - Vector2(R * 0.5, 0), c + Vector2(R * 0.5, 0), Kit.exc(), 1.6); draw_line(c - Vector2(0, R * 0.5), c + Vector2(0, R * 0.5), Kit.exc(), 1.6)
+				"var": draw_polyline(NodeCard._diamond(c, R * 0.85), Kit.exc(), 1.4, true)
+				"done": draw_circle(c, R, Kit.success())
+			draw_string(fi, Vector2(x + 20.0, y), str(it[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz, Kit.TEXT_SOFT)
+			x += 26.0 + fi.get_string_size(str(it[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 14.0
 
 	## Keep-out areas of the current scene for the label plates: [Rect2, weight] (anatomy, its lettering, the spine path). Filled while _draw runs.
 	var keep: Array = []
@@ -763,10 +871,10 @@ class MapCanvas extends Control:
 		# baroreceptor afferents: carotid sinus and aortic arch -> NTS
 		var ct: Vector2 = res["carotid_top"]; var nts: Vector2 = med["nts_r"]
 		var bpath := Gfx.cr_spline(PackedVector2Array([res["carotid"], ct + Vector2(0, -1.0), Vector2(lerpf(ct.x, M.x, 0.6), r.position.y + h * 0.04), M + Vector2(wm * 0.7, -wm * 0.85), nts]), 8)
-		Anatomy.nerve(self, bpath, Kit.GREEN, maxf(m * 0.005, 1.8), 0.5, _t, a); keep_path(bpath, 25.0)
-		self.draw_circle(res["carotid"], m * 0.014, Color(Kit.GREEN, 0.25 * a)); self.draw_arc(res["carotid"], m * 0.014, 0, TAU, 14, Color(Kit.GREEN, 0.9 * a), 1.6, true)
+		Anatomy.nerve(self, bpath, Kit.success(), maxf(m * 0.005, 1.8), 0.5, _t, a); keep_path(bpath, 25.0)
+		self.draw_circle(res["carotid"], m * 0.014, Color(Kit.success(), 0.25 * a)); self.draw_arc(res["carotid"], m * 0.014, 0, TAU, 14, Color(Kit.success(), 0.9 * a), 1.6, true)
 		var cp: Vector2 = res["carotid"]
-		_lab("carotid sinus", cp + Vector2(m * 0.04, -m * 0.045), Kit.GREEN)
+		_lab("carotid sinus", cp + Vector2(m * 0.04, -m * 0.045), Kit.success())
 		_lab("aortic arch", (res["arch"] as Vector2) + Vector2(m * 0.03, -m * 0.045))
 		_lab("vagus", along_pt(vpath, 0.5) + Vector2(wm * 0.1, wm * 0.42), Anatomy.para())
 		_lab("sympathetic", Vector2(chain_x + 10.0, sym_y + wm * 0.8), Anatomy.symp())
@@ -803,7 +911,7 @@ class MapCanvas extends Control:
 		_lab("C3 to C5", c4 + Vector2(m * 0.03, -m * 0.01), Anatomy.NUC)
 		_lab("phrenic nerve", o + Vector2(0.60, 0.52) * s, Gfx.VIOLET)
 		_lab("diaphragm", (res["dome_left"] as Vector2) + Vector2(m * 0.02, m * 0.09), Gfx.VIOLET)
-		_lab("bronchial tree", (res["hilum_r"] as Vector2) + Vector2(-m * 0.28, m * 0.12), Kit.CYAN)
+		_lab("bronchial tree", (res["hilum_r"] as Vector2) + Vector2(-m * 0.28, m * 0.12), Kit.TEXT_SOFT)
 		_lab("trachea", (res["trachea_top"] as Vector2) + Vector2(-m * 0.03, m * 0.03), Kit.TEXT_SOFT, HORIZONTAL_ALIGNMENT_RIGHT)
 		return {"breathing": [med["prebotc_r"], "d", 40.0]}
 
@@ -833,14 +941,14 @@ class MapCanvas extends Control:
 		# the reflex arc closes through the arm: Ia afferent from the spindle to the dorsal root, motor axon from the ventral root to the muscle
 		var aend: Vector2 = limb["ag_aff"]; var dre: Vector2 = cs["dorsal_root_end"]
 		var aff := Anatomy.bez2(aend, aend.lerp(dre, 0.5) + Vector2(0, -h * 0.07), dre, 24)
-		Anatomy.nerve(self, aff, Kit.GREEN, maxf(m * 0.004, 1.8), 0.6, _t, a); keep_path(aff, 25.0)
+		Anatomy.nerve(self, aff, Kit.success(), maxf(m * 0.004, 1.8), 0.6, _t, a); keep_path(aff, 25.0)
 		var ag_path: PackedVector2Array = limb["ag_path"]
 		var tgt: Vector2 = Anatomy.along(ag_path, 0.30); var vre: Vector2 = cs["ventral_root_end"]
 		var eff := Anatomy.bez2(vre, vre.lerp(tgt, 0.5) + Vector2(w * 0.04, h * 0.05), tgt, 24)
 		Anatomy.nerve(self, eff, Gfx.VIOLET, maxf(m * 0.005, 2.0), 0.6, _t, a); keep_path(eff, 25.0)
 		_lab("biceps (agonist)", (limb["ag"] as Vector2) + Vector2(-m * 0.02, -m * 0.10), Kit.exc(), HORIZONTAL_ALIGNMENT_CENTER)
-		_lab("triceps", (limb["ant"] as Vector2) + Vector2(m * 0.13, m * 0.05), Kit.inh(), HORIZONTAL_ALIGNMENT_CENTER)
-		_lab("muscle spindle", aend + Vector2(0, -m * 0.02), Kit.GREEN, HORIZONTAL_ALIGNMENT_CENTER)
+		_lab("triceps", (limb["ant"] as Vector2) + Vector2(m * 0.13, m * 0.05), Color("#4F5C66"), HORIZONTAL_ALIGNMENT_CENTER)
+		_lab("muscle spindle", aend + Vector2(0, -m * 0.02), Kit.success(), HORIZONTAL_ALIGNMENT_CENTER)
 		return {"stretch_reflex": [cs["mn"], "r", 6.0], "renshaw": [cs["renshaw"], "d", 14.0], "posture": [el, "r", 8.0], "reach": [hd, "u", 8.0]}
 
 	# ------------------------------------------------------------ autonomic

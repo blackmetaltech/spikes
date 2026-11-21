@@ -62,13 +62,15 @@
     "BtnNotebook",
     "BtnPartsBin",
     "BtnSandbox",
+    "Wing_*",
     "Chapter_*",
     "Pin_*",
     "BtnBuild"
    ],
    "optional": [
     "BtnReference",
-    "BtnMoreEllipsis"
+    "BtnMoreEllipsis",
+    "BtnContinue"
    ],
    "back": {
     "control": "BtnBack",
@@ -506,7 +508,9 @@
     "BtnTestX5",
     "BtnParts",
     "BtnInhibitory",
-    "BtnNoise"
+    "BtnNoise",
+    "BtnDetails",
+    "BtnOpenNotebook"
    ],
    "state_of": "lab",
    "co": [
@@ -956,71 +960,88 @@
    "id": "campaign.tab.worm",
    "from": "campaign",
    "to": "campaign.chapter.worm",
-   "control": "Chapter_worm",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "control": "Wing_bestiary",
+   "note": "The wing switch shows the Bestiary chapters and opens the first."
   },
   {
    "id": "campaign.tab.leech",
-   "from": "campaign",
+   "from": "campaign.chapter.worm",
    "to": "campaign.chapter.leech",
    "control": "Chapter_leech",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.aplysia",
-   "from": "campaign",
+   "from": "campaign.chapter.worm",
    "to": "campaign.chapter.aplysia",
    "control": "Chapter_aplysia",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.fly_compass",
-   "from": "campaign",
+   "from": "campaign.chapter.worm",
    "to": "campaign.chapter.fly_compass",
    "control": "Chapter_fly_compass",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.fly_mb",
-   "from": "campaign",
+   "from": "campaign.chapter.worm",
    "to": "campaign.chapter.fly_mb",
    "control": "Chapter_fly_mb",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.crab",
-   "from": "campaign",
+   "from": "campaign.chapter.worm",
    "to": "campaign.chapter.crab",
    "control": "Chapter_crab",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.dynamics",
    "from": "campaign",
    "to": "campaign.chapter.dynamics",
-   "control": "Chapter_dynamics",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "control": "Wing_theory",
+   "note": "The wing switch shows the Theory chapters and opens the first."
   },
   {
    "id": "campaign.tab.rates",
-   "from": "campaign",
+   "from": "campaign.chapter.dynamics",
    "to": "campaign.chapter.rates",
    "control": "Chapter_rates",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.memory",
-   "from": "campaign",
+   "from": "campaign.chapter.dynamics",
    "to": "campaign.chapter.memory",
    "control": "Chapter_memory",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.tab.tuning",
-   "from": "campaign",
+   "from": "campaign.chapter.dynamics",
    "to": "campaign.chapter.tuning",
    "control": "Chapter_tuning",
-   "note": "A tab shows a chapter's map; locked chapters can be looked at."
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.wing.body",
+   "from": "campaign.chapter.worm",
+   "to": "campaign.chapter.invertebrates",
+   "control": "Wing_body",
+   "note": "Back to the Body wing: the chapter last open there, else its first."
+  },
+  {
+   "id": "campaign.continue",
+   "from": "campaign",
+   "to": "lab.task",
+   "control": "BtnContinue",
+   "plain_entry": true,
+   "returns": true,
+   "guard": "an open level is not passed yet",
+   "note": "Continue opens the next open, unpassed spine level on an empty bench."
   },
   {
    "id": "campaign.pin",

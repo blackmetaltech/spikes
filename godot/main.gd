@@ -38,6 +38,7 @@ func _ready() -> void:
 	Settings.load_all()
 	# --- audio init (item H): GameAudio.* helpers are no-ops until this exists ---
 	add_child(GameAudio.new())
+	get_tree().process_frame.connect(func(): GameAudio.ambient(true), CONNECT_ONE_SHOT)   # the lab's ambient bed, on the Music bus: the Ambience slider sets its level
 	# --- end audio init ---
 	Settings.apply(get_window()); Settings.write_log(get_window())
 	var runner_note := _ensure_runner_exec()
@@ -248,6 +249,7 @@ func _smoke() -> void:
 		var fo := get_viewport().gui_get_focus_owner(); _check(fo != null, "pad nav on title focused nothing (%s)" % kind)
 		small += _small_fonts(screen); pad.set_active(false)
 	Settings.layout = "auto"; relayout()
+	await _fit_checks()
 	await _interaction_checks()
 	_extension_checks()
 	await _lab_checks()
@@ -260,6 +262,42 @@ func _smoke() -> void:
 	if _fails > 0: printerr("SMOKE FAILED: %d problem(s)" % _fails); get_tree().quit(1); return
 	print("SMOKE OK screens=%d settings_tabs=%d layouts=%d renderer=%s" % [opened, tabs, layouts.size(), RenderingServer.get_current_rendering_method()])
 	get_tree().quit()
+
+## Fit-to-box guard (ui review finding 8): at 1366x768 and at 1920x1080 with Large text, no label or button of the title, the campaign map, the settings
+## and a lab with a body view (heart_autonomic) may end outside the window or be wider than its own box without wrapping or an ellipsis. Text inside a
+## scroll area may scroll; everything else must fit. Prints "FIT clipped: N".
+func _fit_checks() -> void:
+	var win := get_window(); var size0 := win.size; var boost0 := Settings.text_boost
+	var bad := 0
+	for cfg in [[Vector2i(1366, 768), 1.0], [Vector2i(1920, 1080), 1.5]]:
+		win.size = cfg[0]; Settings.text_boost = float(cfg[1]); relayout(); await _frames(2)
+		for id in ["title", "tasks", "settings", "lab"]:
+			cur = ""
+			if id == "lab": open_lab("heart_autonomic", true, true)
+			else: show_screen(id, false, true)
+			await _frames(12)
+			var vp := get_viewport().get_visible_rect()
+			bad += _clipped(screen, vp, "%s %dx%d text x%.1f" % [id, cfg[0].x, cfg[0].y, cfg[1]])
+	win.size = size0; Settings.text_boost = boost0; relayout(); await _frames(2)
+	print("FIT clipped: %d" % bad); _check(bad == 0, "text clipped or off-screen at 1366x768 or Large text")
+
+func _clipped(n: Node, vp: Rect2, where: String) -> int:
+	var bad := 0
+	if n is ScrollContainer: return 0   # scrolling content may run past the window
+	if n is Control and not (n as Control).is_visible_in_tree(): return 0
+	if (n is Label or n is Button) and str(n.text) != "":
+		var c := n as Control; var r := c.get_global_rect()
+		var wraps: bool = n.autowrap_mode != TextServer.AUTOWRAP_OFF or n.clip_text or n.text_overrun_behavior != TextServer.OVERRUN_NO_TRIMMING
+		if r.end.x > vp.end.x + 2.0 or r.end.y > vp.end.y + 2.0 or r.position.x < vp.position.x - 2.0:
+			bad += 1; printerr("FIT (%s): '%s' (%s) ends outside the window at %s" % [where, str(n.text).left(40), c.name, str(r)])
+		elif not wraps and n is Label:
+			var f: Font = (n as Label).label_settings.font if (n as Label).label_settings != null and (n as Label).label_settings.font != null else c.get_theme_font("font")
+			var z: int = (n as Label).label_settings.font_size if (n as Label).label_settings != null else c.get_theme_font_size("font_size")
+			var tw := f.get_string_size(str(n.text), HORIZONTAL_ALIGNMENT_LEFT, -1, z).x if not str(n.text).contains("\n") else 0.0
+			if tw > r.size.x + 2.0:
+				bad += 1; printerr("FIT (%s): '%s' (%s) is %.0f px wide in a %.0f px box" % [where, str(n.text).left(40), c.name, tw, r.size.x])
+	for k in n.get_children(): bad += _clipped(k, vp, where)
+	return bad
 
 ## The GDExtension is loaded: SpikeSim steps a circuit, every task runs its reference circuit for 1 s, bad JSON is rejected, analysis answers.
 func _extension_checks() -> void:
