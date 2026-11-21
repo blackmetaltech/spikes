@@ -109,6 +109,7 @@ flowchart LR
   lab_dx_revealed("Diagnosis: answer revealed after three wrong tries")
   lab_more[["More menu (speed, level, tools)"]]
   lab_parts_modal[["Parts bin (pick the next neuron's type)"]]
+  lab_import[["Import from a passed level (your solved circuits, pasted as a group)"]]
   lab_endcard[["End-of-episode card (score, stars, next steps)"]]
   lab_testcard[["Testing x5 progress card"]]
   lab_histo[["Results card: your circuit against generated variants"]]
@@ -167,6 +168,15 @@ flowchart LR
   lab_insp_proj -->|BtnDelete| lab_insp_brief
   lab_insp_in -->|BtnDisconnectAll| lab_insp_in
   lab_insp_out -->|BtnDisconnectAll| lab_insp_out
+  lab_task -->|BtnUndo| lab_task
+  lab_task -->|BtnRedo| lab_task
+  lab_task -->|Editor| lab_task
+  lab_task -->|Editor| lab_task
+  lab_task -->|Editor| lab_task
+  lab_task -->|BtnMore| lab_task
+  lab_task -->|BtnMore (Load and Save tools are open (chapter II, the sandbox))| lab_task
+  lab_more -->|BtnImportFromAPassedLevel (Load and Save tools are open)| lab_import
+  lab_import -.->|Back or Esc| lab_task
   lab_more -->|BtnFit| lab_task
   lab_more -->|BtnSkip| lab_toast
   lab_more -->|StepSpeed| lab_more
@@ -254,7 +264,7 @@ flowchart LR
 | `analysis.bursts` | tab | Analysis, bursts tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.energy` | tab | Analysis, energy tab |  |
 | `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
-| `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?` |
+| `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?`, `BtnUndo?`, `BtnRedo?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
 | `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnNoise?`, `BtnDetails?`, `BtnOpenNotebook?` |
 | `lab.dx` | screen | Lab on a diagnosis case (read-only patient circuit) | `BtnCase`, `BtnHint?` |
@@ -269,8 +279,9 @@ flowchart LR
 | `lab.dx.wrong` | state | Diagnosis: a wrong answer was submitted |  |
 | `lab.dx.solved` | state | Diagnosis: solved (CORRECT card, notebook entry) |  |
 | `lab.dx.revealed` | state | Diagnosis: answer revealed after three wrong tries |  |
-| `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?`, `BtnRestorePreviousBench?` |
+| `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?`, `BtnRestorePreviousBench?`, `BtnSaveToA?`, `BtnSaveToB?`, `BtnSaveToC?`, `BtnLoadA?`, `BtnLoadB?`, `BtnLoadC?`, `BtnCopyCircuitAsJson?`, `BtnPasteCircuitJson?`, `BtnImportFromAPassedLevel?` |
 | `lab.parts_modal` | modal | Parts bin (pick the next neuron's type) | `BtnClose`, `PartsBin`, `Use_*`, `Select_*` |
+| `lab.import` | modal | Import from a passed level (your solved circuits, pasted as a group) | `BtnClose`, `Imp_*?` |
 | `lab.endcard` | modal | End-of-episode card (score, stars, next steps) | `BtnRunAgain`, `BtnTestX5`, `BtnClose`, `BtnResults?`, `BtnHint?`, `BtnNextTask?`, `BtnLesionLab?`, `BtnAnalysis?` |
 | `lab.testcard` | modal | Testing x5 progress card | `BtnCancel` |
 | `lab.histo` | modal | Results card: your circuit against generated variants | `BtnClose`, `BtnPinATarget?` |
@@ -292,5 +303,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 57 nodes, 119 edges, 8 guard checks.
+Counts: 58 nodes, 127 edges, 8 guard checks.
 <!-- END GENERATED -->

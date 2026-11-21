@@ -7,7 +7,7 @@ summary: Every way to drive Spike: mouse and touch gestures on the bench, keyboa
 
 # Keyboard and controls
 
-Spike is mouse and touch first. Every menu can also be driven by keyboard or gamepad. There are very few single-key shortcuts. The game does not bind keys to Run, Reset or Check, so use the buttons.
+Spike is mouse and touch first. Every menu can also be driven by keyboard or gamepad, and the lab has shortcuts for running, checking, editing and moving around the bench.
 
 ## Keyboard
 
@@ -16,9 +16,36 @@ Spike is mouse and touch first. Every menu can also be driven by keyboard or gam
 | Arrow keys | Move the focus ring between controls. On a stepper (a control with a value and arrows), Left and Right change the value. |
 | Enter (or Space) | Press the focused control. On a stepper, steps it forward. |
 | Esc | Back. Goes to the screen you came from. Closes a menu or card first, if one is open. |
-| Delete or Backspace | On the bench, deletes the selected neuron group, connection or added input. |
+| Delete or Backspace | On the bench, deletes the selection (one or several neuron groups, a connection or an added input). |
 | Tab and Shift+Tab | Move the focus to the next and previous control. |
 | Up, Down, Page Up, Page Down | Scroll the Notebook, What is real and Credits screens. |
+
+### In the lab
+
+These work when no text field or button has the focus (a focused button takes Space and Enter itself), and not while a menu or card is open.
+
+| Key | What it does |
+|---|---|
+| Space | Run or pause. Hold Space and drag the bench to pan it. |
+| C | Check. |
+| R | Reset. |
+| Ctrl+Z | Undo. Every change to the circuit is a step: adding, wiring, deleting, a slider, a drag, a pasted or loaded circuit. Up to 100 steps. |
+| Ctrl+Shift+Z or Ctrl+Y | Redo. |
+| Ctrl+A | Select every neuron group. |
+| Ctrl+C, Ctrl+V | Copy the selected groups (with the connections between them, and their connections to sensors and motors), paste them beside the originals. |
+| Ctrl+D | Duplicate the selection. |
+| +, -, F | Zoom in, zoom out, fit the circuit to the bench. |
+| I | Open the inspector on the selection. |
+
+Click the bench (or Tab onto it) to give it the focus. A bench cursor (a double ring) then walks the cards and groups:
+
+| Key | What it does |
+|---|---|
+| Tab, Shift+Tab | Next and previous card or group. |
+| Arrow keys | The nearest card or group in that direction. |
+| Enter | Select what the cursor is on. While a wire is open, finish it there. |
+| W | Start a wire from the cursor. Move to the target and press Enter; Esc cancels. |
+| Shift+arrow keys | Nudge the selected group. |
 
 Keyboard navigation turns on when you press a navigation key. It turns off again when you move the mouse. While it is on, controls show a focus ring.
 
@@ -29,6 +56,12 @@ Keyboard navigation turns on when you press a navigation key. It turns off again
 | D-pad | Move the focus. |
 | A | Press. |
 | B | Back. |
+| D-pad (bench focused) | Move the bench cursor between cards and groups. |
+| A (bench focused) | Select, or finish an open wire. |
+| X (bench focused) | Start a wire from the cursor. |
+| Y (bench focused) | Open the inspector. |
+| Start | Run or pause in the lab. |
+| LB, RB (bench focused) | Zoom out, zoom in. |
 
 Sticks are not used for navigation. A small hint ("D-PAD MOVE, A SELECT, B BACK") appears at the bottom when pad navigation is on. The pad layer also works on the Steam Deck, where the game picks the handheld layout.
 
@@ -41,7 +74,13 @@ Sticks are not used for navigation. A small hint ("D-PAD MOVE, A SELECT, B BACK"
 | Drag from the rim of a disc | Bench | Starts a connection. Drop it on another disc (or on a motor card). |
 | Drag from the right edge of a sensor card | Bench | Starts a connection from the sensor. Drop it on a disc. |
 | Press **Connect**, click source, click target | Bench | Connects without dragging. Good for touch. Click empty space to cancel. |
-| Right-click a part | Bench | Selects and deletes it. |
+| Right-click a part | Bench | Selects and deletes it (Ctrl+Z brings it back). |
+| Shift+click a group | Bench | Adds it to the selection, or takes it out. |
+| Drag a box over the empty bench | Bench | Selects every group inside the box. Drag one of them to move them all. |
+| Wheel, or pinch | Bench | Zooms (15% to 300%) about the pointer. |
+| Middle-drag, or drag the empty bench with a finger | Bench | Pans. |
+| Click the zoom readout (bottom left) | Bench | Fits the circuit to the bench. |
+| Click a bus card (several numbered inputs) | Bench | Opens it into one card per channel; click its head to close it. |
 | Click a connection | Bench | Selects it. The inspector shows its weight, delay, type and spread. |
 | Click the number beside a slider | Inspector | Type a value. Enter or leaving the field applies it. It is clamped to the slider's range. |
 | Click the window label (top right of a strip) | Raster and trace strips | Cycles the time window. |
@@ -72,7 +111,7 @@ Play, Laboratory, What is real, Settings, Credits and Quit (Quit is hidden on ph
 
 ### The lab
 
-See [how to read the lab](how-to-read-the-lab.html) for each control. In short: Back, Run or Pause, Reset, Check, Hint, Brief or Case, Test x5, More; the palette (Parts, + Excitatory, + Inhibitory, + Noise, Connect); the inspector's Trace, E / I, Delete, neurons in group, Advanced, Reset parameters; More, with Speed, Skip, Fit, Mode, Variant, Test x5, Results, Reference, Empty bench, Lesions, Analysis, Load and Save.
+See [how to read the lab](how-to-read-the-lab.html) for each control. In short: Back, Run or Pause, Reset, Check, Hint, Brief or Case, Test x5, More; the palette (Parts, + Excitatory, + Inhibitory, + Noise, Connect); the inspector's Trace, E / I, Delete, neurons in group, Advanced, Reset parameters; Undo and Redo (on the play bar, or in the palette on a phone); More, with Speed, Skip, Fit, Mode, Variant, Test x5, Results, Reference, Empty bench, the solution slots (Save to A, B, C and Load A, B, C), Lesions, Analysis, Load and Save, Copy circuit as JSON, Paste circuit JSON and Import from a passed level.
 
 ### Lesion lab
 
