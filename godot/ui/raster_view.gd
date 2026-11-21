@@ -115,7 +115,7 @@ func _want_height() -> void:
 	var np := (tele.circuit.get("populations", []) as Array).size() if tele != null else 1
 	var fz := float(Kit.fs(14))
 	var want := 26.0 + float(clampi(np, 2, 6)) * (fz + 2.0) + fz + 14.0   # the body view keeps its room: past six groups the bands share the height
-	want = minf(want, maxf(90.0, Kit.vh * 0.15))   # a short window (1366x768, Large text) keeps the column inside the screen
+	want = minf(want, maxf(90.0, Kit.vh * 0.125))   # a short window (1366x768, Large text) keeps the column inside the screen
 	if absf(custom_minimum_size.y - want) > 0.5: custom_minimum_size.y = want
 
 func heat_mode() -> bool:
@@ -181,17 +181,19 @@ func _draw() -> void:
 	var wt := TraceView.window_text(window_ms, auto_window) + ((", full stain %d spikes/s per cell" % int(roundf(_heat_max))) if heat and size.x > 620 else "")
 	draw_string(Gfx.mono(), Vector2(size.x - 470, 20), wt + (", model time" if size.x > 560 and not heat else ""), HORIZONTAL_ALIGNMENT_RIGHT, 456, fz, Kit.TEXT_SOFT)
 	if tele == null or tele.n == 0: return
-	var g := _gutter()
+	var g := _gutter(); var last_y := -1e9
 	for b in bands():
 		var y: float = b["y"]; var h: float = b["h"]
 		if y > pl.position.y + 0.5: draw_line(Vector2(pl.position.x - 6, y), Vector2(pl.end.x, y), Color(Kit.INK, 0.28), 1.0)
-		if h < float(fz) * 0.9 and int(b["pi"]) % 2 == 1: continue   # too many bands for one label line each: every other label
+		var ly := y + h * 0.5 + float(fz) * 0.35
+		if ly - last_y < float(fz) * 1.05: continue   # bands thinner than a label line: skip a label rather than overprint it
+		last_y = ly
 		var lab := str(b["id"]); var n: int = b["cnt"]
 		if n > (b["rows"] as Array).size() and not heat: lab += " ×%d" % n
 		var lw := g - 12.0
 		var fi := Gfx.serif_italic()
 		var txt := lab if fi.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x <= lw else str(b["id"])
-		draw_string(fi, Vector2(8, y + h * 0.5 + float(fz) * 0.35), txt, HORIZONTAL_ALIGNMENT_LEFT, lw, fz, Kit.TEXT)
+		draw_string(fi, Vector2(8, ly), txt, HORIZONTAL_ALIGNMENT_LEFT, lw, fz, Kit.TEXT)
 
 func _draw_spikes(layer: Control) -> void:
 	if tele == null or tele.n == 0 or _rate_only(): return

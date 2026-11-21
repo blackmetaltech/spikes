@@ -35,10 +35,9 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
 	if tele == null or tele.sim == null: return
 	draw_string(Gfx.serif_italic(), Vector2(14, 20), "Motor output", HORIZONTAL_ALIGNMENT_LEFT, 200, Kit.fs(16), Kit.TEXT)
-	if not mods.is_empty():
-		var mt := "   ".join(mods.map(func(m): return "%s %.2f" % [str(m), tele.modulator_level(str(m))]))
-		draw_string(Gfx.mono(), Vector2(160, 20), mt, HORIZONTAL_ALIGNMENT_LEFT, maxf(size.x - 160.0 - 270.0, 60.0), fz, Kit.TEXT)
-	draw_string(Gfx.mono(), Vector2(size.x - 260, 20), ("rate" if not tele.rate_units.is_empty() else "Hz") + ((", whole run" if tele.finished and _any_run_mean() else ", last 0.5 s") if size.x > 420.0 else ""), HORIZONTAL_ALIGNMENT_RIGHT, 246, fz, Kit.TEXT_SOFT)
+	var unit := ("rate" if not tele.rate_units.is_empty() else "Hz") + ((", whole run" if tele.finished and _any_run_mean() else ", last 0.5 s") if size.x > 420.0 else "")
+	if not mods.is_empty(): unit = "   ".join(mods.map(func(m): return "%s %.2f" % [str(m), tele.modulator_level(str(m))])) + "     " + ("rate" if not tele.rate_units.is_empty() else "Hz")
+	draw_string(Gfx.mono(), Vector2(170, 20), unit, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 184.0, fz, Kit.TEXT_SOFT)
 	var r := 0; var lab_w := float(fz) * 9.0; var bh := minf(18.0, (size.y - 34.0) / float(rows()) - 6.0)
 	for name in tele.rates:
 		var dv := tele.display(str(name)); var measuring := is_nan(dv)

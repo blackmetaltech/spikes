@@ -371,7 +371,7 @@ class SeriesPanel extends Control:
 		return {"m4": "Four-node motifs", "hrv": "Heart-rate variability", "prc": "Phase-response curve", "bursts": "Bursts", "energy": "Energy", "sta": "Spike-triggered average"}.get(kind, "")
 	func _num(v: Variant, fmt := "%.1f") -> String: return "-" if v == null else fmt % float(v)
 	func _draw() -> void:
-		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
+		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold   # tables at 16 px on a desktop (they were 11-14)
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
 		Kit.draw_fig(self, Vector2(18, 32), 1, _title(), size.x - 44, "", 19)
 		if message != "" or data.is_empty():
@@ -538,7 +538,7 @@ class StatsView extends Control:
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(300, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
-		var fz := Kit.fs(14); var f := Fonts.regular; var fb := Fonts.bold
+		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold   # tables at 16 px on a desktop (they were 11-14)
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
 		Kit.draw_fig(self, Vector2(18, 32), 2, "Spike statistics", size.x - 44, "", 19)
 		if tele == null or tele.n == 0 or tele.t_ms < 200.0:

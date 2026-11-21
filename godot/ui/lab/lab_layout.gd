@@ -76,12 +76,12 @@ func build() -> void:
 	if lab._is_dx(): lab.score_card.visible = false   # the case has no score to watch: the answer is the score
 	world.size_flags_stretch_ratio = 5.6 if has_tl else 3.0
 	var body_view := has_tl or str(info.get("view", "polyline")) != "polyline"
-	if body_view: lab.task_view.custom_minimum_size.y = 110.0 if phone else (230.0 if Kit.vh >= 900.0 else 150.0)   # a body view needs room for its readouts (less in a short window: 1366x768, Large text)
+	if body_view: lab.task_view.custom_minimum_size.y = 110.0 if phone else (230.0 if Kit.vh >= 900.0 else 136.0)   # a body view needs room for its readouts (less in a short window: 1366x768, Large text)
 	var scopes := VBoxContainer.new(); scopes.size_flags_vertical = Control.SIZE_EXPAND_FILL; scopes.size_flags_stretch_ratio = 3.1 if has_tl else 4.1; scopes.add_theme_constant_override("separation", int(8 * f)); right.add_child(scopes)
 	lab.panels["scopes_only"] = scopes
 	lab.raster = RasterView.new(); lab.raster.size_flags_vertical = Control.SIZE_EXPAND_FILL; lab.raster.size_flags_stretch_ratio = 0.8; scopes.add_child(lab.raster)
 	lab.traces = TraceView.new(); lab.traces.size_flags_vertical = Control.SIZE_EXPAND_FILL; lab.traces.size_flags_stretch_ratio = 1.3; scopes.add_child(lab.traces)
-	if body_view and not phone: lab.raster.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 70.0; lab.traces.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 64.0   # the scopes give way to the body view and its timeline
+	if body_view and not phone: lab.raster.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 70.0; lab.traces.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 86.0   # the scopes give way to the body view and its timeline
 	lab.gauges = GaugeView.new(); lab.gauges.custom_minimum_size = Vector2(0, (40.0 + 30.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2)) if Kit.vh >= 900.0 else (32.0 + 24.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2))); scopes.add_child(lab.gauges)
 	if tid != "" and not (info.get("modulators", []) as Array).is_empty() and ModDials.available():   # task-driven neuromodulators: read-only gauges
 		if Kit.vh >= 900.0 or phone: lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false, tid); scopes.add_child(lab.mod_dials)
