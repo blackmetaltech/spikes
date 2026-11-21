@@ -14,6 +14,10 @@ func build() -> void:
 	var editor := lab.editor
 	if not editor.sel.is_empty(): lab._brief_forced = false
 	for c in lab.insp_body.get_children(): lab.insp_body.remove_child(c); c.queue_free()
+	var foot: Control = lab.insp_body.get_meta("footer", null)
+	if foot != null:
+		for c in foot.get_children(): foot.remove_child(c); c.queue_free()
+		foot.visible = false
 	lab._autosave()
 	var sel := editor.sel if editor != null else {}
 	var small := 17 if not Layout.phone else 16
@@ -467,6 +471,9 @@ func inspect_dx(small: int) -> void:
 	panel.picked.connect(func(c): lab._dx["picked"] = c; build())
 	panel.submit_pressed.connect(lab._dx_submit); panel.reveal_pressed.connect(lab._dx_reveal); panel.lesion_lab_pressed.connect(lab._lesion_toggle)
 	add(panel.setup(lab._dx_info, lab._dx, note if (bool(lab._dx.get("solved", false)) or bool(lab._dx.get("gave_up", false))) else {}, lab.lesion_on))
+	var foot: Control = lab.insp_body.get_meta("footer", null)
+	if foot != null and panel.submit_row != null and is_instance_valid(panel.submit_row):   # Submit stays on screen, outside the scroll area
+		panel.submit_row.get_parent().remove_child(panel.submit_row); foot.add_child(panel.submit_row); foot.visible = true
 
 ## A population or axon picked in a diagnosis case: read-only facts, a Trace button, a way back to the case card.
 func inspect_dx_pick(sel: Dictionary, small: int) -> void:
