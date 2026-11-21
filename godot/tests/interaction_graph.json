@@ -529,7 +529,7 @@
   },
   "lab.insp.brief": {
    "kind": "panel",
-   "label": "Inspector: the brief, recipe and pass rule",
+   "label": "Inspector: the brief, what to build, the pass rule and recipe",
    "detect": {
     "screen": "lab",
     "view": "brief"

@@ -6,6 +6,8 @@ extends Screen
 ## task's sensors and motors); Reference (the reference circuit already wired) appears only once the level is passed, or in Guided mode. Chapters, kinds and order come from Campaign (Task::chapter(), level_kind(),
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
+## What each row of chapter tabs is (the second line of its label); the Theory row says it is open from the start.
+const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, open from the start"}
 const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics", "rates": "Rates", "memory": "Memory", "tuning": "Tuning"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
@@ -100,8 +102,10 @@ func _tabs(f: float, phone: bool) -> Control:
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 6)
 	for r in ["body", "bestiary", "theory"]:
 		var hb := HBoxContainer.new(); hb.add_theme_constant_override("separation", 12)
-		var lab := Kit.small_caps("BODY" if r == "body" else ("BESTIARY" if r == "bestiary" else "THEORY"), int(15 * f), Kit.TEXT_SOFT); lab.custom_minimum_size.x = 96.0 * f; lab.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		hb.add_child(lab); (rows[r] as HBoxContainer).size_flags_horizontal = Control.SIZE_EXPAND_FILL; hb.add_child(rows[r]); v.add_child(hb)
+		var lab := Kit.small_caps("BODY" if r == "body" else ("BESTIARY" if r == "bestiary" else "THEORY"), int(15 * f), Kit.TEXT_SOFT)
+		var lbox := VBoxContainer.new(); lbox.custom_minimum_size.x = 190.0 * f; lbox.size_flags_vertical = Control.SIZE_SHRINK_CENTER; lbox.add_theme_constant_override("separation", 0); lbox.add_child(lab)
+		var sub := Kit.italic(ROW_SUB[r], int(13 * f), Kit.TEXT_SOFT); sub.autowrap_mode = TextServer.AUTOWRAP_OFF; lbox.add_child(sub)
+		hb.add_child(lbox); (rows[r] as HBoxContainer).size_flags_horizontal = Control.SIZE_EXPAND_FILL; hb.add_child(rows[r]); v.add_child(hb)
 	return v
 
 func _show_chapter(id: String) -> void:
@@ -214,11 +218,16 @@ func _fill_detail() -> void:
 		detail_box.add_child(Kit.label("   ".join(per), 15, Kit.TEXT_SOFT, true))
 	var brief := str(info["brief"]); var ld := LabInspector.lead(brief, 230 if not phone else 170)
 	detail_box.add_child(Kit.label(brief if _brief_full or not bool(ld[1]) else str(ld[0]), small, Kit.TEXT_SOFT, true))
-	if not _brief_full and bool(ld[1]):   # the pass rule stays in view, not behind More
-		var pl := LabInspector.pass_lines(brief, str(ld[0]), 230 if not phone else 150)
+	if not _brief_full and bool(ld[1]):   # what to build and the pass rule stay in view, not behind More
+		var bl := LabInspector.build_lines(brief, str(ld[0]), 420 if not phone else 220)
+		if bl != "":
+			var brow := HBoxContainer.new(); brow.add_theme_constant_override("separation", 8); detail_box.add_child(brow)
+			var bchip := Kit.chip("TO BUILD", Kit.exc(), 14); bchip.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; brow.add_child(bchip)
+			var btext := Kit.label(bl, small, Kit.TEXT, true); btext.size_flags_horizontal = Control.SIZE_EXPAND_FILL; brow.add_child(btext)
+		var pl := LabInspector.pass_lines(brief, str(ld[0]) + " " + bl, 230 if not phone else 150)
 		if pl != "":
 			var pr := HBoxContainer.new(); pr.add_theme_constant_override("separation", 8); detail_box.add_child(pr)
-			var pc := Kit.chip("PASS", Kit.GREEN, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
+			var pc := Kit.chip("TO PASS", Kit.AMBER, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
 			var pt := Kit.label(pl, small, Kit.TEXT, true); pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pr.add_child(pt)
 	if bool(ld[1]):
 		var mb := Kit.btn("Less" if _brief_full else "More…", func(): _brief_full = not _brief_full; _fill_detail(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; detail_box.add_child(mb)
@@ -257,7 +266,7 @@ class NodeCard extends Button:
 		for n in ["normal", "hover", "pressed", "disabled", "focus"]: add_theme_stylebox_override(n, StyleBoxEmpty.new())
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func kind() -> String: return str(node.get("kind", "task"))
-	func has_plate() -> bool: return kind() == "task" or kind() == "boss"
+	func has_plate() -> bool: return kind() == "task" or kind() == "boss" or kind() == "micro"   # every spine level carries its name on the map (a micro-puzzle too, not only on hover)
 	func _R() -> float:
 		var k := kind(); var ph := Layout.phone
 		match k:
@@ -422,6 +431,7 @@ class MapOverlay extends Control:
 		var bh := (float(ft) + 6.0 if bare else 0.0) + lh * lines.size() + 10.0
 		# below, above, right or left of the pin: whichever covers the fewest other plates and pins (and stays on the page)
 		var pr := card.pin_rect(); var cw := bw + 12.0
+		if card.has_plate() and card._plate.size.x > 0.0: pr = pr.merge(card.plate_rect())   # the chips go beside the pin and its own label plate, not over it
 		var cands := [Vector2(pr.get_center().x - cw * 0.5, pr.end.y + 6.0), Vector2(pr.get_center().x - cw * 0.5, pr.position.y - bh - 6.0),
 			Vector2(pr.end.x + 8.0, pr.get_center().y - bh * 0.5), Vector2(pr.position.x - cw - 8.0, pr.get_center().y - bh * 0.5)]
 		var bx := 0.0; var by := 0.0; var bc := INF
@@ -663,6 +673,17 @@ class MapCanvas extends Control:
 			"heart": return _sc_heart(r, a)
 			"lungs": return _sc_lungs(r, a)
 			"autonomic": return _sc_auto(r, a)
+		return _sc_plate_image(id, r, a)
+
+	## Hook for a chapter plate drawn as a picture (the Theory wing's art): res://assets/plates/<chapter id>.png, drawn to fill the page inside the frame, when the file exists. No file: the page stays blank
+	## paper with the pins and the path (the Bestiary and Theory chapters have no art yet).
+	func _sc_plate_image(id: String, r: Rect2, a: float) -> Dictionary:
+		var path := "res://assets/plates/%s.png" % id
+		if not ResourceLoader.exists(path): return {}
+		var tex := load(path) as Texture2D
+		if tex == null: return {}
+		var k := minf(r.size.x / tex.get_width(), r.size.y / tex.get_height()); var sz := tex.get_size() * k
+		draw_texture_rect(tex, Rect2(r.get_center() - sz * 0.5, sz), false, Color(1, 1, 1, a))
 		return {}
 
 	func _lab(s: String, p: Vector2, col := Kit.TEXT_SOFT, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:

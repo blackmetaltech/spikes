@@ -94,7 +94,7 @@ flowchart LR
   lab_sandbox["Sandbox (free bench, no task)"]
   lab_task["Lab on a level"]
   lab_dx["Lab on a diagnosis case (read-only patient circuit)"]
-  lab_insp_brief("Inspector: the brief, recipe and pass rule")
+  lab_insp_brief("Inspector: the brief, what to build, the pass rule and recipe")
   lab_insp_pop("Inspector: a neuron group selected")
   lab_insp_proj("Inspector: an axon (projection) selected")
   lab_insp_in("Inspector: a sensor / noise input selected")
@@ -254,7 +254,7 @@ flowchart LR
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
 | `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnNoise?` |
 | `lab.dx` | screen | Lab on a diagnosis case (read-only patient circuit) | `BtnCase`, `BtnHint?` |
-| `lab.insp.brief` | panel | Inspector: the brief, recipe and pass rule | `BtnBriefMore?`, `BtnShowRecipe?` |
+| `lab.insp.brief` | panel | Inspector: the brief, what to build, the pass rule and recipe | `BtnBriefMore?`, `BtnShowRecipe?` |
 | `lab.insp.pop` | panel | Inspector: a neuron group selected | `BtnTrace`, `BtnEI`, `BtnDelete`, `BtnAdvanced`, `Stepper`, `BtnResetParameters?`, `BtnAddRow?` |
 | `lab.insp.proj` | panel | Inspector: an axon (projection) selected | `BtnEI`, `BtnDelete`, `Stepper?` |
 | `lab.insp.in` | panel | Inspector: a sensor / noise input selected | `BtnDisconnectAll`, `Stepper?`, `BtnWireAll?`, `BtnRemoveInput?` |
