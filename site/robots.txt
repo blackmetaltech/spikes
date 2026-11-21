@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ixaxaar.github.io/spikes/sitemap.xml

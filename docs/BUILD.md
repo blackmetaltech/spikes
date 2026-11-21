@@ -79,6 +79,20 @@ See [python/README.md](python/README.md).
 - Body physics (muscle, joint, heart, lungs, eye, gut) is documented in `docs/body/`.
 - New tasks register themselves: add `engine/src/tasks/<id>.cpp` ending with `SPIKE_REGISTER_TASK( <id>, <order>, "<circuit>.json", make_<id> )`; the file stem must equal the id.
 
+## Website
+
+The public site, https://ixaxaar.github.io/spikes/, is the static folder `site/`: a landing page (`index.html`, `base.css`, `home.css`, `app.js`, no framework, no CDN) and a wiki in `site/wiki/` built from the Markdown in `site/wiki-src/`. `.github/workflows/pages.yml` builds the wiki and deploys `site/` to GitHub Pages on every push to master that touches `site/**`, `tools/site/**` or the workflow (or by hand: Actions > pages > Run workflow).
+
+- **Build and preview locally:**
+  ```
+  python3 tools/site/build.py --check    # site/wiki/*.html, site/wiki/search.json, site/sitemap.xml; fails on broken links
+  python3 -m http.server -d site 8000    # http://localhost:8000/
+  ```
+  `build.py` needs only the Python standard library. The generated files are git-ignored; the workflow builds them. How to write a page, and the Markdown it supports: `site/wiki-src/README.md`.
+- **Media** (`site/assets/media/`: stills, looping WebM/MP4 clips with GIF fallbacks and posters; `site/wiki-src/img/`: the wiki's captures) are committed and made from the exported game by `scripts/site-media.sh`. It exports the game once (needs `godot/bin` from `scripts/build-gd.sh release` and the Godot export templates), then runs it under `xvfb-run` with the OpenGL renderer and a private `XDG_DATA_HOME`, driven by the `SP_*` hooks in `godot/main.gd`. Clips use Godot's movie mode (`--write-movie`, fixed frame rate), so every frame is rendered and the circuit runs at its true speed even on a software renderer. `ONLY="clip:heart still:lesion"` redoes some items; `KEEP=1 WORK=<dir>` keeps the raw frames and `REUSE=1` re-encodes from them (to change a crop). A full run takes about 30 minutes on 24 cores. Needs ffmpeg (libvpx-vp9, libx264), ImageMagick 7 and xvfb-run.
+- **Derived assets** (`tools/site/assets.sh`): the Bestiary and Theory plates as WebP (from `godot/assets/plates`), the web fonts (`tools/site/fonts.py`: the game's Fraunces subset to WOFF2, Atkinson Hyperlegible and IBM Plex Mono copied unchanged, all SIL OFL with their licences alongside), the paper texture (`tools/site/paper.py`), the icons and the social card `og.jpg` (cut from the title still, so run it after `site-media.sh`). Needs ImageMagick, fontTools + brotli, numpy and Pillow.
+- **First-time setup on GitHub:** Settings > Pages > Build and deployment > Source: **GitHub Actions**. Then push to master or run the pages workflow. The site lives under `/spikes/`, so every link in it is relative.
+
 ## CI
 
 `.github/workflows/ci.yml` runs every step inside a prebuilt toolchain image, so a run only compiles the engine, extension and tests (about 15-25 minutes) instead of NEST (about 1.5 hours cold).
