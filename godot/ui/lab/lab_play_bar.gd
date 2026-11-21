@@ -9,6 +9,7 @@ var hint_open := false
 var _check_task = null             # instant check: the task handle that owns the async job
 var _check_job := 0
 var _check_t0 := 0
+var _check_snap := {}              # the bench as it was when Check was pressed: {fp, ref, n}
 var _check_toast: PanelContainer = null
 var _check_lbl: Label = null
 
@@ -165,6 +166,7 @@ func check_start() -> void:
 	_check_job = int(_check_task.score_headless_quick_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed)) if quick \
 		else int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed))
 	_check_t0 = Time.get_ticks_msec()
+	_check_snap = {"fp": Circuits.fingerprint(lab.circuit), "ref": lab._is_reference(), "n": Circuits.neuron_count(lab.circuit)}   # what was checked: a result for another bench is dropped
 	if _check_job == 0: _check_task = null; lab.celebration.toast("Check could not start", "The headless scorer refused the circuit.", Kit.RED, 4.0); return
 	var cb := lab.layout.check_btn
 	if cb != null and is_instance_valid(cb): cb.text = "Checking..."; cb.disabled = true
@@ -174,7 +176,16 @@ func check_start() -> void:
 func check_cancel() -> void:
 	if _check_job != 0 and _check_task != null:
 		if _check_task.has_method("headless_cancel") or ClassDB.class_has_method("SpikeTask", "headless_cancel"): _check_task.call("headless_cancel", _check_job)
-	_check_job = 0; _check_task = null
+	_check_job = 0; _check_task = null; _check_snap = {}
+	_check_button_reset()
+
+func _check_button_reset() -> void:
+	check_progress(false)
+	var cb := lab.layout.check_btn if lab != null and lab.layout != null else null
+	if cb != null and is_instance_valid(cb): cb.text = "Check"; cb.disabled = false
+
+## A check that has not answered after this long is killed (a stalled model never finishes; the button must not stay disabled for ever).
+const CHECK_TIMEOUT_MS := 60000
 
 ## While the async check runs: a card under the header with the seed count and the elapsed time (the worker reports no finer progress than done / not done).
 func check_progress(on: bool) -> void:
@@ -191,26 +202,33 @@ func check_progress(on: bool) -> void:
 
 func check_poll() -> void:
 	if _check_job == 0 or _check_task == null: return
+	if Time.get_ticks_msec() - _check_t0 > CHECK_TIMEOUT_MS:
+		check_cancel()
+		lab.celebration.toast("Check timed out", "The check ran for %d s without finishing and was stopped. A cell model may be stuck: look for a huge weight or current, or press Run to watch the live circuit." % (CHECK_TIMEOUT_MS / 1000), Kit.RED, 8.0)
+		return
 	var r: Dictionary = _check_task.score_headless_poll(_check_job)
 	if not bool(r.get("done", false)): check_progress(true); return
 	check_progress(false)
+	var snap := _check_snap; _check_snap = {}
 	var ms := float(r.get("ms", float(Time.get_ticks_msec() - _check_t0)))
 	_check_job = 0; _check_task = null
-	var cb := lab.layout.check_btn
-	if cb != null and is_instance_valid(cb): cb.text = "Check"; cb.disabled = false
+	_check_button_reset()
+	if not snap.is_empty() and (str(snap["fp"]) != Circuits.fingerprint(lab.circuit) or bool(snap["ref"]) != lab._is_reference()):   # the bench changed while it ran
+		lab.celebration.toast("Check dropped", "The circuit changed while the check ran, so its result belongs to a bench you no longer have. Press Check again.", Kit.AMBER, 5.0); return
 	if not bool(r.get("ok", false)): lab.celebration.toast("Check failed", str(r.get("error", "the headless run did not finish")), Kit.RED, 5.0); return
 	var passed := bool(r.get("passed", false)); var val := int(roundf(float(r.get("value", 0.0))))
 	var runs: Array = r.get("runs", []); var verdict := str((runs[0] as Dictionary).get("verdict", "")) if not runs.is_empty() else ""
 	verdict = Circuits.cap_verdict(verdict, lab.circuit, lab.task_id)
+	var was_ref := bool(snap.get("ref", lab._is_reference()))
 	lab.celebration.toast(("Check: passed  %d" if passed else "Check: not passed  %d") % val, "%s  (%.1f s)" % [verdict, ms * 0.001], Kit.GREEN if passed else Kit.RED, 6.0)
 	GameAudio.event("pass" if passed else "fail")
 	if lab.score_card != null: lab.score_card.check_text = "check %d%s" % [val, "" if passed else " (miss)"]
-	if not passed and not lab._is_reference(): note_fail()
-	elif passed and not lab.lesion_on: _record_check(val)
+	if not passed and not was_ref: note_fail()
+	elif passed and not lab.lesion_on: _record_check(val, was_ref)
 
-## A passing check counts as a pass (it ran the task's own seed), but not as the end-of-episode five-seed record.
-func _record_check(val: int) -> void:
-	if lab._is_reference() or lab.variant != "" or lab._rec_pass: return
+## A passing check counts as a pass (it ran the task's own seed), but not as the end-of-episode five-seed record. `was_ref`: the bench was the reference when the check started.
+func _record_check(val: int, was_ref: bool) -> void:
+	if was_ref or lab._is_reference() or lab.variant != "" or lab._rec_pass: return
 	lab._record(true, false, float(val), -1.0)
 	lab.layout.refresh_bar()
 

@@ -153,6 +153,118 @@ static func parse(json: String) -> Dictionary:
 	var v: Variant = JSON.parse_string(json)
 	return v if v is Dictionary else {}
 
+# ---------- validation (a circuit file is untrusted: Load, an autosave a crash left damaged, SP_CIRCUIT) ----------
+const MAX_POP_N := 400
+const MAX_NEURONS := 2000
+const MAX_PROJECTIONS := 20000
+const MAX_EDGES := 200000
+const MAX_CHANNELS := 500
+const MAX_DEPTH := 24
+
+static func _is_num(v: Variant) -> bool: return (v is float or v is int) and is_finite(float(v))
+static func _is_int_val(v: Variant) -> bool: return _is_num(v) and absf(float(v)) < 1e9 and is_equal_approx(float(v), roundf(float(v)))
+
+## "" when the circuit is safe to hand to the editor and the engine, else the first problem in plain words. Field types, n an integer 1..MAX_POP_N, finite numbers,
+## totals capped at MAX_NEURONS neurons and MAX_PROJECTIONS projections. (Whether the models and parameters mean anything is the engine's job: its banner.)
+static func validate(c: Variant) -> String:
+	if not c is Dictionary: return "not a circuit (the file is not a JSON object)"
+	var d: Dictionary = c
+	for key in ["populations", "projections", "inputs", "outputs"]:
+		if d.has(key) and not d[key] is Array: return "\"%s\" must be a list" % key
+	for key in ["meta", "record"]:
+		if d.has(key) and not d[key] is Dictionary: return "\"%s\" must be an object" % key
+	for key in ["seed", "resolution_ms", "schema_version"]:
+		if d.has(key) and not _is_num(d[key]): return "\"%s\" must be a finite number" % key
+	if d.has("resolution_ms") and float(d["resolution_ms"]) <= 0.0: return "\"resolution_ms\" must be positive"
+	if d.has("name") and not d["name"] is String: return "\"name\" must be text"
+	var depth := _depth_error(d, 0)
+	if depth != "": return depth
+	var total := 0; var ids := {}
+	for p in d.get("populations", []):
+		if not p is Dictionary: return "a population is not an object"
+		var pd: Dictionary = p
+		var id: Variant = pd.get("id", null)
+		if not id is String or (id as String) == "" or (id as String).length() > 64: return "every population needs a text id (up to 64 characters)"
+		if ids.has(id): return "two populations are called \"%s\"" % id
+		ids[id] = true
+		if not pd.get("model", null) is String: return "population %s: \"model\" must be text" % id
+		if pd.has("n") and (not _is_int_val(pd["n"]) or int(pd["n"]) < 1 or int(pd["n"]) > MAX_POP_N): return "population %s: \"n\" must be a whole number from 1 to %d" % [id, MAX_POP_N]
+		total += pop_n(pd)
+		if total > MAX_NEURONS: return "more than %d neurons in all" % MAX_NEURONS
+		if pd.has("params"):
+			if not pd["params"] is Dictionary: return "population %s: \"params\" must be an object" % id
+			for k in pd["params"]:
+				var v: Variant = pd["params"][k]
+				if v is float and not is_finite(v): return "population %s: parameter %s is not a finite number" % [id, k]
+		if pd.has("pos") and not pd["pos"] is Array: return "population %s: \"pos\" must be a list" % id
+	if (d.get("projections", []) as Array).size() > MAX_PROJECTIONS: return "more than %d projections" % MAX_PROJECTIONS
+	var edges := 0
+	for pr in d.get("projections", []):
+		if not pr is Dictionary: return "a projection is not an object"
+		var pj: Dictionary = pr
+		for end in ["pre", "post"]:
+			var r: Variant = pj.get(end, null)
+			if not (r is String or r is Dictionary): return "a projection's \"%s\" must be a population id" % end
+		if pj.has("synapse") and not pj["synapse"] is Dictionary: return "a projection's \"synapse\" must be an object"
+		if pj.has("edges"):
+			if not pj["edges"] is Array: return "a projection's \"edges\" must be a list"
+			for e in pj["edges"]:
+				if not e is Array or (e as Array).size() < 2: return "an edge must be a list [pre, post, weight, delay]"
+				for x in e:
+					if x is float and not is_finite(x): return "an edge holds a number that is not finite"
+			edges += (pj["edges"] as Array).size()
+			if edges > MAX_EDGES: return "more than %d edges in all" % MAX_EDGES
+	for key in ["inputs", "outputs"]:
+		if (d.get(key, []) as Array).size() > MAX_CHANNELS: return "more than %d %s" % [MAX_CHANNELS, key]
+		for ch in d.get(key, []):
+			if not ch is Dictionary: return "an entry of \"%s\" is not an object" % key
+			if not (ch as Dictionary).get("name", null) is String: return "every entry of \"%s\" needs a text name" % key
+			var lk := "targets" if key == "inputs" else "neurons"
+			if (ch as Dictionary).has(lk) and not (ch as Dictionary)[lk] is Array: return "\"%s\" of a channel must be a list" % lk
+			for f in ["weight", "value", "gain", "tau_ms"]:
+				if (ch as Dictionary).has(f) and not _is_num((ch as Dictionary)[f]): return "channel %s: \"%s\" must be a finite number" % [str((ch as Dictionary)["name"]), f]
+	return ""
+
+static func _depth_error(v: Variant, depth: int) -> String:
+	if depth > MAX_DEPTH: return "nested too deeply"
+	if v is Dictionary:
+		for k in v:
+			var e := _depth_error(v[k], depth + 1)
+			if e != "": return e
+	elif v is Array:
+		for x in v:
+			if x is Dictionary or x is Array:
+				var e := _depth_error(x, depth + 1)
+				if e != "": return e
+	return ""
+
+## Editor positions that are missing, not numbers or not finite (or absurdly far out) are replaced by the automatic layout. Returns how many were replaced.
+static func repair_positions(c: Dictionary) -> int:
+	var fixed := 0; var pops: Variant = c.get("populations", [])
+	if not pops is Array: return 0
+	for pi in (pops as Array).size():
+		var p: Variant = pops[pi]
+		if not p is Dictionary or not (p as Dictionary).has("pos"): continue
+		var pos: Variant = p["pos"]
+		if not pos is Array: p.erase("pos"); fixed += 1; continue
+		var n := pop_n(p)
+		for k in (pos as Array).size():
+			var q: Variant = pos[k]
+			var ok: bool = q is Array and (q as Array).size() >= 2 and _is_num(q[0]) and _is_num(q[1]) and absf(float(q[0])) < 1.0e6 and absf(float(q[1])) < 1.0e6
+			if not ok:
+				var a := auto_pos(pi, k, maxi(n, k + 1)); pos[k] = [a.x, a.y]; fixed += 1
+	return fixed
+
+## Parse and check circuit text. {circuit, error, repaired}: `error` is "" when the circuit is fit to use (circuit is then the Dictionary), else why not (circuit is {}).
+static func parse_checked(json: String) -> Dictionary:
+	if json.strip_edges() == "": return {"circuit": {}, "error": "the file is empty", "repaired": 0}
+	var v: Variant = JSON.parse_string(json)
+	if not v is Dictionary: return {"circuit": {}, "error": "not a circuit (the file is not JSON, or is cut short)", "repaired": 0}
+	var bad := validate(v)
+	if bad != "": return {"circuit": {}, "error": bad, "repaired": 0}
+	var rep := repair_positions(v)
+	return {"circuit": v, "error": "", "repaired": rep}
+
 ## Godot's JSON reads every number as a float and would write 1 as 1.0, which the engine rejects for integer fields (schema_version, n, seed ...): restore them.
 const INT_KEYS := ["schema_version", "n", "seed", "indegree", "outdegree", "idx", "pos", "projection"]
 static func to_json(c: Dictionary) -> String: return JSON.stringify(_norm(c, ""), "  ")
@@ -185,6 +297,48 @@ static func read_reference(rel: String) -> String:
 
 static func user_dir() -> String:
 	var d := "user://circuits"; DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(d)); return d
+
+# ---------- bench history: a replaced bench is never lost ----------
+const HISTORY_KEEP := 10
+static func history_dir(task: String) -> String: return user_dir().path_join(task if task != "" else "free").path_join("history")
+
+## Files of the history, newest first.
+static func history_list(task: String) -> Array:
+	var d := DirAccess.open(history_dir(task)); var out := []
+	if d == null: return out
+	for f in d.get_files():
+		if f.begins_with("bench-") and f.ends_with(".json"): out.append(f)
+	out.sort(); out.reverse(); return out
+
+## Keep `c` (a bench about to be replaced by Reference, Empty bench or Load) in circuits/<task>/history, newest HISTORY_KEEP files. A bench with no neurons, or
+## the same as the newest entry, is not kept. Returns true when a file was written.
+static func history_push(task: String, c: Dictionary) -> bool:
+	if not SaveIO.enabled() or neuron_count(c) == 0: return false
+	var text := to_json(c); var list := history_list(task)
+	if not list.is_empty() and FileAccess.get_file_as_string(history_dir(task).path_join(str(list[0]))) == text: return false
+	var name := "bench-%s-%03d.json" % [Time.get_datetime_string_from_system().replace(":", "").replace("-", ""), Time.get_ticks_msec() % 1000]
+	if not SaveIO.write_text(history_dir(task).path_join(name), text, -1.0): return false
+	list = history_list(task)
+	for i in range(HISTORY_KEEP, list.size()): DirAccess.remove_absolute(SaveIO.g(history_dir(task).path_join(str(list[i]))))
+	return true
+
+## Same, from a file on disk (the saved autosave about to be shadowed by a Reference bench).
+static func history_push_file(task: String, path: String) -> bool:
+	if not FileAccess.file_exists(path): return false
+	var r := parse_checked(FileAccess.get_file_as_string(path))
+	return history_push(task, r["circuit"]) if str(r["error"]) == "" else false
+
+## The newest kept bench as a checked circuit ({} when there is none).
+static func history_latest(task: String) -> Dictionary:
+	var list := history_list(task)
+	if list.is_empty(): return {}
+	var r := parse_checked(FileAccess.get_file_as_string(history_dir(task).path_join(str(list[0]))))
+	return r["circuit"] if str(r["error"]) == "" else {}
+
+## Remove the newest history entry (it has been restored).
+static func history_pop(task: String) -> void:
+	var list := history_list(task)
+	if not list.is_empty(): DirAccess.remove_absolute(SaveIO.g(history_dir(task).path_join(str(list[0]))))
 
 # ---------- neurons ----------
 static func pop_n(p: Dictionary) -> int: return maxi(1, int(p.get("n", 1)))

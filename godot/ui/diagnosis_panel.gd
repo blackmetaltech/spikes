@@ -33,11 +33,13 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	if not done:
 		var pn := int(state.get("probes", 0)); var wn := int(state.get("tries", 0))
 		add_child(Kit.ident(Kit.label("Used so far: %d probe%s (the first 3 are free), %d wrong guess%s. Each wrong guess and each probe beyond the free ones lowers the score of the case." % [pn, "" if pn == 1 else "s", wn, "" if wn == 1 else "es"], fs - 1, Kit.AMBER, true), "DxUsed"))
+	if not done and bool(state.get("revealed", false)):
+		add_child(Kit.ident(Kit.label("You have already seen the answer to this case, so it can earn one star at most.", fs - 1, Kit.AMBER, true), "DxRevealedNote"))
 	# candidates
 	add_child(Kit.label("Which connection is missing or lesioned?", fs, Kit.TEXT))
 	var answer := str(dx.get("answer", ""))
 	var labels: Dictionary = dx.get("labels", {}); var explain: Dictionary = dx.get("explain", {})
-	for cand in dx.get("candidates", []):
+	for cand in ordered(dx):
 		var cs := str(cand)
 		var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 8); add_child(row)
 		var is_pick := str(state.get("picked", "")) == cs
@@ -81,5 +83,16 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 		rv.add_child(Kit.label(str(note["text"]), fs, Kit.TEXT_SOFT, true))
 		if str(note.get("citation", "")) != "": rv.add_child(Kit.label(str(note["citation"]), fs - 1, Kit.CYAN, true))
 	return self
+
+## The candidates in the order the engine gives them (the task now makes that order answer-neutral). Should one still arrive with the answer on top (the
+## first button was right in 10 of 13 cases), they are put in a fixed order by a hash of task and candidate, so the order is the same on every visit but says nothing.
+static func ordered(dx: Dictionary) -> Array:
+	var cands: Array = (dx.get("candidates", []) as Array).duplicate()
+	var answer := str(dx.get("answer", ""))
+	if cands.size() < 2 or answer == "" or str(cands[0]) != answer: return cands
+	var tid := str(dx.get("task_id", ""))
+	cands.sort_custom(func(a, b): return (tid + "|" + str(a)).hash() < (tid + "|" + str(b)).hash())
+	if str(cands[0]) == answer: cands.push_back(cands.pop_front())
+	return cands
 
 static func _cap(s: String) -> String: return s.substr(0, 1).to_upper() + s.substr(1)

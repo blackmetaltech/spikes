@@ -23,3 +23,4 @@ docs/screenshots/critique-0.3/
 docs/screenshots/review/
 tools/connectome/.venv/
 third_party/nest-build-py/
+godot/build_id.txt
