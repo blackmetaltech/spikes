@@ -34,11 +34,18 @@ Kernel kernel( const Meas& m )
   if ( D.size() < 2 ) return k;
   std::vector< double > per;
   for ( size_t i = 0; i + 1 < D.size(); ++i ) per.push_back( D[ i + 1 ].t0 - D[ i ].t0 );
-  double sum = 0, sq = 0, dut = 0, sp = 0;
-  for ( double x : per ) sum += x;
-  k.period = sum / static_cast< double >( per.size() );
-  for ( double x : per ) sq += ( x - k.period ) * ( x - k.period );
-  k.cv = k.period > 0 ? std::sqrt( sq / static_cast< double >( per.size() ) ) / k.period : 0.0;
+  double dut = 0, sp = 0;
+  // period and regularity from the MEDIAN interval and the median absolute deviation: with five or six cycles one cycle that starts a spike late (a burst onset moves by a spike) is not an irregular kernel,
+  // while two or more odd cycles still are
+  auto median = []( std::vector< double > v ) {
+    std::sort( v.begin(), v.end() );
+    const size_t h = v.size() / 2;
+    return v.size() % 2 ? v[ h ] : 0.5 * ( v[ h - 1 ] + v[ h ] );
+  };
+  k.period = median( per );
+  std::vector< double > dev;
+  for ( double x : per ) dev.push_back( std::fabs( x - k.period ) );
+  k.cv = k.period > 0 ? 1.4826 * median( dev ) / k.period : 0.0;
   for ( size_t i = 0; i + 1 < D.size(); ++i ) dut += ( D[ i ].t1 - D[ i ].t0 + 10 ) / per[ i ];
   k.duty = dut / static_cast< double >( per.size() );
   for ( const auto& b : D ) sp += b.n;
