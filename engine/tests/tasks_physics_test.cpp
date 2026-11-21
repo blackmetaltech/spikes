@@ -18,6 +18,7 @@ struct StubBrain
   std::map< std::string, int > pool_size;  // neurons per output channel
 };
 static StubBrain* g_brain = nullptr;
+static std::vector< std::string > g_sensors;   // the sensors of the task under test: the stub declares exactly those (the registry's guard rejects an undeclared input)
 
 struct Engine::Impl
 {
@@ -49,7 +50,7 @@ std::vector< ChannelInfo > Engine::inputs() const
 {
   // every sensor channel of the three tasks is wired to one neuron
   std::vector< ChannelInfo > v;
-  for ( const char* name : { "drive", "touch", "ASEL", "ASER" } )
+  for ( const auto& name : g_sensors )
   {
     ChannelInfo c;
     c.name = name;
@@ -91,6 +92,7 @@ double Engine::voltage( int32_t ) const { return 0; }
 bool Engine::set_weight( int32_t, int32_t, double ) { return true; }
 bool Engine::set_neuron_param( int32_t, const std::string&, double ) { return true; }
 double Engine::neuron_state( int32_t, const std::string& ) const { return std::nan( "" ); }   // 0.6 Theory wing stubs (never driven here)
+bool Engine::set_input_param( const std::string&, const std::string&, double ) { return true; }  // tuned_poisson stimulus overwrite (never driven here)
 double Engine::input_weight( const std::string& ) const { return 0.0; }
 double Engine::input_value( const std::string& ) const { return 0.0; }
 double Engine::output_value( const std::string& ) const { return 0.0; }
@@ -105,6 +107,7 @@ static int g_fail = 0;
 static Score run_task( Task& t, StubBrain& b, uint64_t seed, double dt = 1.0 )
 {
   g_brain = &b;
+  g_sensors = t.sensor_channels();
   Engine e;
   t.reset( seed );
   for ( double x = 0; x < t.duration_ms(); x += dt )

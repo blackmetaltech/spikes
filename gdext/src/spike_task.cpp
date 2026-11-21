@@ -237,6 +237,16 @@ Dictionary SpikeTask::diagnosis() const
   for ( auto& [ k, v ] : g.explain ) ex[ S( k ) ] = S( v );
   d[ "labels" ] = lb;
   d[ "explain" ] = ex;
+  Array pr;   // add-only: the evidence probes of the case ({kind, target, tells}); for the game to CHECK, never to display
+  for ( auto& p : g.probes )
+  {
+    Dictionary q;
+    q[ "kind" ] = S( p.kind );
+    q[ "target" ] = S( p.target );
+    q[ "tells" ] = S( p.tells );
+    pr.push_back( q );
+  }
+  d[ "probes" ] = pr;
   return d;
 }
 Dictionary SpikeTask::notebook() const

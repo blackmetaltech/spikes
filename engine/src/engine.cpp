@@ -1155,6 +1155,19 @@ bool Engine::set_input_param( const std::string& channel, const std::string& key
     return false;
   }
   Impl::Dev& d = m.devs[ it->second ];
+  // add-only (tasks own their stimuli): the tuning curve of a "tuned_poisson" input (kappa, rate_max, rate_base, period_deg) can be set between steps, so that a task can overwrite what the circuit file says
+  if ( d.kind == 4 and ( key == "kappa" or key == "rate_max" or key == "rate_base" or key == "period_deg" ) )
+  {
+    if ( not std::isfinite( value ) or value < 0.0 or ( key == "period_deg" and not( value > 0.0 ) ) )
+    {
+      m.error = "set_input_param: " + key + " must be a finite number >= 0 (period_deg > 0)";
+      return false;
+    }
+    double& slot = key == "kappa" ? d.kappa : key == "rate_max" ? d.rate_max : key == "rate_base" ? d.rate_base : d.period_deg;
+    slot = value;
+    d.dirty = true;
+    return true;
+  }
   if ( d.kind != 2 )
   {
     m.error = "set_input_param: '" + channel + "' is not a sinusoidal_poisson input";

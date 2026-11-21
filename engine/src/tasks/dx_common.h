@@ -42,6 +42,7 @@ struct DxSpec
   std::map< std::string, std::string > explain;  // candidate id -> one line: why it does or does not fit the findings
   std::vector< std::string > concepts_new, concepts_used;
   std::string hint1, hint2, hint2_target;        // tier 1: the concept; tier 2: the place (population id to highlight)
+  std::vector< Task::Diagnosis::Probe > probes;  // optional: the evidence probes (default: derived from the answer, see DxTask::make_probes)
   std::string hint3, hint3_target;               // tier 3: a REGION of the circuit (empty: the connections of the group of tier 2); never a pair of candidates
   Task::Note note;
 };
@@ -49,7 +50,34 @@ struct DxSpec
 class DxTask : public Task
 {
 public:
-  explicit DxTask( DxSpec s ) : s_( std::move( s ) ), inner_( make_task( s_.inner ) ) {}
+  explicit DxTask( DxSpec s ) : s_( std::move( s ) ), inner_( make_task( s_.inner ) ) { order_candidates(); }
+
+  /// Candidate order does not reveal the answer: a stable hash of (case, candidate) (FNV-1a), and the answer is never first (when the hash puts it first it swaps with the hash-chosen later place).
+  static uint64_t hash_of( const std::string& id, const std::string& cand )
+  {
+    uint64_t h = 1469598103934665603ULL;
+    for ( char c : id + "|" + cand ) h = ( h ^ static_cast< unsigned char >( c ) ) * 1099511628211ULL;
+    return h;
+  }
+  void order_candidates()
+  {
+    auto& c = s_.candidates;
+    std::stable_sort( c.begin(), c.end(), [ & ]( const std::string& a, const std::string& b ) { return hash_of( s_.id, a ) < hash_of( s_.id, b ); } );
+    if ( c.size() > 1 && c.front() == s_.answer )
+      std::swap( c.front(), c[ 1 + hash_of( s_.id, "first" ) % ( c.size() - 1 ) ] );
+  }
+  /// The evidence probes of the case (see Task::Diagnosis::Probe): the spec's own, else derived from the answer's dead link "pre>post": the group behind it (silent while the one in front fires) and the cut of the link itself.
+  std::vector< Diagnosis::Probe > make_probes() const
+  {
+    if ( !s_.probes.empty() ) return s_.probes;
+    std::vector< Diagnosis::Probe > p;
+    const std::string first = s_.answer.substr( 0, s_.answer.find( '+' ) );
+    const size_t gt = first.find( '>' );
+    if ( gt != std::string::npos )
+      p.push_back( { "scope", first.substr( gt + 1 ), "tells the dead link from the links around it: the group behind it stays silent although the group in front of it fires" } );
+    p.push_back( { "cut", s_.answer, "cutting a working link changes the activity or the symptoms; cutting the dead one changes nothing" } );
+    return p;
+  }
 
   std::string id() const override { return s_.id; }
   std::string title() const override { return s_.title; }
@@ -132,7 +160,7 @@ public:
       ++wrong_;
   }
 
-  Diagnosis diagnosis() const override { return { s_.id + ".json", s_.symptoms, s_.candidates, s_.answer, s_.labels, s_.explain }; }
+  Diagnosis diagnosis() const override { return { s_.id + ".json", s_.symptoms, s_.candidates, s_.answer, s_.labels, s_.explain, make_probes() }; }
   // the patient is watched on the cell type of the underlying task's reference circuit; a diagnosis has no recipe
   std::string default_model() const override { return inner_->default_model(); }
   std::string recipe() const override { return ""; }

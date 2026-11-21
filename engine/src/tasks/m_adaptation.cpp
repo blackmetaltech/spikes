@@ -102,8 +102,13 @@ public:
     for ( int p : g_.out_pops( "spikes" ) )
     {
       const std::string& m = g_.pop( p ).model;
-      const double b = g_.param( p, "b" ), d = g_.param( p, "d" );
-      const bool adaptive = ( m.rfind( "aeif", 0 ) == 0 && ( std::isnan( b ) || b > 0 ) ) || ( m == "izhikevich" && ( std::isnan( d ) || d > 0 ) );
+      // a cell has an adaptation current of its own when its model carries one that is switched on: the jump b of the adaptive exponential cells, the recovery jump d of an Izhikevich cell,
+      // the spike-triggered conductances q_sfa / q_rr of the sfa cell, the spike-triggered threshold steps alpha_1 / alpha_2 of the mat2 cells (off by default in NEST), the spike-triggered
+      // kernels of the gif cells. Whether it adapts ENOUGH is the behaviour (the ratio below), not this check.
+      auto on = [ & ]( const char* k, bool default_on ) { const double v = g_.param( p, k ); return std::isnan( v ) ? default_on : v > 0; };
+      const bool adaptive = ( m.rfind( "aeif", 0 ) == 0 && on( "b", true ) ) || ( m == "izhikevich" && on( "d", true ) ) ||
+                            ( m.rfind( "iaf_cond_exp_sfa_rr", 0 ) == 0 && ( on( "q_sfa", true ) || on( "q_rr", true ) ) ) ||
+                            ( m.rfind( "gif_", 0 ) == 0 ) || ( ( m == "mat2_psc_exp" || m == "amat2_psc_exp" ) && ( on( "alpha_1", false ) || on( "alpha_2", false ) ) );
       if ( !adaptive )
       {
         mech_ = "The cell you read has no adaptation current of its own (a plain integrate-and-fire cell, or an adaptive one with the jump set to zero): "

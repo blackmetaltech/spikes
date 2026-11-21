@@ -131,3 +131,6 @@
   CHEAP_ROW( "aplysia_gill", "depression that is gone at once (tau_rec 5 ms)", cheap::from_ref( "aplysia_gill", [ & ]( json& c ) { c[ "projections" ][ 0 ][ "synapse" ][ "tau_rec" ] = 5.0; } ) );
   CHEAP_ROW( "aplysia_gill", "modulation far too weak (0.02)", cheap::from_ref( "aplysia_gill", [ & ]( json& c ) { c[ "modulation" ][ 0 ][ "gain" ] = 0.02; } ) );
 }
+
+// ---- cheat-proofing (full review, P0-3)
+CHEAP_ROW_V( "w_latch", "a recorded spike train latches a cell with 0.01 pA feedback", "stimulus", fixture( "w_latch_tape" ) );

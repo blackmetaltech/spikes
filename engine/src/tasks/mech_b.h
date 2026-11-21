@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include "spike/engine.h"
+#include "task_util.h"
 
 namespace spike::tasks::mechb
 {
@@ -119,7 +120,7 @@ public:
         continue;
       for ( const auto& pr : st_.projections )
       {
-        if ( pr.pre_index != p || pr.n_edges <= 0 || pr.sign == 0 || pr.post_index < 0 || ( only_excitatory && pr.sign < 0 ) )
+        if ( pr.pre_index != p || !functional( st_, pr ) || ( only_excitatory && pr.sign < 0 ) )
           continue;
         const int np = pr.post_index, npar = par ^ ( pr.sign < 0 ? 1 : 0 );
         auto& dd = dist[ static_cast< size_t >( np ) * 2 + static_cast< size_t >( npar ) ];
@@ -143,7 +144,7 @@ public:
   bool edge( const PopSet& pre, const PopSet& post, int sign = 0 ) const
   {
     for ( const auto& pr : st_.projections )
-      if ( pr.n_edges > 0 && pr.sign != 0 && pre.count( pr.pre_index ) && post.count( pr.post_index ) && ( sign == 0 || pr.sign == sign ) )
+      if ( functional( st_, pr ) && pre.count( pr.pre_index ) && post.count( pr.post_index ) && ( sign == 0 || pr.sign == sign ) )
         return true;
     return false;
   }
@@ -171,7 +172,8 @@ public:
   static bool can_burst( const std::string& model )
   {
     static const char* const ok[] = { "izhikevich", "aeif_cond_alpha", "aeif_cond_exp", "aeif_psc_alpha", "aeif_psc_exp", "aeif_cond_beta_multisynapse",
-                                      "hh_psc_alpha", "hh_cond_exp_traub", "hh_cond_beta_gap_traub", "gif_psc_exp", "gif_cond_exp", "pp_psc_delta" };
+                                      "hh_psc_alpha", "hh_cond_exp_traub", "hh_cond_beta_gap_traub", "gif_psc_exp", "gif_cond_exp", "pp_psc_delta",
+                                      "butera_burster", "stg_cell" };  // the NESTML bursters (preBotzinger cell, stomatogastric neuron) burst on their own
     for ( const char* m : ok )
       if ( model == m )
         return true;
@@ -188,7 +190,7 @@ public:
         s += "|" + k + "=" + std::to_string( v );
     std::vector< std::string > w;
     for ( const auto& pr : st_.projections )
-      if ( pr.post_index == p && pr.n_edges > 0 && pr.sign != 0 )
+      if ( pr.post_index == p && functional( st_, pr ) )
         w.push_back( pr.pre_pop + ":" + std::to_string( pr.w_mean ) );
     std::sort( w.begin(), w.end() );
     for ( const auto& x : w )

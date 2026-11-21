@@ -121,11 +121,11 @@ def core(P=None, renshaw=False, noise=False, name="", task=""):
 
 
 def stretch(P=None):
-    return core(P, name="Stretch reflex with reciprocal Ia inhibition", task="stretch_reflex")
+    return core(dict({"w_IN_MN": -6.5}, **(P or {})), name="Stretch reflex with reciprocal Ia inhibition", task="stretch_reflex")
 
 
 def renshaw(P=None):
-    d = dict(nIa=5, nMN=16, nIN=2, nRC=3, nDesc=2, w_Ia_MN=6.0, w_Ia_IN=3.0, w_IN_MN=-9.0, w_desc_MN=2.0,
+    d = dict(nIa=5, nMN=16, nIN=2, nRC=3, nDesc=2, w_Ia_MN=6.0, w_Ia_IN=3.0, w_IN_MN=-9.0, w_desc_MN=2.3,
              drive_MN=1000.0, w_MN_RC=3.0, w_RC_MN=-10.0)
     d.update(P or {})
     return core(d, renshaw=True, noise=True, name="Stretch reflex with Renshaw recurrent inhibition", task="renshaw")
@@ -194,9 +194,9 @@ def reach(P=None):
         # hold command: the target shifts the tonic balance (flexor excited, extensor inhibited)
         w_T_MNF=5.95, w_T_MNE=-10.0,
         # burst generator: target scales each burst (sub-threshold drive), go triggers B1, delays chain B1 -> B2 -> B3
-        w_T_B1=1.9, w_T_B2=1.32, w_T_B3=0.0, w_G_B1=24.0,
+        w_T_B1=2.185, w_T_B2=1.32, w_T_B3=0.0, w_G_B1=30.0,
         w_B1_MNF=2.85, w_B1_MNE=-1.86, w_B1_B2=6.0, d_B1_B2=212.4,
-        w_B2_MNE=7.0, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
+        w_B2_MNE=10.15, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
         w_B3_MNF=2.32, w_B3_B2=-10.74,
     )
     d.update(P or {})

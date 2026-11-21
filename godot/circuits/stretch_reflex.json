@@ -1105,7 +1105,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": -6.0,
+    "weight": -6.5,
     "delay": 1.0
    }
   },
@@ -1854,7 +1854,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": -6.0,
+    "weight": -6.5,
     "delay": 1.0
    }
   }

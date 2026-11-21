@@ -84,9 +84,9 @@ Spec spec()
     // the spiking loop: some population E' that net reads excites an inhibitory population that inhibits it back, with several inputs per cell on each side
     auto loop = [ & ]( const std::vector< int >& E, bool spiking, const ProjectionInfo** ex, const ProjectionInfo** in ) {
       for ( const auto& pe : g.st.projections )
-        if ( pe.n_edges > 0 && pe.sign > 0 && Graph::overlap( E, { pe.pre_index } ) && !Graph::overlap( E, { pe.post_index } ) )
+        if ( functional( g.st, pe ) && pe.sign > 0 && Graph::overlap( E, { pe.pre_index } ) && !Graph::overlap( E, { pe.post_index } ) )
           for ( const auto& pi : g.st.projections )
-            if ( pi.n_edges > 0 && pi.sign < 0 && pi.pre_index == pe.post_index && Graph::overlap( E, { pi.post_index } ) && is_rate_model( g.pop( pe.post_index ).model ) != spiking )
+            if ( functional( g.st, pi ) && pi.sign < 0 && pi.pre_index == pe.post_index && Graph::overlap( E, { pi.post_index } ) && is_rate_model( g.pop( pe.post_index ).model ) != spiking )
             {
               if ( spiking && ( pe.indegree_mean < 5 || pi.indegree_mean < 2 ) ) continue;
               if ( ex ) *ex = &pe;

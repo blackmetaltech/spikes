@@ -319,7 +319,7 @@ private:
     if ( cells < 2 )
       return "No cluster: a single pacemaker cell is not a node. The beat comes from several cells that hold one rhythm together, so use more than one cell and couple them.";
     for ( const auto& pr : st.projections )
-      if ( pr.n_edges > 0 && pr.sign > 0 && sa.count( pr.pre_index ) && sa.count( pr.post_index ) &&
+      if ( functional( st, pr ) && pr.sign > 0 && sa.count( pr.pre_index ) && sa.count( pr.post_index ) &&
            ( pr.pre_index != pr.post_index || ( st.populations[ pr.pre_index ].n >= 2 && pr.rule != "one_to_one" ) ) )
         return "";
     return "No cluster: the pacemaker cells are not coupled to each other (no excitatory connection among them, or its weight is zero), so there is no node, only separate cells. "

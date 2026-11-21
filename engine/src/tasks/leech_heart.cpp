@@ -1,7 +1,7 @@
 // Task "leech_heart" (leech chapter): the heartbeat half-centre. Two heart interneurons (HN) inhibit each other and fire in alternating bursts; the rhythm has to come from the
 // circuit and its period must fall in a band. (research/bestiary-a.md section 2.)
 //
-// WORLD (dc sensor 'drive', level 2.0 x sensor weight, on from t = 0; full episode 14 s, quick episode 9 s: the analysis window is (3000 ms, end])
+// WORLD (dc sensor 'drive', level 2.0 x sensor weight, on from t = 0; full and quick episode 14 s: the analysis window is (3000 ms, end])
 //   At t = 0 the task starts the 'left' output cells at V_m = -50 mV and the 'right' ones at -75 mV, and the cells that inhibit them the other way round, so that the symmetry between
 //   identical cells is broken the same way on every seed (the left motor side is released first).
 //   Motors 'left' and 'right': the two sides' HN cells.
@@ -46,7 +46,7 @@ protected:
       for ( int n : o.neurons ) e.set_neuron_param( n, "V_m", left ? -50.0 : -75.0 );
       for ( const auto& pr : g_.st.projections )
       {
-        if ( pr.sign >= 0 || pr.n_edges <= 0 || pr.pre_index < 0 || pr.post_index < 0 ) continue;
+        if ( pr.sign >= 0 || !functional( g_.st, pr ) || pr.pre_index < 0 ) continue;
         const auto& post = g_.st.populations[ static_cast< size_t >( pr.post_index ) ];
         bool feeds = false;
         for ( int n : o.neurons ) feeds = feeds || ( n >= post.first_index && n < post.first_index + post.n );
@@ -70,6 +70,7 @@ Stats stats( const Meas& m, double t_end )
   const auto& r = m.cnt.at( "right" );
   const int nb = static_cast< int >( ( t_end - kW0 ) / kBin );
   int last = 0, active = 0, both = 0;
+  std::vector< double > times;   // the bins at which the winning side changed
   double tl = 0, tr = 0;
   for ( int b = 0; b < nb; ++b )
   {
@@ -86,12 +87,25 @@ Stats stats( const Meas& m, double t_end )
     if ( x > 0 && y > 0 ) ++both;
     const int d = x > y ? 1 : ( y > x ? -1 : 0 );
     if ( d == 0 ) continue;
-    if ( last != 0 && d != last ) st.switches += 1;
+    if ( last != 0 && d != last )
+    {
+      st.switches += 1;
+      times.push_back( kW0 + b * kBin );
+    }
     last = d;
   }
   st.overlap = active > 0 ? static_cast< double >( both ) / active : 1.0;
   st.balance = tl + tr > 0 ? std::min( tl, tr ) / ( tl + tr ) : 0.0;
-  st.period = st.switches >= 2 ? ( t_end - kW0 ) / ( st.switches / 2.0 ) : 0.0;
+  // the cycle time from the MEDIAN interval between turns (two turns make a cycle), not from the window length over the number of turns: that one is quantised by the window and by a
+  // missed or an extra turn at its edges, and a quick episode (shorter window) would read a different period from the full one for the same circuit
+  if ( times.size() >= 2 )
+  {
+    std::vector< double > iv;
+    for ( size_t k = 1; k < times.size(); ++k ) iv.push_back( times[ k ] - times[ k - 1 ] );
+    std::sort( iv.begin(), iv.end() );
+    const size_t h = iv.size() / 2;
+    st.period = 2.0 * ( iv.size() % 2 ? iv[ h ] : 0.5 * ( iv[ h - 1 ] + iv[ h ] ) );
+  }
   auto mean_burst = [ & ]( const std::vector< float >& v ) {
     const auto rs = runs_of( v, kW0, t_end, 100 );
     double s = 0;
@@ -137,9 +151,9 @@ Spec spec()
     "interneurons and lock to the faster of them. This level is the single oscillator, with spiking cells and a compressed time scale; the real inhibition is partly graded "
     "(transmission that depends smoothly on the presynaptic voltage), which the game's spike-based synapses do not model.",
     "Hill AA, Lu J, Masino MA, Olsen OH, Calabrese RL (2001) J Comput Neurosci 10:281-302, doi:10.1023/a:1011216131638; Nadim F, Olsen OH, De Schutter E, Calabrese RL (1995) J Comput Neurosci 2:215-235, doi:10.1007/BF00961435" };
-  s.schedule = [ & ]( bool quick ) {
+  s.schedule = [ & ]( bool ) {
     Schedule c;
-    c.dur = quick ? 9000 : 14000;
+    c.dur = 14000;   // the quick check is the full episode: four cells run it in about a second, and a shorter window (two cycles instead of four) passed circuits whose overlap and period drift later
     c.segs = { { "drive", 0, c.dur, 2.0 } };
     c.wins = { { "window", kW0, c.dur } };
     return c;
@@ -156,7 +170,7 @@ Spec spec()
     // the cells that do the inhibiting (every population with an inhibitory projection out of it) need a slow process of their own
     bool any = false, slow = false;
     for ( const auto& pr : g.st.projections )
-      if ( pr.sign < 0 && pr.n_edges > 0 )
+      if ( pr.sign < 0 && functional( g.st, pr ) )
       {
         any = true;
         const std::string& m = g.pop( pr.pre_index ).model;
@@ -177,7 +191,7 @@ Spec spec()
     p[ "burst_right" ] = st.burst_r;
     const double tl = m.n( "left", "window" ), tr = m.n( "right", "window" );
     const double sw_need = m.tol > 1.2 ? 3 : ( m.tol < 0.9 ? 5 : 4 );
-    c.push_back( { "fires", tl >= 1 && tr >= 1, ( tl >= 1 ? 0.5 : 0.0 ) + ( tr >= 1 ? 0.5 : 0.0 ) * 0.5,
+    c.push_back( { "fires", tl >= 1 && tr >= 1, 0.5 * ( ( tl >= 1 ? 0.5 : 0.0 ) + ( tr >= 1 ? 0.5 : 0.0 ) ),
       tl + tr < 1 ? "Nothing fired in the analysis window. The drive must reach both cells and be over their rheobase: strengthen the drive."
                   : std::string( "Only the " ) + ( tl >= 1 ? "left" : "right" ) + " side fires: the other is silenced for good (or never got the drive). The side that is silenced needs a way back: slow adaptation in "
                     "the active cell so that it gives way, and the drive on both cells." } );

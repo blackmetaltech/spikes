@@ -236,6 +236,9 @@ public:
       o << "Reflex rings: the limb oscillates after the push. Gain is too high (clonus).";
     else if ( m.latency > tol_max( mode_, 50.0 ) )
       o << "The reflex starts too long after a tap to be a spinal reflex: the path from the afferent to the motoneurons is too slow (extra relays, or a link too weak to fire the pool at once).";
+    else if ( m.recip < tol_min( mode_, 0.20 ) && inhib_.armed() && inhib_.some_silent() )
+      o << "The reflex is fast enough, but the opposing muscle keeps firing. " << inhib_.say( "interneurons that should inhibit the opposing muscle" )
+        << " (one Ia volley may be too weak to fire them: give them the steady drive too, or more Ia fibres).";
     else if ( m.recip < tol_min( mode_, 0.20 ) )
       o << "The reflex is fast enough, but the opposing muscle keeps firing: co-contraction makes the limb stiff and the reflex weak. Strengthen the reciprocal Ia inhibition.";
     else if ( m.resistance < tol_min( mode_, 0.30 ) )
@@ -287,6 +290,7 @@ protected:
     th_.push_back( rig_.joint.theta );
     sh_.push_back( rig_.shadow_active() ? rig_.shadow.theta : rig_.joint.theta );
   }
+  bool watch_inhib_now() const override { return t_ >= kLead; }   // the interneurons must fire during the imposed stretches (a steady Ia rate), not only at the 3 ms tap volleys
   double target_rad() const override { return theta_pre_; }  // the angle the reflex must hold: the one before each push
   bool has_target() const override { return true; }
   void extra_readouts( std::map< std::string, double >& r ) const override

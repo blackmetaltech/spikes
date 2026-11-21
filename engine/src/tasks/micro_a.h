@@ -75,7 +75,7 @@ public:
   {
     for ( const auto& p : st.projections )
     {
-      if ( p.n_edges <= 0 || p.sign == 0 || ( sign != 0 && p.sign != sign ) ) continue;
+      if ( !functional( st, p ) || ( sign != 0 && p.sign != sign ) ) continue;
       if ( has( from, p.pre_index ) && has( to, p.post_index ) ) return true;
     }
     return false;
@@ -100,7 +100,7 @@ public:
       for ( auto& s : frontier )
         for ( const auto& p : st.projections )
         {
-          if ( p.n_edges <= 0 || p.sign == 0 || p.pre_index != s.first ) continue;
+          if ( !functional( st, p ) || p.pre_index != s.first ) continue;
           const int par = s.second ^ ( p.sign < 0 ? 1 : 0 );
           if ( hit( p.post_index, par ) ) return true;
           if ( !seen[ p.post_index ][ par ] ) { seen[ p.post_index ][ par ] = true; next.push_back( { p.post_index, par } ); }
@@ -129,7 +129,7 @@ public:
     {
       int s = 0;
       for ( const auto& p : st.projections )
-        if ( p.n_edges > 0 && p.sign != 0 && p.post_index == t ) s += p.indegree_max;
+        if ( functional( st, p ) && p.post_index == t ) s += p.indegree_max;
       best = std::max( best, s );
     }
     return best;

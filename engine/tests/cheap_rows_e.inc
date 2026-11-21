@@ -210,3 +210,6 @@
   CHEAP_ROW( "crab_pyloric", "the parts-bin stg_cell everywhere, nothing changed", cheap::from_ref( "crab_pyloric", bin_cell( { "AB", "PD", "LP", "PY" } ) ) );
   CHEAP_ROW_V( "s_pacemaker", "a slow but regular burster (modulator weight x0.4): too slow, not 'does not burst'", "too slowly", cheap::from_ref( "s_pacemaker", cheap::scale_input( "modulator", 0.4 ) ) );
 }
+
+// ---- cheat-proofing (full review, P1-5)
+CHEAP_ROW( "s_phase", "a tonic adaptive cell that resumes firing when the inhibition stops (no rebound)", fixture( "s_phase_tonic" ) );

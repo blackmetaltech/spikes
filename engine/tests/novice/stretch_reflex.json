@@ -1,0 +1,199 @@
+{
+ "schema_version": 1,
+ "name": "novice",
+ "resolution_ms": 0.1,
+ "seed": 1,
+ "populations": [
+  {
+   "id": "MNF",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "MNE",
+   "model": "iaf_psc_alpha",
+   "n": 6,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "INF",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "INE",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "INF",
+   "post": "MNE",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1000,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "INE",
+   "post": "MNF",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1000,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "ag_Ia",
+   "kind": "dc",
+   "weight": 3,
+   "value": 40,
+   "targets": [
+    {
+     "pop": "MNF"
+    },
+    {
+     "pop": "INF"
+    }
+   ]
+  },
+  {
+   "name": "ant_Ia",
+   "kind": "dc",
+   "weight": 3,
+   "value": 40,
+   "targets": [
+    {
+     "pop": "MNE"
+    },
+    {
+     "pop": "INE"
+    }
+   ]
+  },
+  {
+   "name": "drive",
+   "kind": "dc",
+   "weight": 320,
+   "value": 1,
+   "targets": [
+    {
+     "pop": "MNF"
+    },
+    {
+     "pop": "MNE"
+    },
+    {
+     "pop": "INF"
+    },
+    {
+     "pop": "INE"
+    }
+   ]
+  }
+ ],
+ "outputs": [
+  {
+   "name": "ag_motor",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MNF"
+    }
+   ]
+  },
+  {
+   "name": "ant_motor",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "MNE"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "novice",
+  "task": "stretch_reflex"
+ }
+}
