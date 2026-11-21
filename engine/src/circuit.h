@@ -94,6 +94,23 @@ double spread_weight( double w, int kind, double amount, unsigned long long seed
 /// current-based cell ("_psc_" / "_curr_") to kMaxCurrentPa (pA). Larger values make the GSL integrator diverge and NEST abort (docs/CIRCUIT-FORMAT.md).
 constexpr double kMaxConductanceNs = 500.0;
 constexpr double kMaxCurrentPa = 10000.0;
+/// NESTML cells (models/nestml: butera_burster, stg_cell, sa_node_pacemaker, icc_slow_wave): their adaptive integrator can stall on huge inputs, so synaptic weights are capped
+/// at kMaxNestmlWeightNs (nS; the references use up to 400, a test circuit 1000) and constant currents at kMaxNestmlDcPa (pA; references up to 1500); the step guard of the generated cell catches the rest. True for those model names.
+constexpr double kMaxNestmlWeightNs = 2000.0;
+constexpr double kMaxNestmlDcPa = 2000.0;       // I_e of a NESTML cell
+constexpr double kMaxNestmlInputPa = 1000.0;    // a dc input's effective current (weight x value) onto a NESTML cell
+bool is_nestml_model( const std::string& model );
+
+/// Parse-time budgets (add-only): a circuit that exceeds one is refused with a plain message rather than hanging or exhausting memory.
+constexpr long kMaxNeurons = 20000;           // total over all populations
+constexpr double kMaxConnections = 2.0e6;     // estimated total number of synapses
+constexpr double kMaxDelayMs = 1000.0;
+constexpr double kMaxRateHz = 1.0e5;          // poisson / sinusoidal / tuned rates
+constexpr double kMaxDcPa = 1.0e5;            // constant current (inputs, I_e)
+constexpr double kMaxGapNs = 100.0;           // gap-junction conductance
+constexpr int kMaxJsonDepth = 32;
+constexpr unsigned long long kMaxSeed = 4294967295ULL;  // NEST's RNG seed range is [1, 2^32 - 1]
+
 /// The limit for synapses onto `neuron_model` and its unit ("nS" / "pA"); 0 (unit null) when the model has no limit.
 double weight_limit( const std::string& neuron_model, const char** unit = nullptr );
 
@@ -118,6 +135,7 @@ struct CircuitSpec
   std::vector< int32_t > record_neurons;  // when !record_all
   std::vector< int32_t > record_voltage;
   int32_t n_neurons = 0;
+  double n_connections = 0;  // estimated synapses over all projections (parse-time budget)
 };
 
 /// Parse and validate. On failure returns false and sets `error` to "path.to.field: message".

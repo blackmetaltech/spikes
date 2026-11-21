@@ -50,3 +50,15 @@ Tests: `engine/tests/test_structure.cpp` (new channel kinds: `test_spike_inputs.
 
 ## Additions in 0.6 (add-only): the edge list
 `Engine::connections()` returns every live connection with a non-zero weight as `Engine::Connection { pre, post, weight, projection, j, k }` (circuit-level neuron indices; `j` and `k` are the J and K of a `diffusion_connection`). The memory levels judge who connects to whom on it (symmetry of the weights, recurrent excitation inside a pattern, inhibition between two sets of cells), so the answer does not depend on how the player split the cells into populations: an outer-product Hopfield wiring inside one population is judged like two populations, and a directed random graph is not symmetric. `r_meanfield` compares the J and K of the siegert projections with those of the spiking ones.
+
+## Additions in 0.7 (add-only): projections that share a triple, zero weights, the functional weight floor
+- Two projections with the same (pre, post, synapse model) are two entries of `Structure::projections`, with their own `n_edges`, weights and sign; `connections()`, `set_weight()` and a modulation row address one of them (each gets a private copy of the synapse model, `<model>__p<k>`; `synapse_model` still reports the circuit's name).
+- A zero-weight connection is not a connection: `structure()` (`n_edges`, `w_*`, `indegree_*`) and `connections()` agree.
+- **Functional weight floor.** `has_path`, `has_loop`, `has_loop_via` count any projection with a non-zero weight, so a token 0.001 pA wire "connects" two populations. New overloads take a trailing `double min_weight`: a projection counts only if its strongest connection has `|weight| >= min_weight` (`ProjectionInfo::w_abs_max`, new):
+  ```cpp
+  bool Engine::has_path(from, to, int max_hops, int sign_filter, double min_weight) const;
+  bool Engine::has_loop(pop, int max_hops, int via_sign, double min_weight) const;
+  bool Engine::has_loop_via(pop, via, int max_hops, int sign_filter, double min_weight) const;
+  std::vector<Connection> Engine::connections(double min_abs_weight) const;   // the edge list without the weak connections
+  ```
+  `min_weight <= 0` gives exactly the existing calls. The floor is in the units of the weights (pA onto current-based cells, nS onto conductance-based cells and NESTML cells, mV for `diffusion_connection`), so a task picks it per model, e.g. a fraction of the reference circuit's weight. Cheat circuits (`engine/tests/test_hardening.cpp`, `test_weight_floor`) show the intended use.

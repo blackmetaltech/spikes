@@ -11,6 +11,7 @@ usage: nestml_generate.py <models-dir> <out-dir>
 """
 import glob
 import os
+import re
 import shutil
 import sys
 
@@ -40,6 +41,30 @@ for h in glob.glob(os.path.join(tmp, "*.h")):
     txt = open(h).read()
     if guard in txt:
         open(h, "w").write(txt.replace(guard, "// (ltdl guard removed by scripts/nestml_generate.py: static build)\n"))
+# Stall guard (review P0-2): the generated adaptive-step loop `while ( __t < B_.__step )` has no minimum step, so a strong input drives the step size
+# to ~0 and one update never finishes. Inject (1) a step-count and minimum-step guard that throws GSLSolverFailure (NEST reports it as a failed simulation,
+# the engine turns it into a clean "faulted" error) and (2) a non-finite state check after the loop.
+GUARD_PRE = "    unsigned __spike_guard_iters = 0;\n"
+GUARD_IN = ("      if ( ++__spike_guard_iters > SPIKE_GUARD_MAX_ITERS or not( B_.__integration_step > SPIKE_GUARD_MIN_STEP_MS ) )\n"
+            "      {\n        throw nest::GSLSolverFailure( get_name(), GSL_EFAILED );  // stalled integrator (scripts/nestml_generate.py)\n      }\n")
+GUARD_POST = ("    for ( int __spike_i = 0; __spike_i < State_::STATE_VEC_SIZE; ++__spike_i )\n"
+              "    {\n      if ( not std::isfinite( S_.ode_state[ __spike_i ] ) )\n      {\n"
+              "        throw nest::GSLSolverFailure( get_name(), GSL_EFAILED );  // non-finite state (scripts/nestml_generate.py)\n      }\n    }\n")
+DEFS = ("#ifndef SPIKE_GUARD_MAX_ITERS\n#define SPIKE_GUARD_MAX_ITERS 20000u   // integrator steps per simulation step\n#endif\n"
+        "#ifndef SPIKE_GUARD_MIN_STEP_MS\n#define SPIKE_GUARD_MIN_STEP_MS 1e-9  // ms\n#endif\n")
+loop_re = re.compile(r"(\n)([ \t]*)while \( __t < B_\.__step \)\n([ \t]*)\{\n")
+for c in glob.glob(os.path.join(tmp, "*.cpp")):
+    if os.path.basename(c).startswith("spike_nestml_module"):
+        continue
+    txt = open(c).read()
+    m = loop_re.search(txt)
+    if not m:
+        sys.exit("stall guard: no integration loop found in " + c)
+    end = txt.index("\n    }\n", m.end()) + len("\n    }\n")  # the loop body ends at the first closing brace at the loop's indentation
+    body = txt[m.end():end]
+    txt = txt[:m.start()] + "\n" + GUARD_PRE + m.group(2) + "while ( __t < B_.__step )\n" + m.group(3) + "{\n" + GUARD_IN + body + GUARD_POST + txt[end:]
+    txt = txt.replace('#include "', DEFS + '#include <cmath>\n#include "', 1)
+    open(c, "w").write(txt)
 for f in ("CMakeLists.txt", "spike_nestml_module.cpp", "spike_nestml_module.h"):
     os.remove(os.path.join(tmp, f))
 with open(os.path.join(tmp, "nestml_includes.inc"), "w") as f:
