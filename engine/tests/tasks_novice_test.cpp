@@ -83,7 +83,7 @@ int main( int argc, char** argv )
         json c = circ( { pop( "MNF", 6 ), pop( "MNE", 6 ), pop( "INF", inn ), pop( "INE", inn ) }, { proj( "INF", "MNE", inh, 1.0 ), proj( "INE", "MNF", inh, 1.0 ) },
           { inp( "ag_Ia", "dc", iaw, { "MNF", "INF" }, 40 ), inp( "ant_Ia", "dc", iaw, { "MNE", "INE" }, 40 ), inp( "drive", "dc", 320, { "MNF", "MNE" }, 1 ) },
           { out( "ag_motor", { "MNF" } ), out( "ant_motor", { "MNE" } ) } );
-        judge( "stretch_reflex", "Ia " + std::to_string( iaw ) + " IN " + std::to_string( inn ) + " inh " + std::to_string( inh ), run( "stretch_reflex", c ), true );
+        judge( "stretch_reflex", "Ia " + std::to_string( iaw ) + " IN " + std::to_string( inn ) + " inh " + std::to_string( inh ), run( "stretch_reflex", c ), iaw == 3 );   // (at weight 10 the Ia fibres fire the interneurons: other, true verdicts)
       }
   // ... and once the interneurons get the steady drive too (sr3.py), a moderate inhibition passes
   {

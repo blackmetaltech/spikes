@@ -121,11 +121,11 @@ def core(P=None, renshaw=False, noise=False, name="", task=""):
 
 
 def stretch(P=None):
-    return core(P, name="Stretch reflex with reciprocal Ia inhibition", task="stretch_reflex")
+    return core(dict({"w_IN_MN": -6.9}, **(P or {})), name="Stretch reflex with reciprocal Ia inhibition", task="stretch_reflex")
 
 
 def renshaw(P=None):
-    d = dict(nIa=5, nMN=16, nIN=2, nRC=3, nDesc=2, w_Ia_MN=6.0, w_Ia_IN=3.0, w_IN_MN=-9.0, w_desc_MN=2.0,
+    d = dict(nIa=5, nMN=16, nIN=2, nRC=3, nDesc=2, w_Ia_MN=6.0, w_Ia_IN=3.0, w_IN_MN=-9.0, w_desc_MN=2.3,
              drive_MN=1000.0, w_MN_RC=3.0, w_RC_MN=-10.0)
     d.update(P or {})
     return core(d, renshaw=True, noise=True, name="Stretch reflex with Renshaw recurrent inhibition", task="renshaw")
