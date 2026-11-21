@@ -204,8 +204,9 @@ func _draw_criteria(x: float, top: float, w: float, rows_max: int, line_h: float
 		if i == 0 and rows.size() == 1 and rows_max >= 2:   # the verdict alone: give it two lines
 			draw_multiline_string(f, Vector2(x + 22.0, y + float(fz)), txt, HORIZONTAL_ALIGNMENT_LEFT, w - 22.0, fz, 2, Kit.TEXT)
 			return
-		draw_string(f, Vector2(x + 22.0, y + float(fz)), _fit(f, txt, w - 22.0 - (60.0 if last and rows.size() > rows_max else 0.0), fz), HORIZONTAL_ALIGNMENT_LEFT, w - 22.0, fz, Kit.TEXT if i == 0 else Kit.TEXT_SOFT)
-		if last and rows.size() > rows_max: draw_string(Fonts.italic, Vector2(x + w - 56.0, y + float(fz)), "+%d more" % (rows.size() - rows_max), HORIZONTAL_ALIGNMENT_RIGHT, 56.0, fz, Kit.TEXT_SOFT)
+		var more := "+%d more" % (rows.size() - rows_max); var mw := Fonts.italic.get_string_size(more, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 4.0   # measured: a phone's larger text cut "+1 more" to "+1 mor"
+		draw_string(f, Vector2(x + 22.0, y + float(fz)), _fit(f, txt, w - 22.0 - (mw + 6.0 if last and rows.size() > rows_max else 0.0), fz), HORIZONTAL_ALIGNMENT_LEFT, w - 22.0, fz, Kit.TEXT if i == 0 else Kit.TEXT_SOFT)
+		if last and rows.size() > rows_max: draw_string(Fonts.italic, Vector2(x + w - mw, y + float(fz)), more, HORIZONTAL_ALIGNMENT_RIGHT, mw, fz, Kit.TEXT_SOFT)
 		y += line_h
 
 func _draw_details(x: float, top: float, w: float, rows_max: int, passed: bool) -> void:
