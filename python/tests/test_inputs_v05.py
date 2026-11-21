@@ -74,7 +74,9 @@ def test_projection_modulation_validation():
     assert "plasticity rule" in e
     c = circuit([row])
     c["projections"].append(copy.deepcopy(c["projections"][0]))
-    assert "same populations" in err(C._parse_modulation, c)
+    # projections that share (pre, post, synapse model) are allowed: each gets its own synapse-model copy, so modulation addresses one at a time
+    r = C._parse_modulation(c)
+    assert r[0]["projection"] == 0
 
 
 def test_tsodyks_synapse_rules():
@@ -134,3 +136,21 @@ def test_projection_modulation_applies_to_pynest():
     bad = circuit([{**row, "param": "no_such_param"}])
     with pytest.raises(C.CircuitError, match="no parameter"):
         spike.build(bad)
+
+
+@requires_nest
+def test_shared_projections_modulate_one_at_a_time_in_pynest():
+    import nest
+
+    import spike
+
+    row = {"modulator": "NE", "projection": 1, "param": "U", "gain": 0.4, "min": 0.0, "max": 1.0}
+    c = circuit([row])
+    c["projections"].append(copy.deepcopy(c["projections"][0]))  # same pre, post and synapse model as projection 0
+    net = spike.build(c)
+    a = nest.GetConnections(synapse_model="tsodyks2_synapse__p0")
+    b = nest.GetConnections(synapse_model="tsodyks2_synapse__p1")
+    assert len(a) and len(b)
+    net.set_modulator("NE", 1.0)
+    assert b.get("U") == pytest.approx(0.6)   # only projection 1 follows NE
+    assert a.get("U") == pytest.approx(0.2)
