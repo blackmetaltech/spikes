@@ -96,6 +96,7 @@ func default_focus() -> Control: return back_btn
 ## Esc / B closes the topmost modal (results card, parts bin, More menu, end card or test card) before it leaves the lab.
 func on_back() -> bool:
 	if ConfirmCard.dismiss(): return true
+	if layout.close_extra(): return true
 	if layout.histo_ov != null and is_instance_valid(layout.histo_ov): layout.histo_hide(); return true
 	if layout.parts_ov != null and is_instance_valid(layout.parts_ov): layout.close_parts(); return true
 	if layout.menu != null and is_instance_valid(layout.menu): layout.close_menu(); return true
@@ -103,6 +104,7 @@ func on_back() -> bool:
 		if not _test.is_empty(): _test_cancel()
 		else: _overlay_dismissed = true; layout.overlay_hide()
 		return true
+	if editor != null and editor.cancel_pending(): return true   # a wire being drawn (keyboard, pad, connect tool)
 	return false
 
 func build() -> void:
@@ -166,7 +168,7 @@ func _start(tid: String) -> void:
 		var c := Circuits.parse(txt)
 		if not c.is_empty():
 			if SaveIO.enabled(): Circuits.history_push_file(task_id, _last_path())   # the saved bench stays reachable (More > Restore previous bench) once edits overwrite the autosave
-			circuit = c; loaded = true; _ref_loaded[task_id] = true
+			circuit = c; loaded = true; _set_ref_lock(true)   # stored in the circuit, so an edited copy stays locked after a restart (and after undo)
 	if not loaded and SaveIO.enabled():
 		var r := read_autosave(_last_path())
 		if str(r["error"]) == "":
@@ -371,6 +373,7 @@ func _on_structure() -> void:
 	if task_id != "" and Time.get_ticks_msec() - _last_edit_ms > 1500: Playlog.event("edit", {"task": task_id})
 	_last_edit_ms = Time.get_ticks_msec()
 	_dirty = 0.0; les.reset(); _surprise_done.erase("osc")
+	if editor != null: editor.edit_pending()   # one undo step per burst of edits
 	if editor != null: editor.verdict_target = ""
 	if score_card != null: score_card.guilty = ""
 	if Circuits.neuron_count(circuit) == 0: _set_ref_lock(false)   # an emptied bench is the player's own again; an edited reference is still derived from it
