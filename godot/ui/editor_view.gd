@@ -52,8 +52,18 @@ var _gen := 0                       # bumped at every geometry rebuild: the ink 
 var _ink_key := []; var _paper_key := []
 var _drag := {}                    # {mode: move|connect|pan|band, ...}
 var _connect_from := {}            # tool == connect: the first tap
-var _cards := {}                   # channel card rects (scaled space) by "in:name" / "out:name" (a member of a closed bus: the bus card)
-var _r := 20.0
+var _cards_g := {}                   # channel card rects (scaled space) by "in:name" / "out:name" (a member of a closed bus: the bus card)
+var _rg := 20.0                     # cell radius in geometry space (on screen: _rg times the view's zoom)
+## Compatibility for overlays (the tutorial): the cell radius in screen px, as drawn now.
+var _r: float:
+	get: return _rg * (_world_xf().get_scale().x if not _g.is_empty() else 1.0)
+## Compatibility for overlays (the tutorial): the channel cards' rects in canvas (screen) space, as drawn now, by "in:name" / "out:name"
+## (a channel inside a closed bus maps to the bus card).
+var _cards: Dictionary:
+	get:
+		_geo(); var out := {}
+		for k in _cards_g: out[k] = _g2s_rect(_cards_g[k])
+		return out
 var _fit_pending := true
 var lesion_mode := false           # lesion lab: clicks cut and silence instead of selecting and dragging
 var lesions := {}                  # the lab's lesion set ("proj:<i>", "pop:<id>", "in:<name>"): drawn cut / silenced
@@ -288,7 +298,23 @@ func _card_centre(count: int, i: int, side: int, x0: float, cy: float, pitch: fl
 	var shown_col := col if side > 0 else (cols - 1 - col)   # reading order: on the left the first column is the OUTER one
 	return Vector2(x0 + float(side) * float(shown_col) * (_card_size().x + 14.0), cy + (float(row) - float(rows_here - 1) * 0.5) * pitch)
 
-func to_screen(m: Vector2) -> Vector2: return m * view_scale + view_off
+## A model position (circuit "pos", in µm) to canvas (screen) px, as drawn now: the layout may move a group (spacing, grid rows), so a point is
+## carried with the nearest neuron (exact at a neuron's own position; a large group's ensemble centre stands for its cells).
+func to_screen(m: Vector2) -> Vector2:
+	var g := _geo()
+	if g.is_empty(): return _raw_to_screen(m)
+	var best := Vector2.INF; var bd := INF
+	for p in g["pops"]:
+		var pi: int = p["pi"]; var mp: Array = (circuit["populations"][pi] as Dictionary).get("pos", [])
+		var pts: PackedVector2Array = p.get("pts", PackedVector2Array())   # an ensemble has none: its centre stands for every cell
+		for k in mp.size():
+			var q := Vector2(float(mp[k][0]), float(mp[k][1])); var d := q.distance_squared_to(m)
+			if d < bd:
+				bd = d
+				var at: Vector2 = pts[k] if k < pts.size() else p["c"]
+				best = _g2s(at) + (m - q) * view_scale
+	return best if best != Vector2.INF else _raw_to_screen(m)
+func _raw_to_screen(m: Vector2) -> Vector2: return m * view_scale + view_off
 func to_model(s: Vector2) -> Vector2: return (s - view_off) / view_scale
 
 ## The geometry of the current circuit, view scale and canvas size (rebuilt only when one of them changed).
@@ -425,7 +451,7 @@ func _build(shapes_only := false) -> Dictionary:
 		var arr: PackedVector2Array = per_pop[n["pi"]]; arr.append(q); per_pop[n["pi"]] = arr
 	for pi in pops.size():
 		if Circuits.pop_n(pops[pi]) <= ENSEMBLE_N: small_pts.append_array(per_pop[pi])
-	_r = _calc_radius(small_pts); g["r"] = _r
+	_rg = _calc_radius(small_pts); g["r"] = _rg
 	var lz := Kit.fs(16); var fz := Kit.fs(14)
 	var P := []; var ix := {}; var first := 0
 	for pi in pops.size():
@@ -451,11 +477,11 @@ func _build(shapes_only := false) -> Dictionary:
 		else:
 			p["pts"] = pts; p["c"] = c
 			if n > 1:
-				p["box"] = Rect2(lo, hi - lo).grow(_r + 9.0); p["rad"] = 0.0
+				p["box"] = Rect2(lo, hi - lo).grow(_rg + 9.0); p["rad"] = 0.0
 				for q in pts: p["rad"] = maxf(float(p["rad"]), q.distance_to(c))
-				p["rad"] = float(p["rad"]) + _r + 8.0
+				p["rad"] = float(p["rad"]) + _rg + 8.0
 			else:
-				p["box"] = Rect2(c - Vector2(_r, _r), Vector2(_r, _r) * 2.0); p["rad"] = _r
+				p["box"] = Rect2(c - Vector2(_rg, _rg), Vector2(_rg, _rg) * 2.0); p["rad"] = _rg
 		ix[id] = P.size(); P.append(p)
 	# push the outlines (each with room for its label underneath) POP_GAP apart
 	var boxes := []
@@ -493,7 +519,7 @@ func _build(shapes_only := false) -> Dictionary:
 	for items in [items_in, items_out]:
 		var cnt2: int = (items as Array).size(); var per2 := ceili(float(cnt2) / float(_card_cols(cnt2)))
 		if per2 > 1: pitch = minf(pitch, maxf((size.y - 16.0 - inset_bottom - card_h) / float(per2 - 1), card_h * 0.6))
-	var items := []; _cards = {}
+	var items := []; _cards_g = {}
 	for side in [-1, 1]:
 		var list: Array = items_in if side < 0 else items_out
 		for i in list.size():
@@ -504,8 +530,8 @@ func _build(shapes_only := false) -> Dictionary:
 			it["rect"] = r; it["col"] = _card_col_index(list.size(), i, side)
 			items.append(it)
 			if str(it["type"]) != "head":
-				for nm in it["names"]: _cards[str(it["side"]) + ":" + str(nm)] = r
-			_cards[str(it["key"])] = r
+				for nm in it["names"]: _cards_g[str(it["side"]) + ":" + str(nm)] = r
+			_cards_g[str(it["key"])] = r
 	g["items"] = items
 	var full := bb; g["bbp"] = bb.grow(8.0)
 	for it in items: full = full.merge(it["rect"])
@@ -607,7 +633,7 @@ func _build(shapes_only := false) -> Dictionary:
 		if p["ens"]: _grid_add(grid, p["box"], [1, i, 0])
 		else:
 			var pts3: PackedVector2Array = p["pts"]
-			for k in pts3.size(): _grid_add(grid, Rect2(pts3[k] - Vector2(_r + 5.0, _r + 5.0), Vector2(_r + 5.0, _r + 5.0) * 2.0), [0, i, k])
+			for k in pts3.size(): _grid_add(grid, Rect2(pts3[k] - Vector2(_rg + 5.0, _rg + 5.0), Vector2(_rg + 5.0, _rg + 5.0) * 2.0), [0, i, k])
 	var agrid := {}   # axons: the cells their sample points fall in (a query looks at the 3 x 3 cells around it)
 	for pj in axons.size():
 		var ax: Dictionary = axons[pj]
@@ -698,7 +724,7 @@ func _loop(p: Dictionary, obstacles: Array) -> PackedVector2Array:
 func _loop_dir(p: Dictionary, dir: Vector2) -> PackedVector2Array:
 	var c: Vector2 = p["c"]; var t := dir.orthogonal()
 	var b := _edge_pt(p, dir)
-	var span := clampf(float(p["rad"]), _r, 70.0); var loop := minf(span, 60.0)
+	var span := clampf(float(p["rad"]), _rg, 70.0); var loop := minf(span, 60.0)
 	if p["ens"]: loop = clampf(minf(float(p["rx"]), float(p["ry"])) * 0.5, 24.0, 60.0)
 	return PackedVector2Array([b - t * loop * 0.4, b - t * loop * 1.5 + dir * loop * 1.7, b + t * loop * 1.5 + dir * loop * 1.7, b + t * loop * 0.4])
 
@@ -740,7 +766,7 @@ func _world_xf() -> Transform2D:
 func card_rect(channel: String) -> Rect2:
 	var g := _geo(); if g.is_empty(): return Rect2()
 	for k in [channel, "in:" + channel, "out:" + channel]:
-		if _cards.has(k): return _g2s_rect(_cards[k])
+		if _cards_g.has(k): return _g2s_rect(_cards_g[k])
 	return Rect2()
 
 ## The outline of population `index` (file order) as drawn. Rect2() when out of range.
@@ -942,13 +968,13 @@ func _ink_cells(ci: CanvasItem, p: Dictionary, col: Color, silenced: bool) -> vo
 	var pts: PackedVector2Array = p["pts"]; var first: int = p["first"]
 	if int(p["n"]) > 1 and p.has("box"): Gfx.dashed(ci, _group_outline(p["box"]), Color(col, 0.3), 1.0, 2.0, 5.0)
 	if not silenced:
-		for k in pts.size(): Gfx.wash(ci, pts[k], _r * 1.5, col, 0.09, (first + k) * 3 + 1)
+		for k in pts.size(): Gfx.wash(ci, pts[k], _rg * 1.5, col, 0.09, (first + k) * 3 + 1)
 	for k in pts.size():
 		var gi := first + k; var q := pts[k]
-		Gfx.soma(ci, q, _r, col, gi * 7 + 3, 0.0, 0.65 if silenced else 0.0, _r >= 9.0)
+		Gfx.soma(ci, q, _rg, col, gi * 7 + 3, 0.0, 0.65 if silenced else 0.0, _rg >= 9.0)
 		if silenced:
-			ci.draw_arc(q, _r + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
-			ci.draw_line(q + Vector2(-_r, _r) * 0.75, q + Vector2(_r, -_r) * 0.75, Kit.RED, 3.0, true)
+			ci.draw_arc(q, _rg + 4.0, 0, TAU, 40, Color(Kit.RED, 0.95), 2.4, true)
+			ci.draw_line(q + Vector2(-_rg, _rg) * 0.75, q + Vector2(_rg, -_rg) * 0.75, Kit.RED, 3.0, true)
 
 func _group_outline(bx: Rect2) -> PackedVector2Array:   # a rounded rectangle round a group's stain, closed
 	var gpts := PackedVector2Array(); var cnr := minf(minf(bx.size.x, bx.size.y) * 0.5, 30.0)
@@ -966,10 +992,10 @@ func _live_cells(p: Dictionary, col: Color, isel: bool, ihov: bool, silenced: bo
 		var gi := first + k; var q := pts[k]; var f := _flash(gi)
 		var volt: bool = tele != null and tele.volt.has(gi); var pin: bool = tele != null and tele.watched.has(gi)
 		if f <= 0.02 and not (isel or ihov or volt or pin): continue
-		var rr := _r * (1.0 + (0.08 * f if Kit.motion() else 0.0))
+		var rr := _rg * (1.0 + (0.08 * f if Kit.motion() else 0.0))
 		if ihov and not isel: draw_circle(q, rr + 5.0, Color(Kit.GAMBOGE, 0.25))
 		if not silenced and (f > 0.02 or (ihov and not isel)):
-			Gfx.spike_stain(self, q, _r, col, f, gi * 3 + 2)
+			Gfx.spike_stain(self, q, _rg, col, f, gi * 3 + 2)
 			Gfx.soma(self, q, rr, col, gi * 7 + 3, f, 0.0, false)
 		if volt:   # membrane potential as a thin arc of the traced neurons
 			var a: PackedFloat32Array = tele.volt[gi]
@@ -1124,8 +1150,8 @@ func _draw_cursor(h: Dictionary) -> void:
 ## Scaled-space rect of a hit element (a card, a population's outline); `screen`: editor-local instead.
 func _anchor_rect(h: Dictionary, screen := true) -> Rect2:
 	var g := _geo(); var r := Rect2()
-	if h.has("key") and _cards.has(str(h["key"])): r = _cards[str(h["key"])]
-	elif str(h.get("t", "")) in ["in", "out"] and _cards.has(str(h["t"]) + ":" + str(h.get("name", ""))): r = _cards[str(h["t"]) + ":" + str(h.get("name", ""))]
+	if h.has("key") and _cards_g.has(str(h["key"])): r = _cards_g[str(h["key"])]
+	elif str(h.get("t", "")) in ["in", "out"] and _cards_g.has(str(h["t"]) + ":" + str(h.get("name", ""))): r = _cards_g[str(h["t"]) + ":" + str(h.get("name", ""))]
 	elif str(h.get("t", "")) == "pop":
 		var ix: Dictionary = g.get("ix", {})
 		if ix.has(str(h["id"])): r = g["pops"][int(ix[str(h["id"])])]["box"]
@@ -1168,7 +1194,7 @@ func _element(name: String, pops: Array, axons: Array) -> Dictionary:
 	var pd := _pop_dict(pops, key)
 	if not pd.is_empty(): return {"k": "pop", "c": pd["c"], "rad": pd["rad"], "box": pd["box"], "has_box": int(pd["n"]) > 1, "ens": pd["ens"], "rx": pd.get("rx", 0.0), "ry": pd.get("ry", 0.0)}
 	for cand in [name, "in:" + name, "out:" + name]:
-		if _cards.has(cand): return {"k": "rect", "r": _cards[cand]}
+		if _cards_g.has(cand): return {"k": "rect", "r": _cards_g[cand]}
 	return {}
 
 func _mark(el: Dictionary, col: Color, pulse: float) -> void:
@@ -1201,8 +1227,8 @@ func _draw_marks(pops: Array, axons: Array, now: float) -> void:
 	for i in trail.size():
 		var nm := str(trail[i])
 		if nm.begins_with("in:") or nm.begins_with("out:"):
-			if not _cards.has(nm): continue
-			var r: Rect2 = _cards[nm]
+			if not _cards_g.has(nm): continue
+			var r: Rect2 = _cards_g[nm]
 			pts.append(Vector2(r.end.x, r.get_center().y) if nm.begins_with("in:") else Vector2(r.position.x, r.get_center().y)); continue
 		var pd := _pop_dict(pops, nm)
 		if pd.is_empty(): continue
@@ -1284,7 +1310,7 @@ func _hit(p: Vector2) -> Dictionary:
 		if int(item[0]) == 0:
 			var pd: Dictionary = P[int(item[1])]; var pt: Vector2 = (pd["pts"] as PackedVector2Array)[int(item[2])]
 			var d := pt.distance_to(q)
-			if d <= _r + 5.0 and d < bd: bd = d; best = {"t": "pop", "id": pd["id"], "rim": d > _r * 0.62, "at": _g2s(pt)}
+			if d <= _rg + 5.0 and d < bd: bd = d; best = {"t": "pop", "id": pd["id"], "rim": d > _rg * 0.62, "at": _g2s(pt)}
 	if not best.is_empty(): return best
 	for item in cand:
 		if int(item[0]) == 1:
@@ -1426,14 +1452,14 @@ func _press(p: Vector2, shift := false) -> void:
 			else: _drag = {"mode": "move", "ids": msel.keys() if msel.has(id) else [id], "last": p, "moved": false}
 		return
 	if str(h.get("bus", "")) == "bus":
-		var r: Rect2 = _g2s_rect(_cards[str(h["key"])])
+		var r: Rect2 = _g2s_rect(_cards_g[str(h["key"])])
 		if editable and ((h["t"] == "in" and p.x > r.end.x - 26.0) or (h["t"] == "out" and p.x < r.position.x + 26.0)):
 			select(h); _drag = {"mode": "connect", "src": h, "from_pt": Vector2(r.end.x, r.get_center().y) if h["t"] == "in" else Vector2(r.position.x, r.get_center().y), "to": p}
 			return
 		_toggle_bus(h); select(h); return
 	select(h)
 	if h["t"] == "in" and editable and h["name"] != "":
-		var r2: Rect2 = _g2s_rect(_cards["in:" + str(h["name"])])
+		var r2: Rect2 = _g2s_rect(_cards_g["in:" + str(h["name"])])
 		if p.x > r2.end.x - 26.0: _drag = {"mode": "connect", "src": h, "from_pt": Vector2(r2.end.x, r2.get_center().y), "to": p}
 
 func _release(p: Vector2, shift := false) -> void:
@@ -1608,7 +1634,7 @@ func duplicate_selection() -> Dictionary:
 	var ids := selected_pops()
 	if ids.is_empty(): return {"error": "nothing selected"}
 	var f := CircuitClip.fragment(circuit, ids, false)
-	var r := paste_fragment(f, to_screen(CircuitClip.center(f) + Vector2(60.0, 60.0)))
+	var r := paste_fragment(f, _raw_to_screen(CircuitClip.center(f) + Vector2(60.0, 60.0)))
 	if not r.has("error"): note("Duplicated %d group%s" % [ids.size(), "" if ids.size() == 1 else "s"])
 	return r
 
