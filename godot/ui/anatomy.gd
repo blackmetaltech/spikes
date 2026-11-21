@@ -232,14 +232,14 @@ static func _lung_pts(side_pts: Array, left: bool, vol: float) -> PackedVector2A
 	for p in side_pts: pts.append(Vector2(0.5 + (p.x - 0.5) * kx, 0.115 + (p.y - 0.115) * ky))
 	# medial border from the apex down: the cardiac notch bites into the left lung
 	var med: Array = []
-	if left: med = [Vector2(0.56, 0.38), Vector2(0.575, 0.50), Vector2(0.60, 0.58), Vector2(0.585, 0.68), Vector2(0.575, 0.78)]
+	if left: med = [Vector2(0.56, 0.36), Vector2(0.585, 0.46), Vector2(0.65, 0.53), Vector2(0.685, 0.61), Vector2(0.655, 0.69), Vector2(0.60, 0.74), Vector2(0.585, 0.80)]   # the cardiac notch
 	else: med = [Vector2(0.455, 0.38), Vector2(0.455, 0.54), Vector2(0.46, 0.68), Vector2(0.465, 0.78)]
 	var all := []
 	# order: lateral base -> up the lateral side -> apex -> down the medial border -> medial base -> along the dome back to the lateral base
 	var rev: Array = pts.duplicate(); rev.reverse()
 	for p in rev: all.append(p)
 	for p in med: all.append(Vector2(0.5 + (p.x - 0.5) * kx, 0.115 + (p.y - 0.115) * ky))
-	var x_med := (0.575 if left else 0.465); var x_lat := (0.90 if left else 0.10)
+	var x_med := (0.585 if left else 0.465); var x_lat := (0.90 if left else 0.10)
 	var xm := 0.5 + (x_med - 0.5) * kx; var xl := 0.5 + (x_lat - 0.5) * kx
 	for k in 7:
 		var x := lerpf(xm, xl, float(k) / 6.0); all.append(Vector2(x, _dome(x, vol) - 0.012))
@@ -263,7 +263,7 @@ static func lungs(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	var P := func(p: Vector2) -> Vector2: return o + p * s
 	var kx := 0.90 + 0.12 * vol; var ky := 0.95 + 0.08 * vol
 	var mp := func(p: Vector2) -> Vector2: return o + Vector2(0.5 + (p.x - 0.5) * kx, 0.115 + (p.y - 0.115) * ky) * s
-	var cy := Color(Kit.CYAN)
+	var cy := Color(Kit.INK)   # ink rims and airways: blue is for inhibition only
 	# the lungs
 	var outl := {}
 	for side in 2:
@@ -272,7 +272,7 @@ static func lungs(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		outl[side] = poly
 		ci.draw_colored_polygon(poly, Color("#F3E2DC", al).lerp(Color("#E2A497", al), vol * 0.85))
 		Gfx.hatch(ci, poly, -PI * 0.3 if left else PI * 0.3, maxf(s * 0.016, 4.5), Color(Kit.INK, 0.10 * al), 1.0)
-		Gfx.glow(ci, centroid(poly), s * 0.42, Color(cy, (0.03 + 0.10 * vol) * al))
+		Gfx.glow(ci, centroid(poly), s * 0.42, Color(OXY, (0.03 + 0.10 * vol) * al))
 	# fissures: oblique and horizontal on the right, oblique on the left
 	var fis := [[[Vector2(0.056, 0.60), Vector2(0.24, 0.53), Vector2(0.46, 0.70)]], [[Vector2(0.06, 0.45), Vector2(0.25, 0.43), Vector2(0.455, 0.40)]], [[Vector2(0.944, 0.60), Vector2(0.76, 0.53), Vector2(0.575, 0.66)]]]
 	for f in fis:
@@ -281,20 +281,27 @@ static func lungs(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		ci.draw_polyline(Gfx.cr_spline(line, 6), Color(cy, 0.30 * al), 1.4, true)
 	for side in 2:
 		var poly: PackedVector2Array = outl[side]; var cl := poly.duplicate(); cl.append(poly[0])
-		ci.draw_polyline(cl, Color(cy, 0.16 * al), 7.0, true); ci.draw_polyline(cl, Color(cy, (0.70 + 0.2 * vol) * al), 2.0, true)
+		ci.draw_polyline(cl, Color(OXY, 0.10 * al), 7.0, true); ci.draw_polyline(cl, Color(cy, (0.70 + 0.2 * vol) * al), 1.8, true)
 	# trachea with cartilage rings, carina, bronchial tree
 	var tr_top := P.call(Vector2(0.5, 0.0)) as Vector2; var carina := P.call(Vector2(0.5, 0.31)) as Vector2
-	pipe(ci, PackedVector2Array([tr_top, carina]), s * 0.026, Color("#EFE3D3", al), Color(cy, 0.85 * al), 1.6)
-	for k in 9:
-		var y := lerpf(0.02, 0.29, float(k) / 8.0); ci.draw_line(P.call(Vector2(0.488, y)), P.call(Vector2(0.512, y)), Color(cy, 0.35 * al), 1.0, true)
+	# the trachea: a straight tube of C-shaped cartilage rings under the larynx (a broad shield of thyroid cartilage), not a bulb
+	var tw := s * 0.030
+	ci.draw_rect(Rect2(tr_top.x - tw, tr_top.y, tw * 2.0, carina.y - tr_top.y), Color("#EFE3D3", al))
+	for k in 10:
+		var y := lerpf(0.06, 0.30, float(k) / 9.0); var yc := (P.call(Vector2(0.5, y)) as Vector2).y
+		ci.draw_arc(Vector2(tr_top.x, yc - tw * 0.5), tw, 0.25, PI - 0.25, 10, Color(cy, 0.5 * al), maxf(s * 0.007, 1.4), true)
+	ci.draw_line(Vector2(tr_top.x - tw, tr_top.y), Vector2(carina.x - tw, carina.y - tw * 0.3), Color(cy, 0.85 * al), 1.5, true)
+	ci.draw_line(Vector2(tr_top.x + tw, tr_top.y), Vector2(carina.x + tw, carina.y - tw * 0.3), Color(cy, 0.85 * al), 1.5, true)
+	var lx := PackedVector2Array([P.call(Vector2(0.455, -0.03)), P.call(Vector2(0.545, -0.03)), P.call(Vector2(0.535, 0.03)), P.call(Vector2(0.5, 0.055)), P.call(Vector2(0.465, 0.03))])
+	shape(ci, lx, Color("#E8D9C4", al), Color(cy, 0.85 * al), 1.4)
 	var tips := []
-	var bcol := Color(cy.lightened(0.15), 0.78 * al)
+	var bcol := Color(BONE, 0.75 * al)
 	if bool(st.get("tree", true)):
-		for side in 2:
+		for side in 2:   # both trees: the right main bronchus short and steep, the left longer and more horizontal (it passes over the heart)
 			var left := side == 1
-			var ang := (0.62 if left else -0.48)
-			_bronchi(ci, Vector2(0.5, 0.31), ang, 0.12, 0.020, 5, left, mp, s, bcol, tips)
-		for tp in tips: Gfx.glow(ci, tp, s * (0.018 + 0.016 * vol), Color(cy, (0.10 + 0.35 * vol) * al))   # alveoli fill as the lungs inflate
+			var ang := (0.95 if left else -0.62)
+			_bronchi(ci, Vector2(0.5, 0.31), ang, 0.15 if left else 0.11, 0.020, 5, left, mp, s, bcol, tips)
+		for tp in tips: Gfx.glow(ci, tp, s * (0.018 + 0.016 * vol), Color(OXY, (0.10 + 0.35 * vol) * al))   # alveoli fill as the lungs inflate
 	if bool(st.get("diaphragm", true)):
 		var dome := PackedVector2Array()
 		for k in 41:
@@ -474,7 +481,7 @@ static func limb(ci: CanvasItem, sh: Vector2, el: Vector2, hd: Vector2, st: Dict
 		var ag := k == 0
 		var act := clampf(float(st.get("ag" if ag else "ant", 0.2)), 0.0, 1.0); var ia := clampf(float(st.get("ia_ag" if ag else "ia_ant", 0.0)), 0.0, 1.0)
 		var sd := 1.0 if ag else -1.0
-		var col := Kit.exc() if ag else Kit.inh()
+		var col := Kit.exc() if ag else Specimens.SLATE   # the antagonist is a muscle, not an inhibitory cell: hatched slate, never Prussian blue
 		var o_pt := sh + dh * lh * (0.28 if ag else 0.22) + nhh * sd * uw * (1.1 if ag else 1.0)
 		var i_pt := el + d * u * (0.20 if ag else 0.06) + nf * sd * uw * (1.0 if ag else 0.55)
 		var bow := (nhh + nf).normalized() * sd
@@ -491,6 +498,7 @@ static func limb(ci: CanvasItem, sh: Vector2, el: Vector2, hd: Vector2, st: Dict
 		var fill := Color("#F1DDD2").lerp(col.darkened(0.35), 0.35 + 0.65 * act)
 		Gfx.glow(ci, path[path.size() / 2], u * 0.5, Color(col, 0.28 * act * al))
 		ci.draw_colored_polygon(left, Color(fill, 0.96 * al))
+		if not ag: Gfx.hatch(ci, left, -0.6, maxf(uw * 0.28, 3.0), Color(Kit.INK, (0.22 + 0.25 * act) * al), 1.0)
 		var cl := left.duplicate(); cl.append(left[0])
 		ci.draw_polyline(cl, Color(col, (0.55 + 0.45 * act) * al), 1.8, true)
 		for fi in 3:   # muscle fibres
