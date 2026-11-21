@@ -27,6 +27,10 @@ from ink import (BODY, BONE, EXC, EXC_INK, FISH, GAMBOGE, GRAY, GUT, H, INH, INK
 
 OUT = ROOT / "godot" / "assets" / "plates"
 
+# The recovery nullcline is not an inhibitory cell: slate, as in the lab's phase plane (blue is for inhibition only).
+SLATE = hexc("#6B7A86")
+SLATE_INK = hexc("#4E5B66")
+
 # The three spine levels of every wing chapter sit on a gentle arc (Campaign.PLANNED in godot/game/campaign.gd).
 PINS = [(0.2, 0.62), (0.5, 0.36), (0.8, 0.62)]
 LEVELS = {
@@ -51,6 +55,13 @@ FIGS = {
     "fly_compass": [(90, 180, 320, 360, 40), (1450, 180, 420, 200, 40), (1370, 960, 610, 130, 40), (1740, 1150, 160, 60, 40)],
     "fly_mb": [(90, 180, 230, 260, 40), (1620, 1150, 260, 60, 40)],
     "crab": [(70, 120, 310, 290, 40), (1390, 140, 520, 250, 40), (190, 500, 1620, 700, 15), (1680, 1130, 220, 70, 40)]}
+
+
+# Specimen mode (tools/art/specimens.py): the same drawings without their lettering, insets and the parts the lab animates
+# live (heart tubes, gill, STG, Kenyon cells...); each organism then records the geometry of those parts in ANCH[<id>] (plate
+# px) and returns before its lettering. False for the map plates, which this switch leaves pixel for pixel as they were.
+SPEC = False
+ANCH = {}
 
 
 def pin_px(i):
@@ -146,6 +157,8 @@ def worm():
     xs = np.linspace(150, 1840, 120)
     ys = 612 + 163 * np.cos(2 * np.pi * (xs - 400) / 1200)
     ys += 30 * np.exp(-((xs - 1840) / 160) ** 2)   # the tail flicks down a little
+    if SPEC:   # straight, for the lab's bending strip (the game lays it along the crawling centreline)
+        ys = np.full_like(xs, 612.0)
     sp = Spine(np.c_[xs, ys], 900)
     R = 60.0   # half-width at mid-body: length / width about 16
 
@@ -238,6 +251,12 @@ def worm():
         pl.circle(sp.at(0.100, prof(0.1) * off), lw(4.6), EXC, None, 0.95)
     pl.circle(sp.at(0.918, 0), lw(4.0), EXC, None, 0.95)
     pl.stroke(sp.line(0.103, 0.88, lambda u: prof(u) * 0.74, 300), EXC, 0.65, 1.1)
+    if SPEC:
+        pl.stroke(body, BODY, 0.6, 1.8, closed=True)
+        ANCH["worm"] = dict(x0=float(sp.at(0)[0]), x1=float(sp.at(1)[0]), y=612.0, R=R, prof=[float(prof(u)) for u in np.linspace(0, 1, 101)],
+                            cells={"ALM": [0.43, -0.30], "AVM": [0.33, 0.62], "PLM": [0.935, -0.20], "PVM": [0.62, 0.66],
+                                   "AVA": [0.100, -0.35], "AVB": [0.100, 0.25], "PVC": [0.918, 0.0], "ring": [0.088, 0.0]})
+        return pl
     # Fig. 2: the touch circuit, after Chalfie et al. 1985 (anterior touch -> AVD/AVA -> backward; posterior -> PVC -> AVB -> forward)
     ox, oy = 1190, 140
     fig(pl, ox, oy, 2, "The touch circuit.")
@@ -353,7 +372,7 @@ def leech():
             for off in (-0.82, -0.56, -0.25, 0.25, 0.56, 0.82):
                 pl.circle(sp.at(u + 0.0045, prof(u) * off), lw(1.7), INK, None, 0.55)
     # heart tubes: lateral vessels with segmental bulges
-    for sg in (-1, 1):
+    for sg in (() if SPEC else (-1, 1)):
         ht = sp.line(0.06, 0.92, lambda u: sg * prof(u) * 0.60, 300)
         pl.stroke(ht, WALL, 0.55, 4.0)
         for u in np.linspace(0.14, 0.86, 21):
@@ -369,7 +388,7 @@ def leech():
             for du in (-0.004, 0.004):
                 pl.stroke([sp.at(u + du, sg * R * 0.06), sp.at(u + du * 2.2, sg * prof(u) * 0.52)], INK, 0.35, 0.8)
         e = ellipse(c, R * 0.085, R * 0.062, math.atan2(t[1], t[0]))
-        hn = i in (2, 3)
+        hn = i in (2, 3) and not SPEC
         if hn:
             pl.wash(c, R * 0.30, INH, 0.30)
         pl.shape(e, INH if hn else hexc("#CFC6B4"), INK, 0.85 if hn else 1.0, 0.8, 1.2)
@@ -383,6 +402,11 @@ def leech():
         for sg in (-1, 1):
             pl.circle(sp.at(u, sg * prof(u) * 0.55), lw(2.6), INK, None, 0.85)
     pl.stroke(body, FISH, 0.75, 1.8, closed=True)
+    if SPEC:
+        ANCH["leech"] = dict(tubes=[[sp.line(0.06, 0.92, lambda u, sg=sg: sg * prof(u) * 0.60, 60).tolist(), [float(prof(u) * 0.60 / 0.60) for u in np.linspace(0.06, 0.92, 60)]] for sg in (-1, 1)],
+                             bulges=[[sp.at(u, sg * prof(u) * 0.60).tolist() for u in np.linspace(0.14, 0.86, 21)] for sg in (-1, 1)],
+                             hn=[sp.at(gang[2]).tolist(), sp.at(gang[3]).tolist()], hn_r=R * 0.085, R=R)
+        return pl
     # lettering
     pl.label("Hirudo medicinalis", (1290, 150), INK, 17, slip=0)
     pl.label("dorsal view; nerve cord and heart tubes seen through", (1290, 150 + 30 * S), SOFT, 13, slip=0)
@@ -467,7 +491,7 @@ def aplysia():
     # ctenidium: a plume on an axis, leaflets on both sides, tapering to the tip
     gax = Spine(catmull([(1120, 556), (1000, 580), (880, 602), (780, 630)], 10), 120)
     pl.clip(win)
-    for k in range(34):
+    for k in (range(0) if SPEC else range(34)):
         u = 0.03 + 0.94 * k / 33
         c = gax.at(u)
         ln = 62 * (1 - 0.65 * u) * (0.85 + 0.15 * math.sin(k * 1.7))
@@ -476,7 +500,8 @@ def aplysia():
             leaf = catmull([c, (c + tip) / 2 + gax.tangent(u) * 7, tip], 6)
             pl.stroke(leaf, WALL, 0.55, 3.2)
             pl.stroke(leaf, hexc("#E7B9A8"), 0.9, 1.2)
-    pl.stroke(gax.line(0, 1, 0, 40), WALL, 0.85, 3.0)
+    if not SPEC:
+        pl.stroke(gax.line(0, 1, 0, 40), WALL, 0.85, 3.0)
     pl.unclip()
     pl.stroke(win, BODY, 0.8, 1.6, closed=True)
     pl.stroke(ellipse((952, 590), 215, 112, -0.06, 96)[10:44], BODY, 0.45, 3.5)   # the cut thickness of the flap
@@ -504,12 +529,17 @@ def aplysia():
     siph_n = catmull([abd, (660, 680), (620, 580), (595, 500), sax.at(0.6)], 12)
     pl.stroke(siph_n, SENSOR, 0.9, 1.8)
     bran_n = catmull([abd, (740, 700), (780, 650), gax.at(0.95)], 12)
-    pl.stroke(bran_n, MOTOR, 0.9, 1.8)
-    pl.wash(abd, 56, EXC, 0.28)
+    if not SPEC:
+        pl.stroke(bran_n, MOTOR, 0.9, 1.8)
+        pl.wash(abd, 56, EXC, 0.28)
     ag = ellipse(abd, 30, 21, -0.3)
     pl.shape(ag, hexc("#E9C9A0"), EXC, 1, 0.9, 1.4)
     pl.stipple(ag, 30, NUC, 0.55, 3.2, seed=9)
     pl.stroke(body, BODY, 0.65, 1.8, closed=True)
+    if SPEC:
+        ANCH["aplysia"] = dict(gill=gax.line(0, 1, 0, 34).tolist(), win=win.tolist(), siphon=sax.line(0, 1, 0, 12).tolist(), siphon_tip=sax.at(1.0).tolist(),
+                               bran=bran_n.tolist(), siph_n=siph_n.tolist(), abd=abd.tolist(), tail=[200.0, 862.0], head=[1680.0, 744.0])
+        return pl
     # lettering
     pl.label("Aplysia californica", (1300, 150), INK, 17, slip=0)
     pl.label("from the right side; the parapodium cut away over the gill", (1300, 150 + 30 * S), SOFT, 13, slip=0)
@@ -671,10 +701,14 @@ def crab():
             pl.stroke([C + np.array([sg * 120, 70]), C + np.array([sg * dx, 70 + dy - 60])], EXC, 0.7, 1.1)
     for c, r in [(og, 13)] + [(cg, 17) for cg in cogs]:
         pl.circle(c, r, hexc("#E9C9A0"), EXC, 1, 0.9, 1.4)
-    pl.wash(stg, 46, EXC, 0.35)
-    pl.shape(ellipse(stg, 22, 16), hexc("#E9C9A0"), EXC, 1, 0.95, 1.6)
-    pl.stipple(ellipse(stg, 20, 14), 20, NUC, 0.6, 3.2, seed=4)
+    if not SPEC:
+        pl.wash(stg, 46, EXC, 0.35)
+        pl.shape(ellipse(stg, 22, 16), hexc("#E9C9A0"), EXC, 1, 0.95, 1.6)
+        pl.stipple(ellipse(stg, 20, 14), 20, NUC, 0.6, 3.2, seed=4)
     pl.stroke(cara, BODY, 0.75, 1.8, closed=True)
+    if SPEC:
+        ANCH["crab"] = dict(stg=stg.tolist(), og=og.tolist(), dvn=dvn.tolist(), pyn=[(C + np.array([sg * 120, 70])).tolist() for sg in (1, -1)], C=C.tolist())
+        return pl
     # lettering
     pl.label("Cancer borealis", (1000, 120), INK, 17, "c", slip=0)
     pl.label("dorsal view; the stomatogastric nervous system drawn through the carapace", (1000, 120 + 30 * S), SOFT, 13, "c", slip=0)
@@ -946,7 +980,7 @@ def fly_mb():
         pl.shape(lh, SENSOR, SENSOR, 0.16, 0.7, 1.2)
         # Kenyon-cell bodies: a cap of small cells over the calyx
         rng = np.random.default_rng(20 + sg)
-        for k in range(110):
+        for k in range(0 if SPEC and sg == 1 else 110):
             a, r = rng.uniform(0, 2 * math.pi), math.sqrt(rng.uniform(0, 1))
             q = X(290, -262) + np.array([math.cos(a) * 92 * r, math.sin(a) * 52 * r])
             pl.circle(q, 6.5, KCF, EXC, 0.9, 0.45, 0.8)
@@ -982,6 +1016,15 @@ def fly_mb():
     # one side in more detail: three Kenyon cells, dopamine neurons, an output neuron
     R = lab[1]
     X = lambda x, y: P(x, y)
+    if SPEC:
+        ANCH["fly_mb"] = dict(kc_c=X(290, -262).tolist(), kc_r=[92.0, 52.0], cal=R["cal"].tolist(), vl=R["vl"].line(0, 1, 0, 30).tolist(),
+                              hl=R["hl"].line(0, 1, 0, 30).tolist(), ped=R["ped"].line(0, 1, 0, 20).tolist(), heel=X(196, 44).tolist(),
+                              ppl1=X(250, -330).tolist(), ppl1_path=catmull([X(250, -330), X(215, -300), R["vl"].at(0.84, 6)], 8).tolist(),
+                              pam=[X(70 + 14 * k, 140 - 8 * k).tolist() for k in range(4)],
+                              pam_paths=[catmull([X(70 + 14 * k, 140 - 8 * k), X(70 + 14 * k, 100 - 8 * k), R["hl"].at(0.35 + 0.15 * k, 20)], 8).tolist() for k in range(4)],
+                              mbon=catmull([R["vl"].at(0.9, -10), X(130, -300), X(60, -320)], 8).tolist(), apl=R["apl"].tolist(), lh=R["lh"].tolist(),
+                              al=X(120, 170).tolist())
+        return pl
     for k, (sx, sy) in enumerate(((250, -290), (300, -278), (330, -258))):
         kc = catmull([X(sx, sy), X(290 - 10 * k, -190), R["ped"].at(0.5, -6 + 6 * k), X(196, 44)], 10)
         pl.stroke(kc, EXC, 0.9, 1.0)
@@ -1105,7 +1148,7 @@ def dynamics():
         pl.stroke(cub, EXC, 0.9, 2.6)
         lin = np.array([M(v, (v + 0.7) / 0.8) for v in vv])
         lin = lin[(lin[:, 1] > y0) & (lin[:, 1] < y0 + h)]
-        pl.stroke(lin, INH, 0.9, 2.4)
+        pl.stroke(lin, SLATE, 0.9, 2.4)
         fv, fw = fhn_fp(I)
         if I < 0.33:
             tr = fhn(I, fv + 0.62, fw + 0.32, 200)
@@ -1130,7 +1173,7 @@ def dynamics():
             pl.label("unstable fixed point", tuple(M(fv, fw) + np.array([-24, 46])), INK, 13, "r")
         axes(pl, x0 + 40, y0, w - 40, h, "v", "w", origin=(M(0, 0)[0], M(0, wr[0])[1]))
         pl.label("v-nullcline", tuple(M(1.95, 1.95 - 1.95 ** 3 / 3 + I) + np.array([10, -18])), EXC_INK, 13, leader=tuple(M(1.8, 1.8 - 1.8 ** 3 / 3 + I)))
-        pl.label("w-nullcline", tuple(M(1.0, 2.1) + np.array([24, 0])), INH, 13)
+        pl.label("w-nullcline", tuple(M(1.0, 2.1) + np.array([24, 0])), SLATE_INK, 13)
     # Fig. 3: v(t) for both, as the pen draws it
     bx, by, bw = 680, 850, 640
     pl.label("Fig. 3.", (bx - 40, by - 28), INK, 13, slip=0, bold=True)

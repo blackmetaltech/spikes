@@ -13,13 +13,14 @@ static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.g
 static func hist(t: Telemetry, k: String) -> PackedFloat32Array: return t.hist.get(k, PackedFloat32Array()) if t != null else PackedFloat32Array()
 
 static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
+	if Specimens.handles(t): Specimens.draw(c, t, r); return   # every Bestiary level (and its diagnosis case) is a living specimen, whatever kind its task names
 	match kind:
 		"limb": _limb(c, t, r)
 		"heart": _heart(c, t, r)
 		"lungs": _lungs(c, t, r)
 		"eye": _eye(c, t, r)
 		"gut": _gut(c, t, r)
-		"compass": _compass(c, t, r)
+		"compass": Specimens._compass(c, t, r)
 		"phase": _phase(c, t, r)
 		"rates": _rates(c, t, r)
 		"memory": _memory(c, t, r)
@@ -224,11 +225,22 @@ static func _limb(c: Control, t: Telemetry, r: Rect2) -> void:
 	Gfx.dashed(c, PackedVector2Array([el + Vector2(-u * 0.25, 0.0), el + Vector2(u * 1.12, 0.0)]), Color(Kit.TEXT_SOFT, 0.55), 1.4, 6.0, 6.0)
 	var a1 := -ang
 	c.draw_arc(el, u * 0.36, minf(0.0, a1), maxf(0.0, a1), 24, Color(Kit.exc(), 0.9), 2.4, true)
+	# the body the arm belongs to: the trunk and shoulder, behind the arm (the arm never floats on its own)
+	var uw0 := u * 0.115
+	var trunk := PackedVector2Array([sh + Vector2(uw0 * 1.6, -uw0 * 0.4), sh + Vector2(uw0 * 0.6, -uw0 * 1.7), sh + Vector2(-uw0 * 1.4, -uw0 * 2.3), sh + Vector2(-uw0 * 3.6, -uw0 * 2.0),
+		Vector2(maxf(box.position.x, sh.x - uw0 * 4.6), box.end.y), Vector2(sh.x + uw0 * 1.4, box.end.y), sh + Vector2(uw0 * 1.8, uw0 * 1.4)])
+	trunk = Anatomy.closed_spline(trunk, 5)
+	var clipped := Geometry2D.intersect_polygons(trunk, PackedVector2Array([box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]))
+	if not clipped.is_empty():
+		var tp: PackedVector2Array = clipped[0]
+		c.draw_colored_polygon(tp, Color(Anatomy.TISSUE, 0.9)); Gfx.hatch(c, tp, 1.0, 7.0, Color(Gfx.BODY, 0.16), 1.0)
+		var tc := tp.duplicate(); tc.append(tp[0]); c.draw_polyline(tc, Color(Gfx.BODY, 0.6), 1.4, true)
+		c.draw_polyline(PackedVector2Array([sh + Vector2(-uw0 * 0.6, -uw0 * 1.2), sh + Vector2(-uw0 * 3.0, -uw0 * 1.1)]), Color(Anatomy.BONE, 0.5), 2.0, true)   # the clavicle
 	# the arm with its muscles and spindles
 	var res := Anatomy.limb(c, sh, el, hd, {"ag": acts[0], "ant": acts[1], "ia_ag": ias[0], "ia_ant": ias[1], "t": tt})
 	var uw: float = res["uw"]
 	if not small:
-		for lb in [["agonist", res["ag"], Vector2(0.0, -uw * 3.2), Kit.exc(), 0], ["antagonist", res["ant"], Vector2(0.0, uw * 4.6), Kit.inh(), 0], ["spindle Ia", res["ag_aff"], Vector2(-uw * 0.5, -uw * 0.6), Kit.GREEN, 1]]:
+		for lb in [["agonist", res["ag"], Vector2(0.0, -uw * 3.2), Kit.exc(), 0], ["antagonist", res["ant"], Vector2(0.0, uw * 4.6), Specimens.SLATE.darkened(0.3), 0], ["spindle Ia", res["ag_aff"], Vector2(-uw * 0.5, -uw * 0.6), Kit.GREEN, 1]]:
 			var tw: float = Fonts.regular.get_string_size(str(lb[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 6.0   # the box is as wide as the word (a fixed width clipped "antagonist")
 			var at: Vector2 = (lb[1] as Vector2) + (lb[2] as Vector2)
 			if int(lb[4]) == 1: c.draw_string(Fonts.regular, at + Vector2(-tw, 0.0), str(lb[0]), HORIZONTAL_ALIGNMENT_RIGHT, tw, fz, Color(lb[3], 0.9))
@@ -340,7 +352,7 @@ static func _heart(c: Control, t: Telemetry, r: Rect2) -> void:
 	elif d.has("heart_phase") or d.has("beat"): tms = rv(d, "heart_phase", rv(d, "beat")) * 60000.0 / maxf(hr, 20.0)
 	if tms > 2500.0: tms = -1.0
 	var hw := r.size.x * (0.30 if not small else 0.20)
-	var hbox := Rect2(r.position.x, r.position.y + 2.0, hw, r.size.y - strip_h - 4.0)
+	var hbox := Rect2(r.position.x, r.position.y + 12.0, hw, r.size.y - strip_h - 16.0)   # a margin above: the vena cava and carotid stub must not touch the plate's caption
 	var st := {"tms": tms, "t": t.t_ms * 0.001}
 	if d.has("NE") or d.has("ACh"): st["symp"] = clampf(rv(d, "NE"), 0.0, 1.0); st["vagus"] = clampf(rv(d, "ACh"), 0.0, 1.0)
 	Anatomy.heart(c, hbox, st)
@@ -415,7 +427,7 @@ static func _lungs(c: Control, t: Telemetry, r: Rect2) -> void:
 		var tw := (wd - gap * float(tiles.size() - 1)) / float(tiles.size())
 		_tile(c, Rect2(x + (tw + gap) * float(q), y, tw, th), tiles[q][0], tiles[q][1], tiles[q][2], 26 if small else 30)
 	var ey := y + (th + 8.0 if not tiles.is_empty() else 0.0); var er := Rect2(x, ey, wd, r.end.y - strip_h - ey - 2.0)
-	if er.size.y > 36.0: _spark(c, er, hist(t, "volume"), t, 30.0, 0.0, 1.0, Kit.CYAN, "lung volume, last 30 s")
+	if er.size.y > 36.0: _spark(c, er, hist(t, "volume"), t, 30.0, 0.0, 1.0, Kit.INK, "lung volume, last 30 s")
 	if strip_h > 0.0:
 		var extra := []
 		for kk in ["tidal_l", "flow_l_s", "phrenic_drive", "tissue_pco2_mmHg", "chemo_hz"]:
@@ -452,7 +464,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	if not d.has("pupil_mm"): _empty(c, r, "Waiting for pupil_mm in the task's readouts."); return
 	var small := r.size.y < 150.0; var strip_h := 0.0 if small else 30.0
 	var area := Rect2(r.position.x, r.position.y + 2.0, r.size.x * (0.66 if not small else 0.55), r.size.y - strip_h - 4.0)
-	var ew := minf(area.size.x * 0.34, area.size.y * 0.78)
+	var ew := minf(area.size.x * 0.32, area.size.y * 0.56)
 	var ec := Vector2(area.position.x + area.size.x * 0.46, area.get_center().y)
 	var light := clampf(rv(d, "light", 0.5), 0.0, 1.0)
 	for i in 5:   # light rays from the left
@@ -467,7 +479,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	var res := Anatomy.eye(c, ec, ew, {"pupil_mm": rv(d, "pupil_mm"), "sphincter": clampf(sph, 0.0, 1.0), "dilator": clampf(dil, 0.0, 1.0)})
 	if not small:   # callouts on the two muscles
 		var s1: Vector2 = res["sphincter"]; var s2: Vector2 = res["dilator"]
-		var p1 := Vector2(ec.x + ew * 0.45, ec.y - ew * 0.86); var p2 := Vector2(ec.x + ew * 0.45, ec.y + ew * 0.78)
+		var p1 := Vector2(ec.x + ew * 0.45, ec.y - ew * 0.86); var p2 := Vector2(ec.x + ew * 0.45, minf(ec.y + ew * 0.70, area.end.y - float(fz) * 2.0 - 6.0))
 		c.draw_line(s1, p1, Color(Kit.inh(), 0.7), 1.3, true); c.draw_circle(s1, 3.0, Kit.inh())
 		c.draw_line(s2, p2, Color(Kit.exc(), 0.7), 1.3, true); c.draw_circle(s2, 3.0, Kit.exc())
 		c.draw_string(Fonts.bold, p1 + Vector2(4, 0), "sphincter", HORIZONTAL_ALIGNMENT_LEFT, 120.0, fz, Kit.inh())
@@ -480,7 +492,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	c.draw_string(Fonts.bold, Vector2(rr.position.x, y0), "%s mm" % _n(rv(d, "pupil_mm"), 1), HORIZONTAL_ALIGNMENT_LEFT, rr.size.x, big, Kit.TEXT)
 	c.draw_string(Fonts.regular, Vector2(rr.position.x, y0 + float(fz) + 6.0), "pupil diameter", HORIZONTAL_ALIGNMENT_LEFT, rr.size.x, fz, Kit.TEXT_SOFT)
 	var er := Rect2(rr.position.x, y0 + float(fz) * 2.0 + 14.0, rr.size.x, rr.end.y - (y0 + float(fz) * 2.0 + 14.0))
-	if er.size.y > 46.0: _spark(c, er, hist(t, "pupil_mm"), t, 30.0, 0.0, 0.0, Kit.CYAN, "pupil, last 30 s")
+	if er.size.y > 46.0: _spark(c, er, hist(t, "pupil_mm"), t, 30.0, 0.0, 0.0, Kit.INK, "pupil, last 30 s")
 	if strip_h > 0.0:
 		var extra := []
 		for kk in ["light", "luminance_cdm2", "retinal_hz", "sphincter_hz", "dilator_hz", "threat"]:
@@ -502,49 +514,24 @@ static func _gut(c: Control, t: Telemetry, r: Rect2) -> void:
 	for i in 8:
 		if onset(t, "gut%d" % i, float(seg[i]), 0.4, 0.2): GameAudio.body("gut", clampf(0.3 + 0.5 * float(seg[i]), 0.0, 1.0))
 	var ban := _banner(c, t, r)
-	var area := Rect2(r.position.x, r.position.y + 6.0 + ban, r.size.x, r.size.y - strip_h - 8.0 - ban)
+	var leg_h := 0.0 if small else float(fz) + 10.0   # the legend's own line, below the bowel and its segment numbers
+	var area := Rect2(r.position.x, r.position.y + 6.0 + ban, r.size.x, r.size.y - strip_h - 8.0 - ban - leg_h)
 	var res := Anatomy.gut(c, area, {"seg": seg, "ex": ex, "inh": inh, "bolus": rv(d, "bolus"), "t": t.t_ms * 0.001, "labels": not small})
 	var R: float = res["R"]; var x0: float = res["x0"]; var x1: float = res["x1"]
 	if not small:
 		var ly := area.position.y + float(fz) + 2.0
 		c.draw_string(Fonts.regular, Vector2(x0 - R * 0.8, ly), "mouth end", HORIZONTAL_ALIGNMENT_LEFT, 120.0, fz, Kit.TEXT_SOFT)
 		c.draw_string(Fonts.regular, Vector2(x1 - 140.0 + R * 0.8, ly), "far end", HORIZONTAL_ALIGNMENT_RIGHT, 140.0, fz, Kit.TEXT_SOFT)
-		var lx := area.position.x + 12.0; var lyy := area.end.y - float(fz) * 0.6
+		var lx := area.position.x + 12.0; var lyy := area.end.y + leg_h - 2.0
 		c.draw_line(Vector2(lx, lyy - 4.0), Vector2(lx + 20.0, lyy - 4.0), Kit.exc(), 3.0, true); c.draw_string(Fonts.regular, Vector2(lx + 26.0, lyy), "ACh: circular muscle contracts", HORIZONTAL_ALIGNMENT_LEFT, 240.0, fz, Kit.TEXT_SOFT)
-		c.draw_line(Vector2(lx + 270.0, lyy - 4.0), Vector2(lx + 290.0, lyy - 4.0), Kit.CYAN, 3.0, true); c.draw_string(Fonts.regular, Vector2(lx + 296.0, lyy), "NO: it relaxes", HORIZONTAL_ALIGNMENT_LEFT, 200.0, fz, Kit.TEXT_SOFT)
+		c.draw_line(Vector2(lx + 270.0, lyy - 4.0), Vector2(lx + 290.0, lyy - 4.0), Kit.inh(), 3.0, true); c.draw_string(Fonts.regular, Vector2(lx + 296.0, lyy), "NO: it relaxes", HORIZONTAL_ALIGNMENT_LEFT, 200.0, fz, Kit.TEXT_SOFT)
 	if strip_h > 0.0:
 		var extra := [["bolus", "%d%% along" % int(roundf(100.0 * rv(d, "bolus")))]]
 		for kk in ["gut_motility", "bolus_vel", "ACh"]:
 			if d.has(kk): extra.append([kk, rv(d, kk)])
 		_strip(c, Rect2(r.position.x, r.end.y - 30.0, r.size.x, 28.0), extra)
 
-# ---------------------------------------------------------------- compass (v0.5, the fly heading ring)
-## A dial of the ring readout: the fly's true heading (ink needle, the heading the fly really has), the bump of the circuit (cyan needle, its length is how sharp the bump is) and the landmark (a mark on the rim while the
-## lights are on). Readouts: true_deg, bump_deg, bump_strength, landmark_deg, dark. Angles run clockwise from the top, like a compass.
-static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
-	var d := ro(t); var fz := Kit.fs(14)
-	if d.is_empty(): _empty(c, r, "No readouts from this task yet."); return
-	var y := r.position.y + _banner(c, t, r)
-	var area := Rect2(r.position.x, y, r.size.x, r.end.y - y - float(fz) - 8.0)
-	var rad := maxf(minf(area.size.x, area.size.y) * 0.42, 30.0); var cc := area.get_center()
-	var ang := func(deg: float) -> float: return deg_to_rad(deg) - PI * 0.5
-	c.draw_circle(cc, rad + 4.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true)
-	for k in 16:
-		var a: float = ang.call(22.5 * float(k)); var dv := Vector2(cos(a), sin(a))
-		c.draw_line(cc + dv * rad, cc + dv * (rad - (9.0 if k % 4 == 0 else 5.0)), Color(Kit.INK, 0.75), 1.4 if k % 4 == 0 else 1.0, true)
-	var lm := rv(d, "landmark_deg"); var dark := rv(d, "dark") > 0.5
-	if not dark:
-		var la: float = ang.call(lm); var lp := cc + Vector2(cos(la), sin(la)) * (rad + 10.0); c.draw_circle(lp, 6.0, Kit.AMBER); c.draw_arc(lp, 6.0, 0.0, TAU, 16, Kit.INK, 1.2, true)
-	var ta: float = ang.call(rv(d, "true_deg")); var td := Vector2(cos(ta), sin(ta))
-	c.draw_line(cc, cc + td * (rad - 6.0), Kit.INK, 3.0, true); c.draw_circle(cc + td * (rad - 6.0), 4.0, Kit.INK)
-	var st := clampf(rv(d, "bump_strength") / 0.8, 0.0, 1.0)
-	if st > 0.02:
-		var ba: float = ang.call(rv(d, "bump_deg")); var bd := Vector2(cos(ba), sin(ba))
-		c.draw_line(cc, cc + bd * ((rad - 6.0) * st), Kit.CYAN, 5.0, true); c.draw_circle(cc + bd * ((rad - 6.0) * st), 6.0, Kit.CYAN)
-	c.draw_circle(cc, 5.0, Kit.INK)
-	var err := absf(wrapf(rv(d, "bump_deg") - rv(d, "true_deg"), -180.0, 180.0)) if st > 0.02 else 180.0
-	var txt := ("heading error %d deg   (ink: the fly's heading, cyan: the circuit's bump)" % int(roundf(err))) if st > 0.02 else "no bump on the ring yet   (ink: the fly's heading, cyan: the circuit's bump)"   # no bump, no error: 180 deg for nothing read as a score
-	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+# ---------------------------------------------------------------- compass: the fly compass specimen, godot/ui/specimens.gd (Specimens._compass)
 
 # ---------------------------------------------------------------- phase plane (v0.6, Theory wing)
 ## The V-w phase plane of the first cell the level's motor channel reads (an Izhikevich or adaptive exponential cell): the two nullclines computed by the engine from the cell's own
@@ -564,20 +551,29 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 	var pp: Dictionary = t.sim.phase_plane(cell, i_ext)
 	if not bool(pp.get("ok", false)): _empty(c, r, str(pp.get("note", "This cell has no phase plane."))); return
 	var y0 := r.position.y + _banner(c, t, r)
-	var P := Rect2(r.position.x + 56.0, y0 + 8.0, r.size.x - 70.0, r.end.y - y0 - 8.0 - float(fz) * 3.0 - 22.0)
-	if P.size.x < 60.0 or P.size.y < 40.0: return
+	var small := r.size.y < 150.0
+	var foot := (float(fz) + 6.0) * (1.0 if small else 2.0) + (6.0 if not small else 0.0)   # the footer lines are reserved before the plot is laid out
+	if small: y0 = r.position.y   # a phone: the event slip sits over the plot's empty top-left corner
+	var P := Rect2(r.position.x + 56.0 + (110.0 if small else 0.0), y0 + 12.0, r.size.x - 76.0 - (110.0 if small else 0.0), r.end.y - y0 - 12.0 - float(fz) - 8.0 - foot)
+	if P.size.x < 60.0 or P.size.y < 24.0: return
 	var v_lo := float(pp["v_lo"]); var v_hi := float(pp["v_hi"]); var w_lo := float(pp["w_lo"]); var w_hi := float(pp["w_hi"])
 	var to := func(v: float, w: float) -> Vector2: return Vector2(P.position.x + (v - v_lo) / maxf(v_hi - v_lo, 1e-6) * P.size.x, P.end.y - (w - w_lo) / maxf(w_hi - w_lo, 1e-6) * P.size.y)
-	c.draw_rect(P, Color(Gfx.SHEET, 0.9)); c.draw_rect(P, Kit.INK, false, 1.4)
+	c.draw_rect(P, Color(Gfx.SHEET, 0.9))
+	# engraved axes: an ink L with arrowheads (as on the Dynamics plate), hairline grid
+	c.draw_line(Vector2(P.position.x, P.end.y), Vector2(P.end.x + 8.0, P.end.y), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.end.x + 12.0, P.end.y), Vector2(1, 0), Kit.INK, 8.0)
+	c.draw_line(Vector2(P.position.x, P.end.y), Vector2(P.position.x, P.position.y - 6.0), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.position.x, P.position.y - 10.0), Vector2(0, -1), Kit.INK, 8.0)
+	for k in range(1, 4):
+		c.draw_line(Vector2(P.position.x + P.size.x * float(k) / 4.0, P.position.y), Vector2(P.position.x + P.size.x * float(k) / 4.0, P.end.y), Color(Kit.INK, 0.06), 1.0)
+		c.draw_line(Vector2(P.position.x, P.position.y + P.size.y * float(k) / 4.0), Vector2(P.end.x, P.position.y + P.size.y * float(k) / 4.0), Color(Kit.INK, 0.06), 1.0)
 	var wn := str(pp["w_name"])
 	for k in 5:   # ticks and numbers
 		var v := v_lo + (v_hi - v_lo) * float(k) / 4.0; var w := w_lo + (w_hi - w_lo) * float(k) / 4.0
 		var px: float = (to.call(v, w_lo) as Vector2).x; var py: float = (to.call(v_lo, w) as Vector2).y
 		c.draw_line(Vector2(px, P.end.y), Vector2(px, P.end.y + 4.0), Kit.INK, 1.0); c.draw_line(Vector2(P.position.x - 4.0, py), Vector2(P.position.x, py), Kit.INK, 1.0)
 		c.draw_string(Fonts.regular, Vector2(px - 14.0, P.end.y + float(fz) + 4.0), "%d" % int(roundf(v)), HORIZONTAL_ALIGNMENT_LEFT, 40.0, fz, Kit.TEXT_SOFT)
-		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
-	c.draw_string(Fonts.regular, Vector2(P.end.x - 90.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 86.0, fz, Kit.TEXT_SOFT)
-	c.draw_string(Fonts.regular, Vector2(P.position.x + 6.0, P.position.y + float(fz) + 2.0), "%s (%s)" % [wn, "pA" if wn == "w" else "recovery, arbitrary units"], HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
+		if not small or k % 2 == 0: c.draw_string(Fonts.regular, Vector2(P.position.x - 56.0, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 120.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 116.0, fz, Kit.TEXT)
+	Anatomy.tag(c, "%s (%s)" % [wn, "pA" if wn == "w" else "recovery, arbitrary units"], Vector2(P.position.x + 10.0, P.position.y + float(fz) + 2.0), Kit.TEXT, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.8)
 	var line := func(pts: PackedVector2Array, col: Color) -> void:
 		var q := PackedVector2Array()
 		for p in pts:
@@ -586,7 +582,7 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 			elif q.size() >= 2: c.draw_polyline(q, col, 2.4, true); q = PackedVector2Array()
 			else: q = PackedVector2Array()
 		if q.size() >= 2: c.draw_polyline(q, col, 2.4, true)
-	line.call(pp["v_null"], Kit.exc()); line.call(pp["w_null"], Kit.inh())
+	line.call(pp["v_null"], Kit.exc()); line.call(pp["w_null"], Specimens.SLATE)   # blue is for inhibition only: the recovery nullcline is slate
 	var vr := float(pp["v_reset"])   # the reset: a dashed vertical line
 	if vr > v_lo and vr < v_hi:
 		var x: float = (to.call(vr, w_lo) as Vector2).x
@@ -612,12 +608,11 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 		t.set_meta("phase_trail", trail)
 		var tq := PackedVector2Array()
 		for p in trail: tq.append(to.call(clampf(p.x, v_lo, v_hi), clampf(p.y, w_lo, w_hi)))
-		if tq.size() >= 2: c.draw_polyline(tq, Color(Kit.CYAN, 0.8), 1.6, true)
-		var hd: Vector2 = to.call(clampf(v_now, v_lo, v_hi), clampf(w_now, w_lo, w_hi)); c.draw_circle(hd, 5.0, Kit.CYAN); c.draw_arc(hd, 5.0, 0.0, TAU, 16, Kit.INK, 1.2, true)
-	var ty := P.end.y + float(fz) * 2.0 + 6.0
-	c.draw_string(Fonts.regular, Vector2(P.position.x, ty), "sienna: voltage nullcline    blue: %s nullcline    filled point: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT_SOFT)
+		if tq.size() >= 2: c.draw_polyline(tq, Color(Kit.INK, 0.75), 1.4, true)
+		var hd: Vector2 = to.call(clampf(v_now, v_lo, v_hi), clampf(w_now, w_lo, w_hi)); c.draw_circle(hd, 5.5, Kit.GAMBOGE); c.draw_arc(hd, 5.5, 0.0, TAU, 16, Kit.INK, 1.2, true)
 	var txt := ("resting state: " + stable_kind) if stable_kind != "" else "no stable resting state at this current"
-	c.draw_string(Fonts.bold, Vector2(P.position.x, ty + float(fz) + 4.0), "current now %s pA   %s" % [String.num(float(pp["i_total"]), 1), txt], HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT)
+	c.draw_string(Fonts.bold, Vector2(r.position.x + 6.0, r.end.y - 6.0), "current now %s pA   %s" % [String.num(float(pp["i_total"]), 1), txt], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT)
+	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - float(fz) - 12.0), "sienna: V nullcline; slate: %s nullcline; ink: the path, gamboge: now; filled: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- rate units (v0.6, Theory wing)
 ## The motor channels of a rate level as scrolling traces on one shared scale: a `rate_value` channel is the mean rate of rate units (arbitrary units, or spikes per second for a siegert
@@ -639,37 +634,65 @@ static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
 			for m in hist: hist[m] = (hist[m] as PackedFloat32Array).slice((hist[m] as PackedFloat32Array).size() - 1200)
 		t.set_meta("rates_h", hist); t.set_meta("rates_t", ts)
 	var y0 := r.position.y + _banner(c, t, r)
-	var P := Rect2(r.position.x + 56.0, y0 + 8.0, r.size.x - 70.0, r.end.y - y0 - 8.0 - float(fz) * 2.0 - 20.0)
-	if P.size.x < 60.0 or P.size.y < 40.0: return
+	var small := r.size.y < 150.0
+	var foot := 0.0 if small else float(fz) + 12.0   # reserved before the plot is laid out: the caption never clips
+	var lab_w := 0.0
+	for m in motors: lab_w = maxf(lab_w, Fonts.bold.get_string_size("%s 00.00" % str(m), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x)
+	var P := Rect2(r.position.x + 48.0, y0 + 10.0, r.size.x - 60.0 - lab_w - 14.0, r.end.y - y0 - 10.0 - float(fz) - 12.0 - foot)
+	if P.size.x < 60.0 or P.size.y < 30.0: return
 	var win := 3000.0; var t1 := t.t_ms; var t0 := t1 - win
 	var mx := 0.0; var mn := 0.0
 	for m in hist:
 		for v in (hist[m] as PackedFloat32Array): mx = maxf(mx, v); mn = minf(mn, v)
 	mx = maxf(mx * 1.1, 1.0 if mx < 1.5 else 0.0)
-	c.draw_rect(P, Color(Gfx.SHEET, 0.9)); c.draw_rect(P, Kit.INK, false, 1.4)
+	# engraved axes: an ink L with arrowheads, fine ticks, the axis letters in italic (as on the Rate models plate)
+	var org := Vector2(P.position.x, P.end.y)
+	c.draw_line(org, Vector2(P.end.x + 8.0, org.y), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.end.x + 12.0, org.y), Vector2(1, 0), Kit.INK, 8.0)
+	c.draw_line(org, Vector2(org.x, P.position.y - 6.0), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(org.x, P.position.y - 10.0), Vector2(0, -1), Kit.INK, 8.0)
 	for k in 5:
+		if small and k % 2 == 1: continue   # a short plot: three ticks, so the numbers never touch
 		var vv := mn + (mx - mn) * float(k) / 4.0; var py := P.end.y - (vv - mn) / maxf(mx - mn, 1e-6) * P.size.y
-		c.draw_line(Vector2(P.position.x, py), Vector2(P.end.x, py), Color(Kit.INK, 0.12), 1.0)
-		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), ("%d" % int(roundf(vv))) if mx >= 20.0 else ("%.1f" % vv), HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
-	var cols := [Kit.exc(), Kit.inh(), Kit.CYAN, Kit.AMBER]; var lx := P.position.x
-	var ly := P.end.y + float(fz) + 6.0
+		c.draw_line(Vector2(org.x - 4.0, py), Vector2(org.x, py), Kit.INK, 1.0)
+		if k > 0: c.draw_line(Vector2(org.x, py), Vector2(P.end.x, py), Color(Kit.INK, 0.07), 1.0)
+		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), ("%d" % int(roundf(vv))) if mx >= 20.0 else ("%.1f" % vv), HORIZONTAL_ALIGNMENT_RIGHT, 40.0, fz, Kit.TEXT_SOFT)
+	for k in 4:   # time ticks, one a second
+		var x := P.position.x + P.size.x * float(k) / 3.0
+		c.draw_line(Vector2(x, org.y), Vector2(x, org.y + 4.0), Kit.INK, 1.0)
+		c.draw_string(Fonts.regular, Vector2(x - 30.0, org.y + float(fz) + 6.0), "%d s" % (k - 3) if k < 3 else "now", HORIZONTAL_ALIGNMENT_CENTER, 60.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Gfx.serif_italic(), Vector2(org.x + 6.0, P.position.y + float(fz) * 0.4), "rate", HORIZONTAL_ALIGNMENT_LEFT, 80.0, fz, Kit.TEXT)
+	# the curves, smoothed (a 25 ms running mean of the 5 ms samples), each labelled at its end
+	var ends := []
+	var e_seen := false
 	for mi in motors.size():
-		var m := str(motors[mi]); var a: PackedFloat32Array = hist.get(m, PackedFloat32Array()); var col: Color = cols[mi % cols.size()]
-		var q := PackedVector2Array()
-		for j in ts.size():
-			if ts[j] < t0 or j >= a.size(): continue
-			q.append(Vector2(P.position.x + (ts[j] - t0) / win * P.size.x, P.end.y - clampf((a[j] - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
-		if q.size() >= 2: c.draw_polyline(q, col, 2.4, true)
-		var cur := a[a.size() - 1] if not a.is_empty() else 0.0
+		var m := str(motors[mi]); var a: PackedFloat32Array = hist.get(m, PackedFloat32Array())
+		var col: Color
+		if m.to_lower() in ["i", "inh", "inhibitory"]: col = Kit.inh()
+		elif not e_seen: col = Kit.exc(); e_seen = true
+		else: col = [Kit.INK, Kit.GAMBOGE, Kit.SENSOR][mi % 3]
+		var q := PackedVector2Array(); var sm_v := 0.0
+		for j2 in ts.size():   # an exponential smoothing with a 12 ms time constant of model time: it takes the jitter off a spiking pool's rate, not the rhythm
+			if j2 >= a.size(): break
+			sm_v = a[j2] if j2 == 0 else lerpf(sm_v, a[j2], 1.0 - exp(-(ts[j2] - ts[j2 - 1]) / 12.0))
+			if ts[j2] < t0: continue
+			q.append(Vector2(P.position.x + (ts[j2] - t0) / win * P.size.x, P.end.y - clampf((sm_v - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
+		if q.size() >= 2: c.draw_polyline(q, col, 2.2, true)
+		var cur := sm_v
 		var lab := "%s %s" % [m, ("%d Hz" % int(roundf(cur))) if (kinds.get(m, "") != "rate_value" or mx >= 20.0) else "%.2f" % cur]
-		c.draw_line(Vector2(lx, ly - 5.0), Vector2(lx + 22.0, ly - 5.0), col, 3.0)
-		c.draw_string(Fonts.bold, Vector2(lx + 28.0, ly), lab, HORIZONTAL_ALIGNMENT_LEFT, 220.0, fz, Kit.TEXT)
-		lx += 28.0 + Fonts.bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 22.0
-	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 330.0, ly), "last 3 s, rate units in arbitrary units", HORIZONTAL_ALIGNMENT_RIGHT, 326.0, fz, Kit.TEXT_SOFT)
+		ends.append([q[q.size() - 1].y if not q.is_empty() else P.end.y, lab, col])
+	ends.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
+	var last_y := -1.0e9
+	for e in ends:   # labels at the line ends, nudged apart so they never sit on each other
+		var yy := maxf(float(e[0]) + 5.0, last_y + float(fz) + 2.0); last_y = yy
+		c.draw_line(Vector2(P.end.x + 2.0, float(e[0])), Vector2(P.end.x + 12.0, yy - 5.0), Color(e[2], 0.6), 1.0, true)
+		c.draw_string(Fonts.bold, Vector2(P.end.x + 14.0, yy), str(e[1]), HORIZONTAL_ALIGNMENT_LEFT, lab_w + 10.0, fz, (e[2] as Color).darkened(0.15))
+	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "the last 3 s; rate units arbitrary, spiking pools in Hz per cell; blue: inhibitory", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- patterns of cells (v0.6, memory chapter)
-## The cells the level's motor channels read, laid out on a grid in the order of their channels and lit by their own spikes (a soma glows for a moment after each spike, Telemetry.flash). Cells that a
-## sensor reaches are ringed in amber and named by the sensor: the cue is the part that is touched, the pattern is the whole.
+## An engraved cell array per stored pattern (each motor channel's cells, in channel order), as on the Attractor memory plate: every cell an inked ring, its
+## interior hatched while it is silent; the target pattern (the cells the channel reads) framed by a dashed gamboge outline; a cell fills with sienna as it
+## fires (its spikes in the last 150 ms of model time), so the recalled pattern fills in; the cells a cue reaches carry a verdigris tick. Under each array:
+## how many of its cells are firing now. The footer is reserved before the arrays are laid out.
+static var _hatch_cell := PackedVector2Array()
 static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 	var fz := Kit.fs(14)
 	if t == null or t.sim == null or t.task == null: _empty(c, r, "Build the pattern: its cells light up here."); return
@@ -683,27 +706,48 @@ static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 			groups.append([str(m), cells])
 	var cued := {}
 	for ch in t.sim.inputs():
-		if not str(ch["name"]).begins_with("cue"): continue   # the ring marks the cue, not the sensor that shows the whole pattern
-		for n in (ch["neurons"] as PackedInt32Array):
-			if not cued.has(int(n)): cued[int(n)] = []
-			(cued[int(n)] as Array).append(str(ch["name"]))
+		if not str(ch["name"]).begins_with("cue"): continue   # the tick marks the cue, not the sensor that shows the whole pattern
+		for n in (ch["neurons"] as PackedInt32Array): cued[int(n)] = true
+	var small := r.size.y < 150.0
+	var foot := 0.0 if small else float(fz) + 10.0
 	var y0 := r.position.y + _banner(c, t, r)
-	var area := Rect2(r.position.x, y0 + 6.0, r.size.x, r.end.y - y0 - 6.0 - float(fz) - 14.0)
+	var area := Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - foot)
 	var gw := area.size.x / float(maxi(groups.size(), 1))
+	var cap_h := float(fz) + 6.0
 	for gi in groups.size():
 		var cells: Array = groups[gi][1]; var n := cells.size()
 		var cols := maxi(1, int(ceilf(sqrt(float(maxi(n, 1))))))
 		var rows := maxi(1, int(ceilf(float(n) / float(cols))))
-		var cell := minf(minf(gw / float(cols + 1), area.size.y / float(rows + 1)), 64.0)
-		var org := Vector2(area.position.x + gw * float(gi) + (gw - cell * float(cols)) * 0.5, area.position.y + (area.size.y - cell * float(rows)) * 0.5 + 8.0)
-		c.draw_string(Gfx.serif_italic(), Vector2(area.position.x + gw * float(gi) + 6.0, area.position.y + float(fz)), str(groups[gi][0]), HORIZONTAL_ALIGNMENT_LEFT, gw - 12.0, fz, Kit.TEXT)
+		var cell := minf(minf((gw - 40.0) / float(cols), (area.size.y - cap_h * (2.0 if not small else 1.0) - 16.0) / float(rows)), 58.0)
+		if cell < 6.0: continue
+		var frame := Rect2(area.position.x + gw * float(gi) + (gw - cell * float(cols)) * 0.5 - 10.0, area.position.y + cap_h + 8.0, cell * float(cols) + 20.0, cell * float(rows) + 20.0)
+		frame.position.y += maxf(0.0, (area.size.y - cap_h * 2.0 - 16.0 - frame.size.y) * 0.5)
+		var title := "Fig. %d. " % (gi + 1); var tw := Fonts.bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x
+		c.draw_string(Fonts.bold, Vector2(frame.position.x, frame.position.y - 8.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fz, Kit.TEXT)
+		c.draw_string(Gfx.serif_italic(), Vector2(frame.position.x + tw, frame.position.y - 8.0), "pattern '%s'" % str(groups[gi][0]), HORIZONTAL_ALIGNMENT_LEFT, gw - tw - 10.0, fz, Kit.TEXT_SOFT)
+		c.draw_rect(frame, Color(Gfx.SHEET, 0.9)); c.draw_rect(frame, Color(Kit.INK, 0.5), false, 1.0)
+		var org := frame.position + Vector2(10.0, 10.0); var lit_n := 0
+		var tgt := PackedVector2Array([org + Vector2(-5, -5), org + Vector2(cell * float(cols) + 5.0, -5), org + Vector2(cell * float(cols) + 5.0, cell * float(rows) + 5.0), org + Vector2(-5, cell * float(rows) + 5.0), org + Vector2(-5, -5)])
+		Gfx.dashed(c, tgt, Kit.GAMBOGE, 2.0, 7.0, 5.0)   # the target: the whole pattern
 		for k in n:
-			var id: int = cells[k]; var ctr := org + Vector2(float(k % cols) + 0.5, float(k / cols) + 0.5) * cell
-			var lit := clampf(float(t.flash[id]) if id < t.flash.size() else 0.0, 0.0, 1.0)
-			c.draw_circle(ctr, cell * 0.36, Color(Kit.exc(), 0.12 + 0.88 * lit)); c.draw_arc(ctr, cell * 0.36, 0.0, TAU, 24, Kit.INK, 1.4, true)
-			if cued.has(id): c.draw_arc(ctr, cell * 0.46, 0.0, TAU, 24, Kit.AMBER, 3.0, true)
-	var legend := "cells that fire glow sienna; an amber ring marks the cells a cue reaches"
-	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), legend, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+			var id: int = cells[k]; var ctr := org + Vector2(float(k % cols) + 0.5, float(k / cols) + 0.5) * cell; var rad := cell * 0.36
+			var lit := Specimens.cell_act(t, id, 150.0)
+			if lit > 0.3: lit_n += 1
+			c.draw_circle(ctr, rad, Gfx.SHEET.lerp(Color("#EFE2CC"), 0.6))
+			if lit < 0.6:   # silent: an engraver's hatch inside the ring
+				_hatch_cell.clear()
+				for q in 5:
+					var off := (float(q) - 2.0) / 2.6 * rad; var hw := sqrt(maxf(rad * rad - off * off, 0.0)) * 0.9
+					var dv := Vector2(0.7071, -0.7071); var nv := Vector2(0.7071, 0.7071)
+					_hatch_cell.append(ctr + nv * off - dv * hw); _hatch_cell.append(ctr + nv * off + dv * hw)
+				c.draw_multiline(_hatch_cell, Color(Kit.INK, 0.22 * (1.0 - lit)), 1.0)
+			if lit > 0.02: c.draw_circle(ctr, rad * (0.55 + 0.45 * lit), Color(Kit.exc(), 0.2 + 0.8 * lit))
+			c.draw_arc(ctr, rad, 0.0, TAU, 28, Kit.INK, 1.3, true)
+			if cued.has(id): c.draw_line(ctr + Vector2(rad * 0.75, -rad * 0.75), ctr + Vector2(rad * 1.15, -rad * 1.15), Kit.SENSOR, 3.0, true)
+		var rp := Vector2(frame.position.x, frame.end.y + float(fz) + 4.0) if not small else Vector2(frame.end.x + 8.0, frame.get_center().y + 5.0)
+		c.draw_string(Fonts.mono, rp, "firing %d of %d" % [lit_n, n], HORIZONTAL_ALIGNMENT_LEFT, gw - 10.0, fz, Kit.TEXT)
+	if not small:
+		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "sienna: a cell firing; dashed gamboge: the stored pattern; verdigris tick: a cued cell", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- tuning (v0.6)
 ## The dial, the cells' bars and a single cell's tuning curve: godot/ui/tuning_view.gd.
