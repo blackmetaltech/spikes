@@ -9,7 +9,7 @@ summary: Twelve levels in four chapters that turn a computational-neuroscience c
 
 The Theory wing is the part of the campaign that asks "what does the mathematics of a neuron say?" instead of "which body does it drive?". It has four chapters of three levels each: **Dynamics**, **Rate models**, **Attractor memory** and **Tuning and decoding**. Each chapter starts with two small puzzles (one idea each) and ends with a larger scored task, the same shape as every other chapter.
 
-The wing is open from the start, like the [Bestiary](campaign-bestiary.html). It is not part of the unlock chain of the five body chapters, and nothing in it gates anything else. Inside a chapter the usual rule holds: a level opens when the one before it is passed. You can start with Theory, with the body chapters, or jump between them. See [the core loop](core-loop.html) for how a level is built, run and checked, and [stars, par and the hint ladder](stars-and-hints.html) for scoring.
+The wing opens when you pass the Invertebrates spine, like the [Bestiary](campaign-bestiary.html). It is not part of the unlock chain of the five body chapters, and nothing in it gates anything else. Inside a chapter the usual rule holds: a level opens when the one before it is passed. You can start with Theory, with the body chapters, or jump between them. See [the core loop](core-loop.html) for how a level is built, run and checked, and [stars, par and the hint ladder](stars-and-hints.html) for scoring.
 
 Every level here has the usual honesty contract. The game checks the **mechanism** you built by reading the circuit's structure (which cell connects to which, with what sign), not only by looking at the numbers it produces. A shortcut that happens to hit the target numbers fails with a verdict that names the missing part. Verdicts and the first two hint tiers carry no numbers. The reference solutions are never shown on this page, and the "Stuck?" notes below go no further than the first hint tier.
 
@@ -42,7 +42,7 @@ The wing is built on real simulator models, but several things are simplified fo
 
 ## Levels at a glance
 
-None of the twelve levels has challenge variants. Par is the neuron count of the reference circuit; staying at or under it, with five seeds passing, within the energy budget (the default of 40 spikes per second per neuron for these levels) and without opening the recipe, earns the third star. See [stars, par and the hint ladder](stars-and-hints.html).
+None of the twelve levels has challenge variants. Par is the neuron count of the reference circuit; staying at or under it, with Check passing all five worlds, and without opening the recipe, earns the third star (these levels have no energy clause). See [stars, par and the hint ladder](stars-and-hints.html).
 
 | Chapter | Level | Kind | Par |
 |---|---|---|---|

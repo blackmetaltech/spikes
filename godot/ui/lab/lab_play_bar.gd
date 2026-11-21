@@ -9,6 +9,7 @@ var hint_open := false
 var _check_task = null             # instant check: the task handle that owns the async job
 var _check_job := 0
 var _check_t0 := 0
+var _check_worlds := 1             # how many worlds the running check covers (5, or 1 for a challenge variant)
 var _check_snap := {}              # the bench as it was when Check was pressed: {fp, ref, n}
 var _check_toast: PanelContainer = null
 var _check_lbl: Label = null
@@ -162,9 +163,14 @@ func check_start() -> void:
 		lab.celebration.toast("Instant check is not in this build", "Rebuild the extension (scripts/build-gd.sh) to get headless scoring.", Kit.RED, 4.0); return
 	_check_task = Campaign.make(tid)
 	if _check_task == null: return
+	# CHECK runs the five worlds of the TEST (seeds 101-105, the circuit reseeded with each world, as the lab's TEST and the engine tests do): star 2 is "all five pass"
+	# (Standard and Researcher; Guided stops at two stars). A challenge variant is judged on the live circuit's own seed, one world.
 	var cseed := int(lab.circuit.get("seed", 1)); var cj := Circuits.to_json(Telemetry.sanitized(lab._live_circuit()))
-	_check_job = int(_check_task.score_headless_quick_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed)) if quick \
-		else int(_check_task.score_headless_async(cj, PackedInt64Array([cseed]), lab.mode, lab.variant, cseed))
+	_check_worlds = 1 if lab.variant != "" else (lab.TEST_SEEDS as Array).size()
+	var seeds := PackedInt64Array(lab.TEST_SEEDS) if _check_worlds > 1 else PackedInt64Array([cseed])
+	var pin := -1 if _check_worlds > 1 else cseed
+	_check_job = int(_check_task.score_headless_quick_async(cj, seeds, lab.mode, lab.variant, pin)) if quick \
+		else int(_check_task.score_headless_async(cj, seeds, lab.mode, lab.variant, pin))
 	_check_t0 = Time.get_ticks_msec()
 	_check_snap = {"fp": Circuits.fingerprint(lab.circuit), "ref": lab._is_reference(), "n": Circuits.neuron_count(lab.circuit)}   # what was checked: a result for another bench is dropped
 	if _check_job == 0: _check_task = null; lab.celebration.toast("Check could not start", "The headless scorer refused the circuit.", Kit.RED, 4.0); return
@@ -198,7 +204,7 @@ func check_progress(on: bool) -> void:
 		_check_lbl = Kit.label("", 17 if not Layout.phone else 15, Kit.TEXT, true); _check_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE; _check_toast.add_child(_check_lbl)
 		lab.ov.add_child(_check_toast); _check_toast.z_index = 61
 		_check_toast.set_anchors_preset(Control.PRESET_TOP_LEFT); _check_toast.offset_left = 240.0; _check_toast.offset_top = 56.0; _check_lbl.custom_minimum_size.x = 380.0
-	_check_lbl.text = "Check running... 1/1 seed, %.1f s" % ((Time.get_ticks_msec() - _check_t0) * 0.001)
+	_check_lbl.text = "Check running... %d world%s, %.1f s" % [_check_worlds, "" if _check_worlds == 1 else "s", (Time.get_ticks_msec() - _check_t0) * 0.001]
 
 func check_poll() -> void:
 	if _check_job == 0 or _check_task == null: return
@@ -216,20 +222,28 @@ func check_poll() -> void:
 	if not snap.is_empty() and (str(snap["fp"]) != Circuits.fingerprint(lab.circuit) or bool(snap["ref"]) != lab._is_reference()):   # the bench changed while it ran
 		lab.celebration.toast("Check dropped", "The circuit changed while the check ran, so its result belongs to a bench you no longer have. Press Check again.", Kit.AMBER, 5.0); return
 	if not bool(r.get("ok", false)): lab.celebration.toast("Check failed", str(r.get("error", "the headless run did not finish")), Kit.RED, 5.0); return
-	var passed := bool(r.get("passed", false)); var val := int(roundf(float(r.get("value", 0.0))))
-	var runs: Array = r.get("runs", []); var verdict := str((runs[0] as Dictionary).get("verdict", "")) if not runs.is_empty() else ""
+	var worlds := int(r.get("seeds", 1)); var wins := int(r.get("passes", 0)); var five := worlds >= 5 and wins == worlds
+	var passed := bool(r.get("passed", false)) if worlds <= 1 else wins >= 1   # one world passing is the first star; all five is the second
+	var val := int(roundf(float(r.get("value", 0.0))))
+	var runs: Array = r.get("runs", []); var verdict := ""
+	for rr in runs:   # the verdict of the first world that failed, else of the first
+		if not bool((rr as Dictionary).get("passed", false)): verdict = str((rr as Dictionary).get("verdict", "")); break
+	if verdict == "" and not runs.is_empty(): verdict = str((runs[0] as Dictionary).get("verdict", ""))
 	verdict = Circuits.cap_verdict(verdict, lab.circuit, lab.task_id)
 	var was_ref := bool(snap.get("ref", lab._is_reference()))
-	lab.celebration.toast(("Check: passed  %d" if passed else "Check: not passed  %d") % val, "%s  (%.1f s)" % [verdict, ms * 0.001], Kit.GREEN if passed else Kit.RED, 6.0)
+	var head := ("Check: passed  %d" if five or (worlds <= 1 and passed) else "Check: not passed  %d") % val
+	if worlds > 1: head = "Check: %d of %d worlds passed  %d" % [wins, worlds, val]
+	lab.celebration.toast(head, "%s  (%.1f s)" % [verdict, ms * 0.001], Kit.GREEN if (five or (worlds <= 1 and passed)) else (Kit.AMBER if passed else Kit.RED), 6.0)
 	GameAudio.event("pass" if passed else "fail")
 	if lab.score_card != null: lab.score_card.check_text = "check %d%s" % [val, "" if passed else " (miss)"]
 	if not passed and not was_ref: note_fail()
-	elif passed and not lab.lesion_on: _record_check(val, was_ref)
+	elif passed and not lab.lesion_on: _record_check(val, was_ref, five)
 
 ## A passing check counts as a pass (it ran the task's own seed), but not as the end-of-episode five-seed record. `was_ref`: the bench was the reference when the check started.
-func _record_check(val: int, was_ref: bool) -> void:
-	if was_ref or lab._is_reference() or lab.variant != "" or lab._rec_pass: return
-	lab._record(true, false, float(val), -1.0)
+func _record_check(val: int, was_ref: bool, five := false) -> void:
+	if was_ref or lab._is_reference() or lab.variant != "": return
+	if lab._rec_pass and not five: return   # the live run already recorded this pass; only the five-world result adds something
+	lab._record(true, five, float(val), -1.0)
 	lab.layout.refresh_bar()
 
 # ----- skip to the next scripted event -----
