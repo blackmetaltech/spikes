@@ -218,6 +218,7 @@ struct Spec
   bool spine = true;
   std::vector< std::string > vec;                      // motor channels read as a ring (population_vector): Meas::vec_deg / vec_strength
   std::vector< std::string > cells;                    // motor channels whose individual cells are tracked (Meas::active / Meas::both)
+  std::map< std::string, std::map< std::string, double > > stimuli;  // add-only (tasks own their stimuli): input channel -> parameters written with Engine::set_input_param before the first slice (a tuned_poisson input's kappa, rate_max, rate_base, period_deg), overwriting what the circuit file says
   std::function< void( Engine&, std::map< std::string, double >& ) > start;  // 0.6 (add-only): called once before the first slice with the live engine; may set the initial state of cells and fill the per-channel level scale
   std::set< std::string > raw;                           // 0.6 (add-only): sensor channels whose level is used as it is (a stimulus angle), not scaled by the episode's small gain noise
   std::function< void( Schedule&, uint64_t, std::map< std::string, double >& ) > reseed;  // 0.6 (add-only): called in reset() with the episode's seed: may redraw the levels of the schedule (random stimuli) and note them in Meas::extra
@@ -347,6 +348,8 @@ protected:
     if ( !kicked_ )
     {
       kicked_ = true;
+      for ( const auto& [ ch, params ] : s_.stimuli )
+        for ( const auto& [ key, v ] : params ) e.set_input_param( ch, key, v );
       on_start( e );
     }
     for ( const auto& ch : info_.sensors )
@@ -471,7 +474,7 @@ inline int projection_on_path( const Graph& g, const std::vector< int >& from, c
   for ( size_t k = 0; k < g.st.projections.size(); ++k )
   {
     const auto& p = g.st.projections[ k ];
-    if ( p.n_edges <= 0 || p.sign <= 0 || ( stp_only && !is_stp( p.synapse_model ) ) ) continue;
+    if ( !functional( g.st, p ) || p.sign <= 0 || ( stp_only && !is_stp( p.synapse_model ) ) ) continue;
     if ( g.path( from, { p.pre_index }, +1, 3, true ) && g.path( { p.post_index }, to, +1, 3, true ) ) return static_cast< int >( k );
   }
   return -1;

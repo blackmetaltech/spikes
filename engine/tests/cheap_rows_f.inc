@@ -225,3 +225,8 @@
     return c;
   }() );
 }
+
+// ---- cheat-proofing (full review, P0-3)
+CHEAP_ROW( "r_choose", "feed-forward gain units and a self-excitation of 0.001", fixture( "r_choose_feedforward" ) );
+CHEAP_ROW( "h_learn", "the cue wired at 0.001", fixture( "h_learn_cue_token" ) );
+CHEAP_ROW( "t_sharpen", "a sharp input tuning and a lateral inhibition of 0.01", fixture( "t_sharpen_sharp_input" ) );

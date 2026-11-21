@@ -74,6 +74,7 @@ Spec spec()
   i.bands = { { "ratio", "%", 0, 100 } };
   s.gauges = { { "ratio", { "ratio_pct" } } };
   s.raw = { "stim" };
+  s.stimuli = { { "stim", { { "kappa", 0.5 }, { "rate_max", 80.0 }, { "rate_base", 10.0 }, { "period_deg", 180.0 } } } };   // the level owns its stimulus: the tuning curves of the afferents are the level's, whatever the circuit file says
   s.cells = { "resp" };
   s.tick = []( Engine& e, double, Meas& m ) {
     if ( m.extra.count( "c0" ) ) return;

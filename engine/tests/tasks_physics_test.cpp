@@ -91,6 +91,7 @@ double Engine::voltage( int32_t ) const { return 0; }
 bool Engine::set_weight( int32_t, int32_t, double ) { return true; }
 bool Engine::set_neuron_param( int32_t, const std::string&, double ) { return true; }
 double Engine::neuron_state( int32_t, const std::string& ) const { return std::nan( "" ); }   // 0.6 Theory wing stubs (never driven here)
+bool Engine::set_input_param( const std::string&, const std::string&, double ) { return true; }  // tuned_poisson stimulus overwrite (never driven here)
 double Engine::input_weight( const std::string& ) const { return 0.0; }
 double Engine::input_value( const std::string& ) const { return 0.0; }
 double Engine::output_value( const std::string& ) const { return 0.0; }
