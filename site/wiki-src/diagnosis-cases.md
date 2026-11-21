@@ -91,7 +91,7 @@ If you press **REVEAL ANSWER** (after three wrong guesses), you see the answer a
 |---|---|
 | 1 | Name the cause. |
 | 2 | Name it with no wrong answer. |
-| 3 | No wrong answer, and a score of 85 or more. That is at most 8 probes. |
+| 3 | No wrong answer, a score of 85 or more (at most 8 probes), and the right answer given **after at least one of the case's own probes**: one of the one or two probes that tell its top candidates apart (a scope on the group behind the dead link, or a cut of that link). A guess made with no probe at all never earns the third star, however lucky. Guided mode stops at two stars. |
 
 Cases have no par, no Test x5 and no challenge variants. The notebook entry for a case opens when you solve it.
 

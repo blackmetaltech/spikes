@@ -60,7 +60,11 @@ public:
            "(parasympathetic, fast). In the dark, and when frightened, the sympathetic chain (hypothalamus, spinal intermediolateral "
            "column, superior cervical ganglion) drives the radial dilator and the pupil opens (slower). Light also switches the "
            "sympathetic side off. Wire 'retina' to the reflex arc and 'threat' to the sympathetic arm, and read out 'sphincter' and "
-           "'dilator'. Score: a step to bright light must constrict the pupil by 2.5 mm or more within about a quarter of a second, the "
+           "'dilator'. Both arms are tonic: the sympathetic cells fire on their own in the dark, so give them a steady drive of their own, a bias "
+           "(the current I_e in the advanced parameters; see Tonic drive), and the light then has something to switch off. A reflex also has a "
+           "minimum latency: the arc is several synapses long, so a pupil that starts to close within a tenth of a second is not a pupil reflex; give "
+           "the chain real delays so that it starts after about a sixth of a second and is under way within about a third. Score: a step to bright "
+           "light must constrict the pupil by 2.5 mm or more within about a quarter of a second, the "
            "return to dark must open it again, and a fright cue must dilate it. ";
   }
   /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).

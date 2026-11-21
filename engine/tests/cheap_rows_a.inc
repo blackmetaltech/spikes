@@ -5,7 +5,7 @@
 // appendix row of the level.
 
 const std::vector< std::string > A_LEVELS = { "reflex", "worm", "lamprey", "m_threshold", "m_excitation", "m_convergence", "m_inhibition", "m_subtraction",
-  "m_adaptation", "m_half_centre", "m_pacemaking", "m_coupling", "m_neuromodulation" };
+  "m_adaptation", "m_tonic", "m_half_centre", "m_pacemaking", "m_coupling", "m_neuromodulation" };
 for ( const auto& t : A_LEVELS )
 {
   CHEAP_ROW( t, "empty bench", empty( t ) );
@@ -17,7 +17,7 @@ for ( const auto& t : A_LEVELS )
   //   lamprey     the reference's inhibition x2 still swims (x4 crashes NEST's integrator, see the report)
   //   m_adaptation / m_coupling / m_neuromodulation / m_pacemaking   the lesson is a property of the cell (its adaptation current, its own rhythm, a chemical)
   // For those, hand-built rows below hold the degenerate circuits (default cells at extreme weights).
-  if ( t != "worm" && t != "lamprey" && t != "m_adaptation" && t != "m_coupling" && t != "m_neuromodulation" && t != "m_pacemaking" )
+  if ( t != "worm" && t != "lamprey" && t != "m_adaptation" && t != "m_tonic" && t != "m_coupling" && t != "m_neuromodulation" && t != "m_pacemaking" )
     CHEAP_ROW( t, "the reference with every weight at an extreme", max_weights( t ) );
   CHEAP_ROW( t, "one silent cell, all inputs at weight 0", [ & ] {
     Bench b = channels( t, { "N1" }, { "N1" }, 0.0 );
@@ -244,3 +244,13 @@ CHEAP_ROW_V( "lamprey", "one pool on both motor channels", "same cells", [] {
 CHEAP_ROW_V( "m_excitation", "token synapse (0.01 pA) plus a parallel cell fed by the same tap", "synapse", fixture( "m_excitation_token" ) );
 CHEAP_ROW( "m_coupling", "two pacemakers coupled at 0.001 nS", fixture( "m_coupling_token" ) );
 CHEAP_ROW_V( "m_pacemaking", "an integrate-and-fire cell that rests above its own threshold", "threshold", fixture( "m_pacemaking_el_above_vth" ) );
+
+// ---- m_tonic: the cell must hum by itself (a bias on it or on a cell that drives it) and the cue must reach it through an inhibitory path
+// (the "every weight at an extreme" row of the generic loop is left out: the reference with saturated weights IS the mechanism, bias kept)
+CHEAP_ROW_V( "m_tonic", "the reference with the bias removed", "bias", from_ref( "m_tonic", set_params( "N1", { { "I_e", 0.0 } } ) ) );
+CHEAP_ROW( "m_tonic", "the reference with the bias far over threshold", from_ref( "m_tonic", set_params( "N1", { { "I_e", 900.0 } } ) ) );
+CHEAP_ROW( "m_tonic", "the reference with the bias just under threshold", from_ref( "m_tonic", set_params( "N1", { { "I_e", 350.0 } } ) ) );
+CHEAP_ROW_V( "m_tonic", "the reference with the inhibitory link cut", "inhibitory", from_ref( "m_tonic", cut( "N2", "N1", 0 ) ) );
+CHEAP_ROW_V( "m_tonic", "the reference with the link set excitatory", "inhibitory", from_ref( "m_tonic", cut( "N2", "N1", -1 ) ) );
+CHEAP_ROW( "m_tonic", "the reference with the inhibitory link far too weak", from_ref( "m_tonic", cut( "N2", "N1", 0.02 ) ) );
+CHEAP_ROW_V( "m_tonic", "the bias on the inhibitory cell, none on the cell that fires", "bias", from_ref( "m_tonic", both( set_params( "N1", { { "I_e", 0.0 } } ), set_params( "N2", { { "I_e", 400.0 } } ) ) ) );

@@ -1,8 +1,11 @@
 class_name Progress
 extends RefCounted
 ## Best score, pass flag and stars per task (user://progress.cfg).
-## Stars: 1 = pass, 2 = pass on all 5 test seeds (the lab's TEST button, which reseeds world and circuit), 3 = that, within the neuron budget
-## (par_neurons) and within the energy budget (mean spikes per second per neuron, see ENERGY_HZ). The TEST records its MEAN score, not the best.
+## Stars (save_version 2, docs/wiki stars-and-hints): 1 = pass; 2 = CHECK passes all five worlds (seeds 101-105, circuit reseeded with the world) in Standard or
+## Researcher; 3 = star 2 plus the level's CHALLENGE, an optional goal with visible text on the level card (Task::challenge: a neuron par, plus an energy
+## ceiling where ENERGY_HZ lists one, plus "no modulator" where a task asks), and in Standard no "Show recipe". Guided earns at most 2 stars. A Researcher pass
+## (all five worlds under physiological noise and tight bands) also earns the Researcher seal, kept apart from the stars (Progress.seal). Diagnosis: the third
+## star also needs the right answer after one of the case's listed probes (Task::diagnosis().probes). The TEST records its MEAN score, not the best.
 ## A circuit that is a (possibly edited) copy of a task's reference circuit is "reference-derived": it earns no stars and does not unlock anything.
 ##
 ## v0.3 (docs/DESIGN-0.3.md section 5): the save also holds the difficulty mode (guided | standard | researcher, switchable at any time) and, per task,
@@ -24,13 +27,13 @@ const MODE_BLURB := {
 	"standard": "The recipe is behind a “Show recipe” button; using it costs the third star. Hints open after two failed runs. One seed passes (five for the second star).",
 	"researcher": "No recipe and no hints. A pass needs “Test x5”: all five seeds must pass, with physiological noise and tight bands."}
 const PATH := "user://progress.cfg"
-## Neuron budget for the third star, per task (the reference circuits use 15 / 12 / 18; a hand-built reflex arc passes with 9).
+## The file version is SaveIO.VERSION (meta.save_version); _migrate() brings a version-1 file along: stars mean what the header says (Guided capped at 2, seals, diagnosis 3 needs a probe).
+## Neuron par per task when the engine gives none (the reference circuits use 15 / 12 / 18; a hand-built reflex arc passes with 9).
 const BUDGET := {"reflex": 10, "worm": 12, "lamprey": 18}
-## Energy star: mean firing rate per neuron over a whole episode (spikes / s / neuron; times 1e8 to 1e9 ATP per spike gives the cost, Telemetry.atp_text).
-## The budget is 1.6 x what the task's reference circuit spends (measured with `spike-run --task <id>`: rate_hz_per_neuron), rounded; DEFAULT_ENERGY_HZ otherwise.
+## Energy clause of the challenge (only the tasks listed here carry one, and the level card says so): mean firing rate per neuron over a whole episode (spikes / s / neuron).
+## The ceiling is 1.6 x what the task's reference circuit spends (measured with `spike-run --task <id>`: rate_hz_per_neuron), rounded; DEFAULT_ENERGY_HZ otherwise.
 const ENERGY_HZ := {"reflex": 40.0, "worm": 130.0, "lamprey": 25.0, "stretch_reflex": 60.0, "renshaw": 80.0, "posture": 60.0, "reach": 55.0,
 	"heart_pacemaker": 3.0, "heart_autonomic": 14.0, "baroreflex": 35.0, "breathing": 25.0, "pupil": 30.0, "peristalsis": 10.0, "fight_or_flight": 26.0}
-const DEFAULT_ENERGY_HZ := 40.0
 static var _best := {}
 static var _loaded := false
 static var _mode := "standard"
@@ -54,6 +57,30 @@ static func _load() -> void:
 	var m := str(c.get_value("meta", "mode", "standard")); _mode = m if m in MODES else "standard"
 	for k in c.get_section_keys("meta"):
 		if k != "mode": _meta[k] = c.get_value("meta", k)
+	if int(c.get_value("meta", "save_version", 0)) < 2:
+		_migrate(); _save()
+
+## Save version 1 to 2: the Guided mode no longer earns a third star, a Researcher pass gets its seal, and a diagnosis case's third star needs a probe
+## (the old save cannot tell whether one was used, so those cases keep two stars until they are solved again). Nothing is removed and no pass is lost:
+## `passed`, `value` and the hints, variants and recipe flags are untouched; a task's top-level stars become the best over its modes again.
+static func _migrate() -> void:
+	for k in _best:
+		var b: Dictionary = _best[k]; var pm: Dictionary = b.get("modes", {}) if b.get("modes", {}) is Dictionary else {}
+		var dx := str(k).begins_with("dx_")
+		for m in pm.keys():
+			var r: Dictionary = pm[m]
+			if m == "guided": r["stars"] = mini(int(r.get("stars", 0)), 2)
+			if dx: r["stars"] = mini(int(r.get("stars", 0)), 2)
+			if m == "researcher" and bool(r.get("passed", false)): r["seal"] = true
+			pm[m] = r
+		var top := int(b.get("stars", 1 if bool(b.get("passed", false)) else 0))
+		if pm.is_empty():
+			if dx: top = mini(top, 2)
+		else:
+			top = 0
+			for m in pm: top = maxi(top, int((pm[m] as Dictionary).get("stars", 0)))
+			if bool(b.get("passed", false)): top = maxi(top, 1)
+		b["stars"] = top; b["modes"] = pm; _best[k] = b
 
 ## Forget what was loaded and read the file again (after a save import).
 static func reload() -> void:
@@ -101,7 +128,7 @@ static func mode_name(m := "") -> String: return str(MODE_NAMES.get(m if m != ""
 ## The result in one mode: {value, passed, stars}.
 static func best_in(task: String, m: String) -> Dictionary:
 	var r: Dictionary = (best(task)["modes"] as Dictionary).get(m, {})
-	return {"value": float(r.get("value", 0.0)), "passed": bool(r.get("passed", false)), "stars": int(r.get("stars", 0))}
+	return {"value": float(r.get("value", 0.0)), "passed": bool(r.get("passed", false)), "stars": int(r.get("stars", 0)), "seal": bool(r.get("seal", false))}
 
 static func hints_used(task: String) -> Dictionary:
 	var h: Dictionary = best(task)["hints"]; var mx := 0; var n := 0
@@ -161,29 +188,56 @@ static func budget(task: String) -> int:
 	var par := int(Campaign.info(task).get("par", 0))
 	return par if par > 0 else int(BUDGET.get(task, 0))
 
-## The energy budget of a task in spikes per second per neuron.
-static func energy_budget(task: String) -> float: return float(ENERGY_HZ.get(task, DEFAULT_ENERGY_HZ))
+## The energy clause of a task's challenge in spikes per second per neuron, 0 when it has none.
+static func energy_clause(task: String) -> float: return float(ENERGY_HZ.get(task, 0.0))
+## The rate the Analysis energy panel measures against: the clause, else the generic reference ceiling (informative only: it earns nothing).
+const DEFAULT_ENERGY_HZ := 40.0
+static func energy_budget(task: String) -> float: return energy_clause(task) if energy_clause(task) > 0.0 else DEFAULT_ENERGY_HZ
 
 ## Mean spikes per second per neuron of a run: `spikes` counted over `t_ms` of model time in `neurons` cells. -1 when it cannot be told.
 static func energy_hz(spikes: int, neurons: int, t_ms: float) -> float:
 	if neurons <= 0 or t_ms <= 0.0: return -1.0
 	return float(spikes) / float(neurons) / (t_ms * 0.001)
 
-## Stars earned by a result: `passed` on the normal run, `five_seeds` when all 5 test seeds passed, `neurons` the circuit's size, `rate_hz` the mean spikes/s/neuron
-## (negative = not measured: the energy condition is then not applied). The third star needs both budgets.
-static func stars_for(task: String, passed: bool, five_seeds: bool, neurons: int, rate_hz := -1.0) -> int:
+## The level's optional challenge (the third star): {text, max_neurons, max_rate_hz, no_modulators}. The engine's Task::challenge (the neuron par, or a rule of its own)
+## plus the energy clause of ENERGY_HZ; without the extension it is the par alone. The text is what the level card shows, so no budget is ever unstated.
+static func challenge(task: String) -> Dictionary:
+	var c := {"text": "", "max_neurons": budget(task), "max_rate_hz": energy_clause(task), "no_modulators": false}
+	if task != "" and Campaign.ext_ok():
+		var t = Campaign.make(task)
+		if t != null and t.has_method("challenge"):
+			var d: Dictionary = t.challenge()
+			c["text"] = str(d.get("text", "")); c["max_neurons"] = int(d.get("max_neurons", c["max_neurons"])); c["no_modulators"] = bool(d.get("no_modulators", false))
+			if float(d.get("max_rate_hz", 0.0)) > 0.0: c["max_rate_hz"] = float(d["max_rate_hz"])
+	var n := int(c["max_neurons"]); var r := float(c["max_rate_hz"])
+	if str(c["text"]) == "" and n > 0: c["text"] = "Build it with %s or fewer (par)." % neurons_text(n)
+	if r > 0.0 and not "spikes/s" in str(c["text"]): c["text"] = (str(c["text"]) + " Keep the mean rate under %.0f spikes/s per neuron." % r).strip_edges()
+	if bool(c["no_modulators"]) and not "modulator" in str(c["text"]).to_lower(): c["text"] = (str(c["text"]) + " Use no modulator.").strip_edges()
+	return c
+
+## Is the challenge met by a circuit of `neurons` cells running at `rate_hz` (negative = not measured), with or without a modulator output?
+static func challenge_met(task: String, neurons: int, rate_hz := -1.0, has_modulator := false) -> bool:
+	var c := challenge(task)
+	if int(c["max_neurons"]) > 0 and neurons > int(c["max_neurons"]): return false
+	if float(c["max_rate_hz"]) > 0.0 and rate_hz >= 0.0 and rate_hz > float(c["max_rate_hz"]): return false
+	if bool(c["no_modulators"]) and has_modulator: return false
+	return true
+
+## Stars earned by a result: `passed` on a run, `five_seeds` when CHECK passed all five worlds, then the challenge for the third. Guided stops at 2 (`in_mode`, "" = the current mode).
+static func stars_for(task: String, passed: bool, five_seeds: bool, neurons: int, rate_hz := -1.0, has_modulator := false, in_mode := "") -> int:
 	if not passed: return 0
 	if not five_seeds: return 1
-	var b := budget(task)
-	var size_ok := b <= 0 or neurons <= b
-	var energy_ok := rate_hz < 0.0 or rate_hz <= energy_budget(task)
-	return 3 if (size_ok and energy_ok) else 2
+	var m := in_mode if in_mode in MODES else mode()
+	if m == "guided": return 2
+	return 3 if challenge_met(task, neurons, rate_hz, has_modulator) else 2
 
-## Why a third star was not earned, for the end card: "" when it was (or the run did not qualify).
-static func star3_gap(task: String, neurons: int, rate_hz: float) -> String:
+## Why the third star was not earned, for the end card: "" when it was (or the run did not qualify).
+static func star3_gap(task: String, neurons: int, rate_hz: float, has_modulator := false) -> String:
 	var b := budget(task)
 	if b > 0 and neurons > b: return "%d neurons, par is %d" % [neurons, b]
-	if rate_hz >= 0.0 and rate_hz > energy_budget(task): return "%.1f spikes/s per neuron, budget %.0f" % [rate_hz, energy_budget(task)]
+	var e := float(challenge(task)["max_rate_hz"])
+	if e > 0.0 and rate_hz >= 0.0 and rate_hz > e: return "%.1f spikes/s per neuron, ceiling %.0f" % [rate_hz, e]
+	if bool(challenge(task)["no_modulators"]) and has_modulator: return "the challenge asks for no modulator"
 	return ""
 
 ## The task that comes after `task` in the campaign, "" after the last one.
@@ -202,6 +256,7 @@ static func record(task: String, value: float, passed: bool, stars := 0, in_mode
 	var changed := false
 	if value > float(cur["value"]) or (passed and not bool(cur["passed"])) or st > int(cur["stars"]):
 		pm[m] = {"value": maxf(value, float(cur["value"])), "passed": passed or bool(cur["passed"]), "stars": maxi(int(cur["stars"]), st)}; changed = true
+		if bool(cur.get("seal", false)): pm[m]["seal"] = true
 	if value > float(b["value"]) or first_pass or ns > int(b["stars"]): changed = true
 	if not changed: return
 	b["value"] = maxf(value, float(b["value"])); b["passed"] = passed or bool(b["passed"]); b["stars"] = ns; b["modes"] = pm
@@ -214,11 +269,21 @@ static func record(task: String, value: float, passed: bool, stars := 0, in_mode
 static func record_result(task: String, score_mean: float, flags: Dictionary) -> int:
 	if task == "" or bool(flags.get("reference_derived", false)): return 0
 	var passed := bool(flags.get("passed", false))
-	var st := stars_for(task, passed, bool(flags.get("five_seeds", false)), int(flags.get("neurons", 0)), float(flags.get("rate_hz", -1.0)))
+	var m := str(flags.get("mode", "")); if not m in MODES: m = mode()
+	var st := stars_for(task, passed, bool(flags.get("five_seeds", false)), int(flags.get("neurons", 0)), float(flags.get("rate_hz", -1.0)), bool(flags.get("has_modulator", false)), m)
 	if bool(flags.get("recipe_used", false)): st = mini(st, 2)   # the recipe was shown (Standard): no third star
 	if flags.has("max_stars"): st = mini(st, int(flags["max_stars"]))   # a diagnosis case caps its stars by what it cost (wrong guesses, probes)
-	record(task, score_mean, passed, st, str(flags.get("mode", "")))
+	record(task, score_mean, passed, st, m)
+	if m == "researcher" and passed and bool(flags.get("five_seeds", false)): _seal(task)
 	return st
+
+## The Researcher seal: all five worlds passed under physiological noise and tight bands (Researcher mode only). Kept apart from the stars.
+static func _seal(task: String) -> void:
+	_load(); var b := best(task); var pm: Dictionary = b["modes"]
+	var cur: Dictionary = pm.get("researcher", {"value": 0.0, "passed": true, "stars": 0})
+	if bool(cur.get("seal", false)): return
+	cur["seal"] = true; pm["researcher"] = cur; b["modes"] = pm; _best[task] = b; _save(); Playlog.event("seal", {"task": task})
+static func seal(task: String) -> bool: return bool((best(task)["modes"] as Dictionary).get("researcher", {}).get("seal", false))
 
 ## How many levels have been passed (any mode).
 static func passed_count() -> int:

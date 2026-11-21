@@ -85,10 +85,10 @@ Hint use is recorded and never punished. It does not change your stars. Opening 
 | Stars | You need |
 |---|---|
 | 1 | Pass the level. |
-| 2 | Pass on all five Test x5 seeds. |
-| 3 | The same, with no more neurons than the level's **par**, and within the **energy** budget. |
+| 2 | **Check** passes all five worlds (Standard or Researcher). |
+| 3 | The same, and the level's **challenge**, written on its card (by default the neuron par; a few levels add an energy ceiling). |
 
-The par is the number of neurons in the level's reference circuit, or close to it (the brief shows it). The energy budget is the mean firing rate per neuron over the whole episode, in spikes per second. The end card says which of the two blocked a third star: for example "20 neurons, par is 16". See [stars, par and hints](stars-and-hints.html).
+Guided earns at most two stars; a Researcher pass also earns a seal. The end card says what blocked a third star: for example "20 neurons, par is 16". See [stars, par and hints](stars-and-hints.html).
 
 ## 8. After the pass
 
@@ -110,7 +110,7 @@ A circuit that equals the level's reference file, or that the **Reference** butt
 | A level in a chapter | You pass the one before it in that chapter. |
 | A chapter | You pass the previous chapter's main path, or the one two before it. The first two chapters are open from the start. |
 | Branches (diagnosis cases, variants) | You pass the level they hang off. They never gate anything. |
-| The Bestiary and the Theory wing | Open from the start. |
+| The Bestiary and the Theory wing | You pass the Invertebrates spine. Inside the Bestiary a chapter may also wait for something it builds on: Sea slug for Heart's Neuromodulation level, Crab for the Leech chapter, Fly mushroom body for the Sea slug. Guided mode drops these in-wing waits. |
 | Inhibitory neurons, noise inputs, the parts bin | The first level whose reference needs them. |
 | Analysis, Load and Save | The second chapter, Spinal cord. |
 | Lesions, Reference | After you pass the level (Reference also opens in Guided mode). |

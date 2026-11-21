@@ -79,10 +79,11 @@ def core(P=None, renshaw=False, noise=False, name="", task=""):
     d.update(P or {})
     mn = dict(MN, **d.get("MN", {}))
     rc = dict(IN, **d.get("RC", {}))
+    inn = dict(IN, **d.get("IN", {}))
     pops, projs = [], []
     for s, y0 in (("F", 40), ("E", 400)):
         pops.append(pop(f"Ia_{s}", "iaf_psc_alpha", d["nIa"], dict(AFF), 60, y0, dy=30, role="sensor"))
-        pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(IN), 260, y0 + 20, dy=40))
+        pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(inn), 260, y0 + 20, dy=40))
         pops.append(pop(f"MN_{s}", "aeif_cond_alpha", d["nMN"], dict(mn), 460, y0, dy=30, role="motor"))
         if renshaw:
             pops.append(pop(f"RC_{s}", "iaf_cond_alpha", d["nRC"], dict(rc), 660, y0 + 40, dy=40))
@@ -121,7 +122,7 @@ def core(P=None, renshaw=False, noise=False, name="", task=""):
 
 
 def stretch(P=None):
-    return core(dict({"w_IN_MN": -6.5}, **(P or {})), name="Stretch reflex with reciprocal Ia inhibition", task="stretch_reflex")
+    return core(dict({"w_IN_MN": -5.2, "nIN": 4, "w_Ia_IN": 2.25}, **(P or {})), name="Stretch reflex with reciprocal Ia inhibition", task="stretch_reflex")
 
 
 def renshaw(P=None):
@@ -149,7 +150,7 @@ def posture(P=None):
     for s, y0 in (("F", 40), ("E", 420)):
         pops.append(pop(f"Ia_{s}", "iaf_psc_alpha", d["nIa"], dict(AFF), 60, y0, dy=30, role="sensor"))
         pops.append(pop(f"II_{s}", "iaf_psc_alpha", d["nII"], dict(AFF), 60, y0 + 140, dy=30, role="sensor"))
-        pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(IN), 260, y0 + 20, dy=40))
+        pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(inn), 260, y0 + 20, dy=40))
         pops.append(pop(f"MN_{s}", "aeif_cond_alpha", d["nMN"], dict(mn if s == "F" else mn_e), 460, y0, dy=30, role="motor"))
     pops.append(pop("TONIC", "iaf_psc_alpha", d["nTONIC"], dict(AFF), 260, 240, dy=24, role="sensor"))
     pops.append(pop("GAM", "aeif_cond_alpha", d["nGAM"], dict(gm), 560, 330, dy=20, role="motor"))
@@ -205,7 +206,7 @@ def reach(P=None):
     pops, projs = [], []
     for s, y0 in (("F", 40), ("E", 420)):
         pops.append(pop(f"Ia_{s}", "iaf_psc_alpha", d["nIa"], dict(AFF), 60, y0, dy=30, role="sensor"))
-        pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(IN), 260, y0 + 20, dy=40))
+        pops.append(pop(f"IN_{s}", "iaf_cond_alpha", d["nIN"], dict(inn), 260, y0 + 20, dy=40))
         pops.append(pop(f"MN_{s}", "aeif_cond_alpha", d["nMN"], dict(mn), 660, y0, dy=30, role="motor"))
     pops.append(pop("TGT", "iaf_psc_alpha", d["nTGT"], dict(AFF), 60, 230, dy=30, role="sensor"))
     pops.append(pop("GO", "iaf_psc_alpha", d["nGO"], dict(AFF), 60, 340, dy=30, role="sensor"))

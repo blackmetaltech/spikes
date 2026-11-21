@@ -306,7 +306,7 @@ static std::vector< Puzzle > puzzles()
       grp( c, "F", 2 ), grp( c, "E", 2 ), grp( c, "IN", 2 );
       sens( c, "tone", { "F", "E" } );
       sens( c, "ia_flexor", { "F", "IN" } );
-      link( c, "IN", "E", -160 );
+      link( c, "IN", "E", -640 );   // the lab starts the tone sensor at 450 pA per unit: the recipe's link is -640 there
       motor( c, "flexor", "F" ), motor( c, "extensor", "E" );
       return c;
     },
@@ -373,7 +373,7 @@ static std::vector< Puzzle > puzzles()
       grp( c, "S0", 2 ), grp( c, "S1", 2 ), grp( c, "S2", 2 ), grp( c, "IN", 2 );
       sens( c, "tone", { "S0", "S1", "S2" } );
       sens( c, "dist1", { "S0", "IN" } ), sens( c, "dist2", { "S1" } );
-      link( c, "IN", "S2", -160 );
+      link( c, "IN", "S2", -640 );
       motor( c, "seg0", "S0" ), motor( c, "seg1", "S1" ), motor( c, "seg2", "S2" );
       return c;
     },
@@ -591,6 +591,10 @@ int main( int argc, char** argv )
     CHECK_MSG( r.loaded && !r.score.passed && r.score.value == 0.0, p.id + ": nothing fires -> value 0, got " + std::to_string( r.score.value ) + " (" + r.score.verdict + ")" );
   }
   std::printf( "\nnovice runs to pass (brief + lab defaults):\n" );
-  for ( auto& [ k, n ] : runs_to_pass ) std::printf( "  %-20s %d\n", k.c_str(), n );
+  for ( auto& [ k, n ] : runs_to_pass )
+  {
+    std::printf( "  %-20s %d\n", k.c_str(), n );
+    CHECK_MSG( n >= 2, k + ": the untouched lab default passes on the first run, so nothing is learned (curriculum: the default must fail with a verdict that names the concept)" );
+  }
   return chk::finish( "tasks_micro_b_test" );
 }

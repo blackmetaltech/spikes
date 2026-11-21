@@ -67,7 +67,7 @@ Biochem Pharmacol 101:1; Prochazka A, Gorassini M (1998) J Physiol 507:277; Heck
 
 ## v0.3: concepts, modes, variants (item D)
 
-* **Concepts:** none new (negative_feedback is taught by the micros and used here). Level kind `task`, on the spine.
+* **Concepts:** none new (negative_feedback is taught by the micros and used here). Level kind `task`, a branch (off the spine since the curriculum pass: no novice bench solves it from the brief, so the spinal sprint no longer waits for it).
 * **Modes** (guided / standard / researcher): Pushes x0.8 / x1 / x1.05; rms, worst error and sag limits x1.25 / 1 / x0.92. The structure of the pass test never changes; the reference circuit passes every mode (researcher on seeds 1-5; `tasks_modes_test`).
 * **Variants** (optional branches, never weaken the base bar): half_neurons (par 27); strong_pushes (x1.4).
 * **Hints:** three tiers from `score().parts` (concept, then the place: a channel or population id, then a partial recipe).

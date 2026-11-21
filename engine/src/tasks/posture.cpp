@@ -52,7 +52,8 @@ public:
   {
     return "Holding an arm up is a servo: gravity and bumps stretch the muscles, the spindles report it, and the reflex pulls back. "
            "The loop only works if the spindles are tuned: gamma motoneurons set their sensitivity (a spindle in a slack, "
-           "gamma-quiet muscle is nearly silent), and a tonic descending drive sets how hard the antigravity muscle works. The "
+           "gamma-quiet muscle is nearly silent), and a tonic descending drive sets how hard the antigravity muscle works (a steady bias: either the 'drive' sensor onto a tonic group, or a bias current I_e, "
+           "set in the advanced parameters, on the cells themselves; see Tonic drive). The "
            "forearm is NOT supported: it weighs 1.5 kg and must be held 29 degrees above horizontal while six random pushes knock it "
            "either way. Wire the spindle afferents (ag_Ia, ant_Ia, ag_II, ant_II) to the motoneuron pools, drive a gamma pool "
            "(gamma_motor) from the descending tone, and give the flexor more tone than the extensor so that gravity is balanced "
@@ -85,7 +86,7 @@ public:
   std::string level_kind() const override { return "task"; }
   std::vector< std::string > concepts_new() const override { return {}; }
   std::vector< std::string > concepts_used() const override { return { "recruitment", "reciprocal_inhibition", "excitation", "negative_feedback" }; }
-  bool on_spine() const override { return true; }
+  bool on_spine() const override { return false; }
   /// Perturbation x0.8 (guided) / x1.05 (researcher) on the 1.0-1.8 N m pushes; pass limits rms 0.17 / worst 0.30 / sag 0.17 rad x1.25
   /// (guided) or x0.92 (researcher).
   std::map< std::string, std::string > variants() const override

@@ -49,11 +49,12 @@ public:
     i.concepts_used = { "pacemaking", "excitation" };
     i.par_neurons = 2;
     i.default_model = "iaf_psc_alpha";
-    i.recipe = "vagus > cell V (an ordinary integrate-and-fire cell, the default sensor weight is right) > 'vagal'; an SA node cell > "
+    i.recipe = "vagus > cell V (an ordinary integrate-and-fire cell; the lab starts the vagus sensor at 100, too weak to fire it: set it to 300) > 'vagal'; an SA node cell > "
                "'beat'. V fires about 85 times a second, the vagal output (gain 0.012, tau 500 ms) turns that into an ACh level near "
                "0.5, and the heart slows from about 103 to 67 per minute. More cells on 'vagal' means more ACh: too many stop the "
                "node.";
-    i.kinds = { { "vagus", micro::dc( kLevel ) }, { "beat", micro::rate() }, { "vagal", micro::modulator( "ACh", 0.012, 500.0 ) } };
+    // the lab starts the vagus sensor weak: the first build releases no ACh, and the verdict says why
+    i.kinds = { { "vagus", micro::dc( kLevel, 100.0 ) }, { "beat", micro::rate() }, { "vagal", micro::modulator( "ACh", 0.012, 500.0 ) } };
     i.bands = { { "slowing", "x", 1.25, 3.0 }, { "ACh", "a.u.", 0.15, 1.5 } };
     i.timeline = { { kOn, kDur - kOn, "vagus on" } };
     i.modulators = { "ACh", "NE" };
@@ -140,7 +141,7 @@ public:
       o << "The beat slowed, but no acetylcholine was released: you slowed it some other way. The vagus acts through the 'vagal' output, which "
            "releases ACh; wire your vagus cell to it.";
     else if ( !b )
-      o << "No acetylcholine was released, so the heart is not slowed. Make a cell fire when the vagus comes on and wire it to the 'vagal' output.";
+      o << "No acetylcholine was released, so the heart is not slowed. A modulator is released by the spikes of the cell on the 'vagal' output, so that cell has to fire when the vagus comes on: wire it to 'vagal' and strengthen the vagus sensor until the cell fires.";
     else if ( st.ne < 2 || st.ratio > 3.0 )
       o << "Too much: the node nearly stopped. Fewer cells on 'vagal', or a smaller gain on the output, for a gentler slowing.";
     else if ( st.ratio < need )

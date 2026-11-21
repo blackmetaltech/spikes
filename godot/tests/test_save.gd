@@ -51,6 +51,7 @@ func _init() -> void:
 	_damaged_progress()
 	_future_progress()
 	_legacy_progress()
+	_migrate_stars()
 	_circuits_hostile()
 	_reference_overwrite_and_lock()
 	_history()
@@ -119,6 +120,36 @@ func _future_progress() -> void:
 	Progress.record("worm", 80.0, true, 1, "guided")
 	_check(_text(_user("progress.cfg")) == future, "a newer save was overwritten")
 
+## Save version 1 to 2 (Progress._migrate): Guided stars are capped at two, a Researcher pass gets its seal, a diagnosis case keeps two stars until it is solved again;
+## passes, scores, hints and the recipe flag survive, and the migrated file is written with version 2 and kept as a backup.
+func _migrate_stars() -> void:
+	_wipe()
+	var old := "[best]\n\nreflex={\n\"value\": 90.0,\n\"passed\": true,\n\"stars\": 3,\n\"recipe\": true,\n\"modes\": {\n\"guided\": {\"value\": 90.0, \"passed\": true, \"stars\": 3},\n\"researcher\": {\"value\": 80.0, \"passed\": true, \"stars\": 2}\n}\n}\n\ndx_worm={\n\"value\": 100.0,\n\"passed\": true,\n\"stars\": 3\n}\n\nworm={\n\"value\": 60.0,\n\"passed\": true,\n\"stars\": 3,\n\"modes\": {\n\"standard\": {\"value\": 60.0, \"passed\": true, \"stars\": 3}\n}\n}\n\n[meta]\n\nsave_version=1\nmode=\"standard\"\n\n[zz_end]\n\nok=true\n"
+	_put(_user("progress.cfg"), old)
+	var r := Progress.best("reflex")
+	_check(bool(r["passed"]) and int(r["stars"]) == 2, "migration: guided 3 + researcher 2 becomes 2 stars, the pass is kept (%s)" % str(r["stars"]))
+	_check(int(Progress.best_in("reflex", "guided")["stars"]) == 2 and bool(Progress.best_in("reflex", "researcher")["seal"]), "migration: guided capped at 2, the researcher pass has its seal")
+	_check(bool(r.get("recipe", false)) and float(r["value"]) == 90.0, "migration keeps the recipe flag and the score")
+	_check(int(Progress.best("dx_worm")["stars"]) == 2 and bool(Progress.best("dx_worm")["passed"]), "migration: a diagnosis case keeps two stars")
+	_check(int(Progress.best("worm")["stars"]) == 3, "migration leaves a Standard 3-star alone")
+	_check("save_version=2" in _text(_user("progress.cfg")) and _exists("progress.cfg.bak1"), "the migrated file is written as version 2 and the old one kept")
+	_reload_progress()
+	_check(int(Progress.best("reflex")["stars"]) == 2 and int(Progress.best("worm")["stars"]) == 3, "the migrated file reads back the same")
+	# the new rules: Guided stops at 2, the challenge decides 3, a Researcher five-world pass gets the seal
+	Progress.set_mode("guided")
+	_check(Progress.stars_for("worm", true, true, 1) == 2, "guided never earns a third star")
+	Progress.set_mode("standard")
+	_check(Progress.stars_for("worm", true, false, 1) == 1 and Progress.stars_for("worm", true, true, 1) == 3 and Progress.stars_for("worm", true, true, 99) == 2, "star 2 is five worlds, star 3 the challenge (neuron par, no extension: the table)")
+	# wing gating (Campaign.chapter_open): a fresh save opens chapters I and II only; the wings wait for the chapter I spine, in every mode
+	for m in ["standard", "guided", "researcher"]:
+		Progress.set_mode(m)
+		_check(Campaign.chapter_open("invertebrates") and Campaign.chapter_open("spinal"), "the first two chapters are open from the start (%s)" % m)
+		_check(not Campaign.chapter_open("leech") and not Campaign.chapter_open("crab") and not Campaign.chapter_open("dynamics") and not Campaign.chapter_open("fly_mb"), "the wings are closed before the chapter I spine (%s)" % m)
+	_check(Campaign.chapter_lock_reason("leech").begins_with("Pass the Invertebrates spine"), "the wing lock says which spine opens it")
+	Progress.set_mode("researcher")
+	Progress.record_result("reflex", 85.0, {"passed": true, "five_seeds": true, "neurons": 5, "mode": "researcher"})
+	_check(Progress.seal("reflex"), "a researcher five-world pass earns the seal")
+
 func _legacy_progress() -> void:
 	_wipe()
 	_put(_user("progress.cfg"), "[best]\n\nreflex={\n\"value\": 66.0,\n\"passed\": true,\n\"stars\": 1\n}\n\n[meta]\n\nmode=\"researcher\"\n")
@@ -126,7 +157,7 @@ func _legacy_progress() -> void:
 	_check(SaveIO.notices.is_empty(), "a legacy file produced a notice")
 	Progress.record("worm", 70.0, true, 1, "researcher")
 	var t := _text(_user("progress.cfg"))
-	_check("save_version=1" in t and "[zz_end]" in t, "the upgraded file has no version / end marker")
+	_check("save_version=2" in t and "[zz_end]" in t, "the upgraded file has no version / end marker")
 	_check(_exists("progress.cfg.bak1"), "the legacy file was not kept as a backup")
 	# settings and goals go through the same helper
 	Settings.volume = 0.31; Settings.save_all(); Settings.volume = 0.8; Settings.load_all()

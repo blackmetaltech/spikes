@@ -53,9 +53,9 @@ public:
     i.concepts_used = { "excitation", "inhibition" };
     i.par_neurons = 4;
     i.default_model = "iaf_psc_alpha";
-    i.recipe = "tone onto 3 groups (seg0, seg1, seg2; the first connection sets 300 pA per unit, which is right). dist1 onto "
-               "seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -160 pA; dist2 onto seg1.";
-    i.kinds = { { "tone", dc( kTone ) }, { "dist1", dc( kPress ) }, { "dist2", dc( kPress ) }, { "seg0", rate() }, { "seg1", rate() }, { "seg2", rate() } };
+    i.recipe = "tone onto 3 groups (seg0, seg1, seg2; the lab starts the tone sensor at 450 pA per unit; 300 is gentler). dist1 onto "
+               "seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -640 pA at the lab's 450 (-160 with the tone at 300); dist2 onto seg1.";
+    i.kinds = { { "tone", dc( kTone, 450.0 ) }, { "dist1", dc( kPress ) }, { "dist2", dc( kPress ) }, { "seg0", rate() }, { "seg1", rate() }, { "seg2", rate() } };
     i.bands = { { "seg2_vs_tone", "", 0.0, 0.3 } };
     i.timeline = { { 700, 800, "bolus at segment 1" }, { 1700, 800, "bolus at segment 2" } };
     i.concept_hint = "Polarity: a travelling wave has a direction because excitation spreads one way (above the bolus) and inhibition the other (below it). The same "
