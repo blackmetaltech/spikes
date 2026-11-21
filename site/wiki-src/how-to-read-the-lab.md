@@ -36,6 +36,9 @@ The bench is drawn like an engineering sheet of graph paper. Everything on it is
 | Connection (axon) | A line with an arrowhead | An excitatory connection. A flat bar at the end means inhibitory. The beads move at a slowed-down version of the synaptic delay. |
 | Sensor card | A tab on the left edge, with a SENSOR chip | An input the level drives: a touch, a salt level, a pulse, a pressure. You wire it to neurons. |
 | Motor card | A tab on the right edge, with a MOTOR chip | An output the level reads: the mean firing rate of the neurons you connect. |
+| Large group | A stained ellipse with the name and the count (for example KC x200), a ring of sample cells on its rim | A group of more than twelve neurons. The ring shows a sample of its cells, which flash as they fire; the stain darkens with the group's firing. |
+| Bus card | One card for a run of numbered inputs (cue_0 ... cue_15 becomes "cue x16"), with a small comb of bars | The bars are the channels' activity. Drag from the card to a group to wire every channel to it. Click the card to open it into one card per channel; click the head tab to close it again. |
+| Zoom readout | A small box at the bottom left, such as 85% | How far the bench is zoomed. Click it to fit the circuit. The scale bar beside it keeps the micrometre length true at every zoom. |
 
 The brief's legend chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the colours.
 
@@ -53,7 +56,14 @@ The brief's legend chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the col
 | Wire a motor | Drag from a neuron's rim onto the motor card. |
 | Select | Click a disc, a line or a card. |
 | Delete | Select it, then press Delete or Backspace, or the Delete button in the inspector. Right-clicking a part also deletes it. |
-| Fit the view | More, then **Fit**. |
+| Fit the view | Press F, click the zoom readout, or More, then **Fit**. |
+| Zoom and pan | The wheel (or a pinch) zooms about the pointer, from 15% to 300%. Middle-drag, Space-drag or a finger drag on the empty bench pans. |
+| Select several | Shift+click groups, or drag a box over the empty bench. Drag one of them to move them all; Delete deletes them all. |
+| Copy and paste | Ctrl+C copies the selected groups with the connections between them (and to sensors and motors); Ctrl+V pastes them beside the originals; Ctrl+D duplicates. |
+| Undo a change | **Undo** on the play bar or Ctrl+Z; **Redo** or Ctrl+Shift+Z. Each add, wire, delete, slider change, drag, paste or loaded circuit is one step, up to 100. |
+| Work without a mouse | Click the bench (or Tab onto it): a double-ring cursor walks the cards and groups with Tab or the arrow keys (the D-pad on a gamepad). Enter (A) selects, W (X) starts a wire, Enter (A) finishes it, I (Y) opens the inspector. See [keyboard and controls](controls.html). |
+
+On a big circuit the bench opens fitted to show every group and its name. If the window is too small for the circuit and its cards, the groups are kept in view and the cards may be a pan away.
 
 On a level, the sensor and motor cards of the task cannot be deleted. Cards you add yourself (a noise input) can.
 
@@ -105,6 +115,7 @@ The bar across the top has these buttons.
 | Back | Leaves the lab. Your circuit is saved automatically for the level. |
 | **Run / Pause** | Starts and stops the simulation. The simulation runs in model time (real biology time), at the speed set in More. |
 | **Reset** | Restarts the episode with the circuit you have. |
+| **Undo / Redo** | Takes back the last change to the circuit, or puts it back (Ctrl+Z, Ctrl+Shift+Z). Grey when there is nothing to undo. On a phone they sit on the palette row. |
 | **Check** | Scores the circuit headless, on the level's own seed, right now. It runs the level's quick episode. It does not need the live run to finish. See [the core loop](core-loop.html). |
 | **Hint** | Appears once hints are open. See [stars, par and hints](stars-and-hints.html). |
 | **Brief** (or **Case** on a diagnosis) | Brings the brief back into the inspector. |
@@ -121,10 +132,13 @@ The bar across the top has these buttons.
 | Run | Fit | Fits the circuit into the bench. |
 | Level | Mode | Guided, Standard or Researcher. See [modes](modes.html). |
 | Level | Variant | The base task, or one of its challenge variants. |
+| Solution slots | Save to A, B, C; Load A, B, C | Three saved circuits per level, kept across restarts. Load asks first; the bench it replaces is kept in the bench history. A slot made from the reference circuit stays marked as one. |
 | Level | Test x5, Results, Reference, Empty bench | Results shows your circuit against generated variants (after a pass). Reference loads the level's reference circuit (after a pass, or in Guided mode). Empty bench starts again. |
 | Tools | Lesions | The lesion lab (after a pass). See [the lesion lab](lesion-lab-and-analysis.html). |
 | Tools | Analysis | The analysis screen (from the second chapter). |
 | Tools | Load, Save | Read or write a circuit file (from the second chapter). |
+| Tools | Copy circuit as JSON, Paste circuit JSON | Put the whole circuit on the clipboard, or replace the bench with a circuit from the clipboard (it is checked first and refused if it is not a valid circuit). |
+| Tools | Import from a passed level | Lists your own saved bench and slots of every level you have passed (benches built from a reference are left out). The pick is pasted as one selected group; links to sensors or motors this level does not have are dropped, and a note names them. |
 
 > **Note:** A circuit that is a copy of a level's reference circuit earns no stars and does not unlock anything. The end card says so. Press Empty bench and build your own.
 

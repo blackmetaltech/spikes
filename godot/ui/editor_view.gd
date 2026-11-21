@@ -213,10 +213,12 @@ func edit_pending() -> void:
 
 ## Commit what changed since the last step as one undo step (no-op when nothing did).
 func commit_now() -> void:
-	_pending = -1.0
+	var was := _pending >= 0.0; _pending = -1.0
 	if circuit.is_empty(): return
 	var t := _snap(circuit)
-	if t == _base: return
+	if t == _base:   # nothing new (the lab's reload after an undo): Redo is available again
+		if was: history_changed.emit()
+		return
 	_push_undo(_base); _base = t; _redo.clear(); history_changed.emit()
 
 func _push_undo(t: String) -> void:

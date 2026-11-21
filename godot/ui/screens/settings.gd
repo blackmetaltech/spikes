@@ -176,7 +176,15 @@ func _audio() -> void:   # audio section (item H)
 func _controls() -> void:
 	var intro := Kit.label("Spike is mouse and touch first. Keyboard and gamepad can drive every menu.", 18, Kit.TEXT, true)
 	body.add_child(intro)
-	for def in [["Keyboard", Kit.AMBER, [["Move focus", "Arrow keys"], ["Press", "Enter"], ["Back", "Esc"]]], ["Gamepad", Kit.TEXT, [["Move focus", "D-pad"], ["Press", "A"], ["Back", "B"]]], ["Touch and mouse", Kit.GREEN, [["Press", "Tap or click"], ["Scroll lists", "Drag"]]]]:
+	for def in [["Keyboard", Kit.AMBER, [["Move focus", "Arrow keys"], ["Press", "Enter"], ["Back", "Esc"],
+			["Lab: run / pause", "Space"], ["Lab: Check", "C"], ["Lab: reset", "R"], ["Lab: undo", "Ctrl+Z"], ["Lab: redo", "Ctrl+Shift+Z, Ctrl+Y"],
+			["Lab: copy / paste / duplicate", "Ctrl+C, Ctrl+V, Ctrl+D"], ["Lab: select every group", "Ctrl+A"], ["Lab: delete selection", "Delete"],
+			["Lab: zoom / fit", "+, -, F"], ["Lab: pan", "Hold Space and drag"], ["Bench cursor (bench focused)", "Tab, arrow keys"],
+			["Bench: select / finish a wire", "Enter"], ["Bench: start a wire", "W"], ["Bench: open the inspector", "I"], ["Bench: nudge a group", "Shift+arrows"]]], ["Gamepad", Kit.TEXT, [["Move focus", "D-pad"], ["Press", "A"], ["Back", "B"],
+			["Bench cursor", "D-pad"], ["Bench: select / finish a wire", "A"], ["Bench: start a wire", "X"], ["Bench: open the inspector", "Y"],
+			["Lab: run / pause", "Start"], ["Bench: zoom", "LB, RB"]]], ["Touch and mouse", Kit.GREEN, [["Press", "Tap or click"], ["Scroll lists", "Drag"],
+			["Bench: zoom", "Wheel or pinch"], ["Bench: pan", "Middle-drag, or drag the empty bench (touch)"], ["Bench: add to selection", "Shift+click"],
+			["Bench: select several", "Drag a box over the empty bench"], ["Bench: delete a group", "Right-click"], ["Bench: fit", "Click the zoom readout"]]]]:
 		_fig += 1
 		var c := Kit.fig_card(_fig, def[0], "", Kit.PANEL, 22 if not Layout.phone else 14); body.add_child(c[0])
 		for r in def[2]:

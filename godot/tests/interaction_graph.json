@@ -463,7 +463,9 @@
    ],
    "optional": [
     "BtnConnect",
-    "BtnExcitatory"
+    "BtnExcitatory",
+    "BtnUndo",
+    "BtnRedo"
    ],
    "abstract": true,
    "back": {
@@ -722,7 +724,16 @@
     "BtnAnalysis",
     "BtnLoad",
     "BtnSave",
-    "BtnRestorePreviousBench"
+    "BtnRestorePreviousBench",
+    "BtnSaveToA",
+    "BtnSaveToB",
+    "BtnSaveToC",
+    "BtnLoadA",
+    "BtnLoadB",
+    "BtnLoadC",
+    "BtnCopyCircuitAsJson",
+    "BtnPasteCircuitJson",
+    "BtnImportFromAPassedLevel"
    ],
    "scope": "MoreMenu",
    "modal": true,
@@ -744,6 +755,25 @@
     "Select_*"
    ],
    "scope": "PartsModal",
+   "modal": true,
+   "back": {
+    "control": "BtnClose",
+    "key": "Escape"
+   }
+  },
+  "lab.import": {
+   "kind": "modal",
+   "label": "Import from a passed level (your solved circuits, pasted as a group)",
+   "detect": {
+    "find": "ImportModal"
+   },
+   "controls": [
+    "BtnClose"
+   ],
+   "optional": [
+    "Imp_*"
+   ],
+   "scope": "ImportModal",
    "modal": true,
    "back": {
     "control": "BtnClose",
@@ -1442,6 +1472,79 @@
    "from": "lab.insp.out",
    "to": "lab.insp.out",
    "control": "BtnDisconnectAll"
+  },
+  {
+   "id": "lab.undo",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnUndo",
+   "action": "script:undo",
+   "note": "Add a neuron, Undo: the circuit is back byte for byte; Ctrl+Shift+Z redoes it and Ctrl+Z undoes it again."
+  },
+  {
+   "id": "lab.redo",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnRedo",
+   "action": "script:redo",
+   "note": "Add a neuron, Ctrl+Z, then Redo: the neuron is back."
+  },
+  {
+   "id": "lab.zoom_fit",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "Editor",
+   "action": "script:zoom_fit",
+   "note": "The wheel zooms about the pointer (0.15x to 3x), middle-drag pans, F fits."
+  },
+  {
+   "id": "lab.multiselect",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "Editor",
+   "action": "script:multiselect",
+   "note": "Click a group, shift-click another: both are selected; a box dragged over the empty bench selects what it covers."
+  },
+  {
+   "id": "lab.copy_paste",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "Editor",
+   "action": "script:copy_paste",
+   "note": "Ctrl+A, Ctrl+C, Ctrl+V pastes a copy of every group; Ctrl+D duplicates; Ctrl+Z takes each back."
+  },
+  {
+   "id": "lab.slot",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnMore",
+   "action": "script:slot",
+   "note": "More > Save to A, change the bench, More > Load A: the saved circuit is back (asks first, the replaced bench is kept)."
+  },
+  {
+   "id": "lab.json",
+   "from": "lab.task",
+   "to": "lab.task",
+   "control": "BtnMore",
+   "action": "script:json",
+   "setup": {
+    "unlock_all": true
+   },
+   "guard": "Load and Save tools are open (chapter II, the sandbox)",
+   "note": "More > Copy circuit as JSON, change the bench, More > Paste circuit JSON: checked by Circuits.validate, then it replaces the bench."
+  },
+  {
+   "id": "lab.import",
+   "from": "lab.more",
+   "to": "lab.import",
+   "control": "BtnImportFromAPassedLevel",
+   "setup": {
+    "unlock_all": true
+   },
+   "returns": true,
+   "guard": "Load and Save tools are open",
+   "note": "Lists your saved bench and slots of every passed level; a pick is pasted as one selected group.",
+   "returns_to": "lab.task"
   },
   {
    "id": "more.fit",

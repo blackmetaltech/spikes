@@ -66,8 +66,12 @@ func _undo_redo() -> void:
 	ed.redo(); _check(Circuits.to_json(c) == s3, "redo 3")
 	_check(not ed.can_redo(), "nothing left to redo")
 	# the lab reacts to an undo as to any edit: structure_changed, and the pending commit it causes is a no-op (redo survives)
-	ed.undo(); ed.undo(); ed.commit_now()
+	ed.undo(); ed.undo(); ed.edit_pending()
+	_check(not ed.can_redo(), "Redo waits while the lab's reload is pending")
+	var told := [0]; var on_hist := func(): told[0] += 1
+	ed.history_changed.connect(on_hist); ed.commit_now(); ed.history_changed.disconnect(on_hist)
 	_check(ed.can_redo(), "the reload after an undo does not clear the redo stack")
+	_check(told[0] > 0, "the Redo button is told when the pending reload settles (history_changed)")
 	ed.redo(); _check(Circuits.to_json(c) == s2, "redo after the reload")
 	# a new edit clears the redo stack
 	ed.undo(); Circuits.add_neuron(c, "iaf_psc_alpha", 0, Vector2(500, 240), "I"); ed.edit_pending(); ed.commit_now()
