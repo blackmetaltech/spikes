@@ -140,3 +140,7 @@
   CHEAP_ROW_V( "boss_autonomic_exam", "reference minus the pupil branch (HYP > SCG cut)", "pupil", cheap::from_ref( "boss_autonomic_exam", cut_c( "HYP", "SCG" ) ) );
   CHEAP_ROW_V( "boss_autonomic_exam", "reference minus the vagal limb (NTS > NA cut)", "vagal limb", cheap::from_ref( "boss_autonomic_exam", cut_c( "NTS", "NA" ) ) );
 }
+
+// ---- cheat-proofing (full review, P0-3)
+CHEAP_ROW_V( "heart_autonomic", "a recorded beat train on a parrot cell, nothing wired", "stimulus", fixture( "heart_autonomic_tape" ) );
+CHEAP_ROW( "heart_pacemaker", "two uncoupled pacemaker cells (coupling 0.001 nS), I_e -4", fixture( "heart_pacemaker_uncoupled" ) );

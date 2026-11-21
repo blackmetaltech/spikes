@@ -46,7 +46,7 @@ protected:
       for ( int n : o.neurons ) e.set_neuron_param( n, "V_m", left ? -50.0 : -75.0 );
       for ( const auto& pr : g_.st.projections )
       {
-        if ( pr.sign >= 0 || pr.n_edges <= 0 || pr.pre_index < 0 || pr.post_index < 0 ) continue;
+        if ( pr.sign >= 0 || !functional( g_.st, pr ) || pr.pre_index < 0 ) continue;
         const auto& post = g_.st.populations[ static_cast< size_t >( pr.post_index ) ];
         bool feeds = false;
         for ( int n : o.neurons ) feeds = feeds || ( n >= post.first_index && n < post.first_index + post.n );
@@ -156,7 +156,7 @@ Spec spec()
     // the cells that do the inhibiting (every population with an inhibitory projection out of it) need a slow process of their own
     bool any = false, slow = false;
     for ( const auto& pr : g.st.projections )
-      if ( pr.sign < 0 && pr.n_edges > 0 )
+      if ( pr.sign < 0 && functional( g.st, pr ) )
       {
         any = true;
         const std::string& m = g.pop( pr.pre_index ).model;

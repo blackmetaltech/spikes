@@ -163,3 +163,7 @@ CHEAP_ROW_V( "boss_spinal_sprint", "no Renshaw loop (collaterals cut)", "recurre
 CHEAP_ROW_V( "boss_spinal_sprint", "no burst generator (second burst group cut from the extensor)", "antagonist", cheap::from_ref( "boss_spinal_sprint", cutw( "B2", "MN_E", 0.0 ) ) );
 CHEAP_ROW_V( "boss_spinal_sprint", "no reciprocal inhibition", "reciprocal", cheap::from_ref( "boss_spinal_sprint", cutw2( "IN_F", "MN_E", "IN_E", "MN_F" ) ) );
 CHEAP_ROW_V( "boss_spinal_sprint", "no spindle feedback", "spindle", cheap::from_ref( "boss_spinal_sprint", cheap::both( cutw2( "Ia_F", "MN_F", "Ia_E", "MN_E" ), cutw2( "II_F", "MN_F", "II_E", "MN_E" ) ) ) );
+
+// ---- cheat-proofing (full review, P0-3)
+CHEAP_ROW( "m_recurrent", "Renshaw loop at 0.01 pA, kick weight cut to 10", fixture( "m_recurrent_token" ) );
+CHEAP_ROW( "m_recurrent", "the reference without its loop and the kick weight cut to a thirtieth", from_ref( "m_recurrent", all( cut( "MN", "RC", 0 ), cut( "RC", "MN", 0 ), scale_input( "kick", 0.03 ) ) ) );

@@ -102,6 +102,21 @@ public:
         return;
       }
     }
+    // a cell whose resting potential is parked at (or above) its own spike threshold fires with no input too, and is the same bias in disguise: nothing in its membrane makes the beat
+    for ( int p : beat )
+    {
+      const std::string& m = g_.pop( p ).model;
+      const bool aeif = m.rfind( "aeif", 0 ) == 0, iaf = m.rfind( "iaf_", 0 ) == 0 || m == "mat2_psc_exp" || m == "amat2_psc_exp";
+      if ( !aeif && !iaf ) continue;
+      const double el = std::isnan( g_.param( p, "E_L" ) ) ? ( aeif ? -70.6 : -70.0 ) : g_.param( p, "E_L" );
+      const double vt = std::isnan( g_.param( p, "V_th" ) ) ? ( aeif ? -50.4 : -55.0 ) : g_.param( p, "V_th" );
+      if ( el >= vt - 1.0 )
+      {
+        mech_ = "The cell rests at its own firing threshold (or above it): that keeps it firing with nothing driving it, but it is the same constant push as a bias current, not a rhythm made by "
+                "the cell's own membrane currents. A pacemaker beats because of slow inward currents; use a cell that has them.";
+        return;
+      }
+    }
     if ( g_.indegree( beat ) > 0 )
       mech_ = "The cell is driven by other cells: its beat comes from them, not from itself. A pacemaker needs no input at all.";
   }

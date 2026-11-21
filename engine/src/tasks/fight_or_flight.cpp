@@ -454,7 +454,7 @@ private:
     {
       mech::PopSet targets;
       for ( const auto& pr : st.projections )
-        if ( pr.n_edges > 0 && pr.sign > 0 && pr.pre_index == h && pr.post_index != h )
+        if ( functional( st, pr ) && pr.sign > 0 && pr.pre_index == h && pr.post_index != h )
           targets.insert( pr.post_index );
       int useful = 0;
       for ( int t : targets )

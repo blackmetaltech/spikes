@@ -130,7 +130,7 @@ protected:
   {
     const double k = kick_at( t_ );
     e.set_input( "drive", kDrive * ( 1.0 + 0.03 * noise() * rng_.normal() ) );
-    e.set_input( "kick", k > 0 ? k * ( 1.0 + 0.03 * noise() * rng_.normal() ) : 0.0 );
+    e.set_input( "kick", k > 0 ? owned_level( e, "kick", k * ( 1.0 + 0.03 * noise() * rng_.normal() ), 300.0 ) : 0.0 );   // the volley is the level's: 300 pA per unit whatever weight the player gave it
   }
 
   void update_readouts() override

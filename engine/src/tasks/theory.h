@@ -157,12 +157,14 @@ inline void pattern_sets( Engine& e, Meas& m, const std::string& mem, const std:
 /// one population wired with per-edge weights, or a whole population, or several).
 struct CellGraph
 {
-  std::map< std::pair< int, int >, double > w;   // summed weight of the connections pre -> post (every connection with a non-zero weight)
+  std::map< std::pair< int, int >, double > w;   // summed weight of the connections pre -> post (every connection whose weight reaches the functional floor of its target)
   std::map< int, std::vector< int > > out;       // post cells per pre cell
   explicit CellGraph( const Engine& e )
   {
+    const Structure st = e.structure();
     for ( const auto& c : e.connections() )
     {
+      if ( !functional_edge( st, e, c.post, c.weight ) ) continue;   // a token weight is no connection (the functional floor of task_util.h)
       w[ { c.pre, c.post } ] += c.weight;
     }
     for ( const auto& [ k, v ] : w )

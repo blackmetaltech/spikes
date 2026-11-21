@@ -1,0 +1,4 @@
+{"schema_version":1,"name":"lone","resolution_ms":0.1,"seed":11,
+"populations":[{"id":"SA","model":"sa_node_pacemaker","n":2,"params":{"I_e":-4.0}}],
+"projections":[{"pre":"SA","post":"SA","rule":"all_to_all","synapse":{"weight":0.001,"delay":1.0}}],
+"outputs":[{"name":"sa_beat","kind":"rate","neurons":[{"pop":"SA","idx":[0]}]}]}
