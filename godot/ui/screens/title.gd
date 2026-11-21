@@ -6,6 +6,11 @@ extends Screen
 ## stain blooms round its soma (still, when reduced motion is on).
 var buttons := {}
 var first: Button
+var _col: VBoxContainer
+var _foot: VBoxContainer
+var _blurb: Label
+var _blurb_h := 0.0
+var _gaps: Array = []   # [spacer, design height]: the air above and below the wordmark, given up first when the column is short
 
 func default_focus() -> Control: return first
 
@@ -21,16 +26,17 @@ func build() -> void:
 	var col := VBoxContainer.new(); col.anchor_left = 0.0; col.anchor_top = 0.0; col.anchor_bottom = 1.0; col.anchor_right = 0.0
 	col.offset_left = mx; col.offset_top = int(64 * f) if not phone else 14; col.offset_bottom = -int(96 * f) if not phone else -44
 	col.offset_right = mx + (int(720 * f) if not phone else 470)
-	col.add_theme_constant_override("separation", 0); add_child(col)
+	col.add_theme_constant_override("separation", 0); add_child(col); _col = col
 	if not phone:
 		col.add_child(Kit.small_caps("Plate I  ·  Histology of the nervous system of play", int(16 * f), Kit.TEXT_SOFT))
-		col.add_child(Kit.spacer(46 * f))
+		var g1 := Kit.spacer(46 * f); col.add_child(g1); _gaps.append([g1, 46.0 * f])
 	var wm := Wordmark.new(); wm.size_px = int(228 * f) if not phone else 100; col.add_child(wm)
-	col.add_child(Kit.spacer(30 * f if not phone else 2))
+	var g2 := Kit.spacer(30 * f if not phone else 2); col.add_child(g2); _gaps.append([g2, 30.0 * f if not phone else 2.0])
 	col.add_child(Kit.italic("grow a nervous system", int(52 * f) if not phone else 30, Kit.exc()))
 	if not phone:
 		col.add_child(Kit.spacer(16 * f))
-		col.add_child(Kit.label("Wire spiking neurons, simulated with NEST, into small circuits that drive simplified bodies: pace a heart, drive a breath. Then a Bestiary of model animals and a Theory wing of computational ideas.", int(22 * f), Kit.TEXT_SOFT, true))
+		_blurb = Kit.label("Wire spiking neurons, simulated with NEST, into small circuits that drive simplified bodies: pace a heart, drive a breath. Then a Bestiary of model animals and a Theory wing of computational ideas.", int(22 * f), Kit.TEXT_SOFT, true)
+		col.add_child(_blurb)
 	col.add_child(Kit.spacer(0, true))
 	var menu := VBoxContainer.new(); menu.add_theme_constant_override("separation", 0); col.add_child(menu)
 	var defs := [["I", "Play", "the campaign", "tasks"], ["II", "Laboratory", "free bench", "lab"], ["III", "What is real", "models, tuning, sources", "real"], ["IV", "Settings", "", "settings"], ["V", "Credits", "", "credits"], ["VI", "Quit", "", "quit"]]
@@ -45,18 +51,42 @@ func build() -> void:
 		if first == null: first = b
 
 	# the plate's foot: a ruled line, the figure caption and the edition
-	var foot := VBoxContainer.new(); foot.anchor_left = 0.0; foot.anchor_right = 1.0; foot.anchor_top = 1.0; foot.anchor_bottom = 1.0
-	foot.offset_left = mx; foot.offset_right = -int(80 * f) if not phone else -24; foot.offset_bottom = -int(26 * f) if not phone else -6
-	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN; foot.add_theme_constant_override("separation", int(10 * f) if not phone else 4); add_child(foot)
+	# (on a phone the foot sits at the top of the figure it captions, where the plate is only fine dendrites, so the menu keeps the whole left column)
+	var foot := VBoxContainer.new(); foot.anchor_left = 0.0 if not phone else 0.52; foot.anchor_right = 1.0; foot.anchor_top = 1.0; foot.anchor_bottom = 1.0
+	foot.offset_left = mx if not phone else 8; foot.offset_right = -int(80 * f) if not phone else -24; foot.offset_bottom = -int(26 * f) if not phone else -6
+	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	if phone: foot.anchor_top = 0.0; foot.anchor_bottom = 0.0; foot.offset_top = 10; foot.offset_bottom = 10; foot.grow_vertical = Control.GROW_DIRECTION_END
+	foot.add_theme_constant_override("separation", int(10 * f) if not phone else 4); add_child(foot)
 	if not SaveIO.notices.is_empty():   # a damaged or newer save, a read-only disk: said here, with where the file is
 		var nl := Kit.ident(Kit.label("\n".join(SaveIO.notices.slice(-3)), 17 if not phone else 15, Kit.RED, true), "SaveNotices") as Label
 		nl.custom_minimum_size.x = 200.0; nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; foot.add_child(nl)
-	var rule := ColorRect.new(); rule.color = Kit.TEXT; rule.custom_minimum_size.y = 2; rule.mouse_filter = Control.MOUSE_FILTER_IGNORE; foot.add_child(rule)
+	var rule := ColorRect.new(); rule.color = Kit.TEXT; rule.custom_minimum_size.y = 2; rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not phone: foot.add_child(rule)
 	var fr := HBoxContainer.new(); fr.add_theme_constant_override("separation", 24); foot.add_child(fr)
 	var cap := "A, pyramidal cell; a, excitatory neuron (Golgi stain); b, basket interneuron, inhibitory. Simulated with NEST." if not phone else "A, pyramidal cell; a, excitatory; b, basket cell, inhibitory."
 	var fc := Kit.fig_caption(1, cap, 19 if not phone else 18); fc.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fr.add_child(fc)
 	var ver := Kit.mono("v%s · build %s · Godot %s" % [str(ProjectSettings.get_setting("application/config/version", "dev")), SaveIO.build_id(), Engine.get_version_info().string.get_slice("-", 0)], 15, Kit.TEXT_SOFT)
 	ver.size_flags_vertical = Control.SIZE_SHRINK_END; fr.add_child(ver)
+	if phone: fr.remove_child(ver); foot.add_child(ver); ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_foot = foot
+	foot.resized.connect(_fit_column); resized.connect(_fit_column); _fit_column.call_deferred()
+
+## The menu column ends above the plate's foot, whose caption wraps to two lines on narrow windows and with Large text; when the
+## column would still run into it, the air round the wordmark shrinks, then the blurb under the motto goes (the menu and the wordmark stay).
+func _fit_column() -> void:
+	if _col == null or _foot == null or not is_instance_valid(_foot): return
+	if Layout.phone: _col.offset_bottom = -6; return
+	var gap := 20.0 * f()
+	_col.offset_bottom = -(_foot.size.y - _foot.offset_bottom + gap)
+	var room := size.y - _col.offset_top + _col.offset_bottom
+	if room <= 0.0: return
+	for g in _gaps: (g[0] as Control).custom_minimum_size.y = g[1]
+	if _blurb != null and _blurb.visible and _blurb.size.y > 0.0: _blurb_h = _blurb.size.y   # its laid-out height (a wrapped label's minimum depends on its width)
+	var over := _col.get_combined_minimum_size().y + (_blurb_h if _blurb != null and not _blurb.visible else 0.0) - room
+	for g in _gaps:   # first the air round the wordmark, down to a third of it
+		var take := minf(maxf(over, 0.0), float(g[1]) * 0.66)
+		(g[0] as Control).custom_minimum_size.y = float(g[1]) - take; over -= take
+	if _blurb != null: _blurb.visible = over <= 0.0
 
 func _press(id: String) -> void:
 	match id:
