@@ -57,14 +57,14 @@ The title screen is a plate in the style of a 19th-century histology atlas: ink 
 
 | Entry | What it opens |
 |---|---|
-| I. Play | The campaign map. This is where you start. |
+| I. Play | The first time, the tutorial (Plate 0). After that, the campaign map. |
 | II. Laboratory | The sandbox: a free bench with no task and every part unlocked. See [the sandbox](sandbox.html). |
 | III. What is real | A screen that says what is NEST, what was tuned and what is illustrative. See [what is real](what-is-real.html). |
 | IV. Settings | Display, Audio, Controls and Game tabs. |
 | V. Credits | Engine, fonts, sources and licences. |
 | VI. Quit | Leaves the game. |
 
-Choose Play. The campaign map opens on the first chapter that has an unfinished level. Pick the first level, read its brief on the right, and press Build. [Your first hour](first-hour.html) walks through it.
+Choose Play. On a fresh save the game starts **Plate 0: the first neuron**, a four-minute interactive tutorial that has you build your first circuit. Every step can be skipped (Skip tutorial, or Esc) and it can be replayed from the campaign header (Tutorial). At the end it asks how much help you want (Guided, Standard or Researcher, see [modes](modes.html)). After that, Play opens the campaign map on the first chapter that has an unfinished level. Pick the first level, read its brief on the right, and press Build. [Your first hour](first-hour.html) walks through the tutorial and the first four levels.
 
 ## Where your progress lives
 
@@ -72,7 +72,7 @@ The game saves automatically.
 
 | What | File (inside Godot's per-user data folder for "Spike") |
 |---|---|
-| Stars, best scores, difficulty mode, hints and variants done | `progress.cfg` |
+| Stars, best scores, difficulty mode, hints and variants done, and which tutorial steps and pointers you have seen | `progress.cfg` |
 | Display, audio and accessibility settings | `settings.cfg` |
 | The circuit you last built on each level | `circuits/last_<level>.json` |
 | A log of the game start | `logs/spike.log` |

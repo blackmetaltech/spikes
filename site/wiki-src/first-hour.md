@@ -20,13 +20,38 @@ The chapter opens with three short puzzles, then your first real task, the touch
 
 The first three are micro-puzzles. A micro-puzzle is a "fish tank": one to four neurons, a few seconds of simulated time, one concept. Plan on about fifteen minutes for each of the first three and a little longer for the reflex.
 
+## Plate 0: the guided first neuron
+
+On a fresh save, **Play** does not open the map. It opens an interactive tutorial, *Plate 0: the first neuron*, in the lab on the Threshold level. It takes about four minutes and teaches the controls the rest of this page uses. Everything on screen is dimmed except the control you need next, and a banner at the edge of the screen says what to do. A step moves on only when you have done the thing: the game watches the bench and the live run, not your clicks.
+
+| Step | What you do |
+|---|---|
+| 1 | Look at the bench: a sensor on the left, a motor on the right. |
+| 2 | Press + Excitatory to add a neuron. |
+| 3 | Drag from the sensor card to the cell. A moving dot shows the drag. |
+| 4 | Drag from the cell's rim to the motor card. |
+| 5 | Watch the raster and the voltage trace while the circuit runs. The cell stays silent. |
+| 6 | Click the sensor card and raise its weight until the cell spikes. |
+| 7 | Find the middle of the weight range: spikes on the big step only, so the run passes. |
+| 8 | Press Check. |
+| 9 | Read the verdict and the stars. |
+| 10 | Flip a second cell to inhibitory with the E / I switch. |
+| 11 | See where hints, the brief and the recipe are. |
+| 12 | Back on the map, pick Guided, Standard or Researcher. |
+
+Every step can be left. **Do it for me** performs the step's action, **Back a step** goes back one, **Skip tutorial** (or Esc, or B on a pad) leaves at once. It works with the mouse, by touch, and with the keyboard or a pad (the banner buttons and the lit control take focus). With reduced motion on, the ring around the lit control stays still and the drag is shown as a fixed arrow.
+
+The tutorial never runs twice by itself. If you skip it, the next **Play** shows a one-screen picker for the difficulty mode (Guided, Standard or Researcher, one line each) instead. To run it again, open **Play** and press **Tutorial** in the campaign header.
+
+Later, a short pointer shows the first time you open a level that brings a new control: the E / I switch (Inhibition), the group size (Reflex arc), and the Advanced parameters (Adaptation). On the Threshold level a pulsing ring sits on the wired sensor card until you have clicked it once.
+
 ## Before you start
 
 Start the game, choose Play, and look at the campaign map. See [getting started](getting-started.html) if you have not installed it yet.
 
 The map shows the chapters as tabs along the top. The first tab, Invertebrates, shows its levels as pins on a drawing of a worm. A small pin is a micro-puzzle. A large pin is a task. Click the first pin, Threshold. A card shows the brief, the number of stars (none yet), and a Build button.
 
-Leave the difficulty mode at its default, Standard, for now. [Modes](modes.html) explains the three choices. If you want the most help, switch to Guided in the campaign header: it prints the recipe in the brief and makes hints free.
+The tutorial asks which difficulty mode you want. If you skipped it, leave the mode at its default, Standard, for now. [Modes](modes.html) explains the three choices. If you want the most help, switch to Guided in the campaign header: it prints the recipe in the brief and makes hints free.
 
 ## Level 1: Threshold
 

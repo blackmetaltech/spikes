@@ -42,6 +42,7 @@ func build() -> void:
 	head.add_child(Kit.ident(Kit.btn("Notebook" if not phone else "Notes", func(): app.show_screen("notebook"), "panel", bs), "BtnNotebook"))
 	head.add_child(Kit.ident(Kit.btn("Parts bin" if not phone else "Parts", func(): app.show_screen("parts"), "panel", bs), "BtnPartsBin"))
 	head.add_child(Kit.ident(Kit.btn("Sandbox" if not phone else "Lab", func(): app.open_lab(""), "ghost", bs), "BtnSandbox"))
+	head.add_child(Kit.ident(Kit.btn("Tutorial", func(): app.start_tutorial(), "ghost", bs), "BtnTutorial"))   # replays Plate 0
 	if not Campaign.ext_ok():
 		v.add_child(Kit.label("The spike-gd GDExtension is not loaded. Run scripts/build-gd.sh.", 22, Kit.RED, true)); return
 	if chapter == "": chapter = app.campaign_chapter if app != null and app.campaign_chapter != "" else _default_chapter()
