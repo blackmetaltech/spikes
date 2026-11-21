@@ -93,8 +93,17 @@ static func grid_step(ms: float) -> float:
 		if ms / float(st) <= 10.0: return float(st)
 	return 5000.0
 
+## A time-axis label. The decimals come from the spacing of the LABELLED ticks (`step`, ms), so neighbouring labels never print the same text:
+## 1 s steps -> "3 s", 200 ms -> "1.2 s", 50 ms -> "1.25 s".
 static func tick_text(t_ms: float, step: float) -> String:
-	return "%d s" % int(roundf(t_ms * 0.001)) if step >= 1000.0 else "%.1f s" % (t_ms * 0.001)
+	var d := tick_decimals(step)
+	if d == 0: return "%d s" % int(roundf(t_ms * 0.001))
+	var v := t_ms * 0.001
+	if absf(v) < 0.5 * pow(10.0, -d): v = 0.0   # no "-0.00 s"
+	return ("%." + str(d) + "f s") % v
+
+static func tick_decimals(step_ms: float) -> int:
+	return maxi(0, ceili(-log(maxf(step_ms, 1.0) * 0.001) / log(10.0) - 1e-6))
 
 func _lanes() -> Array:
 	var out := []
@@ -137,7 +146,7 @@ func _draw() -> void:
 	var bot: Rect2 = lanes[lanes.size() - 1]["rect"]
 	while tt2 <= vt:
 		var xx := bot.position.x + bot.size.x * (tt2 - t_left) / window_ms
-		if int(roundf(tt2 / gs2)) % lab_every == 0: draw_string(Gfx.mono(), Vector2(xx - 30, bot.end.y + float(fz) + 3.0), tick_text(tt2, gs2), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
+		if int(roundf(tt2 / gs2)) % lab_every == 0: draw_string(Gfx.mono(), Vector2(xx - 30, bot.end.y + float(fz) + 3.0), tick_text(tt2, gs2 * lab_every), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
 		tt2 += gs2
 	# axes caption
 	draw_string(Gfx.mono(), Vector2(size.x - 230, 20), window_text(window_ms, auto_window), HORIZONTAL_ALIGNMENT_RIGHT, 216, fz, Kit.TEXT_SOFT)

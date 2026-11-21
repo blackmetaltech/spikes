@@ -117,7 +117,7 @@ func _draw() -> void:
 	while t <= vt:
 		var x := pl.position.x + pl.size.x * (t - t_left) / window_ms
 		draw_line(Vector2(x, pl.end.y), Vector2(x, pl.end.y + 4.0), Color(Kit.INK, 0.7), 1.0)
-		if int(roundf(t / gs)) % lab_every == 0: draw_string(Gfx.mono(), Vector2(x - 30, pl.end.y + float(fz) + 3.0), TraceView.tick_text(t, gs), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
+		if int(roundf(t / gs)) % lab_every == 0: draw_string(Gfx.mono(), Vector2(x - 30, pl.end.y + float(fz) + 3.0), TraceView.tick_text(t, gs * lab_every), HORIZONTAL_ALIGNMENT_CENTER, 60, fz, Kit.TEXT_SOFT)
 		t += gs
 	var wt := TraceView.window_text(window_ms, auto_window)
 	draw_string(Gfx.mono(), Vector2(size.x - 300, 20), wt + (", model time" if size.x > 560 else ""), HORIZONTAL_ALIGNMENT_RIGHT, 286, fz, Kit.TEXT_SOFT)
