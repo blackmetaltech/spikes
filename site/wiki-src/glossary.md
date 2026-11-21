@@ -15,6 +15,8 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Adaptation.** Under a steady push, a neuron fires a burst and then slows as a slow current builds up. It reports change more than level. Taught in the Adaptation micro-puzzle.
 
+**Bias current (tonic drive).** A steady current of a cell's own (the parameter I_e in its advanced parameters) that holds it near or just over threshold, so it fires or is ready to fire with no input. A cell with a bias can signal "less" as well as "more". Taught in the Tonic drive micro-puzzle; used by posture, the pupil, the autonomic heart and the fly compass.
+
 **Advanced.** A button in the inspector that shows a cell model's parameters as sliders with units, and the rows for how it responds to modulators.
 
 **Afferent.** A nerve fibre that carries signals toward the centre, for instance from the skin or a muscle. In the game, a sensor stands for a bundle of afferents.

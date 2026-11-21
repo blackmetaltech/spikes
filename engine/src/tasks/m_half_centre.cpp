@@ -52,9 +52,9 @@ public:
     i.concepts_new = { "half_centre" };
     i.concepts_used = { "inhibition", "adaptation" };
     i.par_neurons = 2;
-    i.default_model = "aeif_cond_alpha";
-    i.recipe = "drive > L and drive > R (the default sensor weight 400 is just over the rheobase of the plain adaptive cell; the Adapting preset fires at 300 too). L and R: one aeif cell each, "
-               "Adapting preset, both inhibitory. L > R and R > L at the default weight (-8 nS), L > 'left' and R > 'right'. Each side then "
+    i.default_model = "iaf_psc_alpha";   // a PLAIN cell: two of them inhibiting each other never alternate, and finding the fatigue (the adaptive cell) is the lesson
+    i.recipe = "drive > L and drive > R (the default sensor weight 400 is just over the rheobase of the plain adaptive cell; the Adapting preset fires at 300 too). L and R: one aeif cell each "
+               "(change the part: the lab opens on the plain cell), Adapting preset, both inhibitory. L > R and R > L at the first-connection weight of that cell (-8 nS), L > 'left' and R > 'right'. Each side then "
                "bursts for a few hundred milliseconds and gives way to the other. A weight of 600 or more fires both sides at once and they stop taking turns.";
     i.kinds = { { "drive", micro::dc( kLevel, 400.0 ) }, { "left", micro::rate() }, { "right", micro::rate() } };
     i.bands = { { "switches", "switches", 6, 100 }, { "overlap_pct", "%", 0, 25 } };
@@ -107,6 +107,15 @@ public:
       mech_ = "The two sides do not inhibit each other at all: a half-centre is built on mutual inhibition (each side's spikes silencing the other).";
     else if ( !g_.crossed( l, r ) || !g_.crossed( r, l ) )
       mech_ = "The inhibition runs one way only (one side silences the other, which cannot answer back): a half-centre needs each side to inhibit the other.";
+    else
+    {
+      bool wears = false;
+      for ( int p : l ) wears = wears || g_.adaptive( p );
+      for ( int p : r ) wears = wears || g_.adaptive( p );
+      if ( !wears )
+        mech_ = "Two cells that inhibit each other take turns only if something wears the active side out, and these cells never tire: the first one to fire silences the other "
+                "for good. Give the cells an adaptation current: use the adaptive exponential cell with the Adapting preset.";
+    }
   }
 
   Score score() const override

@@ -130,7 +130,7 @@ inline json single_cell( const std::string& task, const std::string& model = "",
 {
   const std::string m = model.empty() ? ( [ & ] {
     auto d = make_task( task )->default_model();
-    return d.empty() ? std::string( "iaf_psc_alpha" ) : ( d == "izhikevich_CH" ? std::string( "izhikevich" ) : d );
+    return d.empty() ? std::string( "iaf_psc_alpha" ) : ( d.rfind( "izhikevich_", 0 ) == 0 ? std::string( "izhikevich" ) : d );
   } )() : model;
   Bench b = channels( task, { "N1" }, { "N1" } );
   b.pop( "N1", m, 1, params );

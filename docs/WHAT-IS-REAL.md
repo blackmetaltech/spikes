@@ -46,6 +46,7 @@ Five labels are used throughout:
 | `m_inhibition` | NEST `iaf_psc_alpha` | Lateral inhibition (Hartline, Wagner & Ratliff 1956) | Weights |
 | `m_subtraction` | NEST `iaf_psc_alpha` | ON/OFF salt neurons ASEL/ASER (Suzuki 2008) | Rates and weights |
 | `m_adaptation` | NEST `aeif_cond_alpha` | Regular-spiking adaptation (Connors & Gutnick 1990) | a, b, tau_w for the game |
+| `m_tonic` | NEST `iaf_psc_alpha` with a bias current I_e | Tonic firing at rest, a pause as a signal (Raman & Bean 1999) | Bias current, weights |
 | `m_half_centre` | NEST `aeif_cond_alpha` | The half-centre idea (Brown 1911; Grillner 2003) | Weights, adaptation |
 | `m_coupling` | NESTML re-fit `sa_node_pacemaker` | Mutual entrainment of SA cells (Jalife 1984; Michaels 1987) | Gap-junction strength |
 | `m_pacemaking` | NESTML re-fit `sa_node_pacemaker` | Intrinsic heart rate about 100/min (Jose & Collison 1970) | All channel conductances |

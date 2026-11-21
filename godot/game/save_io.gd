@@ -11,7 +11,7 @@ extends RefCounted
 ## VERSION  [meta] save_version (VERSION below). A file written by a NEWER game is read but never written: read-only, with a notice.
 ## HOOKS    Test hooks (SP_*) never write into the real save: enabled() is false when any hook other than SP_SCREEN / SP_LAYOUT is set, unless SP_ALLOW_SAVE=1.
 
-const VERSION := 1
+const VERSION := 2   # 2: progress.cfg stars mean what Progress says (Progress._migrate brings a version-1 file along); a game that only knows 1 opens a 2 read-only
 const BACKUPS := 3
 const END_SECTION := "zz_end"
 ## The SP_* hooks that do not turn saving off (they only choose what is shown).

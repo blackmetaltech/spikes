@@ -22,10 +22,10 @@ def sprint(P=None):
         w_MN_RC=3.0, w_RC_MN=-3.0, w_RC_IN=-3.0, w_RC_RC=-3.0,
         # hold command and burst generator (as in reach)
         w_T_MNF=16.1, w_T_MNE=-16.0,
-        w_T_B1=1.9, w_T_B2=1.32, w_T_B3=0.0, w_G_B1=24.0,
+        w_T_B1=2.15, w_T_B2=1.5, w_T_B3=0.0, w_G_B1=28.0,
         w_B1_MNF=2.85, w_B1_MNE=-1.86, w_B1_B2=6.0, d_B1_B2=212.4,
-        w_B2_MNE=7.0, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
-        w_B3_MNF=2.32, w_B3_B2=-10.74,
+        w_B2_MNE=6.0, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
+        w_B3_MNF=1.92, w_B3_B2=-10.74,
     )
     d.update(P or {})
     mn = dict(G.MN, I_e=d["I_e"], **d.get("MN", {}))

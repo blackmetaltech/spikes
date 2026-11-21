@@ -58,7 +58,7 @@ Seeds 1-12 (the test runs 1-10); the tightest values are suppression 0.25 (seed 
 * **Loop gain is the whole story.** The loop is spindle (velocity-sensitive, 0.6 power) -> 10 ms -> motoneurons -> 15 ms smoothing -> twitch
   (30-90 ms) -> limb. With Ia -> MN at 5 nS (x6 fibres) the pool rises about 8 Hz per 40 Hz of extra Ia, enough to halve the deflection and
   stay stable. Doubling the gain saturates the pools (tonic rate already 30 Hz of a 50 Hz excitation scale) and the reflex vanishes; x4
-  makes it worse. Tested by closed-loop sweeps of w_Ia_MN (2-10 nS), w_IN_MN (-3 to -9 nS) and the drive (850-1100 pA).
+  makes it worse. The reference spreads the reciprocal inhibition over 4 interneurons per side (-5.2 nS each instead of 3 at -6.5, Ia > interneuron 2.25 nS; the reference has 60 cells, par is 54): with 3 the antagonist suppression of a single stretch swung between 0 and 0.9 with the interneurons' firing phase, which made the quick CHECK (two stretches) fail some seeds that the full run (four) passed. Tested by closed-loop sweeps of w_Ia_MN (2-10 nS), w_IN_MN (-3 to -9 nS) and the drive (850-1100 pA).
 * **Regular afferents.** Poisson Ia input made the motoneuron pool noisy enough (pool spike noise multiplied by the spindle's velocity
   derivative) to give a 5 Hz limb tremor of 0.2-0.4 rad even at low gain; regular afferents remove that without changing the reflex.
 * **Push-pull.** Stretching the flexor raises Ia_F (more IN_F, more inhibition of MN_E) and unloads the extensor spindle (less Ia_E,

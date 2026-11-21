@@ -19,7 +19,8 @@ Levels unlock in a fixed order. The rules are short.
 - **A later chapter opens when the previous chapter's spine is passed, or the spine of the chapter two before it.** The spine is the main line of levels in a chapter, in play order. So Heart opens when you pass all of Spinal cord (or all of Invertebrates). Breathing opens when you pass Heart or Spinal cord. One stuck level never blocks the whole game.
 - **Inside a chapter, a spine level opens when the one before it is passed.** The first level opens with its chapter.
 - **A branch opens when the level it hangs off is passed.** Branches are the diagnosis cases and the challenge variants (a harder or smaller version of a level). Branches never gate anything.
-- **The Bestiary and Theory wings are open from the start** and do not count toward the body chapters' unlock rule.
+- **The Bestiary and Theory wings open when the Invertebrates spine is passed** and do not count toward the body chapters' unlock rule. Inside the Bestiary some chapters wait for an idea taught elsewhere: Sea slug needs the Neuromodulation level of Heart, Crab needs the Leech chapter, and Fly mushroom body needs the Sea slug. Every level card has a **NEEDS** row that lists the ideas the level uses and that you have not met yet, with the level that teaches each ("Neuromodulation (from Neuromodulation)"). Guided mode leaves the in-wing waits open and keeps the NEEDS row.
+- **Posture and Reach are branches, not part of the Spinal cord spine.** No novice bench solves them from the brief alone, so the spinal sprint no longer waits for them; the boss follows the spine levels before it.
 
 A level that you pass in any mode counts as passed for unlocking. Switching [mode](modes.html) never locks you out of anything.
 
@@ -48,7 +49,7 @@ Every task offers "challenge variants" in its More menu: a smaller circuit ("hal
 | Breathing | Lungs and blood CO2 | 1 micro, 1 task | none | stops breathing in sleep |
 | Autonomic | An eye and a gut, then the whole body | 2 micros, 3 tasks | Autonomic exam | the small pupil, food that will not pass |
 
-In total that is 19 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases.
+In total that is 20 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases.
 
 > **Note:** The counts of "levels in a chapter" above are spine levels in the order the game plays them, which is the order of the engine's registry. The map draws the same order.
 
@@ -72,6 +73,7 @@ You start with a single cell and finish with a swimming animal. The ideas are th
 | Subtraction | Micro | Excitation minus inhibition on one cell gives a difference (ON minus OFF). | Inhibition, Convergence | The worm C. elegans has two salt neurons, ASEL and ASER, that respond in opposite ways. | Suzuki et al. 2008 |
 | Worm chemotaxis | Task | Using the difference signal to steer toward salt. | Subtraction (and Inhibition) | The worm steers by comparing the two salt neurons while crawling a gradient. | Suzuki et al. 2008; Thiele et al. 2009 |
 | Adaptation | Micro | A cell that starts fast and then slows under a steady drive. | Threshold | Cortical pyramidal cells fire a fast burst then settle at a lower rate. | Connors and Gutnick 1990; Brette and Gerstner 2005 |
+| Tonic drive | Micro | A cell held just over threshold by a bias of its own hums at rest, so a cue can say "less". | Inhibition | Purkinje cells fire at about 50 spikes a second with no input. | Raman and Bean 1999 |
 | Half-centre | Micro | Two cells that inhibit each other and tire take turns. | Inhibition, Adaptation | Brown proposed in 1911 that stepping in the cat spinal cord comes from two half-centres. | Brown 1911; Grillner 2003 |
 | Lamprey swimmer | Task | A left-right rhythm that swims a body forward. | Half-centre | The lamprey spinal cord makes its swimming rhythm with two pools that inhibit each other. | Grillner 2003 |
 
@@ -159,13 +161,23 @@ Hold a steady current on a plain integrate-and-fire cell and it fires at one fix
 
 **Stuck?** Adaptation is a slow current switched on by the neuron's own spikes. A plain integrate-and-fire cell has no such current, so look at which cell model you are using.
 
+### Tonic drive
+
+*Micro. Par 2 neurons.*
+
+Most cells are silent until something excites them. A cell held just over its threshold by a steady current of its own, a bias, fires all the time at a low rate, and then it can signal "less" as well as "more". Posture, pupil size and the heart rate all rest on such a bias.
+
+**Goal.** Build a cell that hums at rest, with nothing applied to it, between about 5 and 60 spikes a second. Then a "cue" arrives that means "stop": it must almost silence the cell while it lasts, and the hum must come back when it goes. The bias is a parameter of the cell itself (its advanced parameters hold the steady current I_e). The cue is a sensor, and a sensor can only excite, so it has to reach the humming cell through a neuron of its own that you set to inhibitory.
+
+**Stuck?** A cell fires without input only if something keeps pushing it. The default cell has no bias, so it is silent at rest: the verdict says so.
+
 ### Half-centre
 
 *Micro. Par 2 neurons.*
 
 Swimming, walking and breathing are rhythms, and the simplest rhythm generator is two cells that inhibit each other and take turns. That is a half-centre.
 
-**Goal.** A steady "drive" excites both sides equally. Build a left and a right cell, read on "left" and "right". The output must switch from one side to the other at least 6 times in 4 seconds, with both sides almost never firing together and neither side winning for good. Two plain cells that inhibit each other do not alternate: the first one to fire silences the other for ever.
+**Goal.** A steady "drive" excites both sides equally. Build a left and a right cell, read on "left" and "right". The output must switch from one side to the other at least 6 times in 4 seconds, with both sides almost never firing together and neither side winning for good. Two plain cells that inhibit each other do not alternate: the first one to fire silences the other for ever. The lab opens on the plain cell, so finding the cell that tires is part of the puzzle.
 
 **Stuck?** A half-centre needs mutual inhibition and a way for the active side to tire so it lets go. Without the second, one side wins for ever.
 
@@ -227,7 +239,7 @@ Muscles come in antagonist pairs. When the flexor contracts, the extensor has to
 
 ### Stretch reflex
 
-*Task. Par 52 neurons. Episode 13.5 seconds.*
+*Task. Par 54 neurons. Episode 13.5 seconds.*
 
 Tap a tendon and the muscle twitches. The spindle fires Ia afferents that excite the same muscle's alpha motoneurons through a single synapse. The same fibre also feeds an inhibitory interneuron that silences the opposing muscle. First the tendons are tapped, one muscle at a time, to time the reflex. Then the forearm is pushed by four sudden loads, alternately toward extension and flexion.
 

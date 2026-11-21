@@ -1,0 +1,80 @@
+{
+ "schema_version": 1,
+ "name": "Tonic drive: a humming cell that a cue can silence",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "N1",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {
+    "I_e": 400.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     420,
+     160
+    ]
+   ]
+  },
+  {
+   "id": "N2",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     260,
+     160
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "N2",
+   "post": "N1",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1000.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "cue",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N2"
+    }
+   ],
+   "weight": 300.0,
+   "value": 2.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "spikes",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "N1"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "m_tonic",
+  "notes": "docs/circuits/m_tonic.md"
+ }
+}

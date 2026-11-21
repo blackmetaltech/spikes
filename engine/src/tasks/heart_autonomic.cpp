@@ -97,7 +97,8 @@ public:
            "afferents (feed-forward), and hr_too_low and hr_too_high hand you the sign of the heart-rate error directly, in place "
            "of the baroreceptors and arterial stretch afferents that would report it in the body. Cutting the vagus should show up "
            "as resting tachycardia (about 100), or cutting the sympathetic chain as a heart that cannot speed up. Too much ACh "
-           "slows the node a lot, so keep the vagal drive moderate. Score: mean tracking error, and the average rate in each phase. ";
+           "slows the node a lot, so keep the vagal drive moderate. The vagal and sympathetic chains are tonic: they fire on their own at rest, held by "
+           "a bias current of their own (I_e in the advanced parameters; see Tonic drive), and the inputs only raise or lower that tone. Score: mean tracking error, and the average rate in each phase. ";
   }
   /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).
   std::string default_model() const override { return "iaf_psc_alpha"; }

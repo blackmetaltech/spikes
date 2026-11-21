@@ -48,7 +48,7 @@
   {
    "id": "IN_F",
    "model": "iaf_cond_alpha",
-   "n": 3,
+   "n": 4,
    "params": {
     "C_m": 100.0,
     "g_L": 10.0,
@@ -73,6 +73,10 @@
     [
      260,
      140
+    ],
+    [
+     260,
+     180
     ]
    ],
    "role": "neuron"
@@ -225,7 +229,7 @@
   {
    "id": "IN_E",
    "model": "iaf_cond_alpha",
-   "n": 3,
+   "n": 4,
    "params": {
     "C_m": 100.0,
     "g_L": 10.0,
@@ -250,6 +254,10 @@
     [
      260,
      500
+    ],
+    [
+     260,
+     540
     ]
    ],
    "role": "neuron"
@@ -1095,7 +1103,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 2.5,
+    "weight": 2.25,
     "delay": 1.0
    }
   },
@@ -1105,7 +1113,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": -6.5,
+    "weight": -5.2,
     "delay": 1.0
    }
   },
@@ -1844,7 +1852,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": 2.5,
+    "weight": 2.25,
     "delay": 1.0
    }
   },
@@ -1854,7 +1862,7 @@
    "rule": "all_to_all",
    "synapse": {
     "synapse_model": "static_synapse",
-    "weight": -6.5,
+    "weight": -5.2,
     "delay": 1.0
    }
   }

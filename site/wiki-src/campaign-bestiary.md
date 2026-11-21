@@ -24,7 +24,7 @@ That is 18 levels and 7 diagnosis cases. Each chapter has three levels in play o
 
 ## How the wing works
 
-**Open from the start.** Every Bestiary chapter is open as soon as you start. Passing the Bestiary never unlocks anything in the body chapters, and the body chapters never block the Bestiary. You can start here if you like. If you have never opened the game, read [Your first hour](first-hour.html) first, because it explains the lab itself.
+**Open after chapter I.** The Bestiary opens when you pass the Invertebrates spine, because it uses ideas from there. Inside it, Sea slug waits for the Neuromodulation level of Heart, Crab waits for the Leech chapter, and Fly mushroom body waits for the Sea slug (Guided mode drops these waits). Each level card has a NEEDS row that names the ideas you have not met yet and where they are taught. Passing the Bestiary never unlocks anything in the body chapters. If you have never opened the game, read [Your first hour](first-hour.html) first, because it explains the lab itself.
 
 **Inside a chapter, levels open one after another.** The second level opens when you pass the first, and the third when you pass the second. A diagnosis case opens when you pass the task it hangs off, which is the third level of its chapter (both mushroom-body cases hang off `fly_mb`).
 
@@ -36,7 +36,7 @@ That is 18 levels and 7 diagnosis cases. Each chapter has three levels in play o
 
 **No challenge variants.** The base levels of the body chapters have optional variants (for example, half the neurons). None of the Bestiary levels has one.
 
-**Stars.** One star for a pass. Two stars for a pass on all five test seeds (the Test x5 button). Three stars for the same within par (a neuron budget) and within an energy budget. Par is listed for every level below. In Standard mode, opening the recipe caps the level at two stars. Diagnosis cases are scored differently; see [the diagnosis section](#diagnosis-cases-in-this-wing) below.
+**Stars.** One star for a pass. Two stars when Check passes all five worlds. Three stars for the same plus the level's challenge, written on its card (by default par, a neuron budget). Par is listed for every level below. Guided stops at two stars. In Standard mode, opening the recipe caps the level at two stars. Diagnosis cases are scored differently; see [the diagnosis section](#diagnosis-cases-in-this-wing) below.
 
 ## What is real in this wing
 
@@ -428,7 +428,7 @@ The rules are the same as in the body chapters. For the full method see [Diagnos
 - A wrong pick says only "not that one". The reasons come after the case is solved or revealed.
 - A connection's type is shown but never its weight. The dead connection is kept at weight 0, so you find it by watching a cell that fires into a silent target, not by looking for a missing arrow.
 - The score is 100, minus 15 for every wrong guess, minus 3 for every probe beyond the first three (a scope opened, a cut tried, a lesion re-run), never below 25.
-- Stars: one for finding the cause. Two for no wrong guess. Three for no wrong guess and a score of 85 or more.
+- Stars: one for finding the cause. Two for no wrong guess. Three for no wrong guess, a score of 85 or more and the answer given after one of the case's probes.
 - After three wrong guesses the Reveal answer button appears. Revealing the answer scores nothing.
 - Hints are available in the same ladder as for levels.
 

@@ -292,6 +292,7 @@ int main( int argc, char** argv )
     { "m_inhibition", "invertebrates", "inhibition", { "threshold", "excitation" }, "worm" },
     { "m_subtraction", "invertebrates", "subtraction", { "inhibition", "convergence" }, "worm" },
     { "m_adaptation", "invertebrates", "adaptation", { "threshold" }, "lamprey" },
+    { "m_tonic", "invertebrates", "tonic_drive", { "inhibition" }, "lamprey" },
     { "m_half_centre", "invertebrates", "half_centre", { "inhibition", "adaptation" }, "lamprey" },
     { "m_pacemaking", "heart", "pacemaking", { "threshold" }, "heart_pacemaker" },
     { "m_coupling", "heart", "coupling", { "pacemaking", "excitation" }, "heart_pacemaker" },
@@ -375,6 +376,8 @@ int main( int argc, char** argv )
     const int n = neuron_count( ref );
     if ( id == "m_pacemaking" )  // the lab opens on a plain cell: finding the pacemaker card in the parts bin is the puzzle
       CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == "sa_node_pacemaker" && microlab::part_of( t->default_model() ).model == "iaf_psc_alpha", id + ": the lab must open on a plain cell, the reference is the SA node cell" );
+    else if ( id == "m_half_centre" )  // the lab opens on a plain cell (nothing wears a side out): switching to the adaptive cell is the puzzle
+      CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == "aeif_cond_alpha" && microlab::part_of( t->default_model() ).model == "iaf_psc_alpha", id + ": the lab must open on a plain cell, the reference is the adaptive cell" );
     else
       CHECK_MSG( ref[ "populations" ][ 0 ][ "model" ] == microlab::part_of( t->default_model() ).model, id + ": default_model " + t->default_model() + " is the reference's first cell type" );
     CHECK_MSG( n >= 1 && n <= 4, id + " reference has " + std::to_string( n ) + " neurons" );
@@ -449,6 +452,10 @@ int main( int argc, char** argv )
     { "m_adaptation", set_params( "N1", { { "b", 0.0 }, { "a", 0.0 } } ), "adaptation removed (a = b = 0): the rate stays flat" },
     { "m_adaptation", set_params( "N1", { { "tau_w", 30.0 } } ), "tau_w 30 ms: the adaptation current fades before it builds up" },
     { "m_adaptation", silence( "N1" ), "cell silenced" },
+    { "m_tonic", set_params( "N1", { { "I_e", 0.0 } } ), "bias removed: the cell is silent at rest" },
+    { "m_tonic", set_params( "N1", { { "I_e", 700.0 } } ), "bias far over threshold: the cell races at rest" },
+    { "m_tonic", cut( "N2", "N1" ), "the inhibitory link cut (the cue does nothing)" },
+    { "m_tonic", cut( "N2", "N1", 0.05 ), "inhibition x0.05: the cue only slows the cell" },
     { "m_half_centre", cut( "N1", "N2" ), "one of the two inhibitory links cut (L silences nothing)" },
     { "m_half_centre", both( cut( "N1", "N2" ), cut( "N2", "N1" ) ), "no inhibition at all: both sides fire together" },
     { "m_half_centre", both( set_params( "N1", { { "b", 0.0 }, { "a", 2.0 }, { "tau_w", 30.0 } } ), set_params( "N2", { { "b", 0.0 }, { "a", 2.0 }, { "tau_w", 30.0 } } ) ), "no adaptation (the Tonic preset): one side wins or both fire in step" },
@@ -620,16 +627,36 @@ int main( int argc, char** argv )
         else if ( says( v, "tau_w" ) ) { s.f.insert( "touched_tau" ); s.k[ "tau_w" ].up( 2 ); }
       } );
   }
+  {  // m_tonic: a bias on the cell that fires (advanced parameters, I_e), the cue through an inhibitory cell onto it
+    reads( "m_tonic", { "bias", "I_e", "inhibitory", "neuron of its own", "cue" } );
+    State s;
+    s.knob( "ie", 0.0 );
+    s.knob( "w", lab_w( "m_tonic" ) );
+    novice[ "m_tonic" ] = play( "m_tonic", s,
+      []( const State& s ) {
+        json extra = json::object();
+        if ( s( "ie" ) > 0 ) extra[ "I_e" ] = s( "ie" );
+        return Bench( "m_tonic" ).cell( "N1", 1, extra ).cell( "N2" ).sense( "cue", { "N2" } ).out( "spikes", { "N1" } ).proj( "N2", "N1", -s( "w" ) ).c;
+      },
+      [ & ]( State& s, const std::string& v ) {
+        if ( says( v, "races" ) ) s.k[ "ie" ].down( 1.15 );
+        else if ( says( v, "silent" ) ) { if ( s( "ie" ) < 250 ) s.k[ "ie" ].v = 250; else s.k[ "ie" ].up( 1.25 ); }
+        else if ( says( v, "strengthen" ) ) s.k[ "w" ].up( 3 );
+      } );
+  }
   {  // m_half_centre: two cells, each inhibiting the other, the same drive on both
     reads( "m_half_centre", { "inhibit each other", "drive", "left", "right", "wear" } );
     State s;
     s.knob( "drive", microlab::sensor_weight( *make_task( "m_half_centre" ), "drive", microlab::part_of( make_task( "m_half_centre" )->default_model() ) ) );
-    s.knob( "link", lab_w( "m_half_centre" ) );
+    s.knob( "link", 1.0 );   // a multiple of the first-connection weight of the cell in use (80 pA on the plain cell, 8 nS on the adaptive one the lab offers when the player changes the part)
     novice[ "m_half_centre" ] = play( "m_half_centre", s,
       []( const State& s ) {
-        const json extra = s.f.count( "adapting" ) ? ADAPT_PRESET() : json::object();
-        return Bench( "m_half_centre" ).cell( "N1", 1, extra ).cell( "N2", 1, extra ).sense( "drive", { "N1", "N2" }, s( "drive" ) ).out( "left", { "N1" } ).out( "right", { "N2" } )
-          .proj( "N1", "N2", -s( "link" ) ).proj( "N2", "N1", -s( "link" ) ).c;
+        const bool ad = s.f.count( "adapting" ) > 0;
+        const double w = s( "link" ) * microlab::part_of( ad ? "aeif_cond_alpha" : "iaf_psc_alpha" ).weight;
+        Bench b( "m_half_centre" );
+        if ( ad ) b.pop( "N1", "aeif_cond_alpha", 1, ADAPT_PRESET() ).pop( "N2", "aeif_cond_alpha", 1, ADAPT_PRESET() );
+        else b.cell( "N1" ).cell( "N2" );
+        return b.sense( "drive", { "N1", "N2" }, s( "drive" ) ).out( "left", { "N1" } ).out( "right", { "N2" } ).proj( "N1", "N2", -w ).proj( "N2", "N1", -w ).c;
       },
       [ & ]( State& s, const std::string& v ) {
         if ( says( v, "adapting preset" ) && !s.f.count( "adapting" ) ) s.f.insert( "adapting" );
@@ -661,12 +688,14 @@ int main( int argc, char** argv )
     reads( "m_neuromodulation", { "vagus", "vagal", "pacemaker cell on 'beat'" } );
     State s;
     s.knob( "n", 1.0, 64.0 );
+    s.knob( "w", microlab::sensor_weight( *make_task( "m_neuromodulation" ), "vagus", microlab::part_of( make_task( "m_neuromodulation" )->default_model() ) ) );
     novice[ "m_neuromodulation" ] = play( "m_neuromodulation", s,
       [ & ]( const State& s ) {
-        return Bench( "m_neuromodulation" ).cell( "N1", static_cast< int >( std::lround( s( "n" ) ) ) ).pop( "N2", "sa_node_pacemaker" ).sense( "vagus", { "N1" } ).out( "beat", { "N2" } ).out( "vagal", { "N1" }, MODACH ).c;
+        return Bench( "m_neuromodulation" ).cell( "N1", static_cast< int >( std::lround( s( "n" ) ) ) ).pop( "N2", "sa_node_pacemaker" ).sense( "vagus", { "N1" }, s( "w" ) ).out( "beat", { "N2" } ).out( "vagal", { "N1" }, MODACH ).c;
       },
       [ & ]( State& s, const std::string& v ) {
-        if ( says( v, "too much" ) || says( v, "fewer cells" ) ) s.k[ "n" ].down( 2 );
+        if ( says( v, "strengthen the vagus" ) ) s.k[ "w" ].up( 1.6 );
+        else if ( says( v, "too much" ) || says( v, "fewer cells" ) ) s.k[ "n" ].down( 2 );
         else if ( says( v, "more cells" ) ) s.k[ "n" ].up( 2 );
       } );
   }
@@ -723,6 +752,8 @@ int main( int argc, char** argv )
   {
     std::printf( "  %-20s %s after %d run%s\n", k.c_str(), pl.solved ? "solved" : "NOT SOLVED", pl.runs, pl.runs == 1 ? "" : "s" );
     if ( !pl.solved ) unsolved.insert( k );
+    if ( k.rfind( "m_", 0 ) == 0 )
+      CHECK_MSG( pl.runs >= 2, k + ": the untouched lab default passes on the first run, so nothing is learned (curriculum: the default must fail with a verdict that names the concept)" );
   }
   // the honest list: levels this novice cannot solve are named here, so that a change that makes one solvable (or one unsolvable) shows up
   const std::set< std::string >& expected_unsolved = kNoviceUnsolved;

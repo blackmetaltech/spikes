@@ -52,9 +52,11 @@ public:
     i.concepts_used = { "inhibition", "convergence" };
     i.par_neurons = 2;
     i.default_model = "iaf_psc_alpha";
-    i.recipe = "plus > out cell > diff. minus > cell B (inhibitory) > out cell, with the B > out weight at about -1100 pA. Too weak "
+    i.recipe = "plus > out cell > diff. minus > cell B (inhibitory) > out cell, with the B > out weight at about -1100 pA. The lab starts the minus sensor "
+               "at 600, twice the plus sensor's 300 (the minus receptor is the more sensitive one): set it to 300 so that the two inputs are matched. Too weak "
                "and equal inputs still fire; too strong and plus 3 against minus 2 goes quiet.";
-    i.kinds = { { "plus", micro::dc( 3.0 ) }, { "minus", micro::dc( 3.0 ) }, { "diff", micro::rate() } };
+    // the minus receptor is the more sensitive one: equal weights do not cancel, so the gains have to be matched
+    i.kinds = { { "plus", micro::dc( 3.0 ) }, { "minus", micro::dc( 3.0, 600.0 ) }, { "diff", micro::rate() } };
     i.bands = { { "fire_ok", "of 3", 3, 3 }, { "silent_ok", "of 4", 4, 4 } };
     for ( int s = 0; s < kSeg; ++s )
       i.timeline.push_back( { kT0 + kSlot * s, kSlot, std::string( "plus " ) + fmt( kPlus[ s ] ) + " / minus " + fmt( kMinus[ s ] ) } );

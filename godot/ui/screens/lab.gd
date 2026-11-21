@@ -549,7 +549,7 @@ func _rate_per_neuron() -> float: return tele.spike_rate_hz() / maxf(float(Circu
 
 func _stars_now() -> int:
 	if tele == null or tele.task == null: return 0
-	var st := Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0))
+	var st := Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0), _has_modulator())
 	return mini(st, 2) if _recipe_used() else st
 
 ## Called every frame: record a pass the moment it happens and the final result at the end of the episode; raise the end card; report a stopped run.
@@ -582,7 +582,35 @@ func _record(passed: bool, five_seeds: bool, mean := -1.0, rate := -2.0) -> void
 		if passed and not _is_reference() and _variant_ok(): Progress.record_variant(task_id, variant)
 		return
 	if mode == "researcher" and not five_seeds: passed = false   # Researcher: a pass needs all five TEST seeds
-	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference(), "recipe_used": _recipe_used()})
+	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference(), "recipe_used": _recipe_used(), "has_modulator": _has_modulator()})
+
+## The circuit has a modulator output (for a challenge that asks for none).
+func _has_modulator() -> bool:
+	for o in circuit.get("outputs", []):
+		if str((o as Dictionary).get("kind", "")) == "modulator": return true
+	return false
+
+## Diagnosis, third star: the case lists the probes that tell its top candidates apart (Task::diagnosis().probes: {kind "scope" target population id | kind "cut" target candidate id});
+## the answer must come after one of them. A scope is the probe key "scope:<id>"; a cut is a "cut:" key of the link (or population) the candidate names, or a lesion re-run of it.
+func _dx_probe_evidence() -> bool:
+	var probes: Array = _dx_info.get("probes", [])
+	if probes.is_empty(): return true   # an older extension lists none: nothing to require
+	var seen: Dictionary = _dx.get("probed", {})
+	for p in probes:
+		var kind := str((p as Dictionary).get("kind", "")); var tgt := str((p as Dictionary).get("target", ""))
+		if kind == "scope" and seen.has("scope:" + tgt): return true
+		if kind != "cut": continue
+		var parts := tgt.split("+")[0].split(">") if ">" in tgt else PackedStringArray()
+		var key := "pop:" + tgt.trim_prefix("pop:") if tgt.begins_with("pop:") else ""
+		if key == "" and parts.size() == 2:
+			var i := 0
+			for pr in circuit.get("projections", []):
+				if str(pr.get("pre", "")) == parts[0] and str(pr.get("post", "")) == parts[1] and seen.has("cut:proj:%d" % i): return true
+				i += 1
+		elif key != "" and seen.has("cut:" + key): return true
+		for k in seen:   # a lesion re-run (every single lesion) names its label: the link or group of the candidate
+			if str(k).begins_with("run:") and (tgt.trim_prefix("pop:") in str(k)): return true
+	return false
 
 ## The challenge variants that bind the lab, not only the engine's verdict: half_neurons passes only within half the par (Progress.budget).
 func _variant_ok() -> bool:
@@ -723,7 +751,7 @@ func _dx_submit() -> void:
 		_dx["solved"] = true; editor.verdict_target = Circuits.candidate_focus(cand); editor.verdict_ok = true
 		var first := not bool(Progress.best(task_id)["passed"])
 		Progress.record_result(task_id, float(sc.get("value", 100.0)), {"passed": true, "five_seeds": int(_dx.get("tries", 0)) == 0, "neurons": 0, "rate_hz": -1.0, "reference_derived": false,
-			"max_stars": 1 if (bool(_dx.get("revealed", false)) or Progress.dx_revealed(task_id)) else (3 if float(sc.get("value", 0.0)) >= 85.0 else 2)})   # one star for the cause, two for no wrong answer, three for no wrong answer and few probes (a score of 85 or more); a revealed case: one
+			"max_stars": 1 if (bool(_dx.get("revealed", false)) or Progress.dx_revealed(task_id)) else (3 if float(sc.get("value", 0.0)) >= 85.0 and _dx_probe_evidence() else 2)})   # one star for the cause, two for no wrong answer, three for no wrong answer and few probes (a score of 85 or more); a revealed case: one
 		Progress.dx_solved(task_id)
 		GameAudio.event("pass")
 		if first: celebration.first_pass(editor, tele, Circuits.critical_path(circuit, Circuits.pop_activity(circuit, tele.count), Array(tele.task.sensor_channels()), Array(tele.task.motor_channels())), Campaign.notebook(task_id))
