@@ -28,7 +28,7 @@ Spec spec()
   i.brief = "In the fly's mushroom body an odour is stored as the activity of a handful of Kenyon cells out of two thousand. Two things make the code sparse: each Kenyon cell listens to only a few of the "
             "projection neurons that carry the odour (the wiring is random), so it fires only for the odours that happen to hit most of its inputs; and one giant inhibitory neuron (APL) listens to all the "
             "Kenyon cells and inhibits them all, so that a stronger odour does not simply recruit more of them. The wiring here is a model after the fly's cell types (after the Aso and Papadopoulou papers), not synapse-level data. "
-            "The sensors pn0 to pn19 are twenty glomeruli; an odour is the pattern of six of them that are active. Build twenty projection neurons driven by the sensors (one sensor for each), a hundred Kenyon cells, and read "
+            "The sensors pn0 to pn19 are twenty glomeruli; an odour is the pattern of six of them that are active. Build twenty projection neurons driven by the sensors (one sensor for each), two hundred Kenyon cells (a large group, so that the code does not depend on the luck of one random wiring), and read "
             "'kc' from the Kenyon cells. Each Kenyon cell should listen to just four randomly chosen projection neurons (use random sparse wiring, a few inputs per cell). Odour A at a weak level must make a few Kenyon cells fire; "
             "odour B must make mostly other cells fire; odour A three times stronger must still make only a few fire, not many more. Without the inhibitory loop a strong odour recruits far too many cells.";
   i.chapter = "fly_mb";
@@ -37,12 +37,12 @@ Spec spec()
   i.duration_ms = 2200;
   i.concepts_new = { "sparse_coding" };
   i.concepts_used = { "excitation", "inhibition", "negative_feedback" };
-  i.par_neurons = 20 + 100 + 4;
+  i.par_neurons = 250;   // the reference has 20 + 200 + 4 = 224 cells: the budget leaves room for a different honest build (a bigger inhibitory group, a few more projection neurons)
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "kc", micro::rate() } };
   for ( const auto& c : i.sensors ) i.kinds[ c ] = glomerulus_kind();
-  i.bands = { { "kc_active_cells", "cells", 3, 25 } };
-  i.recipe = "One hundred and twenty-four integrate-and-fire cells: PN (20 cells), KC (100 cells), APL (4 cells). pn0 to pn19 > PN, sensor k to cell k, at the default 1000 pA. PN > KC with random sparse wiring, 4 inputs "
+  i.bands = { { "kc_active_cells", "cells", 3, 50 } };
+  i.recipe = "Two hundred and twenty-four integrate-and-fire cells: PN (20 cells), KC (200 cells), APL (4 cells). pn0 to pn19 > PN, sensor k to cell k, at the default 1000 pA. PN > KC with random sparse wiring, 4 inputs "
              "per Kenyon cell, at +230 pA; KC > APL at +5000 pA; APL > KC at -5000 pA. 'kc' reads KC. Without the APL the strong odour makes more than a third of the Kenyon cells fire.";
   i.note = { "A sparse code in the mushroom body",
     "Each Kenyon cell of the fly receives input from only a handful of projection neurons, chosen almost at random, and fires only when several of them are active together, so each odour excites a small subset of "
@@ -73,15 +73,17 @@ Spec spec()
     p[ "active_fraction_hi" ] = a_hi / pool;
     p[ "quiet_spikes" ] = q;
     const double cap = ( m.tol > 1.2 ? 0.40 : 0.25 ) * pool;
+    // the wiring is drawn at random with the run's seed (and the odour noise differs too): a build near the edge passes on some runs and not on others
+    const std::string luck = " The wiring is drawn at random for every run: if the same build passes on some runs and fails on others it is near the edge of what works, so move it further from the edge (and use the five-seed test to see).";
     c.push_back( { "quiet", q <= 2, 1.0 - ramp( q, 2, 30 ), "The Kenyon cells fire with no odour: they should be silent unless several of their inputs are active together. Lower their excitability or weaken the projection neurons' drive." } );
     c.push_back( { "answers", a_lo >= 3, ramp( a_lo, 0, 3 ),
-      "Odour A makes (almost) no Kenyon cell fire: each cell needs several of its inputs active at once to fire, so the input to the Kenyon cells is too weak, or the projection neurons do not reach them." } );
+      "Odour A makes (almost) no Kenyon cell fire: each cell needs several of its inputs active at once to fire, so the input to the Kenyon cells is too weak, or the projection neurons do not reach them." + luck } );
     c.push_back( { "sparse", a_lo <= cap && b_lo <= cap, 1.0 - ramp( std::max( a_lo, b_lo ), cap, pool ),
-      "Even the weak odour makes many Kenyon cells fire: the code is dense. Each cell should listen to few projection neurons only, and need most of them active to fire." } );
+      "Even the weak odour makes many Kenyon cells fire: the code is dense. Each cell should listen to few projection neurons only, and need most of them active to fire." + luck } );
     c.push_back( { "separate", shared <= 0.5 * std::min( a_lo, b_lo ) + 0.5, shared <= 0 ? 1.0 : 1.0 - ramp( shared / std::max( 1.0, double( std::min( a_lo, b_lo ) ) ), 0.5, 1.0 ),
       "Odours A and B excite the same Kenyon cells: a code that overlaps cannot tell them apart. Fewer inputs per Kenyon cell (and random choice of them) make the codes of different odours differ." } );
     c.push_back( { "normalised", a_hi <= cap, 1.0 - ramp( a_hi, cap, pool ),
-      "The strong odour recruits many more Kenyon cells: the code gets dense with concentration. Feedback inhibition must grow with the activity of the Kenyon cells: strengthen the cell that they excite and that inhibits them." } );
+      "The strong odour recruits many more Kenyon cells: the code gets dense with concentration. Feedback inhibition must grow with the activity of the Kenyon cells: strengthen the cell that they excite and that inhibits them." + luck } );
   };
   s.ok_verdict = "A sparse code: each odour makes a few Kenyon cells fire, different odours use mostly different cells, and a three times stronger odour still recruits only a few, held in check by feedback inhibition.";
   s.h1 = "Sparse codes come from two things: each cell needs several of its few random inputs to fire, and one inhibitory cell that every active cell excites inhibits them all.";

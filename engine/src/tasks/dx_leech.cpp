@@ -17,8 +17,7 @@ DxSpec spec()
   s.chapter = "leech";
   s.vignette = "(A laboratory animal.) A medicinal leech has been dissected so that the heartbeat timing network and its two heart motor neurons can be recorded. The usual picture is "
                "a rhythm in which the two sides take turns. You are given the circuit of this preparation: two heart interneurons that should inhibit each other, and the heart motor neuron each of them inhibits.";
-  s.symptoms = "The two sides no longer take turns. The motor neuron on the left fires steadily and the one on the right is almost silent. Neither side shows bursts that give way to the other. "
-               "The right interneuron fires strongly; the left interneuron fires, but only in short stretches.";
+  s.symptoms = "The two sides of the heart no longer take turns: the left heart tube is driven steadily and the right one is almost still. Recordings from the two heart motor neurons show no bursts that give way to the other side.";
   s.candidates = { "HN_L>HN_R", "HN_R>HN_L", "HN_L>HE_L", "HN_R>HE_R" };
   s.answer = "HN_L>HN_R";
   s.labels = {
@@ -36,6 +35,8 @@ DxSpec spec()
   s.hint1 = "In a half-centre both sides must be able to silence each other. If one side cannot, which side wins, and what happens to the other?";
   s.hint2 = "Compare the two heart interneurons: one is strong, one is held down. Which inhibition would have to be missing for that?";
   s.hint2_target = "HN_R";
+  s.hint3 = "The break involves the left side of the preparation: it is a connection that starts from or ends on the left heart interneuron.";
+  s.hint3_target = "HN_L";
   s.note = { "A half-centre with one inhibition missing",
              "The leech heartbeat oscillator is a pair of reciprocally inhibitory interneurons; each fires a burst while the other is silent. If one direction of inhibition is lost, the "
              "side that is not inhibited wins and the rhythm stops: the oscillator then behaves like a switch that is stuck. Real preparations in which one HN is silenced or removed "

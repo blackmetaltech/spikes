@@ -28,7 +28,7 @@ Spec spec()
   i.brief = "A fly smells odour A, and gets punished; later it avoids odour A but not odour B. The mushroom body does this with three parts you have met: projection neurons carry the odour as a pattern on twenty glomeruli (sensors pn0 to pn19); "
             "Kenyon cells, each listening to four random projection neurons, turn it into a sparse code, kept sparse by a giant inhibitory neuron (APL); and the Kenyon cells excite output neurons (MBONs) through a synapse "
             "that dopamine weakens, but only if the Kenyon cell was active. The wiring is a model after the fly's cell types (after the Aso, Hige and Papadopoulou papers), not synapse-level data. Build it: twenty projection neurons "
-            "driven by the sensors, two hundred Kenyon cells with random sparse wiring, the APL loop, a small group of avoidance output neurons read on 'avoid' (give them a little baseline activity), and the Kenyon cells read on 'kc'. The "
+            "driven by the sensors, two hundred Kenyon cells with random sparse wiring, the APL loop, a small group of avoidance output neurons read on 'avoid', and the Kenyon cells read on 'kc'. The "
             "sensor 'punish' makes a punishment cell fire, which drives the dopamine neurons; the dopamine neurons are the dopamine source of the Kenyon cell to MBON synapse. You are scored on the "
             "protocol: both odours make the avoidance cells fire; odour A is then paired with punishment twice; afterwards the avoidance cells must answer odour A much less than before and odour B almost as before. "
             "Along the way the Kenyon-cell code must be sparse and the codes of the two odours must mostly differ. Without the APL the code is dense and the odours overlap; without dopamine nothing is learned.";
@@ -44,7 +44,7 @@ Spec spec()
   i.kinds = { { "avoid", micro::rate() }, { "kc", micro::rate() }, { "punish", in_kind( "poisson", 100, 1000 ) } };
   for ( const auto& c : glomerulus_family() ) i.kinds[ c ] = glomerulus_kind();
   i.bands = { { "avoid_hz", "Hz", 0, 400 } };
-  i.recipe = "Two hundred and thirty-one integrate-and-fire cells: PN (20), KC (200), APL (4), MBON (4, bias 350 pA), TSN (1), DAN (2). pn0 to pn19 > PN, sensor k to cell k, and punish > TSN, at the default 1000 pA. PN > KC with random sparse "
+  i.recipe = "Two hundred and thirty-one integrate-and-fire cells: PN (20), KC (200), APL (4), MBON (4; the reference gives them a bias of 350 pA, which is not required), TSN (1), DAN (2). pn0 to pn19 > PN, sensor k to cell k, and punish > TSN, at the default 1000 pA. PN > KC with random sparse "
              "wiring, 4 inputs per Kenyon cell, +230 pA; KC > APL +2500 pA; APL > KC -5000 pA; TSN > DAN +1000 pA. KC > MBON with a dopamine-gated synapse (stdp_dopamine_synapse): weight 1500 pA, Wmax 4500 pA, A_plus -1000, "
              "A_minus +1000, tau c 30 ms, tau n 200 ms, dopamine source DAN. MBON > 'avoid'; KC > 'kc'.";
   i.note = { "How a fly learns to avoid an odour",

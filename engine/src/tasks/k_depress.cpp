@@ -32,7 +32,7 @@ Spec spec()
             "synapses lose strength. The wiring is a model after the fly's cell types, not synapse-level data. The sensors 'odor_a' and 'odor_b' drive two groups of Kenyon cells, one for each odour; "
             "'punish' drives the dopamine neurons; read 'avoid' from the avoidance neurons. Both odours must make the avoidance cells fire before training. Then odour A is paired with punishment twice. "
             "Afterwards the avoidance cells must answer odour A much less than before, and odour B as much as before. Use a dopamine-gated synapse from each group of Kenyon cells onto the avoidance cells (a depressing "
-            "synapse whose change is gated by a dopamine source), and let the punishment drive the dopamine neurons. The avoidance cells need a little baseline activity of their own, so that the synapse can compare the activity of both its sides.";
+            "synapse whose change is gated by a dopamine source), and let the punishment drive the dopamine neurons. This synapse rule also looks at the avoidance cells' own spikes (as well as the odour cells' and the dopamine), so the odours must make the avoidance cells fire during the pairing; nothing else is needed.";
   i.chapter = "fly_mb";
   i.sensors = { "odor_a", "odor_b", "punish" };
   i.motors = { "avoid" };
@@ -43,13 +43,13 @@ Spec spec()
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "odor_a", in_kind( "poisson", 100, 1000 ) }, { "odor_b", in_kind( "poisson", 100, 1000 ) }, { "punish", in_kind( "poisson", 100, 1000 ) }, { "avoid", micro::rate() } };
   i.bands = { { "avoid_hz", "Hz", 0, 400 } };
-  i.recipe = "Eighteen integrate-and-fire cells: KCA and KCB (6 cells each), MBON (4 cells, bias 350 pA), DAN (2 cells). odor_a > KCA, odor_b > KCB and punish > DAN at the default 1000 pA. KCA > MBON and KCB > MBON "
+  i.recipe = "Eighteen integrate-and-fire cells: KCA and KCB (6 cells each), MBON (4 cells; the reference gives them a bias of 350 pA, which is not required), DAN (2 cells). odor_a > KCA, odor_b > KCB and punish > DAN at the default 1000 pA. KCA > MBON and KCB > MBON "
              "with a dopamine-gated synapse (stdp_dopamine_synapse): weight 300 pA, Wmax 900 pA, learning amplitude 0.6 (A_plus -0.6, A_minus +0.6), tau c 30 ms, tau n 200 ms, dopamine source DAN. MBON > 'avoid'. "
              "Both odours make the MBON group fire at over a hundred Hz; after the pairing odour A makes it fire at a third of that and odour B at the same rate.";
   i.note = { "Depression that depends on both activity and dopamine",
     "Pairing an odour with activation of dopamine neurons induces a lasting depression of the synapses from the odour's Kenyon cells onto the mushroom body output neuron of that compartment, as shown in vivo. "
     "The plasticity requires the odour first and the dopamine second, and it does not spread to Kenyon cells that were silent, so it is odour-specific. Dopamine acts only inside its own compartment. "
-    "In this level the three-factor rule is NEST's dopamine-gated STDP with the signs set to depress; the real rule needs no postsynaptic spike, which is why the output neurons here have a baseline firing.",
+    "In this level the three-factor rule is NEST's dopamine-gated STDP with the signs set to depress; the real rule needs no postsynaptic spike, which is why the odours here must make the output neurons fire during the pairing.",
     "Hige T, Aso Y, Modi MN, Rubin GM, Turner GC (2015) Neuron 88:985-998, doi:10.1016/j.neuron.2015.11.003" };
   s.schedule = [ & ]( bool ) {
     Schedule c;

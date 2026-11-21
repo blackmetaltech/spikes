@@ -17,9 +17,8 @@ DxSpec spec()
   s.chapter = "fly_compass";
   s.vignette = "(A laboratory animal.) A fruit fly from a mutant line is tested on a heading task: a landmark is shown, the lights go out, and the fly is made to turn left and right in the dark. "
                "You are given the circuit model of its compass: the ring of compass cells, the global inhibition, and the two groups of shifting cells, one for each direction of turn.";
-  s.symptoms = "With the lights out and the fly still, the bump holds its place: the ring itself is fine. A turn to the right is followed correctly. A turn to the left is not: the bump does not move, so after "
-               "a right turn and a left turn the compass reports a heading that is off in one direction, and every further back-and-forth adds to the error. During a left turn the left shifting cells are "
-               "active, as they should be, and the ring cells at the bump are active, but the bump does not move.";
+  s.symptoms = "With the lights out and the fly still, the bump holds its place: the ring itself is fine. A turn to the right is followed correctly. A turn to the left is not: the compass hardly registers it, so after "
+               "a right turn and a left turn the compass reports a heading that is off in one direction, and every further back-and-forth adds to the error.";
   s.candidates = { "PENL>EPG", "PENR>EPG", "EPG>PENL", "DELTA>EPG", "EPG>DELTA" };
   s.answer = "PENL>EPG";
   s.labels = {
@@ -39,6 +38,8 @@ DxSpec spec()
   s.hint1 = "Only one direction of turn fails. Which part of the circuit is used only for that direction?";
   s.hint2 = "Watch the left shifting cells during a left turn: do they fire? And does the bump move when they do?";
   s.hint2_target = "PENL";
+  s.hint3 = "The break is in the part of the circuit that moves the bump (the shifting cells and their connections with the ring), not in the ring's own inhibition.";
+  s.hint3_target = "PENL";
   s.note = { "A compass that tracks one way",
              "In the fly the left and right P-EN cells each move the E-PG bump one way, and the angular velocity of the animal is carried by the difference of their activity. Silencing one group of "
              "shifting cells breaks integration for turns in that direction, so the compass drifts: it keeps following turns one way and loses the other. This case is fictional; the lesion is one missing connection in the model.",
