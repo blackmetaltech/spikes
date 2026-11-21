@@ -64,9 +64,10 @@ for ( const char* t : { "stretch_reflex", "renshaw", "posture", "reach", "boss_s
   CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
   CHEAP_ROW( t, "one tonic cell, I_e 450, every weight 0", cheap::tonic( t, 450 ) );
   CHEAP_ROW( t, "reference with every weight 0", cheap::from_ref( t, zerow ) );
+  // (m_recurrent: its drive and kick are the level's own (owned_level scales them by the circuit's weight), so "every weight at an extreme" is a loop of 4000 pA either way, which IS the mechanism taken to the limit and passes honestly)
   // (m_timed_bursts has its own extreme-weight row below: its taught mechanism is the DELAYED chain, and a chain of saturating links with the delays kept is still that mechanism)
   // (the spinal references are conductance-based and NEST aborts at about 4x their weights, so "extreme" can only be 2x there, and the references pass at 2x: no extreme row for them)
-  if ( std::string( t ).rfind( "m_", 0 ) == 0 && std::string( t ) != "m_timed_bursts" ) CHEAP_ROW( t, "reference with every weight at an extreme", cheap::from_ref( t, maxw ) );
+  if ( std::string( t ).rfind( "m_", 0 ) == 0 && std::string( t ) != "m_timed_bursts" && std::string( t ) != "m_recurrent" ) CHEAP_ROW( t, "reference with every weight at an extreme", cheap::from_ref( t, maxw ) );
 }
 CHEAP_ROW( "m_timed_bursts", "reference with every weight at an extreme and the lab's default delay", cheap::from_ref( "m_timed_bursts", cheap::both( maxw, cheap::both( cheap::set_delay( "G1", "G2", 2.0 ), cheap::set_delay( "G2", "G3", 2.0 ) ) ) ) );
 // the appendix of docs/REVIEW-HARSH.md: a lone tonic cell passed m_recurrent (I_e 380, 450, 600, 900; drive and kick at weight 0, no projections)

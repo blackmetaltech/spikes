@@ -2,7 +2,7 @@ import sys,json
 from gl import *
 P=dict(w_in=1600.0, aff_nts=280.0, nts_na=30.0, nts_cv=200.0, cv_rv=-140.0, ie_rv=380.0, ie_na=372.0,
  rv_il=1500.0, il_sg=1500.0, na_vg=1500.0,
- g_ach=0.012,tau_ach=500.0,g_ne=0.0076,tau_ne=1000.0,gain_ach=1.0,gain_ne=0.25)
+ g_ach=0.012,tau_ach=500.0,g_ne=0.0085,tau_ne=1000.0,gain_ach=1.0,gain_ne=0.25)
 for a in sys.argv[2:]:
     k,v=a.split('='); P[k]=float(v)
 out=sys.argv[1] if len(sys.argv)>1 else __import__('os').path.join(__import__('os').path.dirname(__import__('os').path.abspath(__file__)),'..','baroreflex.json')

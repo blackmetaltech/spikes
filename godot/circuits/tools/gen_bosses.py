@@ -159,7 +159,7 @@ def exam(P=None):
         "outputs": [
             {"name": "sa_beat", "kind": "rate", "neurons": [{"pop": "SA"}]},
             {"name": "vagal", "kind": "modulator", "modulator": "ACh", "neurons": [{"pop": "VG"}], "gain": 0.012, "tau_ms": 500.0},
-            {"name": "sympathetic", "kind": "modulator", "modulator": "NE", "neurons": [{"pop": "SG"}], "gain": 0.0076, "tau_ms": 1000.0},
+            {"name": "sympathetic", "kind": "modulator", "modulator": "NE", "neurons": [{"pop": "SG"}], "gain": 0.009, "tau_ms": 1000.0},
             {"name": "dilator", "kind": "rate", "neurons": [{"pop": "SCG"}]},
             {"name": "sphincter", "kind": "rate", "neurons": [{"pop": "CG"}]},
             {"name": "vent", "kind": "rate", "neurons": [{"pop": "VRG"}]},
