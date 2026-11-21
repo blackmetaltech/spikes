@@ -38,12 +38,10 @@ static func enabled() -> bool: return Settings.telemetry
 static func _load() -> void:
 	if _loaded: return
 	_loaded = true; _t0 = Time.get_ticks_msec()
-	if Settings.no_save or OS.has_environment("SP_NOAUTOSAVE"): return
-	var f := FileAccess.open(PATH, FileAccess.READ)
-	if f == null: return
-	var j = JSON.parse_string(f.get_as_text()); f.close()
-	if j is Dictionary:
-		_levels = (j.get("levels", {}) as Dictionary).duplicate(true); _events = (j.get("events", []) as Array).duplicate(true)
+	if not SaveIO.enabled(): return
+	var j := SaveIO.load_json(PATH, "Your play log")
+	if j.get("levels") is Dictionary: _levels = (j["levels"] as Dictionary).duplicate(true)
+	if j.get("events") is Array: _events = (j["events"] as Array).duplicate(true)
 
 static func _lv(task: String) -> Dictionary:
 	if not _levels.has(task):
@@ -64,7 +62,7 @@ static func level_start(task: String, variant := "") -> void:
 
 ## Close the current level. `passed`: it was passed during this visit (also detected from Progress). A visit that ends without a pass is a quit.
 static func level_end(task := "", passed := false) -> void:
-	if _cur == "": return
+	if _cur == "" or (task != "" and task != _cur): return   # a lab closing late (Next task) must not end the level that opened after it
 	_load()
 	var t := _cur; var d := _lv(t)
 	d["time_s"] = snappedf(float(d["time_s"]) + float(Time.get_ticks_msec() - _cur_t0) / 1000.0, 0.1)
@@ -136,10 +134,10 @@ static func export_json() -> String:
 		"enabled": enabled(), "levels": summary(), "events": _events}, "\t")
 
 static func flush() -> void:
-	if not _dirty or not enabled() or Settings.no_save or OS.has_environment("SP_NOAUTOSAVE"): return
+	if not _dirty or not enabled() or not SaveIO.enabled(): return
 	_dirty = false
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
-	if f != null: f.store_string(export_json()); f.close()
+	var d: Variant = JSON.parse_string(export_json())
+	if d is Dictionary: SaveIO.save_json(PATH, d, 600.0)
 
 ## Write a dated copy the player can find: returns the absolute path ("" when it could not be written).
 static func export_file() -> String:
@@ -155,4 +153,4 @@ static func export_file() -> String:
 
 static func clear() -> void:
 	_load(); _levels = {}; _events = []; _cur = ""; _dirty = false
-	if not (Settings.no_save or OS.has_environment("SP_NOAUTOSAVE")) and FileAccess.file_exists(PATH): DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+	if SaveIO.enabled(): SaveIO.remove_all(PATH)

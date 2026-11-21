@@ -42,7 +42,7 @@ func build() -> void:
 	var editor := CircuitEditor.new(); Kit.ident(editor, "Editor"); lab.editor = editor; editor.size_flags_vertical = Control.SIZE_EXPAND_FILL; editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	editor.custom_minimum_size = Vector2(300, 200)
 	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.75), 1, 2, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
-	editor.structure_changed.connect(lab._on_structure); editor.moved.connect(func(): pass)
+	editor.structure_changed.connect(lab._on_structure); editor.moved.connect(lab._autosave)   # a dropped neuron is saved at once
 	editor.selection_changed.connect(func(_s): lab._sel_audio(); lab._build_inspector())
 	editor.lesion_clicked.connect(lab.les.click)
 	editor.editable = not lab._is_dx()   # a diagnosis case is probed, never rebuilt
@@ -247,6 +247,7 @@ func open_menu() -> void:
 			if passed_here(): item.call(lv2, "Results", histo_show, "cyan")
 			if reference_open(): item.call(lv2, "Reference", lab._load_reference, "cyan")
 			item.call(lv2, "Empty bench", lab._empty_bench)
+			if lab._has_history(): item.call(lv2, "Restore previous bench", lab._restore_bench)
 	# III. tools
 	var tools: HFlowContainer = group.call("Tools")
 	if tid != "" and (lab.lesion_on or lab._lesion_ok()): item.call(tools, "Leave lesions" if lab.lesion_on else "Lesions", lab._lesion_toggle, "amber" if lab.lesion_on else "panel")

@@ -83,6 +83,10 @@ var _surprise_clock := 0.0
 var _dx := {}                      # diagnosis case state {picked, tries, probes, probed, solved, gave_up, verdict, score}
 var _dx_info := {}                 # Task::diagnosis()
 var _ref_cache := {"n": -1, "fp": "", "v": false}
+var _saved_text := ""              # the autosave as last written (an unchanged bench is not rewritten)
+var _saved_ms := -100000           # when the "Saved" tick was last lit
+var _marker_on := false            # circuits/live_<task>.run exists: a live run is in progress (a stall leaves it behind; the next visit opens paused)
+var _paused_open := false          # this visit opened paused because the last live run of this circuit never finished
 
 func _init() -> void:
 	super()
@@ -91,6 +95,7 @@ func _init() -> void:
 func default_focus() -> Control: return back_btn
 ## Esc / B closes the topmost modal (results card, parts bin, More menu, end card or test card) before it leaves the lab.
 func on_back() -> bool:
+	if ConfirmCard.dismiss(): return true
 	if layout.histo_ov != null and is_instance_valid(layout.histo_ov): layout.histo_hide(); return true
 	if layout.parts_ov != null and is_instance_valid(layout.parts_ov): layout.close_parts(); return true
 	if layout.menu != null and is_instance_valid(layout.menu): layout.close_menu(); return true
@@ -127,6 +132,7 @@ func _live_circuit() -> Dictionary: return Lesion.apply(circuit, lesions) if les
 
 func _exit_tree() -> void:
 	play.check_cancel()
+	flush_on_close()
 	if task_id != "": Playlog.level_end(task_id, _rec_pass or bool(_dx.get("solved", false)))
 	GameAudio.silence_body()
 	if app != null and not circuit.is_empty() and not _is_dx(): app.lab_keep[task_id] = circuit
@@ -144,28 +150,39 @@ func _start(tid: String) -> void:
 	if _is_dx() and ext_ok:   # a diagnosis case: the patient's circuit, read-only, straight from the task
 		var dt = Campaign.make(task_id)
 		if dt != null and dt.has_method("diagnosis"):
-			_dx_info = dt.diagnosis()
+			_dx_info = dt.diagnosis(); _dx_info["task_id"] = task_id
+			_dx = _dx_load()   # wrong picks, probes and a reveal from earlier visits (Progress)
 			var dc := Circuits.parse(Circuits.read_reference(str(_dx_info.get("circuit", "")) if str(_dx_info.get("circuit", "")) != "" else _ref_path(task_id)))
 			if not dc.is_empty(): circuit = dc; loaded = true
 	var kept := false   # the circuit continues one from earlier in this session (so a REFERENCE taint carries over)
 	if app != null and app.lab_keep.has(task_id) and OS.get_environment("SP_REF") == "" and not app.lab_reference:
 		circuit = (app.lab_keep[task_id] as Dictionary).duplicate(true); loaded = true; kept = true
 	if not kept: _ref_loaded.erase(task_id)
+	_paused_open = not loaded and SaveIO.enabled() and FileAccess.file_exists(_marker_path())   # the last live run of this circuit never finished
 	if not loaded and OS.get_environment("SP_CIRCUIT") != "":   # dev hook: open this circuit file
-		circuit = Circuits.parse(FileAccess.get_file_as_string(OS.get_environment("SP_CIRCUIT"))); loaded = not circuit.is_empty()
-	if not loaded and ext_ok and task_id != "" and (OS.get_environment("SP_REF") != "" or app.lab_reference):
+		loaded = _adopt(FileAccess.get_file_as_string(OS.get_environment("SP_CIRCUIT")), "The circuit file")
+	if not loaded and ext_ok and task_id != "" and (OS.get_environment("SP_REF") != "" or (app != null and app.lab_reference)):
 		var txt := Circuits.read_reference(_ref_path(task_id))
 		var c := Circuits.parse(txt)
-		if not c.is_empty(): circuit = c; loaded = true; _ref_loaded[task_id] = true
-	if not loaded:
-		var saved := _last_path()
-		if FileAccess.file_exists(saved) and OS.get_environment("SP_NOAUTOSAVE") == "": circuit = Circuits.parse(FileAccess.get_file_as_string(saved)); loaded = not circuit.is_empty()
+		if not c.is_empty():
+			if SaveIO.enabled(): Circuits.history_push_file(task_id, _last_path())   # the saved bench stays reachable (More > Restore previous bench) once edits overwrite the autosave
+			circuit = c; loaded = true; _ref_loaded[task_id] = true
+	if not loaded and SaveIO.enabled():
+		var r := read_autosave(_last_path())
+		if str(r["error"]) == "":
+			circuit = r["circuit"]; loaded = true; _notice_repairs(int(r["repaired"]))
+			if bool(r["ref_lock"]): _ref_loaded[task_id] = true   # the reference lock survives a restart
+		elif str(r["error"]) != "none":   # a damaged autosave must not crash the level every time it opens: kept as .bad, the level starts on an empty bench
+			_banner_raw("Your saved circuit for this level could not be opened (%s). It was kept as %s.bad and the level starts on an empty bench." % [str(r["error"]), SaveIO.g(_last_path())])
 	if not loaded: circuit = _skeleton(task_id)
 	_drop_old_flag()
 	Circuits.ensure_pos(circuit)
 	_ensure_task_weights()
 	part_card = _default_part()
 	_reload(true)
+	if _paused_open and tele != null and tele.sim != null:   # opens paused, with a way forward
+		tele.running = false; _run_marker(false)
+		_banner_raw("The last live run of this circuit never finished (the game was closed or stalled while it ran). It opens paused: press Run to try again, or change the circuit first.")
 	if OS.get_environment("SP_SPEED") == "" and tele.task != null: tele.speed = _default_speed(float(tele.task.duration_ms()), str(Campaign.info(task_id).get("kind", "task")))
 
 ## G3 / v0.3 pacing: the default speed by episode length, from Telemetry.default_speed (it also knows what the machine measured it can deliver).
@@ -239,6 +256,40 @@ func _drop_old_flag() -> void:
 func _ref_path(tid: String) -> String: return Campaign.ref_path(tid)
 
 func _last_path() -> String: return Circuits.user_dir().path_join("last_%s.json" % (task_id if task_id != "" else "free"))
+
+## Read an autosave: {circuit, error, repaired, ref_lock}. error is "" (usable), "none" (no file) or why the file is not a usable circuit, in which case it has been
+## renamed <path>.bad (a stale .bad is replaced).
+static func read_autosave(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path): return {"circuit": {}, "error": "none", "repaired": 0, "ref_lock": false}
+	var r := Circuits.parse_checked(FileAccess.get_file_as_string(path))
+	if str(r["error"]) != "":
+		DirAccess.rename_absolute(SaveIO.g(path), SaveIO.g(path) + ".bad")
+		SaveIO.log_line("circuit autosave %s rejected: %s" % [path, str(r["error"])])
+		r["ref_lock"] = false; return r
+	var ed: Variant = ((r["circuit"] as Dictionary).get("meta", {}) as Dictionary).get("editor", {})
+	r["ref_lock"] = ed is Dictionary and bool((ed as Dictionary).get("ref_lock", false))
+	return r
+
+## Take circuit text from a file (Load, the dev hook): checked first. Returns false, with a banner, when it is not a usable circuit; true when `circuit` is now it.
+func _adopt(text: String, what: String) -> bool:
+	var r := Circuits.parse_checked(text)
+	if str(r["error"]) != "": _banner_raw("%s could not be opened: %s." % [what, str(r["error"])]); return false
+	circuit = r["circuit"]; _notice_repairs(int(r["repaired"]))
+	if (circuit.get("meta", {}) as Dictionary).get("editor", {}) is Dictionary and bool((circuit["meta"]["editor"] as Dictionary).get("ref_lock", false)) and task_id != "": _ref_loaded[task_id] = true
+	return true
+
+func _notice_repairs(n: int) -> void:
+	if n > 0: _banner_raw("%d neuron position%s in the file were damaged and have been laid out again; nothing else was changed." % [n, "" if n == 1 else "s"])
+
+## The reference lock is stored in the circuit (meta.editor.ref_lock), so it survives a restart: set by REFERENCE, cleared by Empty bench or an emptied bench.
+func _set_ref_lock(on: bool) -> void:
+	if task_id == "": return
+	if on: _ref_loaded[task_id] = true
+	else: _ref_loaded.erase(task_id)
+	var meta: Dictionary = circuit.get("meta", {}); var ed: Dictionary = meta.get("editor", {}) if meta.get("editor", {}) is Dictionary else {}
+	if on: ed["ref_lock"] = true
+	else: ed.erase("ref_lock")
+	meta["editor"] = ed; circuit["meta"] = meta
 
 ## The empty bench of a task: its sensors and motors with the kinds the task reads (dc or Poisson sensors, rate or modulator motors) from the task's
 ## channel_kinds() or, until the extension has it, from its reference circuit.
@@ -322,21 +373,25 @@ func _on_structure() -> void:
 	_dirty = 0.0; les.reset(); _surprise_done.erase("osc")
 	if editor != null: editor.verdict_target = ""
 	if score_card != null: score_card.guilty = ""
-	if Circuits.neuron_count(circuit) == 0: _ref_loaded.erase(task_id)   # an emptied bench is the player's own again; an edited reference is still derived from it
+	if Circuits.neuron_count(circuit) == 0: _set_ref_lock(false)   # an emptied bench is the player's own again; an edited reference is still derived from it
 
 func _process(dt: float) -> void:
 	if _dirty >= 0.0:
 		_dirty += dt
 		if _dirty > 0.3 and _lrun == null: _dirty = -1.0; _reload(); _build_inspector()
+	var live := tele != null and tele.sim != null and tele.running and not tele.finished and not tele.failed and _test.is_empty()
+	if live != _marker_on: _run_marker(live)   # before the step: a stall inside it leaves the marker behind
 	if not _test.is_empty(): _test_step()
 	elif _lrun != null: les.step()
 	elif tele != null: tele.advance(dt)
 	_watch_episode()
 	play.check_poll(); _surprise_tick(dt)
+	_sync_run_btn()
 	if status != null and tele != null:
 		var spd := String.num(tele.speed) + "x"
 		if tele.sim != null and tele.running and tele.speed > 1.0 and tele.achieved < tele.speed * 0.85: spd = "%.1fx of %sx" % [tele.achieved, String.num(tele.speed)]
 		status.text = "t %.2f s    %s spikes    %s" % [tele.t_ms * 0.001, _short(tele.total_spikes), spd] if tele.sim != null else "no circuit running"
+		if Time.get_ticks_msec() - _saved_ms < 2200: status.text += "    Saved"
 
 static func _short(n: int) -> String: return "%.1fk" % (n / 1000.0) if n >= 10000 else str(n)
 
@@ -369,12 +424,15 @@ func _sel_audio() -> void:
 	GameAudio.set_spike_focus(f)
 
 func _toggle_run() -> void:
+	if tele.finished and tele.sim != null: _restart(); return   # a finished episode: Run plays it again
 	tele.running = not tele.running
 	GameAudio.event("run" if tele.running else "pause")
 	if not tele.running: GameAudio.silence_body()
 	_sync_run_btn()
 func _sync_run_btn() -> void:
-	if run_btn != null: run_btn.text = "Pause" if tele.running else "Run"
+	if run_btn == null or tele == null: return
+	var t := "Pause" if tele.sim != null and tele.running and not tele.finished and not tele.failed and _test.is_empty() else "Run"   # never "Pause" when nothing runs
+	if run_btn.text != t: run_btn.text = t
 func _restart() -> void:
 	layout.overlay_hide(); _overlay_dismissed = false; _rec_done = false; _rec_pass = false; _fail_shown = false
 	if editor != null: editor.verdict_target = ""
@@ -385,42 +443,99 @@ func _restart() -> void:
 	elif tele.task != null: tele.task.reset(int(circuit.get("seed", 1)))
 	task_view.attach(tele)
 
+## True when replacing the bench would throw work away: it has neurons and is not just the untouched reference.
+func _bench_at_risk() -> bool:
+	return task_id != "" and not _is_dx() and Circuits.neuron_count(circuit) > 0 and not Circuits.is_reference_of(circuit, task_id)
+
+## Ask first when the bench has work on it; the replaced bench is then kept in the history (More > Restore previous bench).
+func _replace_bench(title: String, what: String, yes: String, act: Callable) -> void:
+	layout.close_menu()
+	if not _bench_at_risk(): act.call(); return
+	ConfirmCard.ask(ov, title, "%s Your current circuit (%s) is kept: More > Restore previous bench brings it back." % [what, Progress.neurons_text(Circuits.neuron_count(circuit))], yes, act)
+
+func _keep_bench() -> void:
+	if task_id == "" or _is_dx() or Circuits.is_reference_of(circuit, task_id): return
+	Circuits.history_push(task_id, circuit)
+
 ## REFERENCE: the reference circuit on the bench. Offered only once the level is passed, or in Guided mode (LabLayout).
-func _load_reference() -> void:
+func _load_reference() -> void: _replace_bench("Put the reference circuit on the bench?", "The bench is replaced by the reference circuit, which earns no stars.", "Show reference", _do_load_reference)
+
+func _do_load_reference() -> void:
 	var txt := Circuits.read_reference(_ref_path(task_id))
 	var c := Circuits.parse(txt)
 	if c.is_empty(): _banner("the reference circuit for this task is not installed (circuits/%s)" % _ref_path(task_id)); return
-	circuit = c; Circuits.ensure_pos(circuit); _ref_loaded[task_id] = true; editor.select({}); les.reset(); _reload(true); _build_inspector()
+	_keep_bench()
+	circuit = c; Circuits.ensure_pos(circuit); _set_ref_lock(true); editor.select({}); les.reset(); _reload(true); _build_inspector()
 
 ## Start over from the task's skeleton: its sensors and motors, no neurons (and no longer reference-derived).
 func _empty_bench() -> void:
 	if task_id == "": return
-	layout.close_menu(); _test = {}; _lrun = null; _ref_loaded.erase(task_id)
-	circuit = _skeleton(task_id); Circuits.ensure_pos(circuit); editor.select({}); les.reset(); _reload(true); _build_inspector()
+	_replace_bench("Empty the bench?", "All neurons and connections are removed.", "Empty bench", _do_empty_bench)
+
+func _do_empty_bench() -> void:
+	layout.close_menu(); _test = {}; _lrun = null; _keep_bench(); _set_ref_lock(false)
+	circuit = _skeleton(task_id); Circuits.ensure_pos(circuit); editor.select({}); les.reset(); _reload(true); _build_inspector(); _autosave()
+
+## More > Restore previous bench: the newest bench in the history comes back (the one on the bench now goes into the history in its place).
+func _has_history() -> bool: return task_id != "" and not _is_dx() and not Circuits.history_list(task_id).is_empty()
+
+func _restore_bench() -> void:
+	layout.close_menu()
+	var c := Circuits.history_latest(task_id)
+	if c.is_empty(): return
+	Circuits.history_pop(task_id); _keep_bench()
+	circuit = c; _drop_old_flag(); Circuits.ensure_pos(circuit)
+	if bool((circuit.get("meta", {}) as Dictionary).get("editor", {}).get("ref_lock", false)): _ref_loaded[task_id] = true
+	else: _ref_loaded.erase(task_id)
+	editor.select({}); les.reset(); _reload(true); _build_inspector(); _autosave()
 
 func _save_dialog() -> void:
 	for cn in _file_dlg.file_selected.get_connections(): _file_dlg.file_selected.disconnect(cn["callable"])
 	_file_dlg.file_mode = FileDialog.FILE_MODE_SAVE_FILE; _file_dlg.title = "Save circuit"
 	_file_dlg.current_file = str(circuit.get("name", "circuit")).to_lower().replace(" ", "_") + ".json"
-	_file_dlg.file_selected.connect(func(p): var fh := FileAccess.open(p, FileAccess.WRITE); if fh != null: fh.store_string(Circuits.to_json(circuit)))
+	_file_dlg.file_selected.connect(func(p):
+		if not SaveIO.write_text(p, Circuits.to_json(circuit), -1.0): _banner_raw("The circuit could not be saved to %s." % p))
 	_popup_file()
 
 func _load_dialog() -> void:
 	for cn in _file_dlg.file_selected.get_connections(): _file_dlg.file_selected.disconnect(cn["callable"])
 	_file_dlg.file_mode = FileDialog.FILE_MODE_OPEN_FILE; _file_dlg.title = "Load circuit"
 	_file_dlg.file_selected.connect(func(p):
-		var c := Circuits.parse(FileAccess.get_file_as_string(p))
-		if c.is_empty(): _banner("not a circuit JSON file: " + p); return
-		circuit = c; _drop_old_flag(); Circuits.ensure_pos(circuit); editor.select({}); les.reset(); _reload(true); _build_inspector())
+		var r := Circuits.parse_checked(FileAccess.get_file_as_string(p))
+		if str(r["error"]) != "": _banner_raw("%s could not be opened: %s." % [p, str(r["error"])]); return
+		_replace_bench("Load this circuit?", "The bench is replaced by the circuit in %s." % p.get_file(), "Load", func():
+			_autosave(); _keep_bench()
+			circuit = r["circuit"]; _notice_repairs(int(r["repaired"])); _drop_old_flag(); Circuits.ensure_pos(circuit)
+			if bool((circuit.get("meta", {}) as Dictionary).get("editor", {}).get("ref_lock", false)): _ref_loaded[task_id] = true
+			else: _ref_loaded.erase(task_id)
+			editor.select({}); les.reset(); _reload(true); _build_inspector(); _autosave()))
 	_popup_file()
 
 func _popup_file() -> void: _file_dlg.popup_centered_clamped(Vector2i(900, 560), 0.9)
 
-## Persist the player's circuit per task (user://circuits/last_<task>.json) after each edit.
+## Persist the player's circuit per task (user://circuits/last_<task>.json). Called after each edit, when a neuron is dropped, on leaving the lab and on window close.
+## Never writes the untouched reference (it would replace the player's own saved bench); the reference lock is stored in the file (meta.editor.ref_lock).
 func _autosave() -> void:
-	if OS.get_environment("SP_NOAUTOSAVE") != "" or Settings.no_save: return
-	var fh := FileAccess.open(_last_path(), FileAccess.WRITE)
-	if fh != null: fh.store_string(Circuits.to_json(circuit))
+	if not SaveIO.enabled() or circuit.is_empty() or _is_dx(): return
+	if task_id != "" and Circuits.is_reference_of(circuit, task_id): return
+	var text := Circuits.to_json(circuit)
+	if text == _saved_text: return
+	if SaveIO.write_text(_last_path(), text, 120.0): _saved_text = text; _saved_ms = Time.get_ticks_msec()
+
+## The window is closing or the lab is left: write everything pending (the circuit, the play log) and drop the live-run marker.
+func flush_on_close() -> void:
+	_autosave(); _run_marker(false); Playlog.flush()
+
+func _marker_path() -> String: return Circuits.user_dir().path_join("live_%s.run" % (task_id if task_id != "" else "free"))
+
+func _run_marker(on: bool) -> void:
+	if not SaveIO.enabled(): _marker_on = false; return
+	var p := _marker_path()
+	if on:
+		var f := FileAccess.open(p, FileAccess.WRITE)
+		if f != null: f.store_string("1"); f.close()
+	elif FileAccess.file_exists(p): DirAccess.remove_absolute(SaveIO.g(p))
+	_marker_on = on
 
 func _open_analysis() -> void: app.open_analysis(circuit, tele, task_id)
 
@@ -581,7 +696,16 @@ func _dx_probe(kind: String, key: String) -> void:
 	if not _is_dx() or bool(_dx.get("solved", false)) or bool(_dx.get("gave_up", false)): return
 	var seen: Dictionary = _dx.get("probed", {}); var k := kind + ":" + key
 	if seen.has(k): return
-	seen[k] = true; _dx["probed"] = seen; _dx["probes"] = seen.size()
+	seen[k] = true; _dx["probed"] = seen; _dx["probes"] = seen.size(); _dx_persist()
+
+## The case state as the save holds it: a new visit does not start from nothing.
+func _dx_load() -> Dictionary:
+	var st := Progress.dx_state(task_id)
+	return {"tries": int(st["tries"]), "probes": int(st["probes"]), "probed": st["probed"], "wrong": st["wrong"], "revealed": bool(st["revealed"])}
+
+func _dx_persist() -> void:
+	if task_id == "": return
+	Progress.dx_put(task_id, {"tries": int(_dx.get("tries", 0)), "probes": int(_dx.get("probes", 0)), "probed": _dx.get("probed", {}), "wrong": _dx.get("wrong", []), "revealed": bool(_dx.get("revealed", false))})
 
 func _dx_submit() -> void:
 	var cand := str(_dx.get("picked", ""))
@@ -594,11 +718,14 @@ func _dx_submit() -> void:
 		_dx["solved"] = true; editor.verdict_target = Circuits.candidate_focus(cand); editor.verdict_ok = true
 		var first := not bool(Progress.best(task_id)["passed"])
 		Progress.record_result(task_id, float(sc.get("value", 100.0)), {"passed": true, "five_seeds": int(_dx.get("tries", 0)) == 0, "neurons": 0, "rate_hz": -1.0, "reference_derived": false,
-			"max_stars": 3 if float(sc.get("value", 0.0)) >= 85.0 else 2})   # one star for the cause, two for no wrong answer, three for no wrong answer and few probes (a score of 85 or more)
+			"max_stars": 1 if (bool(_dx.get("revealed", false)) or Progress.dx_revealed(task_id)) else (3 if float(sc.get("value", 0.0)) >= 85.0 else 2)})   # one star for the cause, two for no wrong answer, three for no wrong answer and few probes (a score of 85 or more); a revealed case: one
+		Progress.dx_solved(task_id)
 		GameAudio.event("pass")
 		if first: celebration.first_pass(editor, tele, Circuits.critical_path(circuit, Circuits.pop_activity(circuit, tele.count), Array(tele.task.sensor_channels()), Array(tele.task.motor_channels())), Campaign.notebook(task_id))
 	else:
-		_dx["tries"] = int(_dx.get("tries", 0)) + 1; GameAudio.event("fail")   # a wrong pick says only "not that one": no lit-up connection, no reason (the reasons come with the solved or revealed case)
+		_dx["tries"] = int(_dx.get("tries", 0)) + 1; GameAudio.event("fail")
+		var wr: Array = _dx.get("wrong", []); if not wr.has(cand): wr.append(cand)
+		_dx["wrong"] = wr; _dx_persist()   # a wrong pick says only "not that one": no lit-up connection, no reason (the reasons come with the solved or revealed case)
 	_build_inspector(); _scroll_end.call_deferred()
 
 ## Bring the bottom of the inspector (a diagnosis reveal) into view once the new content is laid out.
@@ -607,7 +734,7 @@ func _scroll_end() -> void:
 	if insp_scroll != null and is_instance_valid(insp_scroll): insp_scroll.scroll_vertical = int(insp_scroll.get_v_scroll_bar().max_value)
 
 func _dx_reveal() -> void:
-	_dx["gave_up"] = true
+	_dx["gave_up"] = true; _dx["revealed"] = true; _dx_persist()   # saved: coming back later does not give the case back for full marks
 	if tele != null and tele.task != null and tele.task.has_method("set_variant"):
 		tele.task.set_variant("%s@revealed" % str(_dx_info.get("answer", "")))
 		_dx["verdict"] = str(tele.task.score().get("verdict", ""))

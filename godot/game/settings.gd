@@ -45,8 +45,8 @@ static func detect() -> void:
 
 static func load_all() -> void:
 	detect()
-	var c := ConfigFile.new()
-	if c.load(PATH) != OK: return
+	var c := SaveIO.load_cfg(PATH, "Your settings file")
+	if c == null: return
 	volume = clampf(float(c.get_value("a", "volume", 0.8)), 0.0, 1.0)
 	music_volume = clampf(float(c.get_value("a", "music_volume", 0.7)), 0.0, 1.0); sfx_volume = clampf(float(c.get_value("a", "sfx_volume", 0.9)), 0.0, 1.0)
 	spike_volume = clampf(float(c.get_value("a", "spike_volume", 0.8)), 0.0, 1.0)   # audio (item H)
@@ -61,7 +61,7 @@ static func load_all() -> void:
 ## Writes user://settings.cfg (skipped with SP_NOAUTOSAVE, which smoke tests and screenshots set).
 static var no_save := false   # set by the smoke test
 static func save_all() -> void:
-	if no_save or OS.has_environment("SP_NOAUTOSAVE"): return
+	if not SaveIO.enabled(): return
 	var c := ConfigFile.new()
 	c.set_value("a", "volume", volume); c.set_value("a", "music_volume", music_volume); c.set_value("a", "sfx_volume", sfx_volume)
 	c.set_value("a", "spike_volume", spike_volume)   # audio (item H)
@@ -69,11 +69,21 @@ static func save_all() -> void:
 	c.set_value("a", "colorblind", colorblind); c.set_value("a", "reduced_motion", reduced_motion)
 	c.set_value("a", "layout", layout); c.set_value("a", "telemetry", telemetry)
 	c.set_value("a", "window_mode", window_mode); c.set_value("a", "vsync", vsync); c.set_value("a", "fps_cap", fps_cap)
-	c.save(PATH)
+	SaveIO.save_cfg(PATH, c)
+
+## The largest UI scale x text size the desktop layout allows: the lab needs a logical 1280x720 (the window is divided by this factor), so 200% with Huge text
+## (3x) would leave it unusable. Handheld and phone layouts size themselves.
+static func max_scale(window: Window) -> float:
+	if Layout.kind != "desktop": return 6.0
+	var sz := Vector2(window.size); var s0 := maxf(minf(sz.x / 1920.0, sz.y / 1080.0), 0.01)
+	return maxf(1.0, minf(sz.x / (s0 * 1280.0), sz.y / (s0 * 720.0)))
+
+## True when the chosen UI scale x text size is cut down to fit (Settings says so).
+static func scale_capped(window: Window) -> bool: return ui_scale > 0.0 and ui_scale * text_boost > max_scale(window) + 0.001
 
 ## UI scale actually used: the explicit choice, or auto (undo the window stretch on small windows so text stays a readable size).
 static func effective_ui_scale(window: Window) -> float:
-	if ui_scale > 0.0: return ui_scale * text_boost
+	if ui_scale > 0.0: return minf(ui_scale * text_boost, max_scale(window))
 	Layout.update(window)
 	var sz := Vector2(window.size)
 	var s0 := maxf(minf(sz.x / 1920.0, sz.y / 1080.0), 0.01)   # the project's canvas_items stretch scale
@@ -104,12 +114,9 @@ static func apply_fps() -> void:
 ## Written to user://logs/spike.log at start.
 static func diagnostics(window: Window) -> String:
 	var v := str(ProjectSettings.get_setting("application/config/version", "dev"))
-	return "SPIKE %s\nOS: %s %s\nRenderer: %s (%s)\nAdapter: %s\nWindow: %s  scale=%.2f  ui=%.2f  layout=%s\nGodot: %s" % [
-		v, OS.get_name(), OS.get_version(), RenderingServer.get_current_rendering_method(), RenderingServer.get_current_rendering_driver_name(), adapter,
+	return "SPIKE %s (build %s)\nOS: %s %s\nRenderer: %s (%s)\nAdapter: %s\nWindow: %s  scale=%.2f  ui=%.2f  layout=%s\nGodot: %s" % [
+		v, SaveIO.build_id(), OS.get_name(), OS.get_version(), RenderingServer.get_current_rendering_method(), RenderingServer.get_current_rendering_driver_name(), adapter,
 		str(window.size), window.content_scale_factor, effective_ui_scale(window), Layout.kind, Engine.get_version_info().string]
 
 static func write_log(window: Window) -> void:
-	if no_save or OS.has_environment("SP_NOAUTOSAVE"): return
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://logs"))
-	var f := FileAccess.open("user://logs/spike.log", FileAccess.WRITE)
-	if f != null: f.store_string(diagnostics(window) + "\n"); f.close()
+	SaveIO.log_start(diagnostics(window))   # rotated: spike.log, spike.1.log, spike.2.log
