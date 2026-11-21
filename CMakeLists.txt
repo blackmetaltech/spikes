@@ -40,6 +40,8 @@ if(SPIKE_BUILD_TESTS)
   # The lab's specimen layers (godot/assets/specimens) against the plate drawings they are cut from; skips (77) without pycairo.
   add_test(NAME art_specimens COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/art/check_specimens.py WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(art_specimens PROPERTIES SKIP_RETURN_CODE 77)
+  # These all open the one Godot project in godot/ (import cache, export); run side by side they trip over each other, so ctest -j takes them in turn.
+  set_tests_properties(ui_graph save_io godot_editor tutorial godot_polish PROPERTIES RESOURCE_LOCK godot_project)
 endif()
 foreach(d python godot)
   if(EXISTS "${CMAKE_SOURCE_DIR}/${d}/CMakeLists.txt")
