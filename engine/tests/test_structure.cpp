@@ -43,7 +43,7 @@ int main()
   CHECK( s.projections[ 1 ].rule == "fixed_indegree" and s.projections[ 1 ].n_edges == 2 );
   const auto& p2 = s.projections[ 2 ];
   CHECK( p2.rule == "edges" and p2.n_edges == 2 and p2.sign == -1 and p2.w_min == -30 and p2.w_max == -10 and std::fabs( p2.w_mean + 20 ) < 1e-9 );
-  CHECK( s.projections[ 3 ].sign == 0 and s.projections[ 3 ].n_edges == 1 );
+  CHECK( s.projections[ 3 ].sign == 0 and s.projections[ 3 ].n_edges == 0  /* zero-weight edges are not edges (connections() drops them too) */ );
   CHECK( s.inputs.size() == 1 and s.inputs[ 0 ].name == "drive" and s.inputs[ 0 ].pops == std::vector< std::string >{ "S" } );
   CHECK( s.outputs.size() == 1 and s.outputs[ 0 ].pops == std::vector< std::string >{ "M" } and s.outputs[ 0 ].neurons.size() == 3 );
 

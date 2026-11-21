@@ -1,5 +1,6 @@
 // Review wave "engine": GSL errors never abort, parse-time budgets, projections that share (pre, post, synapse model) stay distinct,
 // Engine::error() is cleared on success, zero-weight edges agree between structure() and connections(), the functional weight floor.
+#include <chrono>
 #include <cmath>
 #include <string>
 #include "check.h"
@@ -20,9 +21,15 @@ static json base()
     "outputs":[{"name":"m","neurons":["B"]}]})" );
 }
 
+static Engine& eng()
+{
+  static Engine e;  // one NEST kernel per process: every test shares it (load() resets it)
+  return e;
+}
+
 static std::string load_error( const json& c )
 {
-  Engine e;
+  Engine& e = eng();
   return e.load( c.dump() ) ? std::string() : e.error();
 }
 
@@ -34,7 +41,7 @@ static void test_negative_drive()
     "projections":[{"pre":"A","post":"B","rule":"all_to_all","synapse":{"synapse_model":"diffusion_connection","weight":1.0,"K":100.0}}],
     "inputs":[{"name":"s","kind":"rate_drive","targets":["A"],"value":-1000000.0}],
     "outputs":[{"name":"m","kind":"rate_value","neurons":["B"]}]})" );
-  Engine e;
+  Engine& e = eng();
   CHECK_MSG( e.load( c.dump() ), e.error() );
   for ( int i = 0; i < 50; ++i )
     e.step( 1.0 );  // reaching here at all is the test: no abort()
@@ -45,10 +52,28 @@ static void test_negative_drive()
   CHECK_MSG( e.load( base().dump() ), e.error() );  // load() recovers
 }
 
+// P0-2: a NESTML cell under the strongest allowed negative current used to stall in its adaptive loop; now it ends in an error (or runs) quickly.
+static void test_nestml_guard()
+{
+  json c = json::parse( R"({"schema_version":1,"seed":1,"populations":[{"id":"A","model":"butera_burster","n":2,"params":{"I_e":-1000.0}}],"outputs":[{"name":"m","neurons":["A"]}]})" );
+  Engine& e = eng();
+  if ( not e.load( c.dump() ) )
+  {
+    std::printf( "  (NESTML models not generated: %s)\n", e.error().c_str() );
+    return;
+  }
+  const auto t0 = std::chrono::steady_clock::now();
+  for ( int i = 0; i < 200 and e.last_step_ok() or i == 0; ++i )
+    e.step( 1.0 );
+  const double secs = std::chrono::duration< double >( std::chrono::steady_clock::now() - t0 ).count();
+  CHECK_MSG( secs < 20.0, std::to_string( secs ) );
+  CHECK_MSG( e.last_step_ok() or not e.error().empty(), "a failed step reports an error" );
+}
+
 // P2: error() is cleared by a successful step, so the live run and CHECK agree.
 static void test_error_cleared()
 {
-  Engine e;
+  Engine& e = eng();
   CHECK_MSG( e.load( base().dump() ), e.error() );
   e.set_input( "nope", 1.0 );
   CHECK( not e.error().empty() );
@@ -96,7 +121,7 @@ static void test_budgets()
   c[ "projections" ] = json::array( { { { "pre", "A" }, { "post", "B" }, { "edges", json::array( { { 0, 0, 1e6, 0.1 } } ) }, { "synapse", { { "synapse_model", "gap_junction" } } } } } );
   CHECK_MSG( has( load_error( c ), "gap_junction weight" ), load_error( c ) );
   std::string deep = "{\"schema_version\":1,\"meta\":" + std::string( 100000, '[' ) + std::string( 100000, ']' ) + "}";
-  Engine e;
+  Engine& e = eng();
   CHECK( not e.load( deep ) );
   CHECK_MSG( has( e.error(), "nested deeper than" ), e.error() );
   // NESTML cells: weight ceiling and DC cap (the cells exist only when scripts/build-nestml.sh was run; the checks are in the parser)
@@ -120,7 +145,7 @@ static void test_shared_triple()
                   {"pre":"B","post":"I","edges":[[0,0,0.0,1.0],[1,0,0.0,1.0],[0,0,0.000001,1.0]]},
                   {"pre":"I","post":"B","rule":"all_to_all","synapse":{"weight":-30.0}}],
    "modulation":[{"modulator":"NE","projection":1,"param":"weight","scale_per_unit":1.0}]})" );
-  Engine e;
+  Engine& e = eng();
   CHECK_MSG( e.load( c.dump() ), e.error() );
   Structure s = e.structure();
   CHECK( s.projections.size() == 4 );
@@ -158,7 +183,7 @@ static void test_weight_floor()
    "projections":[{"pre":"A","post":"B","rule":"all_to_all","synapse":{"weight":100.0}},
                   {"pre":"B","post":"C","rule":"all_to_all","synapse":{"weight":0.01}},
                   {"pre":"C","post":"A","rule":"all_to_all","synapse":{"weight":-100.0}}]})" );
-  Engine e;
+  Engine& e = eng();
   CHECK_MSG( e.load( c.dump() ), e.error() );
   CHECK( e.has_path( "A", "C" ) and e.has_path( "A", "C", 0, 0, 0.0 ) );   // any weight: connected
   CHECK( not e.has_path( "A", "C", 0, 0, 1.0 ) );                         // a 0.01 pA wire does not count
@@ -172,6 +197,7 @@ static void test_weight_floor()
 int main()
 {
   test_negative_drive();
+  test_nestml_guard();
   test_error_cleared();
   test_budgets();
   test_shared_triple();
