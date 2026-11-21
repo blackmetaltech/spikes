@@ -163,9 +163,16 @@ public:
     if ( mech )
       s.value = std::min( s.value, 40.0 );  // behaviour without the mechanisms the level teaches is not a solution (docs/REQ-0.4.md rule 1)
     s.passed = done && wiring_.ok() && !mech && m.done >= kNR && m.good >= m.done && m.rms <= 0.23 * tol() && m.mx <= 0.40 * tol() && !m.osc_flag && m.creep <= 0.10;
+    // the two phases of the level, scored apart: HOLD (posture under pushes, no ringing, no creeping) and REACH (all three reaches good)
+    const bool hold_ok = m.rms <= 0.23 * tol() && m.mx <= 0.40 * tol() && !m.osc_flag && m.creep <= 0.10;
+    const bool reach_ok = m.done >= kNR && m.good >= m.done;
+    s.parts[ "hold_phase_ok" ] = hold_ok ? 1 : 0;
+    s.parts[ "reach_phase_ok" ] = reach_ok ? 1 : 0;
     std::ostringstream o;
     o << std::fixed << std::setprecision( 2 );
     const char* yet = done ? "." : " yet.";
+    if ( wiring_.ok() && !mech && done && !( hold_ok && reach_ok ) )
+      o << "Hold phase: " << ( hold_ok ? "held." : "not held yet." ) << " Reach phase: " << ( reach_ok ? "reached." : "not reached yet." ) << " ";
     if ( !wiring_.ok() )
       o << "Not wired: " << wiring_.message() << ".";
     else if ( mech )
