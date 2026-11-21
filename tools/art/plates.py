@@ -27,6 +27,10 @@ from ink import (BODY, BONE, EXC, EXC_INK, FISH, GAMBOGE, GRAY, GUT, H, INH, INK
 
 OUT = ROOT / "godot" / "assets" / "plates"
 
+# The recovery nullcline is not an inhibitory cell: slate, as in the lab's phase plane (blue is for inhibition only).
+SLATE = hexc("#6B7A86")
+SLATE_INK = hexc("#4E5B66")
+
 # The three spine levels of every wing chapter sit on a gentle arc (Campaign.PLANNED in godot/game/campaign.gd).
 PINS = [(0.2, 0.62), (0.5, 0.36), (0.8, 0.62)]
 LEVELS = {
@@ -1144,7 +1148,7 @@ def dynamics():
         pl.stroke(cub, EXC, 0.9, 2.6)
         lin = np.array([M(v, (v + 0.7) / 0.8) for v in vv])
         lin = lin[(lin[:, 1] > y0) & (lin[:, 1] < y0 + h)]
-        pl.stroke(lin, INH, 0.9, 2.4)
+        pl.stroke(lin, SLATE, 0.9, 2.4)
         fv, fw = fhn_fp(I)
         if I < 0.33:
             tr = fhn(I, fv + 0.62, fw + 0.32, 200)
@@ -1169,7 +1173,7 @@ def dynamics():
             pl.label("unstable fixed point", tuple(M(fv, fw) + np.array([-24, 46])), INK, 13, "r")
         axes(pl, x0 + 40, y0, w - 40, h, "v", "w", origin=(M(0, 0)[0], M(0, wr[0])[1]))
         pl.label("v-nullcline", tuple(M(1.95, 1.95 - 1.95 ** 3 / 3 + I) + np.array([10, -18])), EXC_INK, 13, leader=tuple(M(1.8, 1.8 - 1.8 ** 3 / 3 + I)))
-        pl.label("w-nullcline", tuple(M(1.0, 2.1) + np.array([24, 0])), INH, 13)
+        pl.label("w-nullcline", tuple(M(1.0, 2.1) + np.array([24, 0])), SLATE_INK, 13)
     # Fig. 3: v(t) for both, as the pen draws it
     bx, by, bw = 680, 850, 640
     pl.label("Fig. 3.", (bx - 40, by - 28), INK, 13, slip=0, bold=True)
