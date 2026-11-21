@@ -3,6 +3,7 @@
 #   scripts/build-nest.sh            static libs for the engine (third_party/nest-build)
 #   scripts/build-nest.sh --pynest   additionally build and install NEST with PyNEST into third_party/nest-install (this NEST always builds PyNEST; there is no with-python option)
 #                                    (same pinned commit; needs python3, cython, numpy; python/tests find it there)
+# A toolchain image provides both prebuilt (SPIKE_PREBUILT, scripts/prebuilt.sh); they are linked in when the pin and OpenMP setting match.
 # Env: NEST_REF (commit), SPIKE_OPENMP=ON|OFF (use the same value for the engine and PyNEST for spike parity).
 set -euo pipefail
 PYNEST=0
@@ -11,6 +12,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NEST_REF="${NEST_REF:-7e9111711d4a6ae3b3417d82a9783097ec26b49c}"
 SRC="$ROOT/third_party/nest-simulator"; BUILD="$ROOT/third_party/nest-build"; PREFIX="$ROOT/third_party/nest-install"
 OPENMP="${SPIKE_OPENMP:-OFF}"
+. "$ROOT/scripts/prebuilt.sh"
+STAMP="$NEST_REF openmp=$OPENMP"   # recorded next to the trees when the image builds them
+if [ -z "${SPIKE_NO_PREBUILT:-}" ] && [ "$(cat "${SPIKE_PREBUILT:-/nonexistent}/third_party/nest-build/.spike-stamp" 2>/dev/null)" = "$STAMP" ] \
+   && { [ "$PYNEST" = 0 ] || [ "$(cat "$SPIKE_PREBUILT/third_party/nest-install/.spike-stamp" 2>/dev/null)" = "$STAMP" ]; } \
+   && use_prebuilt nest-simulator nest-build nest-install; then
+  echo "NEST: using the prebuilt trees from $SPIKE_PREBUILT (pin $NEST_REF)"; exit 0
+fi
 if [ ! -d "$SRC/.git" ]; then git clone -q https://github.com/nest/nest-simulator.git "$SRC"; fi
 git -C "$SRC" fetch -q --depth 1 origin "$NEST_REF" 2>/dev/null || true
 git -C "$SRC" checkout -q "$NEST_REF"
@@ -19,6 +27,7 @@ if [ "$PYNEST" = 1 ]; then
   cmake "$SRC" -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_BUILD_TYPE=Release \
     -Dwith-mpi=OFF -Dwith-openmp="$OPENMP" -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON >/dev/null
   make -j"$(nproc)" install
+  [ -z "${SPIKE_STAMP:-}" ] || echo "$STAMP" > "$PREFIX/.spike-stamp"
   echo "PyNEST installed under: $(ls -d "$PREFIX"/lib/python3*/site-packages 2>/dev/null)"
   echo "Use: export SPIKE_PYNEST=<that dir>  (python/tests also find it automatically)"
   exit 0
@@ -27,4 +36,5 @@ mkdir -p "$BUILD"; cd "$BUILD"
 cmake "$SRC" -DCMAKE_INSTALL_PREFIX="$PREFIX" \
   -Dwith-mpi=OFF -Dwith-openmp="$OPENMP" -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON >/dev/null
 make -j"$(nproc)" models nestkernel nestutil
+[ -z "${SPIKE_STAMP:-}" ] || echo "$STAMP" > "$BUILD/.spike-stamp"
 echo "NEST static libs:"; find "$BUILD" -name '*.a'
