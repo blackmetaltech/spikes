@@ -1,0 +1,34 @@
+name: pages
+# The public site (https://ixaxaar.github.io/spikes/): site/ as it is, plus the wiki built from site/wiki-src
+# by tools/site/build.py (Python standard library only). Media are committed, made by scripts/site-media.sh.
+on:
+  push:
+    branches: [master]
+    paths: ['site/**', 'tools/site/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the wiki (fails on broken links, anchors or images)
+        run: python3 tools/site/build.py --check
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
