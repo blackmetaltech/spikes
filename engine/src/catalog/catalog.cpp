@@ -480,8 +480,8 @@ std::vector< CatalogModel > build()
     m.title = "Stomatogastric neuron (conductance-based)";
     m.family = "Custom (NESTML)";
     m.summary = "A single-compartment conductance-based cell with the currents of the crab stomatogastric ganglion: fast sodium and delayed-rectifier potassium for the spikes, two calcium currents (T-type and slow) and a "
-                "calcium-activated potassium current for slow bursts, an A-type potassium current and the hyperpolarisation-activated current H. With the default conductances it bursts about once a second by itself; "
-                "with a strong H current, no calcium-activated potassium and some inhibition it fires by rebound.";
+                "calcium-activated potassium current for slow bursts, an A-type potassium current and the hyperpolarisation-activated current H. A new cell from the parts bin has only the spike currents (sodium, delayed rectifier, A-type, leak) and is silent: "
+                "it neither bursts nor rebounds until you give it the calcium currents, the calcium-activated potassium current (bursts) or the H current (rebound).";
     m.examples = { "Pyloric pacemaker neurons AB and PD of the crab stomatogastric ganglion", "Follower neurons LP and PY that fire by rebound after inhibition" };
     m.source = "Prinz et al. 2003 J Neurophysiol 90:3998-4015 (kinetics, from memory of the published forms); conductances are game values (docs/models/stg_cell.md)";
     m.params = { P{ "g_Na", "nS", "Fast sodium conductance (spikes).", 62800, 0, 300000 }, P{ "g_Kd", "nS", "Delayed-rectifier potassium conductance (spike repolarisation).", 62800, 0, 100000 },
@@ -494,6 +494,7 @@ std::vector< CatalogModel > build()
     m.ei = "inhibitory";
     m.ei_note = "Pyloric followers are inhibited by the pacemaker; the pacemaker cells excite each other through coupling.";
     m.drive = { "dc", "pA", { -50, 0, 25, 50, 100, 200 } };
+    m.preset_json = json{ { "g_Na", 62800.0 }, { "g_Kd", 31400.0 }, { "g_CaT", 0.0 }, { "g_CaS", 0.0 }, { "g_A", 6280.0 }, { "g_KCa", 0.0 }, { "g_H", 0.0 }, { "g_L", 6.28 }, { "I_e", 0.0 } }.dump();
     m.nestml = true;
     m.run_ms = 12000;
     m.skip_ms = 2000;

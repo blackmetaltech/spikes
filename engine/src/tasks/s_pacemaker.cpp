@@ -62,7 +62,8 @@ Spec spec()
             "hyperpolarisation-activated current H helps to start the next one. The sensor 'modulator' is the neuromodulator bath that the pacemaker needs. The game's engine couples cells electrically only for tonic cell models, so here "
             "the coupling is approximated by strong fast excitation both ways between AB and PD. Build the burster AB and two PD cells, couple them both ways, and read 'ab' and 'pd'. The kernel must burst regularly with a cycle of "
             "about a second, each burst must fill a sensible part of the cycle, and the PD cells must burst together with AB, cycle after cycle. A plain integrate-and-fire cell does not burst; the PD cells without the coupling "
-            "would burst on their own schedule, out of step with AB.";
+            "would burst on their own schedule, out of step with AB. A new stg_cell has only the spike currents and is silent: the conductances you add make it burst. Conductances are in nS, a bias in pA, "
+            "a connection's weight is a synaptic conductance in nS, and the modulator's weight is a current in pA per unit of modulator.";
   i.chapter = "crab";
   i.sensors = { "modulator" };
   i.motors = { "ab", "pd" };
@@ -108,11 +109,13 @@ Spec spec()
     p[ "locked" ] = k.locked;
     const bool wide = m.tol > 1.2, tight = m.tol < 0.9;
     c.push_back( { "bursts", k.bursts >= 4 && k.spikes_per_burst >= 3, ramp( k.bursts, 0, 4 ) * 0.7,
-      k.bursts < 4 ? "The kernel does not burst regularly: there are fewer than four bursts in the analysis window. The burster needs the modulator, a slow calcium-activated potassium current to end bursts, and inward currents to start the next."
+      k.bursts < 4 && k.bursts >= 2 && k.period > ( wide ? 1800 : 1500 ) ? "The kernel bursts regularly, but too slowly: fewer than four bursts fit in the analysis window because each cycle is too long. More modulator drive onto AB and PD (a larger modulator weight), or a stronger H current, shortens the cycle."
+      : k.bursts < 4 ? "The kernel does not burst regularly: there are fewer than four bursts in the analysis window. The burster needs the modulator, a slow calcium-activated potassium current to end bursts, and inward currents to start the next."
                    : "The 'bursts' are one or two spikes: the cells fire singly. A burst is a cluster of spikes on a slow wave, ended by a slow outward current." } );
     const double plo = wide ? 600 : ( tight ? 800 : 700 ), phi = wide ? 1800 : ( tight ? 1300 : 1500 );
     c.push_back( { "period", k.period >= plo && k.period <= phi, k.period <= 0 ? 0.0 : 1.0 - clampd( std::fabs( std::log( k.period / clampd( k.period, plo, phi ) ) ), 0.0, 1.0 ),
-      k.period > phi ? "The cycle is too slow: speed up the burster (less calcium-activated potassium, or more bias or modulator drive)." : "The cycle is too fast: slow the burster (more calcium-activated potassium, or less modulator drive)." } );
+      k.period > phi ? "The cycle is too slow: the burster waits too long for its next burst. More modulator drive onto AB and PD (a larger modulator weight), or a stronger H current, speeds it up."
+                   : "The cycle is too fast: the burster restarts too soon. Less modulator drive onto AB and PD (a smaller modulator weight), or a weaker H current, slows it down." } );
     c.push_back( { "regular", k.cv <= ( wide ? 0.25 : 0.16 ), 1.0 - ramp( k.cv, wide ? 0.25 : 0.16, 0.5 ), "The cycles vary a lot in length: the kernel is irregular. The PD cells and AB should lock each other, so that they burst as one unit." } );
     c.push_back( { "locked", k.locked >= 0.8, k.locked, "The PD cells and AB do not burst together: some bursts of one group have no partner in the other. Couple them both ways, strongly enough that each burst of AB makes the PD cells burst and the other way round." } );
     const double dlo = wide ? 0.08 : 0.15, dhi = wide ? 0.6 : 0.5;
@@ -123,7 +126,7 @@ Spec spec()
   s.h2 = "AB and the PD cells must be conductance-based cells (not integrate-and-fire), excite each other both ways, and the modulator must reach the burster.";
   s.h2_target = "ab";
   s.h3 = "Conductance-based cells with a calcium-activated potassium current (it ends the bursts), two calcium currents and the H current; the modulator to AB; AB to the PD cells strongly and the PD cells back to AB more weakly. If it is too slow, "
-         "reduce the calcium-activated potassium; if the PD cells do not follow AB, strengthen the coupling from AB to them.";
+         "raise the modulator's weight or AB's H current; if the PD cells do not follow AB, strengthen the coupling from AB to them.";
   s.metric_name = "period_ms";
   s.metric_unit = "ms";
   s.metric_lower = false;

@@ -1,0 +1,132 @@
+{
+ "schema_version": 1,
+ "name": "ch_novice1.json",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "A",
+   "model": "threshold_lin_rate_ipn",
+   "n": 1,
+   "params": {
+    "tau": 10,
+    "sigma": 0,
+    "g": 1,
+    "theta": 0,
+    "alpha": 1
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "B",
+   "model": "threshold_lin_rate_ipn",
+   "n": 1,
+   "params": {
+    "tau": 10,
+    "sigma": 0,
+    "g": 1,
+    "theta": 0,
+    "alpha": 1
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     400,
+     120
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "A",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": 1
+   },
+   "allow_autapses": true
+  },
+  {
+   "pre": "B",
+   "post": "B",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": 1
+   },
+   "allow_autapses": true
+  },
+  {
+   "pre": "A",
+   "post": "B",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": -1
+   },
+   "allow_autapses": true
+  },
+  {
+   "pre": "B",
+   "post": "A",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": -1
+   },
+   "allow_autapses": true
+  }
+ ],
+ "inputs": [
+  {
+   "name": "a_in",
+   "kind": "rate_drive",
+   "targets": [
+    {
+     "pop": "A"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.5
+  },
+  {
+   "name": "b_in",
+   "kind": "rate_drive",
+   "targets": [
+    {
+     "pop": "B"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.5
+  }
+ ],
+ "outputs": [
+  {
+   "name": "a",
+   "kind": "rate_value",
+   "neurons": [
+    {
+     "pop": "A"
+    }
+   ]
+  },
+  {
+   "name": "b",
+   "kind": "rate_value",
+   "neurons": [
+    {
+     "pop": "B"
+    }
+   ]
+  }
+ ]
+}

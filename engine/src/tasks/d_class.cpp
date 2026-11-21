@@ -50,7 +50,8 @@ Spec spec()
             "the voltage nullcline rises, and the resting state, the point where the nullclines cross, is lost. If it runs into the second crossing and vanishes, the cell can only creep through "
             "the bottleneck that is left: class I. If it turns into a spiral that the current makes unstable, the cell begins at the frequency of that spiral: class II. The sensor 'current' "
             "steps up through the cell's own onset (the staircase is scaled to the cell), and 'spikes' reads the cell. Build a cell that is silent at the bottom, and whose firing starts at "
-            "a clear rate, not from zero. Look at where the nullclines cross, and what kind of point that is.";
+            "a clear rate, not from zero. Look at where the nullclines cross, and what kind of point that is. The class is not looked up from the cell's name: it is computed for this cell, from the Jacobian "
+            "(the local slopes) of its two equations at the resting state, so a cell with other parameters can land on either side.";
   i.chapter = "dynamics";
   i.view = "phase";
   i.sensors = { "current" };
@@ -123,7 +124,7 @@ Spec spec()
     c.push_back( { "abrupt", first_n >= need, ramp( first_n, 0, need ), "Firing starts slowly, from one spike or none: the cell is class I. Class II firing starts at a clear rate the moment the resting state is lost." } );
     c.push_back( { "keeps", n[ kSteps - 1 ] >= 3, ramp( n[ kSteps - 1 ], 0, 3 ), "The cell stops firing again at the top of the staircase: it must keep firing as the current grows." } );
   };
-  s.ok_verdict = "Firing starts at a clear rate: the resting state of this cell is a spiral that the current makes unstable (class II), and the staircase shows the abrupt start.";
+  s.ok_verdict = "Firing starts at a clear rate: for this cell, by the eigenvalues of its Jacobian at rest, the resting state is a spiral that the current makes unstable (class II), and the staircase shows the abrupt start.";
   s.h1 = "How firing starts depends on how the resting state is lost: through a collision of two fixed points (slow start from zero) or as a spiral that turns unstable (abrupt start).";
   s.h2 = "Look at the fixed point where the nullclines cross, just before it is lost. A node has no oscillation to give; a spiral does. Which parameters make the recovery variable respond fast and strongly?";
   s.h2_target = "spikes";

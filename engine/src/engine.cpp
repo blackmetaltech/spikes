@@ -1567,6 +1567,38 @@ const PopulationInfo* Structure::population( const std::string& id ) const
 
 Structure Engine::structure() const { return impl_->structure_of(); }
 
+std::vector< Engine::Connection > Engine::connections() const
+{
+  std::vector< Connection > out;
+  Impl& m = *impl_;
+  if ( not m.loaded )
+    return out;
+  for ( size_t k = 0; k < m.spec.projs.size(); ++k )
+  {
+    try
+    {
+      for ( const auto& c : m.find_conns( m.projs[ k ], -1, -1 ) )
+      {
+        const Dictionary cs = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 );
+        const double w = ( m.projs[ k ].model == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );
+        if ( w == 0.0 )
+          continue;
+        Connection x{ static_cast< int32_t >( c.get_source_node_id() ) - 1, static_cast< int32_t >( c.get_target_node_id() ) - 1, w, static_cast< int32_t >( k ), 0.0, 0.0 };
+        if ( m.projs[ k ].model == "diffusion_connection" and w != 0.0 and cs.known( "diffusion_factor" ) )
+        {
+          x.j = cs.get< double >( "diffusion_factor" ) / w;   // drift = tau K J, diffusion = tau K J^2
+          x.k = m.spec.projs[ k ].common.value( "K", 1.0 );
+        }
+        out.push_back( x );
+      }
+    }
+    catch ( const std::exception& )
+    {
+    }
+  }
+  return out;
+}
+
 const Structure& Engine::Impl::structure_of()
 {
   Impl& m = *this;

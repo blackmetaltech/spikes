@@ -7,6 +7,8 @@
 //   quiet   no spike before the first pulse
 //   on      at least 6 spikes (guided 4, researcher 8) in each 'on' window: switched on, and stays on long after the pulse
 //   off     no spike in each 'off' window: switched off, and stays off
+//   rate    the 'on' state fires at most 80 spikes in a 400 ms window (200 Hz; guided 100, researcher 70): a real cell cannot keep up a faster rate for seconds. The Izhikevich on-state is a limit cycle that is born
+//           at a finite frequency, about 135 Hz at the lowest, so this is as low as the model goes: the level cannot ask for the 5 to 50 Hz of real persistent firing (documented in WHAT-IS-REAL)
 // MECHANISM (the cell's phase plane at the holding current, and the pulses' signs): a two-variable cell with a stable fixed point at the holding current, and all three sensors reaching it.
 // The behaviour decides the rest: only a second, firing attractor makes the 'on' windows pass.
 // Biology: the Izhikevich (2003) IEEE Trans Neural Netw 14:1569 cell with a high reset has a stable rest and a stable firing state side by side; Touboul J, Brette R (2008) Biol Cybern 99:319 analyse how
@@ -31,7 +33,8 @@ Spec spec()
             "around it that the trajectory can also settle into. Between them runs a border, and a brief pulse that carries the cell across it flips the state for good. The sensor 'hold' is a "
             "steady current, 'set' is a short pulse and 'reset' a short pulse too. Build a single cell that is quiet at first, fires on and on after 'set' (long after the pulse is gone), and is quiet "
             "again and stays so after 'reset'; the same must work a second time. 'hold' puts the cell near the edge of firing without starting it; 'set' is a pulse that pushes the cell up and 'reset' a pulse that pushes it down (give both a positive weight: the sensor itself is the push). "
-            "What makes firing survive after a spike is where the spike resets the cell, relative to the border between the states.";
+            "What makes firing survive after a spike is where the spike resets the cell, relative to the border between the states. The on-state must stay below about two hundred spikes a second: a real cell cannot keep up more for long. "
+            "(The model is more limited than a real cell here: the firing state of this kind of cell cannot go much below a hundred and fifty spikes a second, where real persistent firing is 5 to 50; the level shows the mechanism, not the rate.)";
   i.chapter = "dynamics";
   i.view = "phase";
   i.sensors = { "hold", "set", "reset" };
@@ -41,14 +44,14 @@ Spec spec()
   i.concepts_used = { "excitability_class", "stable_fixed_point" };
   i.par_neurons = 1;
   i.default_model = "izhikevich";
-  i.kinds = { { "hold", in_kind( "dc", 1.0, 2.5 ) }, { "set", in_kind( "dc", 1.0, 10.0 ) }, { "reset", in_kind( "dc", 1.0, 10.0 ) }, { "spikes", micro::rate() } };
+  i.kinds = { { "hold", in_kind( "dc", 1.0, 0.5 ) }, { "set", in_kind( "dc", 1.0, 10.0 ) }, { "reset", in_kind( "dc", 1.0, 10.0 ) }, { "spikes", micro::rate() } };
   i.bands = { { "on_spikes", "spikes", 0, 200 } };
   s.gauges = { { "on_spikes", { "on1_spikes" } } };
-  i.recipe = "One Izhikevich cell: a 0.02, b 0.2, c -50, d 0 (the reset lands above the border between rest and firing, and nothing is added to the recovery variable, so the cell keeps firing). "
-             "hold > cell at weight 2.5, set > cell at 10, reset > cell at 10 (a downward pulse). Holding currents from about 1.5 to 3.5 work; 4 and above fires on its own.";
+  i.recipe = "One Izhikevich cell: a 0.02, b 0.22, c -50, d 0 (the reset lands above the border between rest and firing, and nothing is added to the recovery variable, so the cell keeps firing). "
+             "hold > cell at weight 0.5, set > cell at 10, reset > cell at 10 (a downward pulse). The on-state fires at about 150 Hz. Holding currents from about 0.3 to 1 keep it under 200 Hz; 2 and above fires on its own.";
   i.note = { "One neuron, two states",
     "A model neuron can sit near the edge of firing with a stable resting state and a stable firing state side by side. Which one it is in depends on its history: a brief pulse that crosses the border "
-    "between their basins switches it, and it stays there. In two-variable models with a reset this comes from where the spike resets the cell; the reset interacts with the differential equations "
+    "between their basins switches it, and it stays there. In this model the firing state is a limit cycle that appears at a finite frequency, well above the 5 to 50 spikes a second of real persistent firing, which is a different, channel-based mechanism. In two-variable models with a reset this comes from where the spike resets the cell; the reset interacts with the differential equations "
     "and gives these models a rich structure of states.",
     "Izhikevich EM (2003) IEEE Trans Neural Netw 14:1569-1572, doi:10.1109/TNN.2003.820440; Touboul J, Brette R (2008) Biol Cybern 99:319-334, doi:10.1007/s00422-008-0267-4" };
   s.schedule = [ & ]( bool ) {
@@ -83,7 +86,7 @@ Spec spec()
   };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const double q = m.n( "spikes", "quiet" ), on1 = m.n( "spikes", "on1" ), off1 = m.n( "spikes", "off1" ), on2 = m.n( "spikes", "on2" ), off2 = m.n( "spikes", "off2" );
-    const double need = m.tol > 1.2 ? 4.0 : ( m.tol < 0.9 ? 8.0 : 6.0 );
+    const double need = m.tol > 1.2 ? 4.0 : ( m.tol < 0.9 ? 8.0 : 6.0 ), cap = m.tol > 1.2 ? 100.0 : ( m.tol < 0.9 ? 70.0 : 80.0 );   // spikes in the 400 ms window
     p[ "on1_spikes" ] = on1;
     p[ "off1_spikes" ] = off1;
     p[ "on2_spikes" ] = on2;
@@ -93,11 +96,13 @@ Spec spec()
     c.push_back( { "on1", on1 >= need, ramp( on1, 0, need ),
       "The 'set' pulse does not switch the cell on for good: it is quiet again soon after the pulse (or never starts). A switch needs a second stable state, repetitive firing, that the pulse carries the cell "
       "into and that it then stays in. Look at where the spike resets the cell." } );
+    c.push_back( { "rate", on1 <= cap && on2 <= cap, on1 <= cap && on2 <= cap ? 1.0 : 0.6,
+      "The on-state fires at an unrealistic rate: above about two hundred spikes a second, which a real cell cannot keep up for seconds. A weaker holding current, or a reset voltage closer to the border between the states, gives a slower firing state." } );
     c.push_back( { "off1", off1 == 0, 1.0 - ramp( off1, 0, 20 ), "The 'reset' pulse does not switch the cell off: it is still firing long after the pulse. The pulse has to carry the trajectory back across the border to the resting state." } );
     c.push_back( { "on2", on2 >= need, ramp( on2, 0, need ), "The cell switched on once, but a second 'set' pulse does not switch it on again: the resting state must flip to firing every time." } );
     c.push_back( { "off2", off2 == 0, 1.0 - ramp( off2, 0, 20 ), "The cell switched off once, but a second 'reset' pulse does not switch it off again." } );
   };
-  s.ok_verdict = "A one-cell switch: quiet at the holding current, firing on after a brief 'set' pulse and quiet again after a brief 'reset' pulse, twice. The cell has two stable states, rest and firing.";
+  s.ok_verdict = "A one-cell switch: quiet at the holding current, firing on after a brief 'set' pulse and quiet again after a brief 'reset' pulse, twice. The cell has two stable states, rest and firing (the firing state is faster than any real cell could keep up: the model's limit).";
   s.h1 = "The same current can leave a neuron with two stable states: rest and repetitive firing. A pulse that crosses the border between them flips the state, and it stays flipped.";
   s.h2 = "Look at where the spike resets the cell in the phase plane. If the reset lands on the rest side of the border the cell falls back to rest; if it lands on the firing side it goes round again.";
   s.h2_target = "spikes";

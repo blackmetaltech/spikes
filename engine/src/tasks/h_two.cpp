@@ -9,7 +9,7 @@
 //   a_on     after cue_a at least 80 % of A's cells fire and B is silent (at most 3 spikes)
 //   b_on     after cue_b at least 80 % of B's cells fire and A is silent                       the other pattern overwrites
 //   one      after both cues together exactly one pattern is lit (at least 80 % of its cells), the other silent     no blend
-// MECHANISM (Engine::structure()): 'a' and 'b' read different cells, each pattern excites itself in a loop, the two inhibit each other (directly or through an interneuron), the connections between
+// MECHANISM (Engine::connections(), the edge list between the two sets of cells, within one population or across populations): 'a' and 'b' read different cells, each pattern excites itself in a loop, the two inhibit each other (directly or through an interneuron), the connections between
 // groups are roughly symmetric, and each cue reaches its own pattern.
 // Biology: Hopfield JJ (1982) PNAS 79:2554 (stored patterns are stable states; mixtures of patterns are spurious states that a good network avoids); Amit DJ, Brunel N (1997) Cereb Cortex 7:237. The
 // patterns here are two disjoint groups, not overlapping +1 / -1 vectors, and the inhibition between them is built in, not the outcome of an outer-product rule.
@@ -71,14 +71,17 @@ Spec spec()
     const auto ca = out_cells( e, "a" ), cb = out_cells( e, "b" );
     for ( int n : ca )
       if ( cb.count( n ) ) return "'a' and 'b' read some of the same cells: the two patterns need cells of their own to tell them apart.";
-    if ( !Graph::overlap( g.in_pops( "cue_a" ), A ) || !Graph::overlap( g.in_pops( "cue_b" ), B ) ) return "Each cue has to reach its own pattern: 'cue_a' the cells that 'a' reads and 'cue_b' the cells that 'b' reads.";
-    if ( !mech::excitatory_loop( g.st, mech::PopSet( A.begin(), A.end() ) ) || !mech::excitatory_loop( g.st, mech::PopSet( B.begin(), B.end() ) ) )
+    const auto ia = in_cells( e, "cue_a" ), ib = in_cells( e, "cue_b" );
+    auto touches = []( const std::set< int >& cue, const std::set< int >& pat ) { for ( int n : pat ) if ( cue.count( n ) ) return true; return false; };
+    if ( !touches( ia, ca ) || !touches( ib, cb ) ) return "Each cue has to reach its own pattern: 'cue_a' the cells that 'a' reads and 'cue_b' the cells that 'b' reads.";
+    const CellGraph cg( e );
+    if ( !cg.excitatory_loop( ca ) || !cg.excitatory_loop( cb ) )
       return "A pattern whose cells do not excite each other cannot stay lit after its cue: give each pattern recurrent excitation.";
-    if ( !g.crossed( A, B ) || !g.crossed( B, A ) )
+    if ( !cg.inhibits( ca, cb ) || !cg.inhibits( cb, ca ) )
       return "Nothing separates the two patterns: without inhibition between them the network can fall into a blend of both. Each pattern has to inhibit the other.";
-    std::vector< int > all = A;
-    all.insert( all.end(), B.begin(), B.end() );
-    return asymmetry( g, all );
+    std::set< int > all = ca;
+    all.insert( cb.begin(), cb.end() );
+    return asymmetry_cells( cg, all );
   };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const int na = m.size_of( "a" ), nb = m.size_of( "b" );
