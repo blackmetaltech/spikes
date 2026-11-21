@@ -501,7 +501,7 @@ class SeriesPanel extends Control:
 		var q := PackedVector2Array()
 		for k in m.size(): q.append(Vector2(P.position.x + P.size.x * float(k) / span, P.end.y - (float(m[k]) - lo) / rng * P.size.y))
 		draw_polyline(q, Kit.exc(), 2.4, true)
-		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %.3g)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, sd], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %s)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, String.num(sd, 2)], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
 		_note("The average of a Gaussian white-noise stimulus around the spikes is the cell's linear filter (Chichilnisky 2001): a bump just before the spike means the cell integrates the recent past.", size.y - 18.0 - float(fz), f, fz)
 
 	func _draw_energy(f: Font, fb: Font, fz: int) -> void:

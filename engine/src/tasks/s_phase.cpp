@@ -29,7 +29,8 @@ Spec spec()
             "gives LP its place in the cycle. The sensor 'pd' stands for the pacemaker's inhibition: a burst of inhibitory input of a third of a second at the start of each second. Build the follower as a single "
             "conductance-based cell (cell type stg_cell, with the H current and calcium currents that make a rebound, and without the calcium-activated potassium current that would make it a pacemaker itself), connect 'pd' to it as an "
             "inhibitory input (a negative weight), and read 'lp'. The cell must stay silent while it is inhibited and fire a burst after the inhibition ends, with its first spike somewhere between the middle of the cycle and the "
-            "last quarter of it. An integrate-and-fire cell just resumes its steady firing the moment the inhibition stops, or never fires at all.";
+            "last quarter of it. An integrate-and-fire cell just resumes its steady firing the moment the inhibition stops, or never fires at all. A new stg_cell has only the spike currents and is silent and "
+            "cannot rebound: the conductances you add give it a rebound. Conductances are in nS, and the weight of 'pd' is a synaptic conductance in nS (negative inhibits).";
   i.chapter = "crab";
   i.sensors = { "pd" };
   i.motors = { "lp" };

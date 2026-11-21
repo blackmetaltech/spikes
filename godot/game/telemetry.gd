@@ -37,6 +37,7 @@ var volt := {}                   # neuron -> PackedFloat32Array of 1 ms samples 
 var flash := PackedFloat32Array()
 var pulses: Array = []           # projection index -> PackedFloat64Array of wall birth times
 var rates := {}                  # output channel -> smoothed Hz (spike count in the last RATE_WIN_MS over the channel's neurons)
+var rate_units := {}             # output channel -> true when it reads rate units (rate_value: a population rate in arbitrary units, or Hz for a siegert unit), not spikes
 var out_mask := {}               # output channel -> PackedByteArray (1 = neuron belongs to it)
 const RATE_WIN_MS := 120.0
 var in_values := {}              # input channel -> last value we set (for the circuit view)
@@ -185,12 +186,13 @@ func reset(seed := -1) -> void:
 	for p in pulses: p.clear()
 	volt = {}; rates = {}
 	for w in watched: sim.watch(w); volt[w] = PackedFloat32Array()
-	out_mask = {}
+	out_mask = {}; rate_units = {}
 	for ch in circuit.get("outputs", []): rates[str(ch.get("name", ""))] = 0.0   # unwired ones stay at 0
 	for ch in sim.outputs():
 		var m := PackedByteArray(); m.resize(n)
 		for i in ch["neurons"]: m[int(i)] = 1
 		out_mask[str(ch["name"])] = m; rates[str(ch["name"])] = 0.0
+		if str(ch.get("kind", "")) == "rate_value": rate_units[str(ch["name"])] = true
 	if task != null: task.reset(int(circuit.get("seed", 1)) if seed < 0 else seed); body = task.body(); score = task.score(); _apply_issue()
 	hist_t = PackedFloat32Array(); hist = {}; _next_hist = 0.0
 	for k in mods: _push_mod(k)
@@ -304,6 +306,7 @@ func advance(dt: float) -> void:
 	if sim != null:
 		for ch in rates.keys():
 			if not out_mask.has(ch): continue   # an output nothing is wired to reads 0
+			if rate_units.has(ch): rates[ch] = float(sim.output_value(str(ch))); continue   # a rate unit has no spikes to count: its own rate
 			var m: PackedByteArray = out_mask[ch]; var cnt := 0; var nn := 0
 			for i in n: nn += m[i]
 			var j := sp_t.size() - 1; var t0 := t_ms - RATE_WIN_MS

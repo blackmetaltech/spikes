@@ -577,7 +577,7 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 		c.draw_string(Fonts.regular, Vector2(px - 14.0, P.end.y + float(fz) + 4.0), "%d" % int(roundf(v)), HORIZONTAL_ALIGNMENT_LEFT, 40.0, fz, Kit.TEXT_SOFT)
 		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
 	c.draw_string(Fonts.regular, Vector2(P.end.x - 90.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 86.0, fz, Kit.TEXT_SOFT)
-	c.draw_string(Fonts.regular, Vector2(P.position.x + 6.0, P.position.y + float(fz) + 2.0), "%s (%s)" % [wn, "pA" if wn == "w" else "recovery"], HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Fonts.regular, Vector2(P.position.x + 6.0, P.position.y + float(fz) + 2.0), "%s (%s)" % [wn, "pA" if wn == "w" else "recovery, arbitrary units"], HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
 	var line := func(pts: PackedVector2Array, col: Color) -> void:
 		var q := PackedVector2Array()
 		for p in pts:
@@ -617,7 +617,7 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 	var ty := P.end.y + float(fz) * 2.0 + 6.0
 	c.draw_string(Fonts.regular, Vector2(P.position.x, ty), "sienna: voltage nullcline    blue: %s nullcline    filled point: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT_SOFT)
 	var txt := ("resting state: " + stable_kind) if stable_kind != "" else "no stable resting state at this current"
-	c.draw_string(Fonts.bold, Vector2(P.position.x, ty + float(fz) + 4.0), "current now %.3g pA   %s" % [float(pp["i_total"]), txt], HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT)
+	c.draw_string(Fonts.bold, Vector2(P.position.x, ty + float(fz) + 4.0), "current now %s pA   %s" % [String.num(float(pp["i_total"]), 1), txt], HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT)
 
 # ---------------------------------------------------------------- rate units (v0.6, Theory wing)
 ## The motor channels of a rate level as scrolling traces on one shared scale: a `rate_value` channel is the mean rate of rate units (arbitrary units, or spikes per second for a siegert

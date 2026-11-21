@@ -193,6 +193,18 @@ public:
   double input_value( const std::string& channel ) const;
   double output_value( const std::string& name ) const;
 
+  /// Additions (0.6, add-only). One live NEST connection between two cells of the circuit (circuit-level neuron indices), as the editor wired it, whatever the population layout: the edge list that a
+  /// task judges when the mechanism lives in WHO connects to WHOM (a pattern is a set of cells, possibly inside one population). Devices (inputs, recorders) are not connections of the circuit.
+  struct Connection
+  {
+    int32_t pre = -1, post = -1;   // circuit-level neuron indices
+    double weight = 0;
+    int32_t projection = -1;       // index into Structure::projections
+    double j = 0, k = 0;           // a diffusion_connection (mean-field projection) only: the size of one input J (mV) and the number of inputs K it stands for; 0 otherwise
+  };
+  /// Every connection of every projection with a non-zero weight (a diffusion_connection reports its drift factor). Empty when nothing is loaded.
+  std::vector< Connection > connections() const;
+
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.
   void stop();
