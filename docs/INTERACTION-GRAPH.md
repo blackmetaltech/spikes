@@ -65,6 +65,8 @@ flowchart LR
   campaign -->|BtnPartsBin| parts
   parts -.->|Back or Esc| campaign
   campaign -->|Chapter tabs| campaign_chapter_invertebrates
+  campaign_chapter_worm -->|Chapter tabs| campaign_chapter_invertebrates
+  campaign_chapter_dynamics -->|Chapter tabs| campaign_chapter_invertebrates
   campaign -->|Pin_*| campaign
   campaign -->|StepMode| campaign
   notebook -->|BtnWhatIsReal| real
@@ -121,6 +123,8 @@ flowchart LR
   title -.->|LegendQuit| title
   campaign -->|BtnSandbox| lab_sandbox
   lab_sandbox -.->|Back or Esc| campaign
+  campaign -->|BtnContinue (an open level is not passed yet)| lab_task
+  lab_task -.->|Back or Esc| campaign
   campaign -->|Pin_*| campaign
   campaign -->|StepMode| campaign
   campaign -->|BtnBuild| lab_task
@@ -218,7 +222,7 @@ flowchart LR
 | Node | Kind | What it is | Controls |
 |---|---|---|---|
 | `title` | screen | Title (Plate I) | `LegendPlay`, `LegendLaboratory`, `LegendWhatisreal`, `LegendSettings`, `LegendCredits`, `LegendQuit` |
-| `campaign` | screen | Campaign map (default chapter) | `BtnBack`, `StepMode`, `BtnNotebook`, `BtnPartsBin`, `BtnSandbox`, `Chapter_*`, `Pin_*`, `BtnBuild`, `BtnReference?`, `BtnMoreEllipsis?` |
+| `campaign` | screen | Campaign map (default chapter) | `BtnBack`, `StepMode`, `BtnNotebook`, `BtnPartsBin`, `BtnSandbox`, `Wing_*`, `Chapter_*`, `Pin_*`, `BtnBuild`, `BtnReference?`, `BtnMoreEllipsis?`, `BtnContinue?` |
 | `campaign.chapter.invertebrates` | tab | Campaign chapter tab: Invertebrates |  |
 | `campaign.chapter.spinal` | tab | Campaign chapter tab: Spinal cord |  |
 | `campaign.chapter.heart` | tab | Campaign chapter tab: Heart |  |
@@ -252,7 +256,7 @@ flowchart LR
 | `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
-| `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnNoise?` |
+| `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnNoise?`, `BtnDetails?`, `BtnOpenNotebook?` |
 | `lab.dx` | screen | Lab on a diagnosis case (read-only patient circuit) | `BtnCase`, `BtnHint?` |
 | `lab.insp.brief` | panel | Inspector: the brief, what to build, the pass rule and recipe | `BtnBriefMore?`, `BtnShowRecipe?` |
 | `lab.insp.pop` | panel | Inspector: a neuron group selected | `BtnTrace`, `BtnEI`, `BtnDelete`, `BtnAdvanced`, `Stepper`, `BtnResetParameters?`, `BtnAddRow?` |
@@ -288,5 +292,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 57 nodes, 117 edges, 8 guard checks.
+Counts: 57 nodes, 119 edges, 8 guard checks.
 <!-- END GENERATED -->
