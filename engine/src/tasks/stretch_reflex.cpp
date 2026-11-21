@@ -90,7 +90,7 @@ public:
   /// Quick check: the taps and the first two stretches (one per muscle, the second with its ringing window): the same rules as the full episode on
   /// a shorter run. A full run judges all four stretches.
   double quick_duration_ms() const override { return kLead + kSpacing + kJitter + kQuiet1; }
-  int par_neurons() const override { return variant_par( variant_, 52 ); }
+  int par_neurons() const override { return variant_par( variant_, 54 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
@@ -101,7 +101,7 @@ public:
   /// researcher 42.5 ms, 0.35, 0.24. The pushes are 2.5 N m in every mode (the loop has no noise of its own).
   std::map< std::string, std::string > variants() const override
   {
-    return { { "half_neurons", "half the neurons: 26 instead of 52" },
+    return { { "half_neurons", "half the neurons: 27 instead of 54" },
              { "heavy_load", "pushes of 3.5 N m instead of 2.5 N m: the reflex must work harder" } };
   }
   std::vector< Hint > hints() const override
