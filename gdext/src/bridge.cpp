@@ -167,7 +167,7 @@ std::string sta_json( const std::vector< double >& stimulus, double dt_ms, const
 {
   const spike::theory::Sta r = spike::theory::spike_triggered_average( stimulus, dt_ms, spike_times_ms, before_ms, after_ms );
   std::string out = "{\"mean\":[";
-  char buf[64];
+  char buf[256];
   for ( size_t k = 0; k < r.mean.size(); ++k )
   {
     std::snprintf( buf, sizeof buf, "%s%.9g", k ? "," : "", r.mean[ k ] );

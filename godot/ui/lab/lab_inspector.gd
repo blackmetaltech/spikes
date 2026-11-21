@@ -71,6 +71,25 @@ static func pass_lines(t: String, shown: String, n := 300) -> String:
 		out += ("" if out == "" else " ") + piece
 	return out if out.length() <= n + 120 else out.substr(0, n).strip_edges() + "…"
 
+const BUILD_VERBS := ["make ", "build ", "create ", "connect ", "add ", "wire ", "give ", "use ", "put ", "feed ", "set ", "choose ", "then ", "start ", "place ", "pick ", "drive ", "keep "]
+
+## What to build, in the brief's own words, for the part that stays visible without More: the sentences that tell the player what to make or connect (they begin with a verb such as
+## "Make", "Connect", "Build", "Then build"). Sentences already in `shown` are left out. At most two sentences, the second only if both fit in `n` characters; "" when there are none.
+static func build_lines(t: String, shown: String, n := 360) -> String:
+	var out := ""
+	for raw in t.split(". "):
+		var sn := str(raw).strip_edges(); var low := sn.to_lower()
+		if sn == "" or shown.contains(sn.trim_suffix(".")): continue
+		var act := false
+		for v in BUILD_VERBS:
+			if low.begins_with(v): act = true
+		if not act: continue
+		var piece := sn.trim_suffix(".") + "."
+		if out != "" and out.length() + piece.length() > n: break
+		out += ("" if out == "" else " ") + piece
+		if out.length() > n: break
+	return out
+
 func inspect_brief(small: int) -> void:
 	var tid := lab.task_id; var t: String = ""
 	if tid != "" and lab.ext_ok: t = str(Campaign.info(tid)["brief"])
@@ -82,11 +101,16 @@ func inspect_brief(small: int) -> void:
 		var mb: Button = Kit.ident(Kit.btn("More…" if short else "Less", func(): lab._brief_full = short; build(), "ghost", 16), "BtnBriefMore"); mb.size_flags_horizontal = Control.SIZE_SHRINK_END
 		hd.add_child(mb); hd.move_child(mb, 2 if not Layout.phone else hd.get_child_count() - 1)
 	add(Kit.label(str(ld[0]) if short else txt, small, Kit.TEXT if short else Kit.TEXT_SOFT, true))
-	if short and tid != "":   # the pass rule stays in view, not behind More
-		var pl := pass_lines(txt, str(ld[0]), 260 if not Layout.phone else 170)
+	if short and tid != "":   # what to build and the pass rule stay in view, not behind More (which keeps the background)
+		var bl := build_lines(txt, str(ld[0]), 700 if not Layout.phone else 300)
+		if bl != "":
+			var br := HBoxContainer.new(); br.add_theme_constant_override("separation", 8); add(br)
+			var bc := Kit.chip("TO BUILD", Kit.exc(), 14); bc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; br.add_child(bc)
+			var bt := Kit.label(bl, small, Kit.TEXT, true); bt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; br.add_child(bt)
+		var pl := pass_lines(txt, str(ld[0]) + " " + bl, 260 if not Layout.phone else 170)
 		if pl != "":
 			var pr := HBoxContainer.new(); pr.add_theme_constant_override("separation", 8); add(pr)
-			var pc := Kit.chip("PASS", Kit.GREEN, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
+			var pc := Kit.chip("TO PASS", Kit.AMBER, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
 			var pt := Kit.label(pl, small, Kit.TEXT, true); pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pr.add_child(pt)
 	var rec := lab._recipe_text()
 	if rec != "" and lab.mode != "researcher":

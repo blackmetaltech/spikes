@@ -302,7 +302,7 @@ static func btn(t: String, cb: Callable, kind := "amber", size := 26, min_size :
 	b.pressed.connect(cb); return b
 
 ## Words kept in capitals by label_case (acronyms and units).
-const KEEP_CAPS := ["E", "I", "JSON", "CSV", "HRV", "PRC", "ISI", "CV", "CPG", "ATP", "NEST", "ID", "UI", "OK", "SA", "AV", "EMG", "ECG"]
+const KEEP_CAPS := ["E", "I", "JSON", "CSV", "HRV", "PRC", "STA", "ISI", "CV", "CPG", "ATP", "NEST", "ID", "UI", "OK", "SA", "AV", "EMG", "ECG"]
 ## A button label set in capitals by older code ("SHOW RECIPE") as the plate's sentence case ("Show recipe"). Words with digits, underscores or
 ## other marks (ids, "x5") and the acronyms in KEEP_CAPS stay as written. Labels already in mixed case are returned unchanged.
 static func label_case(t: String) -> String:
