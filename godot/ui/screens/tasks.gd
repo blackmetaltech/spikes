@@ -439,11 +439,13 @@ class MapOverlay extends Control:
 			var q: Vector2 = cands[k]
 			q = Vector2(clampf(q.x, 4.0, maxf(size.x - cw - 4.0, 4.0)), clampf(q.y, 4.0, maxf(size.y - bh - 4.0, 4.0)))
 			var rc := Rect2(q, Vector2(cw, bh)); var cost := float(k) * 0.01
+			if rc.intersects(pr.grow(2.0)): cost += 3.0   # pushed back onto the page, it would cover its own pin and label plate
 			for c in map.cards:
 				if c == card or not c.visible: continue
 				if c.has_plate() and c._plate.size.x > 0.0: cost += MapCanvas._frac(c.plate_rect().grow(4.0), rc) + (1.0 if c.plate_rect().intersects(rc) else 0.0)
 				if c.pin_rect().intersects(rc): cost += 0.5
 			if rc.end.y > size.y - 40.0 and rc.position.x < 520.0: cost += 1.0   # the plate caption at the foot
+			cost += (map as MapCanvas)._keep_cost(rc, 100.0) * 0.004   # and off the drawing's lettering (it is only up while hovered or selected, so anatomy is fair game)
 			if cost < bc: bc = cost; bx = q.x; by = q.y
 		draw_rect(Rect2(bx + 3.0, by + 3.0, bw + 12.0, bh), Color(Kit.INK, 0.12)); draw_rect(Rect2(bx, by, bw + 12.0, bh), Color("#FBF7EE")); draw_rect(Rect2(bx, by, bw + 12.0, bh), Color(Kit.INK, 0.8), false, 1.0)
 		var y := by + 6.0
@@ -591,7 +593,9 @@ class MapCanvas extends Control:
 			for c in by_parent[pid]:
 				c.visible = true
 				var bestp := centre + Vector2(dist, 0); var bests := -1e9
-				for k in 16:
+				var spot := anch.has(str(c.node["id"]))   # the scene has a spot for it (a drawn plate's quiet patch)
+				if spot: bestp = anch[str(c.node["id"])][0]
+				for k in (0 if spot else 16):
 					var ang := TAU * float(k) / 16.0 + 0.2
 					var d := dist * (1.0 + 0.5 * float(k % 2))
 					var q := centre + Vector2(cos(ang), sin(ang)) * (d + pc._R())
@@ -611,17 +615,18 @@ class MapCanvas extends Control:
 		# lettering as it can, and stays on the page; a leader line joins a plate that had to move away from its pin
 		keep.append([Rect2(0, size.y - float(Kit.fs(15)) - 26.0, minf(size.x * 0.5, 520.0), float(Kit.fs(15)) + 26.0), 400.0])   # the plate caption
 		if not Campaign.chapter_open(chapter): keep.append([Rect2(0, 0, minf(size.x * 0.7, 640.0), 44.0), 400.0])   # the lock notice
-		var plates := []
-		for c in sp:
+		var plates := []; _leaders = []
+		for c in sp + cards.filter(func(c): return not bool(c.node["spine"]) and c.visible):   # spine levels first, then the diagnosis cases and micro-puzzles off them
 			var nc := c as NodeCard
 			if not nc.has_plate(): continue
 			var want := ""
 			if anch.has(str(nc.node["id"])): want = str((anch[str(nc.node["id"])] as Array)[1])
 			var pr := _best_plate(nc, pins, plates, r, want)
 			nc.place_plate(pr); plates.append(pr)
+			if nc._leader: _leaders.append([nc.position + nc.disc, Vector2(clampf(nc.position.x + nc.disc.x, pr.position.x, pr.end.x), clampf(nc.position.y + nc.disc.y, pr.position.y, pr.end.y))])
 		var cd := Campaign.chapter_def(chapter); var st := Campaign.star_total(chapter); var fz := Kit.fs(14)
 		var cap := ("%s.  %d of %d stars" % [str(cd["title"]), st.x, st.y]) if st.y > 0 else str(cd["title"]) + "."
-		var pz := Kit.fs(15); var pl := "Plate %s." % ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][clampi(Campaign.chapter_index(chapter), 0, 9)]
+		var pz := Kit.fs(15); var pl := "Plate %s." % NotebookScreen._roman(Campaign.chapter_index(chapter) + 1)   # one numeral per chapter, in campaign order (I. Invertebrates ... XV. Tuning)
 		draw_rect(Rect2(10, size.y - float(pz) - 18.0, Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x + Gfx.serif_italic().get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x + 26.0, float(pz) + 10.0), Color(Gfx.SHEET, 0.85))
 		draw_string(Fonts.bold, Vector2(16, size.y - 14), pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
 		draw_string(Gfx.serif_italic(), Vector2(22 + Fonts.bold.get_string_size(pl, HORIZONTAL_ALIGNMENT_LEFT, -1, pz).x, size.y - 14), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, pz, Kit.TEXT)
@@ -631,6 +636,7 @@ class MapCanvas extends Control:
 
 	## Keep-out areas of the current scene for the label plates: [Rect2, weight] (anatomy, its lettering, the spine path). Filled while _draw runs.
 	var keep: Array = []
+	var _leaders: Array = []   # [disc, plate end] of the label plates placed so far that sit away from their pin
 	func keep_rect(rc: Rect2, w: float) -> void: keep.append([rc, w])
 	func keep_path(pts: PackedVector2Array, w: float, half := 7.0) -> void:
 		for i in pts.size():
@@ -638,9 +644,10 @@ class MapCanvas extends Control:
 	static func _frac(a: Rect2, b: Rect2) -> float:
 		var i := a.intersection(b)
 		return (i.size.x * i.size.y) / maxf(a.size.x * a.size.y, 1.0) if i.size.x > 0.0 and i.size.y > 0.0 else 0.0
-	func _keep_cost(rc: Rect2) -> float:
+	func _keep_cost(rc: Rect2, wmin := 0.0) -> float:   # wmin: count only the keep-out areas at least that heavy (100 and up: lettering)
 		var c := 0.0
-		for k in keep: c += float(k[1]) * _frac(rc, k[0]) * 10.0
+		for k in keep:
+			if float(k[1]) >= wmin: c += float(k[1]) * _frac(rc, k[0]) * 10.0
 		return c
 	## Where a pin's label plate goes: candidates in 16 directions at growing distances from the disc; the cheapest wins. Covering another pin or plate,
 	## or leaving the page, is ruled out; anatomy, lettering and the spine path cost by the area covered; distance costs a little; the side the scene
@@ -649,7 +656,8 @@ class MapCanvas extends Control:
 		var sz := c.plate_size(); var ctr := c.position + c.disc; var R := c._R()
 		var inner := r.grow(-8.0)
 		var wdir := {"l": Vector2(-1, 0), "r": Vector2(1, 0), "u": Vector2(0, -1), "d": Vector2(0, 1)}.get(want, Vector2.ZERO) as Vector2
-		var best := Rect2(ctr + Vector2(R + 6.0, -sz.y * 0.5), sz); var bc := INF
+		var b0 := ctr + Vector2(R + 6.0, -sz.y * 0.5)   # the fallback (nothing fits): beside the pin, pushed back inside the page
+		var best := Rect2(Vector2(clampf(b0.x, inner.position.x, maxf(inner.end.x - sz.x, inner.position.x)), clampf(b0.y, inner.position.y, maxf(inner.end.y - sz.y, inner.position.y))), sz); var bc := INF
 		for di in [4.0, 22.0, 46.0, 80.0, 120.0, 170.0, 230.0]:
 			for k in 16:
 				var d := Vector2.from_angle(TAU * float(k) / 16.0)
@@ -662,6 +670,18 @@ class MapCanvas extends Control:
 					if (pr as Rect2).grow(5.0).intersects(rc) and not (pr as Rect2).is_equal_approx(Rect2(ctr - Vector2(R, R), Vector2(R, R) * 2.0)): cost += 1e5 * (0.2 + _frac(rc, (pr as Rect2).grow(5.0)))
 				for pl in plates:
 					if (pl as Rect2).grow(6.0).intersects(rc): cost += 1e5
+				if di > 30.0:   # a leader that would run across another label plate or pin reads as joined to the wrong level
+					var q := Vector2(clampf(ctr.x, rc.position.x, rc.end.x), clampf(ctr.y, rc.position.y, rc.end.y))
+					for ld in _leaders:
+						if Geometry2D.segment_intersects_segment(ctr, q, ld[0], ld[1]) != null: cost += 300.0   # two leaders that cross
+					for t in [0.2, 0.35, 0.5, 0.65, 0.8]:
+						var lp: Vector2 = ctr.lerp(q, t)
+						for ld in _leaders:
+							if rc.has_point(ld[0].lerp(ld[1], t)): cost += 300.0   # nor lie across another plate's leader
+						for pl in plates:
+							if (pl as Rect2).has_point(lp): cost += 300.0
+						for pr in pins:
+							if (pr as Rect2).grow(2.0).has_point(lp) and not (pr as Rect2).has_point(ctr): cost += 300.0
 				cost += _keep_cost(rc) + di * 0.6 - 25.0 * maxf(d.dot(wdir), 0.0)
 				if cost < bc: bc = cost; best = rc
 		return best
@@ -675,16 +695,41 @@ class MapCanvas extends Control:
 			"autonomic": return _sc_auto(r, a)
 		return _sc_plate_image(id, r, a)
 
-	## Hook for a chapter plate drawn as a picture (the Theory wing's art): res://assets/plates/<chapter id>.png, drawn to fill the page inside the frame, when the file exists. No file: the page stays blank
-	## paper with the pins and the path (the Bestiary and Theory chapters have no art yet).
+	## A chapter plate drawn as a picture (the Bestiary and Theory wings): res://assets/plates/<chapter id>.png from tools/art/plates.py, scaled to fit the
+	## page inside the frame at its own aspect (2000 x 1250, the map canvas's). plates.json gives the pin spots the drawing was composed around and the
+	## keep-out rects of its anatomy and lettering, as fractions of the plate: they come back as the pin anchors and go into `keep` for the label plates.
+	## The textures are held in a static cache: a texture loaded into a local would be freed when this returns, before the canvas is rendered, and the
+	## page would then draw the renderer's default white texture (the blank white plates of the 0.5 playtest).
+	static var _plate_tex := {}
+	static var _plate_meta = null
+	static func plate_meta() -> Dictionary:
+		if _plate_meta == null:
+			_plate_meta = {}
+			var f := FileAccess.open("res://assets/plates/plates.json", FileAccess.READ)
+			if f != null:
+				var d = JSON.parse_string(f.get_as_text())
+				if d is Dictionary: _plate_meta = d
+		return _plate_meta
 	func _sc_plate_image(id: String, r: Rect2, a: float) -> Dictionary:
-		var path := "res://assets/plates/%s.png" % id
-		if not ResourceLoader.exists(path): return {}
-		var tex := load(path) as Texture2D
+		if not _plate_tex.has(id):
+			var path := "res://assets/plates/%s.png" % id
+			_plate_tex[id] = load(path) as Texture2D if ResourceLoader.exists(path) else null
+		var tex: Texture2D = _plate_tex[id]
 		if tex == null: return {}
 		var k := minf(r.size.x / tex.get_width(), r.size.y / tex.get_height()); var sz := tex.get_size() * k
-		draw_texture_rect(tex, Rect2(r.get_center() - sz * 0.5, sz), false, Color(1, 1, 1, a))
-		return {}
+		var pr := Rect2(r.get_center() - sz * 0.5, sz)
+		draw_texture_rect(tex, pr, false, Color(1, 1, 1, a))
+		var meta: Dictionary = plate_meta().get(id, {})
+		for kr in meta.get("keep", []):
+			var w := float(kr[4])
+			if Layout.phone and w >= 100.0: continue   # the drawing's lettering is too small to read on a phone: as on the body plates (_lab), only the anatomy counts
+			# the drawn specimens and figures fill most of the page, so they count half: a label may lie over a corner of a figure rather than
+			# stray far from its pin on a long leader; the lettering (100 and up) counts in full
+			keep_rect(Rect2(pr.position + Vector2(float(kr[0]), float(kr[1])) * pr.size, Vector2(float(kr[2]), float(kr[3])) * pr.size), w if w >= 100.0 else w * 0.5)
+		var out := {}
+		var pins: Dictionary = meta.get("pins", {})
+		for pid in pins: out[pid] = [pr.position + Vector2(float(pins[pid][0]), float(pins[pid][1])) * pr.size, ""]
+		return out
 
 	func _lab(s: String, p: Vector2, col := Kit.TEXT_SOFT, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
 		if Layout.phone: return

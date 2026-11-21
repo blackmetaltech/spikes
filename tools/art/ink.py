@@ -308,7 +308,30 @@ class Plate:
     def image(self):
         self.surf.flush()
         im = Image.frombuffer("RGBA", (self.w, self.h), bytes(self.surf.get_data()), "raw", "BGRa", 0, 1).copy()
-        return letter(im, self.labels, self)
+        return letter(deepen(im), self.labels, self)
+
+
+# Ink density. Drawn with the procedural plates' alphas and tissue tints, a plate read washed out beside them on the map: the
+# 2000 px image is shown at about 1230 px, so fine strokes thin out, and the pale tissue fills sit only a few shades off the
+# paper. deepen() moves every pale tint away from the paper (gain DEEPEN_GAIN for colours near the paper, fading to none for
+# colours already DEEPEN_FAR off it, so the stain hues keep their roles) and raises faint alpha (a -> 1 - (1 - a)^DEEPEN_ALPHA).
+# It runs before the lettering, so the slips and the text are untouched.
+DEEPEN_GAIN = 0.6
+DEEPEN_NEAR, DEEPEN_FAR = 0.15, 0.60
+DEEPEN_ALPHA = 1.5
+
+
+def deepen(im):
+    a = np.asarray(im, dtype=np.float64) / 255.0
+    rgb, al = a[..., :3], a[..., 3:]
+    d = np.array(SHEET) - rgb
+    dist = np.abs(d).max(-1, keepdims=True)
+    t = np.clip((dist - DEEPEN_NEAR) / (DEEPEN_FAR - DEEPEN_NEAR), 0.0, 1.0)
+    k = 1.0 + DEEPEN_GAIN * (1.0 - t * t * (3.0 - 2.0 * t))
+    rgb = np.clip(np.array(SHEET) - d * k, 0.0, 1.0)
+    al = 1.0 - (1.0 - al) ** DEEPEN_ALPHA
+    out = np.concatenate([rgb, al], -1)
+    return Image.fromarray((out * 255.0 + 0.5).astype(np.uint8), "RGBA")
 
 
 _fonts = {}
