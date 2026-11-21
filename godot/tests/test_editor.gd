@@ -168,6 +168,14 @@ func _layouts() -> void:
 			_check(float(m["gap"]) >= CircuitEditor.POP_GAP - 1.0, "%s: two population outlines are %.0f px apart (at least %d)" % [tag, m["gap"], int(CircuitEditor.POP_GAP)])
 			if name.ends_with("h_big.json") and sz.x > 1000.0:
 				# cheap: a pan rebuilds nothing, a zoom step rebuilds within a frame budget, hit tests use the grid
+				# the tutorial overlay's view of the editor: _cards in canvas px, _r the drawn radius, to_screen(model pos) on the drawn cell
+				var pp: Dictionary = (ed._g["pops"] as Array)[0]; var mpos: Array = (ed.circuit["populations"][int(pp["pi"])] as Dictionary)["pos"][0]
+				var want: Vector2 = ed._g2s(pp["c"] if bool(pp["ens"]) else (pp["pts"] as PackedVector2Array)[0])
+				var ts: Vector2 = ed.to_screen(Vector2(float(mpos[0]), float(mpos[1])))
+				_check(ts.distance_to(want) < 0.5, "to_screen(a neuron's pos) lands on the drawn cell (%s, drawn %s, pop %s)" % [ts, want, pp["id"]])
+				_check(absf(ed._r - ed._rg * ed._k()) < 0.01, "_r is the cell radius on screen")
+				var ck: String = ed._cards_g.keys()[0]
+				_check((ed._cards[ck] as Rect2).is_equal_approx(ed._g2s_rect(ed._cards_g[ck])), "_cards are canvas-space rects")
 				ed._geo(); var g0 := ed._g; ed._sync_layers(); var ik0: Array = ed._ink_key.duplicate(); var ip0: Vector2 = ed._ink.position
 				ed.pan_by(Vector2(30, 10)); ed._geo(); ed._sync_layers()
 				_check(is_same(ed._g, g0), "a pan does not rebuild the geometry")
