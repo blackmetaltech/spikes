@@ -1611,6 +1611,9 @@ const Structure& Engine::Impl::structure_of()
     std::map< size_t, int > indeg;
     double sum = 0;
     int n = 0;
+    int n_self = 0, n_ring = 0;
+    double self_w = 0, ring_w = -1e30;
+    const bool same_pop = ps.pre_pop >= 0 && ps.pre_pop == ps.post_pop;
     try
     {
       for ( const auto& c : m.find_conns( m.projs[ k ], -1, -1 ) )
@@ -1623,6 +1626,16 @@ const Structure& Engine::Impl::structure_of()
         pi.w_max = std::max( pi.w_max, w );
         sum += w;
         ++n;
+        if ( c.get_source_node_id() == c.get_target_node_id() )
+          { ++n_self; self_w = std::max( self_w, std::fabs( w ) ); }
+        else if ( same_pop )
+        {
+          const long np = sp.pops[ ps.pre_pop ].n, d = std::labs( static_cast< long >( c.get_source_node_id() ) - static_cast< long >( c.get_target_node_id() ) );
+          if ( np > 2 && ( d == 1 || d == np - 1 ) )
+            { ++n_ring; ring_w = std::max( ring_w, w ); }
+        }
+        else
+          { ++n_ring; ring_w = std::max( ring_w, w ); }   // a ring spread over several populations: the engine cannot know the ring order, every connection between two different cells counts
         ++indeg[ c.get_target_node_id() ];
       }
     }
@@ -1630,6 +1643,10 @@ const Structure& Engine::Impl::structure_of()
     {
     }
     pi.n_edges = n;
+    pi.n_self_edges = n_self;
+    pi.n_ring_edges = n_ring;
+    pi.self_w_max = self_w;
+    pi.ring_w_max = n_ring ? ring_w : 0.0;
     pi.w_mean = n ? sum / n : 0.0;
     pi.sign = pi.w_mean > 0 ? 1 : ( pi.w_mean < 0 ? -1 : 0 );
     int mx = 0;

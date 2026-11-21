@@ -3,6 +3,7 @@
 The worm task's reference (worm_touch.json) comes from tools/connectome/worm.py (real synapse counts); this script reads it to make dx_worm.json.
 Run from anywhere:  python3 circuits/tools/gen_bestiary_a.py [name ...]      Docs: docs/circuits/bestiary_a.md"""
 import json, os, sys
+import dx_types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(HERE, ".."))
@@ -177,6 +178,7 @@ def write_dx(name):
                 p["params"]["b"] = 4.0
     c["name"] = "Patient circuit: " + name[3:]
     c["meta"] = {"author": "spike", "task": name, "notes": "docs/circuits/bestiary_a.md"}
+    dx_types.annotate(c, json.load(open(os.path.join(OUT, ref))))
     with open(os.path.join(OUT, name + ".json"), "w") as f:
         json.dump(c, f, indent=1)
         f.write("\n")

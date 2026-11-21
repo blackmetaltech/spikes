@@ -1,0 +1,499 @@
+{
+ "schema_version": 1,
+ "name": "Fly: a bump that stays",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "EPG",
+   "model": "iaf_psc_alpha",
+   "n": 16,
+   "params": {
+    "I_e": 320.0,
+    "tau_syn_ex": 15.0
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     320,
+     120
+    ],
+    [
+     351,
+     126
+    ],
+    [
+     377,
+     143
+    ],
+    [
+     394,
+     169
+    ],
+    [
+     400,
+     200
+    ],
+    [
+     394,
+     231
+    ],
+    [
+     377,
+     257
+    ],
+    [
+     351,
+     274
+    ],
+    [
+     320,
+     280
+    ],
+    [
+     289,
+     274
+    ],
+    [
+     263,
+     257
+    ],
+    [
+     246,
+     231
+    ],
+    [
+     240,
+     200
+    ],
+    [
+     246,
+     169
+    ],
+    [
+     263,
+     143
+    ],
+    [
+     289,
+     126
+    ]
+   ]
+  },
+  {
+   "id": "DELTA",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     299,
+     200
+    ],
+    [
+     313,
+     200
+    ],
+    [
+     327,
+     200
+    ],
+    [
+     341,
+     200
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "EPG",
+   "post": "EPG",
+   "edges": [
+    [
+     0,
+     0,
+     250.0,
+     2.0
+    ],
+    [
+     1,
+     1,
+     250.0,
+     2.0
+    ],
+    [
+     2,
+     2,
+     250.0,
+     2.0
+    ],
+    [
+     3,
+     3,
+     250.0,
+     2.0
+    ],
+    [
+     4,
+     4,
+     250.0,
+     2.0
+    ],
+    [
+     5,
+     5,
+     250.0,
+     2.0
+    ],
+    [
+     6,
+     6,
+     250.0,
+     2.0
+    ],
+    [
+     7,
+     7,
+     250.0,
+     2.0
+    ],
+    [
+     8,
+     8,
+     250.0,
+     2.0
+    ],
+    [
+     9,
+     9,
+     250.0,
+     2.0
+    ],
+    [
+     10,
+     10,
+     250.0,
+     2.0
+    ],
+    [
+     11,
+     11,
+     250.0,
+     2.0
+    ],
+    [
+     12,
+     12,
+     250.0,
+     2.0
+    ],
+    [
+     13,
+     13,
+     250.0,
+     2.0
+    ],
+    [
+     14,
+     14,
+     250.0,
+     2.0
+    ],
+    [
+     15,
+     15,
+     250.0,
+     2.0
+    ]
+   ],
+   "synapse": {
+    "synapse_model": "static_synapse"
+   }
+  },
+  {
+   "pre": "EPG",
+   "post": "DELTA",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 150.0,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "DELTA",
+   "post": "EPG",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -400.0,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "cue0",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      0
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue1",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      1
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue2",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      2
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue3",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      3
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue4",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      4
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue5",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      5
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue6",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      6
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue7",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      7
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue8",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      8
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue9",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      9
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue10",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      10
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue11",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      11
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue12",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      12
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue13",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      13
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue14",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      14
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  },
+  {
+   "name": "cue15",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "EPG",
+     "idx": [
+      15
+     ]
+    }
+   ],
+   "weight": 400.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "heading",
+   "kind": "population_vector",
+   "neurons": [
+    {
+     "pop": "EPG",
+     "idx": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+     ]
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "c_ring",
+  "notes": "docs/circuits/bestiary_b.md"
+ }
+}

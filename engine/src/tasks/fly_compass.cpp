@@ -59,7 +59,7 @@ Spec spec()
             "bump and to its own turn sensor ('turn_left' or 'turn_right'), and excites the compass cells one step to its own side. Both turn sensors carry a steady background and the side of "
             "the turn carries more: when the fly is still the two groups push equally and the bump stays; during a turn one group pushes harder and the bump moves. Read 'heading' as a "
             "population vector over the ring. You are scored on the heading error in the dark: how far the bump is from the true heading, after holding still and after each turn. "
-            "A ring alone cannot move; shifters on one side cannot turn both ways.";
+            "A ring alone cannot move; shifters on one side cannot turn both ways. Each unit of a turn sensor is only a small current, so the weight from a turn sensor onto the shifting cells is small next to the ring's own weights (a few picoamps per unit, not hundreds).";
   i.chapter = "fly_compass";
   i.view = "compass";
   i.sensors = cue_family();
@@ -69,7 +69,7 @@ Spec spec()
   i.duration_ms = kFullEnd;
   i.concepts_new = {};
   i.concepts_used = { "ring_attractor", "path_integration", "inhibition", "persistence" };
-  i.par_neurons = 16 + 4 + 32;
+  i.par_neurons = 60;   // the reference has 52 cells; the budget leaves room for a larger inhibitory group
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "heading", ring_kind() }, { "turn_left", in_kind( "dc", kShiftBase, 3 ) }, { "turn_right", in_kind( "dc", kShiftBase, 3 ) } };
   for ( int k = 0; k < kWedges; ++k ) i.kinds[ "cue" + std::to_string( k ) ] = in_kind( "poisson", 300, 400 );
@@ -122,7 +122,7 @@ Spec spec()
     p[ "error_hold_deg" ] = e_hold;
     p[ "strength_hold" ] = s_hold;
     double worst = 0, sum = 0, minstr = 1, gain_lo = 1e9, gain_hi = 0, prev_bump = m.vec_deg( "heading", 1300, 1500 ), prev_true = lm;
-    int n = 0, wrong_way = 0, short_move = 0, long_move = 0;
+    int n = 0, wrong_way = 0, short_move = 0, long_move = 0, turn_idx = 0;
     double minrate = 1e9;
     for ( const auto& k : checks() )
     {
@@ -138,9 +138,17 @@ Spec spec()
       p[ std::string( "error_" ) + k.key + "_deg" ] = e;
       p[ std::string( "bump_" ) + k.key + "_deg" ] = wrap180( bump - lm );
       const double dt = truth - prev_true, db = wrap180( bump - prev_bump );
+      // The sign of a move that ends more than half a circle away is ambiguous (+196 looks like -164), so the DIRECTION is read off the start of the turn instead, where the bump has moved
+      // only a little: the bump just before the turn against the bump 200-350 ms into it. A shifter that is too strong moves the bump the right way, fast; it is "too strong", not "wrong way".
+      const double t_turn = turn_idx < static_cast< int >( tr.size() ) ? tr[ turn_idx ].t0 : k.t0;
+      ++turn_idx;
+      const double early = wrap180( m.vec_deg( "heading", t_turn + 200, t_turn + 350 ) - m.vec_deg( "heading", t_turn - 150, t_turn ) );
+      const bool early_known = std::fabs( early ) >= 10.0, early_right_way = early * dt > 0;
       if ( std::fabs( dt ) > 20 )
       {
-        if ( db * dt < 0 && std::fabs( db ) > 30 && std::fabs( db ) < 150 ) ++wrong_way;
+        if ( early_known && early_right_way && ( db * dt < 0 || std::fabs( db ) > std::fabs( dt ) * 1.6 ) ) ++long_move;   // right way, too far (past the half circle or not)
+        else if ( early_known && !early_right_way ) ++wrong_way;
+        else if ( db * dt < 0 && std::fabs( db ) > 30 && std::fabs( db ) < 150 ) ++wrong_way;
         else if ( db * dt < 0 && std::fabs( db ) >= 150 ) ++long_move;   // round the half circle: it overshot, it did not turn the other way
         else if ( std::fabs( db ) < std::fabs( dt ) * 0.5 ) ++short_move;
         else if ( std::fabs( db ) > std::fabs( dt ) * 1.6 ) ++long_move;
@@ -163,7 +171,7 @@ Spec spec()
     c.push_back( { "hold", r_hold >= 6 && s_hold >= smin && e_hold <= 30.0 * m.tol, r_hold < 6 ? 0.0 : 1.0 - ramp( e_hold, 30.0 * m.tol, 120.0 ),
       r_hold < 6 ? "The bump is gone in the dark: the ring does not keep itself going once the landmark has gone. Strengthen the excitation between neighbours."
                  : s_hold < smin ? "In the dark the activity spreads over the ring instead of staying a bump: the inhibition must be broader or stronger, and the two shifting groups must push the ring equally."
-                                 : "The bump drifts away from the heading while the fly is still. When the fly does not turn, the left and right shifting groups must push equally hard, so that their pushes cancel." } );
+                                 : "The bump drifts away from the heading while the fly is still. When the fly does not turn, the left and right shifting groups must push with equal strength in opposite directions, so that their pushes cancel." } );
     if ( n > 0 )
     {
       c.push_back( { "direction", wrong_way == 0, wrong_way == 0 ? 1.0 : 0.2,
@@ -177,10 +185,10 @@ Spec spec()
   };
   s.ok_verdict = "A compass that integrates: the landmark sets the bump, it holds its place in the dark, and it follows the fly's turns to the right and to the left by shifting one step at a time.";
   s.h1 = "Holding a heading needs a ring attractor; following turns needs two shifters, one for each direction, driven by the angular velocity and each pushing the bump one step to its own side.";
-  s.h2 = "The two groups of shifting cells listen to the ring (so that only the cells at the bump are pushed) and to their own turn sensor, and each excites the ring one step to one side. The sensors carry a steady background: balance the two groups so that the bump stays when the fly is still.";
+  s.h2 = "The two groups of shifting cells listen to the ring (so that only the cells at the bump are pushed) and to their own turn sensor, and each excites the ring one step to one side. The sensors carry a steady background: give the two groups equal strength, pushing in opposite directions, so that their pushes cancel and the bump stays when the fly is still.";
   s.h2_target = "heading";
   s.h3 = "Ring, with global inhibition, as before. Two shifting groups, each excited by the ring cell for cell and by its own turn sensor; the right group excites the ring cell k to cell k plus one, the left group cell k to cell k minus one. "
-         "If the bump drifts when the fly is still, the two groups are not balanced. If it falls behind the fly, strengthen the turn sensors' drive onto the shifters or the shifters' drive onto the ring; if it runs ahead, weaken them.";
+         "If the bump drifts when the fly is still, the two groups are not equal in strength (they must push with equal strength in opposite directions). If it falls behind the fly, strengthen the turn sensors' drive onto the shifters or the shifters' drive onto the ring; if it runs ahead, weaken them.";
   s.metric_name = "error_deg";
   s.metric_unit = "deg";
   s.metric = []( const Meas& m ) {

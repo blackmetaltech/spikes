@@ -48,6 +48,31 @@
 
   // ---- fly compass ----
   CHEAP_ROW_V( "c_ring", "reference minus the ring excitation (EPG > EPG cut)", "excite each other", cheap::from_ref( "c_ring", cut_e( "EPG", "EPG" ) ) );
+  // 16 independent self-latches (cell k onto itself, no neighbour coupling) + the stock inhibition: no ring at all, each cell holds its own bump (playtest: it used to pass 3/3)
+  CHEAP_ROW_V( "c_ring", "sixteen self-latches (EPG k > k only, no neighbour excitation)", "neighbours", cheap::from_ref( "c_ring", []( json& c ) {
+    for ( auto& p : c[ "projections" ] )
+      if ( p[ "pre" ] == "EPG" && p[ "post" ] == "EPG" )
+      {
+        json e = json::array();
+        for ( int k = 0; k < 16; ++k ) e.push_back( json::array( { k, k, 250.0, 2.0 } ) );
+        p[ "edges" ] = e;
+      }
+  } ) );
+  // sixteen strong self-latches with a token neighbour weight (20 pA): still sixteen latches
+  CHEAP_ROW_V( "c_ring", "sixteen self-latches (250 pA) with a token neighbour weight (20 pA)", "neighbours", cheap::from_ref( "c_ring", []( json& c ) {
+    for ( auto& p : c[ "projections" ] )
+      if ( p[ "pre" ] == "EPG" && p[ "post" ] == "EPG" )
+      {
+        json e = json::array();
+        for ( int k = 0; k < 16; ++k )
+        {
+          e.push_back( json::array( { k, k, 250.0, 2.0 } ) );
+          e.push_back( json::array( { k, ( k + 1 ) % 16, 20.0, 2.0 } ) );
+          e.push_back( json::array( { k, ( k + 15 ) % 16, 20.0, 2.0 } ) );
+        }
+        p[ "edges" ] = e;
+      }
+  } ) );
   CHEAP_ROW_V( "c_ring", "reference minus the global inhibition (DELTA > EPG cut)", "inhibits the ring", cheap::from_ref( "c_ring", cut_e( "DELTA", "EPG" ) ) );
   CHEAP_ROW_V( "c_ring", "reference with the ring read as a plain rate", "plain rate", cheap::from_ref( "c_ring", []( json& c ) { c[ "outputs" ][ 0 ] = { { "name", "heading" }, { "kind", "rate" }, { "neurons", json::array( { { { "pop", "EPG" } } } ) } }; } ) );
   CHEAP_ROW( "c_ring", "ring excitation far too weak (1/10)", cheap::from_ref( "c_ring", cut_e( "EPG", "EPG", 0.1 ) ) );

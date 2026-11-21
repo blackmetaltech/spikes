@@ -134,7 +134,7 @@ public:
 {
   std::string circuit; std::string symptoms; std::vector< std::string > candidates; std::string answer;
   std::map< std::string, std::string > labels;   // add-only: candidate id -> plain-language name (shown on the candidate buttons)
-  std::map< std::string, std::string > explain;  // add-only: candidate id -> why it does or does not fit (shown after a wrong submission)
+  std::map< std::string, std::string > explain;  // add-only: candidate id -> why it does or does not fit (shown once the case is solved or revealed, never after a wrong pick)
 };
   virtual Diagnosis diagnosis() const { return {}; }
 

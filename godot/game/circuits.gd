@@ -240,6 +240,20 @@ static func proj_weight(pr: Dictionary) -> float:
 	if not e.is_empty() and e[0] is Array and e[0].size() >= 3: return float(e[0][2])
 	return float(pr.get("synapse", {}).get("weight", 1.0))
 
+## A diagnosis patient's circuit carries meta.dx_types: for every projection, "E" or "I", the type it has in the healthy circuit. The dead connection has weight 0, so its weight must never
+## give it away (neither its sign, nor its thickness, nor a printed number): a patient's axon is drawn and described by that type only.
+static func has_dx_types(c: Dictionary) -> bool: return (c.get("meta", {}) as Dictionary).has("dx_types")
+
+## The weight to DRAW and DESCRIBE projection `i` with: its own weight, except in a patient's circuit, where it is a nominal weight of the healthy type (the post cell's usual weight, signed).
+static func proj_weight_shown(c: Dictionary, i: int) -> float:
+	var projs: Array = c.get("projections", [])
+	if i < 0 or i >= projs.size(): return 0.0
+	var pr: Dictionary = projs[i]
+	var t: Array = (c.get("meta", {}) as Dictionary).get("dx_types", [])
+	if t.is_empty() or i >= t.size(): return proj_weight(pr)
+	var pi := pop_index(c, proj_pop(pr.get("post", ""))); var nominal := weight_of(str(c["populations"][pi].get("model", ""))) if pi >= 0 else 1.0
+	return -nominal if str(t[i]) == "I" else nominal
+
 static func proj_delay(pr: Dictionary) -> float:
 	var e: Array = pr.get("edges", [])
 	if not e.is_empty() and e[0] is Array and e[0].size() >= 4: return float(e[0][3])
