@@ -484,7 +484,7 @@ func _ensure_ui() -> void:
 	_btn_next = _mk("Next", _next, "amber", bs, "TutNext"); row.add_child(_btn_next)
 	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sp.mouse_filter = Control.MOUSE_FILTER_IGNORE; row.add_child(sp)
 	_btn_skip = _mk("Skip tutorial", func(): _finish("skipped", true), "panel", bs, "TutSkip"); row.add_child(_btn_skip)
-	add_child(_banner); _banner.visible = false
+	add_child(_banner); _banner.visible = false; _banner.z_index = 70   # above the lab's toasts (z 61)
 	if tip_task != "": _build_tip()
 	_refresh_text()
 
