@@ -17,8 +17,8 @@ DxSpec spec()
   s.chapter = "worm";
   s.vignette = "(A laboratory animal.) A C. elegans from a mutant strain crawls and feeds normally, but when its head is touched with an eyelash it does not back away. "
                "You are given the circuit of its touch response: the touch cells, the backward and forward command interneurons and the two groups of motor neurons.";
-  s.symptoms = "A touch on the tail makes it run forward as usual. A touch on the head makes it stop and nothing else: the backward motor neurons do not fire, and the forward motor "
-               "neurons are held silent as well. The touch cells and the command interneurons of the head pathway are active.";
+  s.symptoms = "A touch on the tail makes it run forward as usual. A touch on the head makes it stop dead and nothing else: it does not back away, and it does not crawl forward either, but lies still for as long as the touch lasts and then crawls on. "
+               "Recordings from the muscles show no backward movement at all.";
   s.candidates = { "AVA>MA", "AVD>AVA", "PVC>AVB", "AVB>MB", "PLM>PVC", "ALM>AVD+AVM>AVD" };
   s.answer = "AVA>MA";
   s.labels = {
@@ -40,6 +40,8 @@ DxSpec spec()
   s.hint1 = "A reversal needs a chain of cells: touch cell, command interneuron, motor neuron. Which cell is active while the cell after it stays silent?";
   s.hint2 = "Watch the backward command cells and the backward motor neurons while the head is touched.";
   s.hint2_target = "MA";
+  s.hint3 = "The break is in the half of the circuit that handles a touch to the head and the backing away that should follow: the tail pathway and the forward drive are not the problem.";
+  s.hint3_target = "AVA";
   s.note = { "Finding a circuit by killing cells",
              "Chalfie and colleagues worked out the touch circuit of C. elegans by killing single cells with a laser and testing how the animal responded to touch. Killing the "
              "interneurons on one pathway abolished the response that pathway carried and left the other intact. This case does the same on the model: the lesion is one missing "

@@ -36,6 +36,8 @@ DxSpec spec()
   s.hint1 = "Sensitisation needs a pathway that releases a modulator when the tail is shocked. Which cell must fire for that, and does it?";
   s.hint2 = "Watch the facilitating interneuron during the tail shock: it should fire when the tail sensory cells do.";
   s.hint2_target = "FN";
+  s.hint3 = "The break is on the tail pathway, the connections that start from the tail sensory cells. The siphon pathway is not the problem.";
+  s.hint3_target = "TSN";
   s.note = { "Learning that fails in one place",
              "Habituation and sensitisation of the Aplysia gill-withdrawal reflex are two separate processes that share one synapse: depression of the sensory-to-motor synapse is "
              "intrinsic to it, while sensitisation needs facilitating interneurons that release serotonin. An animal can therefore habituate perfectly and still fail to "

@@ -18,8 +18,8 @@ DxSpec spec()
   s.chapter = "crab";
   s.vignette = "(A laboratory animal.) A crab stomatogastric ganglion from a second animal, whose cells have different conductances from the textbook ones, is recorded. You are given the circuit model of its pyloric network: the pacemaker "
                "kernel (AB and PD), the lateral pyloric cell LP and the pyloric cells PY, with their inhibitory synapses.";
-  s.symptoms = "The pacemaker bursts regularly, about once a second, and LP follows it as usual. But PY no longer waits for LP: its burst starts together with LP's instead of after it, and lasts about as long as the whole of the quiet half-cycle. "
-               "PY is still silenced by the pacemaker's bursts. The pattern is no longer triphasic.";
+  s.symptoms = "The rhythm recorded from the motor nerves is regular, about one cycle a second, but the pattern is no longer triphasic. The last burst of the cycle begins early, at the same time as the middle one instead of after it, and lasts about as long as the whole quiet half-cycle. "
+               "It is still held off during the first burst of the cycle.";
   s.candidates = { "LP>PY", "AB>PY", "PD>PY", "PY>LP", "LP>PD" };
   s.answer = "LP>PY";
   s.labels = {
@@ -32,13 +32,15 @@ DxSpec spec()
     { "LP>PY", "PY is held back by the pacemaker and, in the second half of the quiet period, by LP. Without LP's inhibition PY fires as soon as the pacemaker lets go, together with LP: the order PD, LP, PY is lost, as here." },
     { "AB>PY", "PY has three sources of inhibition (AB, PD and LP) and the network is degenerate: losing the one from AB changes the pattern very little, and PY would still wait for LP. Here PY does not wait." },
     { "PD>PY", "As with AB, losing PD's inhibition of PY leaves the other two and the order intact. Here PY does not wait for LP." },
-    { "PY>LP", "Without PY's inhibition of LP the rhythm falls apart: LP and PY would not alternate in this circuit. Here the pacemaker and LP are regular and only PY is early." },
+    { "PY>LP", "Without PY's inhibition of LP the alternation of the two followers breaks down (in this model one of them then fires twice or not at all in a cycle). Here every cycle is clean and only the last burst is early." },
     { "LP>PD", "LP's inhibition of the PD cells shortens the cycle slightly when it is lost, but it does not change when PY starts. Here PY fires early." } };
   s.concepts_new = { "diagnosis" };
   s.concepts_used = { "pacemaker_kernel", "rebound", "degeneracy" };
   s.hint1 = "PY has several sources of inhibition and the network can compensate for losing some of them. Which one is it that puts PY after LP?";
   s.hint2 = "Watch PY while LP fires: does LP's burst do anything to PY, as it should? Compare with what the pacemaker's burst does to it.";
   s.hint2_target = "PY";
+  s.hint3 = "The break is in the part of the circuit that sets the timing of the follower cells at the end of the cycle: it touches the last follower, one of the connections that arrive on it or leave it.";
+  s.hint3_target = "PY";
   s.note = { "Degeneracy makes lesions look alike",
              "Because many different combinations of synaptic strengths and membrane conductances give the same pyloric pattern, the loss of one of several parallel inputs may leave the pattern almost unchanged, while the loss of the one input that "
              "carries a particular timing role breaks it. Telling which connection is missing therefore takes recording from the cells on both sides of it, not just looking at the output. This case is fictional; the lesion is one missing connection in the model.",

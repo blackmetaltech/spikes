@@ -31,7 +31,9 @@ Spec spec()
             "the pattern of activity into one direction). The sensors cue0 to cue15 are the landmark seen at each of sixteen bearings, one sensor for each ring cell; one of them is on for "
             "a moment and then goes off. While it is on there must be a single bump at the landmark (a few neighbouring cells firing, the rest quiet), and one and a half seconds after it has gone "
             "the bump must still be there, in the same place. Cells that excite their neighbours keep each other firing; but excitation alone spreads round the whole ring. A cell "
-            "that the ring excites, and that inhibits every ring cell, makes the bump compete with itself: one bump wins.";
+            "that the ring excites, and that inhibits every ring cell, makes the bump compete with itself: one bump wins. "
+            "A default cell is silent until it is pushed, and its fast synapses let a bump die at once: to hold a bump the ring cells need a steady drive of their own (a bias current that keeps them "
+            "just below threshold) and slower excitatory synapses (a synaptic time constant clearly longer than the default), so that neighbours can keep each other going.";
   i.chapter = "fly_compass";
   i.view = "compass";
   i.sensors = cue_family();
@@ -39,7 +41,7 @@ Spec spec()
   i.duration_ms = 3000;
   i.concepts_new = { "ring_attractor" };
   i.concepts_used = { "excitation", "inhibition", "persistence" };
-  i.par_neurons = 20;
+  i.par_neurons = 24;   // the reference has 20 cells; the budget leaves room for a larger inhibitory group
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "heading", ring_kind() } };
   for ( const auto& c : i.sensors ) i.kinds[ c ] = in_kind( "poisson", 300, 400 );
@@ -65,7 +67,9 @@ Spec spec()
     if ( !r.empty() ) return r;
     r = landmarks_missing( g, "heading" );
     if ( !r.empty() ) return r;
-    return ring_dynamics_missing( g, "heading" );
+    r = ring_dynamics_missing( g, "heading" );
+    if ( !r.empty() ) return r;
+    return ring_neighbours_missing( g, "heading" );
   };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const double lm = m.extra.count( "landmark_deg" ) ? m.extra.at( "landmark_deg" ) : 0.0;
@@ -87,7 +91,7 @@ Spec spec()
                   : "The bump forms away from the landmark: sensor k must drive ring cell k, and the ring must be read in the same order, cell 0 first." } );
     const double hmin = 0.45 / m.tol;
     c.push_back( { "hold", r1 >= 8 && r2 >= 8 && s1 >= hmin && s2 >= hmin, std::min( ramp( r1, 0, 8 ), ramp( r2, 0, 8 ) ) * 0.5 + 0.5 * std::min( ramp( s1, 0, hmin ), ramp( s2, 0, hmin ) ),
-      ( r1 < 8 || r2 < 8 ) ? "The bump dies when the landmark goes: the ring cells do not keep each other firing. Strengthen the excitation between neighbouring cells."
+      ( r1 < 8 || r2 < 8 ) ? "The bump dies when the landmark goes: the ring cells do not keep each other firing. Strengthen the excitation between neighbouring cells, give the ring cells a bias drive of their own (so that they sit just below threshold), or slow their excitatory synapses (a longer synaptic time constant)."
                            : "After the landmark goes the activity spreads over the ring instead of staying a single bump: strengthen the broad inhibition, or weaken the excitation." } );
     c.push_back( { "still", e2 <= lim, 1.0 - ramp( e2, lim, 120.0 ), "The bump wanders away from where the landmark put it. Cells should excite their two nearest neighbours equally, and the inhibition should not favour any cell." } );
   };
@@ -96,7 +100,7 @@ Spec spec()
   s.h2 = "The ring cells must excite their two nearest neighbours (wire the ring to itself, neuron k to its neighbours) and a separate inhibitory cell must be excited by the ring and inhibit all of it.";
   s.h2_target = "heading";
   s.h3 = "Ring cells with segment wiring to the cell on each side (two connections, shifts of minus one and plus one); one inhibitory cell that the ring excites and that inhibits the ring. If the bump dies "
-         "when the landmark goes, strengthen the ring excitation; if it spreads over the ring, strengthen the inhibition or weaken the excitation.";
+         "when the landmark goes, strengthen the ring excitation, give the ring cells a bias drive of their own, or make their excitatory synapses slower; if it spreads over the ring, strengthen the inhibition or weaken the excitation.";
   s.metric_name = "error_deg";
   s.metric_unit = "deg";
   s.metric = []( const Meas& m ) { return std::fabs( wrap180( m.vec_deg( "heading", 2400, 2900 ) - ( m.extra.count( "landmark_deg" ) ? m.extra.at( "landmark_deg" ) : 0.0 ) ) ); };
