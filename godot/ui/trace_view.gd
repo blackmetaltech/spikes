@@ -11,23 +11,51 @@ var _pending := 0.0
 var _layer: Control
 const WINDOWS := [250.0, 500.0, 1000.0, 2000.0, 3000.0, 4000.0, 6000.0, 8000.0, 10000.0, 15000.0, 20000.0, 30000.0]
 var _range := {}    # neuron -> Vector2(lo, hi), eased
+const V_MIN := -90.0  # the voltage axis is clamped to a membrane's real range: current-based synapses have no reversal floor, so a model can sink
+const V_MAX := 40.0   # to -400 mV (the fly's Kenyon cells); the lane says so instead of rescaling to an impossible axis
+var _clipped := {}  # neuron -> true while its trace leaves the axis
 
 class Layer extends Control:
 	var owner_view: Control
 	func _draw() -> void: owner_view.call("_draw_traces", self)
 
 func _ready() -> void:
-	clip_contents = true; custom_minimum_size = Vector2(300, 120)
+	clip_contents = true; custom_minimum_size = Vector2(300, custom_minimum_size.y if custom_minimum_size.y > 0.0 else 120.0)   # the lab may have asked for less (a body view needs the room)
 	_layer = Layer.new(); _layer.owner_view = self; _layer.set_anchors_preset(Control.PRESET_FULL_RECT); _layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_layer)
 
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
-func attach(t: Telemetry) -> void: tele = t; _range = {}; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
+var _picked_ep := -1
+func attach(t: Telemetry) -> void: _picked_ep = -1; tele = t; _range = {}; _pending = 0.0; _retarget_at = 0.0; window_ms = 500.0; window_target = 500.0; queue_redraw()
 func _process(dt: float) -> void:
 	if not is_visible_in_tree(): return
 	if tele != null and auto_window: _auto(dt)
+	if tele != null: _auto_pick()
 	window_ms = lerpf(window_ms, window_target, clampf(dt * 8.0, 0.0, 1.0)) if absf(window_ms - window_target) > 1.0 else window_target
 	queue_redraw(); _layer.queue_redraw()
+
+## The default trace follows the activity: once per episode, a second into the run, if the scope still shows the circuit's default cells (the player has
+## not chosen any) and they include a silent one, it shows the most active cell of the most active populations instead, busiest first (heart CC sat
+## flat at -70 mV all run). A diagnosis case is left alone: opening a scope there is a probe the player chooses.
+func _auto_pick() -> void:
+	if _picked_ep == tele.episode or tele.sim == null or tele.t_ms < 1000.0: return
+	_picked_ep = tele.episode
+	if tele.task_id.begins_with("dx_") or tele.watched != Circuits.default_watch(tele.circuit): return
+	var silent := false
+	for w in tele.watched: silent = silent or (int(w) < tele.count.size() and tele.count[int(w)] == 0)
+	if not silent: return
+	var pops: Array = tele.circuit.get("populations", []); var cand := []
+	for pi in pops.size():
+		if Circuits.is_rate_model(str(pops[pi].get("model", ""))): continue
+		var f := Circuits.pop_first(tele.circuit, pi); var best := f; var tot := 0
+		for i in range(f, mini(f + Circuits.pop_n(pops[pi]), tele.count.size())):
+			tot += tele.count[i]
+			if tele.count[i] > tele.count[best]: best = i
+		cand.append([tot, best])
+	cand.sort_custom(func(a, b): return int(a[0]) > int(b[0]))
+	var pick := []
+	for c in cand.slice(0, 4): pick.append(int(c[1]))
+	if not pick.is_empty() and int(cand[0][0]) > 0: tele.set_watched(pick)
 
 ## The smallest standard window that is at least `ms` and no longer than `cap` (the largest allowed when none fits).
 static func nice_window(ms: float, cap: float) -> float:
@@ -158,9 +186,12 @@ func _lane_range(nid: int) -> Vector2:
 		var v := a[j]; if is_nan(v): continue
 		lo = minf(lo, v); hi = maxf(hi, v)
 	if lo > hi: lo = -75.0; hi = -50.0
+	_clipped[nid] = lo < V_MIN   # a spike overshooting the top is real and simply clipped; a membrane far below -90 mV is not, and the lane says so
+	lo = maxf(lo, V_MIN); hi = minf(maxf(hi, lo + 1.0), V_MAX)
 	# leave headroom for the spike marker, and a stable minimum span
 	hi = maxf(hi, lo + 12.0) + 8.0; lo = lo - 4.0
 	if hi - lo < 36.0: var m := (hi + lo) * 0.5; lo = m - 18.0; hi = m + 18.0
+	lo = maxf(lo, V_MIN - 4.0); hi = minf(hi, V_MAX + 8.0)
 	lo = floorf(lo / 5.0) * 5.0; hi = ceilf(hi / 5.0) * 5.0
 	var cur: Vector2 = _range.get(nid, Vector2(lo, hi)); cur = cur.lerp(Vector2(lo, hi), 0.06); _range[nid] = cur
 	return cur
@@ -174,6 +205,9 @@ func _draw_traces(layer: Control) -> void:
 		var a: PackedFloat32Array = tele.volt.get(nid, PackedFloat32Array()); if a.size() < 2: continue
 		var pts := PackedVector2Array(); var tl := tele.t_ms
 		var j0 := maxi(0, a.size() - 1 - int(window_ms + 40.0))
+		if window_ms / maxf(r.size.x, 1.0) > 2.5:   # dense: a min/max envelope per pixel column instead of a polyline that fills in solid
+			_envelope(layer, r, a, j0, tl, t_left, lo, hi, col)
+			_lane_label(layer, r, nid, col); continue
 		var px := -1e9
 		for j in range(j0, a.size()):
 			var t := tl - float(a.size() - 1 - j); var x := r.position.x + r.size.x * (t - t_left) / window_ms
@@ -193,6 +227,22 @@ func _draw_traces(layer: Control) -> void:
 		# the pen: a small nib of ink where the trace is being written
 		if pts.size() > 0: layer.draw_circle(pts[pts.size() - 1], 3.0, Color(Gfx.SHEET, 0.9)); layer.draw_circle(pts[pts.size() - 1], 2.0, Kit.INK)
 
+func _envelope(layer: Control, r: Rect2, a: PackedFloat32Array, j0: int, tl: float, t_left: float, lo: float, hi: float, col: Color) -> void:
+	var cols := int(r.size.x); if cols < 2: return
+	var mn := PackedFloat32Array(); var mx := PackedFloat32Array(); mn.resize(cols); mx.resize(cols); mn.fill(1e9); mx.fill(-1e9)
+	for j in range(j0, a.size()):
+		var v := a[j]; if is_nan(v): continue
+		var t := tl - float(a.size() - 1 - j); var c := int((t - t_left) / window_ms * float(cols))
+		if c < 0 or c >= cols: continue
+		mn[c] = minf(mn[c], v); mx[c] = maxf(mx[c], v)
+	var lines := PackedVector2Array()
+	var y := func(v: float) -> float: return r.end.y - r.size.y * (clampf(v, lo, hi) - lo) / (hi - lo)
+	for c in cols:
+		if mn[c] > mx[c]: continue
+		var x := r.position.x + float(c) + 0.5
+		lines.append(Vector2(x, y.call(mx[c]))); lines.append(Vector2(x, y.call(mn[c]) + 0.8))
+	if lines.size() > 0: layer.draw_multiline(lines, Color(col, 0.85), 1.0)
+
 func _clip_x(pts: PackedVector2Array, r: Rect2) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	for p in pts:
@@ -205,6 +255,7 @@ func _lane_label(ci: CanvasItem, r: Rect2, nid: int, col: Color) -> void:
 	var pop_i: int = tele.pop_of[nid] if nid < tele.pop_of.size() else 0
 	var label := "%s  %s" % [str(tele.circuit["populations"][pop_i].get("id", "")), str(tele.circuit["populations"][pop_i].get("model", ""))]
 	if tele.circuit["populations"][pop_i].get("n", 1) > 1: label += "  [%d]" % (nid - Circuits.pop_first(tele.circuit, pop_i))
+	if bool(_clipped.get(nid, false)): label += "  (axis clamped to -90…+40 mV: this model has no voltage floor)"
 	var lw := minf(fi.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 12.0, r.size.x * 0.7)
 	ci.draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(lw, float(fz) + 6.0)), Color(Gfx.SHEET, 0.92))
 	ci.draw_string(fi, r.position + Vector2(8, float(fz) + 3.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x * 0.7, fz, col.darkened(0.1))
