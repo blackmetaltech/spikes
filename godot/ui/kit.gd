@@ -190,11 +190,13 @@ class RingBox extends StyleBox:
 static var _ring := RingBox.new()
 static func ring_sb() -> StyleBox: return _ring
 
-## [fill, text, border, offset-shadow colour] of a button kind.
+## [fill, text, border, offset-shadow colour] of a button kind. Prussian blue means inhibition and nothing else, so no button is blue:
+## the old "cyan" kind is the outlined secondary now (kept as an alias so older call sites compile), and a secondary that is switched ON
+## (a watched trace, an open drawer) is "on": the outlined card with a gamboge offset, gamboge being the identity's highlight.
 static func kind_colors(kind: String) -> Array:
 	match kind:
-		"cyan": return [inh(), PANEL, TEXT, TEXT]
-		"panel": return [PANEL, TEXT, TEXT, LINE]
+		"cyan", "panel": return [PANEL, TEXT, TEXT, LINE]
+		"on": return [PANEL_HI, TEXT, TEXT, GAMBOGE]
 		"ghost": return [Color(PANEL, 0.0), TEXT, LINE, Color(0, 0, 0, 0)]
 		"danger": return [RED, PANEL, TEXT, TEXT]
 		"green": return [GREEN, PANEL, TEXT, TEXT]
@@ -269,7 +271,7 @@ static func _btn_style_set(kind: String, pad: int) -> Dictionary:
 	var normal := plate_sb(fill, pad, sh, edge, off)
 	var hover: StyleBoxFlat
 	if kind == "ghost": hover = plate_sb(PANEL, pad, Color(0, 0, 0, 0), TEXT, off)
-	elif kind == "panel": hover = plate_sb(PANEL_HI, pad, TEXT_SOFT, edge, off)
+	elif kind == "panel" or kind == "cyan": hover = plate_sb(PANEL_HI, pad, TEXT_SOFT, edge, off)
 	else: hover = plate_sb(fill.lightened(0.1) if fill.get_luminance() < 0.2 else fill.darkened(0.08), pad, sh, edge, off)
 	var pressed := plate_sb(fill if kind != "ghost" else PANEL, pad, Color(0, 0, 0, 0), edge, off)
 	pressed.expand_margin_left = -2.0; pressed.expand_margin_right = 2.0; pressed.expand_margin_top = -2.0; pressed.expand_margin_bottom = 2.0   # pressed into its shadow
@@ -277,8 +279,8 @@ static func _btn_style_set(kind: String, pad: int) -> Dictionary:
 	var st := {"normal": normal, "hover": hover, "pressed": pressed, "disabled": disabled, "focus": ring_sb(), "ink": ink}
 	_btn_styles[key] = st; return st
 
-## A button: Fraunces lettering on a cut card. kind: amber (primary: ink-filled, sienna offset), panel (outlined card), ghost, cyan (Prussian blue),
-## danger (vermilion), green (viridian). Labels in capitals get a little tracking, like engraved plate lettering.
+## A button: Fraunces lettering on a cut card. kind: amber (primary: ink-filled, sienna offset), panel (outlined secondary), on (a secondary that is
+## switched on: gamboge offset), ghost, danger (vermilion), green (viridian). "cyan" is a retired alias of panel (blue = inhibition only). Labels in capitals get a little tracking, like engraved plate lettering.
 ## The id of a control for the interaction graph (godot/tests/interaction_graph.json): "Btn" + the button's text in CamelCase ("Test x5" -> "BtnTestX5",
 ## "More…" -> "BtnMoreEllipsis"). It is the node's name and its meta "sp"; the meta is what the graph looks up, because Godot renames a node whose name a
 ## sibling already has. Callers give a control whose text changes (Run / Pause, Hint 1/2) an explicit id with `ident`.
