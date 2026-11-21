@@ -32,8 +32,8 @@ func build() -> void:
 	for side in ["right", "bottom"]: pad.add_theme_constant_override("margin_" + side, int(Kit.SHADOW) + 14)   # room for the plates' offset shadows and the scroll bar
 	scroll.add_child(pad)
 	body = VBoxContainer.new(); body.add_theme_constant_override("separation", int(22 * f) if not phone else 12); pad.add_child(body)
-	# one card width on every tab (it was 800 px on one tab and 1800 on another): a readable column, centred
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone else Control.SIZE_SHRINK_CENTER
+	# one card width on every tab (it was 800 px on one tab and 1800 on another): a readable column under the tabs
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone else Control.SIZE_SHRINK_BEGIN
 	if not phone: body.custom_minimum_size.x = minf(1180.0 * f, get_viewport_rect().size.x - 2.0 * float(mx) - 40.0)
 	_fill()
 
