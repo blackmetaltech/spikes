@@ -802,6 +802,9 @@ func _sync_layers() -> void:
 		return
 	_geo()
 	var xf := _world_xf(); _ink.position = xf.origin; _ink.scale = xf.get_scale()
+	# the layer's own rect must reach the bench: a zero-size Control whose origin sits above or left of the canvas (a fit that pans the
+	# block up, view_off < 0) was culled whole, and the axons and resting cells vanished (a diagnosis case at 1920x1080)
+	_ink.size = Vector2(1e5, 1e5)
 	var ik := [_gen, lesions.hash(), Settings.colorblind, editable]
 	if ik != _ink_key: _ink_key = ik; _ink.queue_redraw()
 
