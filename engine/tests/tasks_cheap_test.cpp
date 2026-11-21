@@ -153,6 +153,15 @@ inline json reference( const std::string& task )
   return txt.empty() ? json::object() : json::parse( txt );
 }
 
+/// A circuit stored under engine/tests/cheats/ (the reviewers' evidence circuits of the full review, each one passed its level before the cheat-proofing).
+inline json fixture( const std::string& name )
+{
+  const std::string path = std::string( SPIKE_SOURCE_DIR ) + "/engine/tests/cheats/" + name + ".json";
+  const std::string txt = chk::slurp( path );
+  CHECK_MSG( !txt.empty(), "cannot read " + path );
+  return txt.empty() ? json::object() : json::parse( txt );
+}
+
 inline json* find_pop( json& c, const std::string& id )
 {
   for ( auto& p : c[ "populations" ] )

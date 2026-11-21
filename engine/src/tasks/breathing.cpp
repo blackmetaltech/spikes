@@ -47,15 +47,15 @@ constexpr double kDuration = 150000;
 constexpr double kDriveHz = 200, kChemoPA = 4, kPhrenicRef = 225;
 constexpr double kInspired = 30;
 // The scripted run: the CO2 breath (ms; on, off, ramp), the end, the gas exchange clock (x faster than physiology) and the scoring windows (s). The quick
-// check runs the same test with a shorter rest, a 30 s CO2 breath (the 5 s ramps become 2.5 s) and the gas exchange clock twice as fast to match, scored
-// by the same rules. The rest window cannot shrink below the time that holds the 5 breaths the rule asks for at 12 per minute, so this level cannot be
-// made much shorter than this.
+// check runs the same test with a shorter rest, a 23 s CO2 breath and shorter windows, on the SAME body clock (gas exchange scale 5, ramps 5 s) and scored by the
+// same rules: a quick check must not change the physiology it judges. The rest window cannot shrink below the time that holds the 5 breaths the rule asks for at
+// 12 per minute, so this level cannot be made much shorter than this.
 struct Sched
 {
   double co2_on, co2_off, ramp, end, ts, rest_a, rest_b, ch_a, ch_b, peak_a, rec_a, rec_b;
 };
 constexpr Sched kFull{ 50000, 110000, 5000, kDuration, 5, 12, 48, 85, 110, 50, 135, 150 };
-constexpr Sched kQuick{ 36000, 66000, 2500, 88000, 10, 8, 36, 54, 66, 36, 76, 88 };
+constexpr Sched kQuick{ 33000, 56000, 5000, 70000, 5, 8, 33, 46, 56, 33, 62, 70 };
 
 class BreathingTask : public Task
 {

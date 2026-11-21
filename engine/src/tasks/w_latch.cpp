@@ -75,7 +75,9 @@ Spec spec()
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const double pre = m.hz( "reverse", "pre" ), hold = m.hz( "reverse", "hold" ), post = m.hz( "reverse", "post" );
     c.push_back( { "pre", pre <= m.hi( 3 ), 1.0 - ramp( pre, 3, 30 ), "'reverse' fires before any touch: a cell that is active on its own cannot remember anything. Lower its drive or its input." } );
-    c.push_back( { "hold", hold >= m.lo( 15 ), ramp( hold, 0, 15 ), hold < 1 ? "'reverse' stops as soon as the touch stops (or never starts): the state is not held. Let the cells that carry the touch excite each other so that they keep going." : "The reversal fades after the touch: the positive feedback is too weak to keep the cells firing; strengthen it." } );
+    c.push_back( { "hold", hold >= m.lo( 15 ), ramp( hold, 0, 15 ), hold < 1 ? ( m.sum( "reverse", 400, 900 ) < 1
+        ? "The touch never makes the cells behind 'reverse' fire: nothing can be held that never starts. Give them more input from the touch (a stronger touch weight) or a steady drive."
+        : "'reverse' stops as soon as the touch stops. The cells already excite each other, but not strongly enough to keep each other going: let them excite each other more strongly (stronger feedback weights, or more cells in the loop)." ) : "The reversal fades after the touch: the positive feedback is too weak to keep the cells firing; strengthen it." } );
     c.push_back( { "post", post <= m.hi( 3 ), 1.0 - ramp( post, 3, 30 ), "'reverse' never switches off after 'stop': the inhibition must be strong enough to silence the cells that hold the state." } );
     p[ "hold_over_pre" ] = hold - pre;
   };

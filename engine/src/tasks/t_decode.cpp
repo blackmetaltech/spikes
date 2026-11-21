@@ -54,6 +54,7 @@ Spec spec()
   i.bands = { { "error_deg", "deg", 0, 180 } };
   s.gauges = { { "error_deg", { "error_deg" } } };
   s.raw = { "stim" };
+  s.stimuli = { { "stim", { { "kappa", 2.0 }, { "rate_max", 80.0 }, { "rate_base", 5.0 }, { "period_deg", 360.0 } } } };   // the level owns its stimulus (see t_sharpen)
   s.vec = { "heading" };
   i.recipe = "Afferents A (12 parrot cells) and cells T (12 integrate-and-fire cells). stim > A at weight 1 (broad: peak 80 Hz, base 5 Hz, kappa 2, period 360). A > T with the 'neuron k to k' wiring at +1500 pA. "
              "'heading' reads T as a ring (all twelve cells, in order). The decoded direction is within a few degrees on average.";

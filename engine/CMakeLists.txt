@@ -118,6 +118,13 @@ if(SPIKE_BUILD_TESTS)
       endforeach()
       continue()
     endif()
+    if(name STREQUAL "tasks_quick_full_test")  # the reference of every task, 3 modes x TEST seeds: four CTest entries (tasks k, k+4, ...), each forking its own jobs
+      foreach(part 0 1 2 3)
+        add_test(NAME ${name}_${part} COMMAND ${name} ${part} 4 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        set_tests_properties(${name}_${part} PROPERTIES TIMEOUT 3000)
+      endforeach()
+      continue()
+    endif()
     add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     set_tests_properties(${name} PROPERTIES TIMEOUT 1500)
     if(name MATCHES "^test_nestml_")  # skipped (exit 77) when the NESTML models were not generated

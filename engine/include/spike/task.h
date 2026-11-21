@@ -135,6 +135,11 @@ public:
   std::string circuit; std::string symptoms; std::vector< std::string > candidates; std::string answer;
   std::map< std::string, std::string > labels;   // add-only: candidate id -> plain-language name (shown on the candidate buttons)
   std::map< std::string, std::string > explain;  // add-only: candidate id -> why it does or does not fit (shown once the case is solved or revealed, never after a wrong pick)
+  /// add-only (diagnosis needs evidence): the probes that tell the top candidates apart. A case lists one or two; the game requires that the player did at least one of them (or reveals the case)
+  /// before the third star. kind "scope": watch the activity of the population `target` (a population id of the patient circuit); kind "cut": cut the lesion `target` (a candidate id) in the lesion lab.
+  /// `tells` is one plain sentence on what the probe separates. The list is evidence to CHECK, not to display: showing it would show the answer.
+  struct Probe { std::string kind, target, tells; };
+  std::vector< Probe > probes;
 };
   virtual Diagnosis diagnosis() const { return {}; }
 

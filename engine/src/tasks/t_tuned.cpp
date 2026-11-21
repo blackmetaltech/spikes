@@ -23,8 +23,7 @@ using namespace tl;
 
 const double kAng[] = { 0, 45, 90, 135, 0, 45, 90, 135 };
 
-/// The weights with which the afferent populations `X` reach the cell populations `R` (direct projections): one net weight per afferent cell (a projection's mean weight scaled by the
-/// share of the pair's cells it connects; cells that no projection reaches count as zero). `exc` / `inh` count the excitatory and inhibitory projections.
+/// One net weight per afferent cell onto the cell(s) of `resp` (see afferent_weights below); `exc` / `inh` count the excitatory and inhibitory connections-groups it found.
 struct AffW
 {
   std::vector< double > cell;
@@ -38,22 +37,32 @@ struct AffW
     return hi > 0 && lo <= 0.5 * hi;
   }
 };
-AffW afferent_weights( const Graph& g, const std::vector< int >& X, const std::vector< int >& R )
+/// Judged on the live edge list (Engine::connections()), so a circuit wired cell by cell (per-edge weights) is read as it is wired: one net weight per afferent cell = the sum of its
+/// functional connections onto the cells `rc` read, shared over those cells. A connection under the functional floor is no connection.
+AffW afferent_weights( Engine& e, const std::set< int >& afferents, const std::set< int >& rc )
 {
   AffW a;
-  const double nr = std::max( 1, g.cells( R ) );
-  for ( int x : X )
+  const Structure st = e.structure();
+  std::map< int, double > net;
+  for ( int x : afferents ) net[ x ] = 0.0;
+  std::set< std::pair< int, int > > seen_exc, seen_inh;
+  for ( const auto& c : e.connections() )
   {
-    double net = 0;
-    for ( const auto& p : g.st.projections )
-    {
-      if ( p.n_edges <= 0 || p.sign == 0 || p.pre_index != x || std::find( R.begin(), R.end(), p.post_index ) == R.end() ) continue;
-      net += p.w_mean * p.n_edges / ( std::max( 1, g.pop( x ).n ) * nr );
-      ( p.sign > 0 ? a.exc : a.inh )++;
-    }
-    for ( int k = 0; k < g.pop( x ).n; ++k ) a.cell.push_back( net );
+    if ( !afferents.count( c.pre ) || !rc.count( c.post ) || !functional_edge( st, e, c.post, c.weight ) ) continue;
+    net[ c.pre ] += c.weight / std::max< double >( 1.0, static_cast< double >( rc.size() ) );
+    ( c.weight > 0 ? seen_exc : seen_inh ).insert( { c.projection, c.post } );
   }
+  a.exc = static_cast< int >( seen_exc.size() );
+  a.inh = static_cast< int >( seen_inh.size() );
+  for ( const auto& [ x, v ] : net ) a.cell.push_back( v );
   return a;
+}
+/// Does a functional inhibitory projection run from the afferents to the cell 'resp' reads? (the wording of the passing verdict)
+bool has_flank_inhibition( const Graph& g, const std::vector< int >& X, const std::vector< int >& R )
+{
+  for ( const auto& p : g.st.projections )
+    if ( functional( g.st, p ) && p.sign < 0 && std::find( X.begin(), X.end(), p.pre_index ) != X.end() && std::find( R.begin(), R.end(), p.post_index ) != R.end() ) return true;
+  return false;
 }
 
 Spec spec()
@@ -81,6 +90,7 @@ Spec spec()
   i.bands = { { "peak_hz", "Hz", 0, 100 } };
   s.gauges = { { "peak_hz", { "peak_hz" } } };
   s.raw = { "stim" };
+  s.stimuli = { { "stim", { { "kappa", 2.0 }, { "rate_max", 80.0 }, { "rate_base", 5.0 }, { "period_deg", 180.0 } } } };   // the level owns its stimulus: the tuning curves of the afferents are the level's, whatever the circuit file says
   s.cells = { "resp" };
   i.recipe = "Eight parrot cells in three groups, made in this order: A1 (4 cells, preferring 0 to 67 degrees), A2 (1 cell, ninety degrees), A3 (3 cells, 112 to 157 degrees). stim > A1, A2, A3 at weight 1 (the "
              "afferents: peak 80 Hz, base 5 Hz). One integrate-and-fire cell R: A2 > R at +1500 pA, nothing from A1 and A3. 'resp' reads R. It fires at about 60 Hz at ninety degrees and at the afferent base rate elsewhere.";
@@ -109,15 +119,14 @@ Spec spec()
     for ( int x : X )
       if ( g.pop( x ).model != "parrot_neuron" && e.input_weight( "stim" ) < 100.0 )
         return "The afferents hardly fire: a cell that is driven by 'stim' at weight one stays silent. Make the afferents parrot cells, which repeat the Poisson spikes of the stimulus.";
-    const auto w = afferent_weights( g, X, R );
+    const auto w = afferent_weights( e, sc, rc );
     if ( w.exc == 0 ) return "'resp' hears none of the afferents by excitation: connect some afferents to the cell.";
     // preference is in the weights, not in the number of connections: a cell that weighs every afferent about alike has none
     if ( !w.graded() ) return "'resp' listens to every afferent with about the same weight: a cell that hears all orientations alike has no preference. Give the afferents that prefer ninety degrees a stronger say than the rest.";
     return "";
   };
   s.ok_g = []( const Graph& g ) -> std::string {
-    const auto w = afferent_weights( g, g.in_pops( "stim" ), g.out_pops( "resp" ) );
-    if ( w.inh > 0 )
+    if ( has_flank_inhibition( g, g.in_pops( "stim" ), g.out_pops( "resp" ) ) )
       return "A tuned cell: it fires for an orientation of ninety degrees and much less for the others, because the afferents that prefer other orientations inhibit it (flank inhibition) while the ones that prefer ninety degrees excite it.";
     return "A tuned cell: it fires for an orientation of ninety degrees and much less for the others, because it weighs the afferents that prefer it far more than the rest.";
   };

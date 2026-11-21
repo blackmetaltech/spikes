@@ -239,3 +239,8 @@ CHEAP_ROW_V( "lamprey", "one pool on both motor channels", "same cells", [] {
   b.pop( "L", "aeif_cond_alpha", 8 ).in( "drive", "dc", 600, { "L" } ).out( "left_motor", { "L" } ).out( "right_motor", { "L" } );
   return b.c;
 }() );
+
+// ---- cheat-proofing (full review, P0-3): token weights and recorded inputs must fail. The circuits are the reviewers' evidence (engine/tests/cheats/)
+CHEAP_ROW_V( "m_excitation", "token synapse (0.01 pA) plus a parallel cell fed by the same tap", "synapse", fixture( "m_excitation_token" ) );
+CHEAP_ROW( "m_coupling", "two pacemakers coupled at 0.001 nS", fixture( "m_coupling_token" ) );
+CHEAP_ROW_V( "m_pacemaking", "an integrate-and-fire cell that rests above its own threshold", "threshold", fixture( "m_pacemaking_el_above_vth" ) );

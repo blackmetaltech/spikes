@@ -1,0 +1,1 @@
+{"schema_version": 1, "name": "tonic", "resolution_ms": 0.1, "seed": 7, "populations": [{"id": "LP", "model": "aeif_cond_alpha", "n": 1, "params": {"I_e": 800.0, "a": 0.0, "b": 0.0, "tau_syn_in": 20.0}}], "projections": [], "inputs": [{"name": "pd", "kind": "poisson", "targets": ["LP"], "weight": -20.0, "value": 0}], "outputs": [{"name": "lp", "kind": "rate", "neurons": ["LP"]}]}

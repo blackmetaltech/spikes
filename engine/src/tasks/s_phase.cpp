@@ -6,6 +6,7 @@
 //   quiet     [t + 30, t + 350)   the follower is silent while it is inhibited (at most 1 spike per cycle on average; guided 2)
 //   rebound   [t + 350, t + 1000) it fires a burst of at least 3 spikes (guided 2) after the inhibition ends in at least 3 of the 4 scored cycles
 //   phase     the first spike of that burst falls at a phase of 0.4 to 0.8 of the cycle (guided 0.35 to 0.85)
+//   rest      the follower is silent again by the end of the episode: in [5800, 6500) at most 12 spikes (guided 20; the reference's rebound tail is 3 to 8, a cell that fires by itself 50 or more): it fires only by rebound, never by itself
 // MECHANISM (Engine::structure()): the 'pd' sensor reaches the follower by inhibition, and the follower is a conductance-based cell (a plain integrate-and-fire cell has nothing that makes it fire after inhibition).
 // Biology: Marder & Bucher 2001 Curr Biol 11:R986; Prinz, Bucher & Marder 2004 Nat Neurosci 7:1345. The inhibition is spike-triggered (the real synapse is graded); the time scale is the real one.
 #include "bestiary_b.h"
@@ -87,6 +88,13 @@ Spec spec()
     p[ "rebounds" ] = rebounds;
     p[ "first_spike_phase" ] = phase;
     const bool wide = m.tol > 1.2;
+    // the follower is silent at rest: after the last release (the rebound is over by 5.8 s) nothing inhibits it any more and nothing may keep it firing. A cell that merely resumes its own tonic firing when the
+    // inhibition stops is not rebounding, and it gives itself away here.
+    const double rest = m.sum( "lp", 5800, 6500 ) / pool;
+    p[ "rest_spikes" ] = rest;
+    c.push_back( { "at_rest", rest <= ( wide ? 20.0 : 12.0 ), 1.0 - ramp( rest, wide ? 20.0 : 12.0, 60 ),
+      "The cell keeps firing long after the inhibition has ended: it is firing by itself, not rebounding from the release. A follower is silent unless it is released from inhibition; take away its own drive "
+      "(a bias current, or a leak that holds it above threshold) and let the H and calcium currents make the burst." } );
     c.push_back( { "silent", quiet <= ( wide ? 2.0 : 1.0 ), 1.0 - ramp( quiet, wide ? 2.0 : 1.0, 12 ),
       "The cell keeps firing while it is inhibited: the inhibition does not silence it. Connect 'pd' with a negative weight (an inhibitory input) and make it strong enough, or lower the cell's own drive." } );
     c.push_back( { "rebounds", rebounds >= 3, ramp( rebounds, 0, 3 ),

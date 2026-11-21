@@ -207,10 +207,21 @@ public:
       else
         o << "more flexor tone (or more reflex stiffness) is needed to balance gravity.";
     }
-    else if ( m.mx > tol_max( mode_, 0.30, 1.25, 0.92 ) )
-      o << "Pushes move the limb too far from the target: too compliant. Raise gamma drive or reflex gain.";
-    else if ( m.rms > tol_max( mode_, 0.17, 1.25, 0.92 ) )
-      o << "The limb wanders too much from the target overall: more reflex stiffness is needed.";
+    else if ( m.mx > tol_max( mode_, 0.30, 1.25, 0.92 ) || m.rms > tol_max( mode_, 0.17, 1.25, 0.92 ) )
+    {
+      // name the part that is short: steady tone ('drive' onto the flexor pool), the gamma drive that sets the spindle gain, or the reflex gain (the Ia / II afferents onto the motoneurons)
+      const bool tone_short = m.flexor_rate < 20.0;
+      const bool gamma_short = gamma_present_ ? rig_.gam < 0.3 : false;
+      o << ( m.mx > tol_max( mode_, 0.30, 1.25, 0.92 ) ? "Pushes move the limb too far from the target: too compliant. " : "The limb wanders too much from the target overall: not stiff enough. " );
+      if ( tone_short )
+        o << "The short one is tone: the flexor pool barely fires at rest, so the muscle has no stiffness to push against. Raise the steady drive onto it.";
+      else if ( gamma_short )
+        o << "The short one is the gamma drive: the gamma motoneurons barely fire, so the spindles are slack and report little. Drive them harder.";
+      else if ( !gamma_present_ )
+        o << "Nothing sets the spindle gain: read a gamma motor channel from cells that fire, or raise the reflex gain.";
+      else
+        o << "Tone and gamma drive are there: the short one is the reflex gain, the weights of the Ia and II afferents onto the motoneurons.";
+    }
     else
       o << ( done ? "Holding: the limb stays close to its target under every push, without sagging." : "Holding so far." );
     s.verdict = o.str();

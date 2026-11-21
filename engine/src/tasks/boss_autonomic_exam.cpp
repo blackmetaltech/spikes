@@ -54,15 +54,15 @@ namespace
 {
 
 constexpr double kDuration = 120000, kExRamp = 3000, kThrRamp = 500;
-// The scripted day (ms) and the scoring windows (s). The quick check (the game's CHECK, about 5 s of wall time in the lab) runs the same day with shorter stretches (stand up at 7 s, 10 s of exercise,
-// 8 s of threat, 2-5 s windows) and a gas exchange clock 2.3 times faster to match, scored by the same 19 conditions: every phase, every organ, compressed.
+// The scripted day (ms) and the scoring windows (s). The quick check (the game's CHECK, about 5 s of wall time in the lab) runs the same day with shorter stretches (stand up at 7 s, 16 s of exercise,
+// 10 s of threat, 2-8 s windows) and the SAME body clocks (gas exchange scale 3, as in the full day): a quick check must not change the physiology it judges, only how long each phase lasts.
 struct Sched
 {
   double stand, ex0, ex1, thr0, thr1, end, lung_scale;
   double w[ 5 ][ 2 ];
 };
 constexpr Sched kFull{ 15000, 50000, 70000, 85000, 100000, kDuration, 3.0, { { 8, 15 }, { 38, 48 }, { 62, 70 }, { 92, 100 }, { 110, 120 } } };
-constexpr Sched kQuick{ 7000, 20000, 30000, 34000, 42000, 52000, 7.0, { { 5, 7 }, { 13, 18 }, { 26, 30 }, { 38, 42 }, { 47, 52 } } };
+constexpr Sched kQuick{ 7000, 20000, 36000, 42000, 52000, 66000, 3.0, { { 5, 7 }, { 13, 18 }, { 28, 36 }, { 47, 52 }, { 58, 66 } } };
 constexpr double kThreatHz = 250, kExerciseHz = 100, kDilRef = 40, kSphRef = 40, kVentRef = 40, kLum = 30, kSymGain = 0.5, kChemoPerHz = 4.0;
 // windows in s
 

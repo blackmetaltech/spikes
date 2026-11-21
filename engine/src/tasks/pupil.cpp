@@ -157,7 +157,7 @@ public:
     sph_ = dil_ = 0;
     ss_.reset( 0 );
     sd_.reset( 0 );
-    spikes_s_ = spikes_d_ = 0;
+    spikes_s_ = spikes_d_ = dark_d_ = 0;
     motor_.invalidate();
     wiring_.invalidate();
     mech_.invalidate();
@@ -175,6 +175,7 @@ public:
     double hs = motor_.hz_per_neuron( e, "sphincter" ), hd = motor_.hz_per_neuron( e, "dilator" );
     spikes_s_ += motor_.spike_count( e, "sphincter", dt );
     spikes_d_ += motor_.spike_count( e, "dilator", dt );
+    if ( t_ >= 18500 && t_ < 20000 ) dark_d_ += motor_.spike_count( e, "dilator", dt );
     // the motor rates of one slice are spike counts (0 or 1000/N Hz): smooth them (20 ms) BEFORE the clamp, then the eye's own kinetics
     ss_.tau_ms = sd_.tau_ms = 20;
     sph_ = ss_.step( hs / kSphRef, dt );
@@ -257,7 +258,14 @@ public:
     else if ( lat_c < lat_lo() || lat_c > lat_hi() )
       o << ( lat_c < lat_lo() ? "The pupil constricts too early after the light step: a reflex arc has longer delays than that." : "The pupil constricts too late after the light step: shorten the delays of the arc." );
     else if ( red < amp_min() || dim2 < dark_min() )
-      o << "Back in the dark the pupil does not reopen far enough: the sympathetic dilator is too weak.";
+    {
+      // the dilator is held open by steady sympathetic tone, not by the fright cue: if its pool is silent in the dark no weight on the way to it can matter
+      if ( dark_d_ < 1 )
+        o << "Back in the dark the pupil does not reopen, and the cells behind the dilator are silent in the dark: nothing drives them at rest. They never fire without the fright cue, so more weight on the way to them changes nothing: "
+             "give the sympathetic cells a steady drive of their own (a bias current), and read the reflex arc's delays too (a reflex that is too quick is not a pupil reflex).";
+      else
+        o << "Back in the dark the pupil does not reopen far enough: the dilator fires, but too weakly. Strengthen its drive (the steady drive of the sympathetic cells, or the link onto the dilator pool).";
+    }
     else if ( t_ < kThreatOff )
       o << "The light reflex works; the fright cue is still to come.";
     else if ( fright < fright_min() )
@@ -351,7 +359,7 @@ private:
     return -1;
   }
 
-  double t_ = 0, lum_ = kDim, sph_ = 0, dil_ = 0, spikes_s_ = 0, spikes_d_ = 0;
+  double t_ = 0, lum_ = kDim, sph_ = 0, dil_ = 0, spikes_s_ = 0, spikes_d_ = 0, dark_d_ = 0;
   body::Eye eye_;
   Lowpass ss_, sd_;
   std::vector< double > d_;

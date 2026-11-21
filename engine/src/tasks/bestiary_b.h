@@ -208,7 +208,7 @@ inline std::string sparse_code_missing( const Graph& g, const std::string& kc_ch
     return "The odour does not reach the Kenyon cells: the glomeruli sensors drive projection neurons, and those excite the Kenyon cells.";
   if ( g.cells( kc ) < 30 ) return "A sparse code needs many Kenyon cells, each answering to a few odours: use a large group of Kenyon cells.";
   for ( const auto& p : g.st.projections )
-    if ( p.n_edges > 0 && p.sign > 0 && Graph::overlap( { p.pre_index }, pn ) && Graph::overlap( { p.post_index }, kc ) && p.indegree_max > 8 )
+    if ( functional( g.st, p ) && p.sign > 0 && Graph::overlap( { p.pre_index }, pn ) && Graph::overlap( { p.post_index }, kc ) && p.indegree_max > 8 )
       return "Every Kenyon cell listens to many of the projection neurons: with that much overlap every odour excites the same cells. Each Kenyon cell should listen to just a few of them, picked at random (random sparse wiring: a few inputs per cell).";
   if ( need_apl && !g.path( kc, kc, -1, 3 ) )
     return "Nothing inhibits the Kenyon cells in proportion to their own activity: the code gets dense when the odour is strong. Add a cell that the Kenyon cells excite and that inhibits them all (the APL, feedback inhibition).";
@@ -222,7 +222,7 @@ inline std::string dopamine_gate_missing( const Graph& g, const std::string& pun
   bool any_gate = false;
   for ( const auto& p : g.st.projections )
   {
-    if ( p.n_edges <= 0 || p.sign <= 0 || p.synapse_model.find( "stdp_dopamine" ) == std::string::npos || !Graph::overlap( { p.post_index }, m ) ) continue;
+    if ( !functional( g.st, p ) || p.sign <= 0 || p.synapse_model.find( "stdp_dopamine" ) == std::string::npos || !Graph::overlap( { p.post_index }, m ) ) continue;
     any_gate = true;
     if ( p.dopamine_index < 0 ) continue;
     if ( !od.empty() && !g.path( od, { p.pre_index }, +1, 3, true ) ) continue;

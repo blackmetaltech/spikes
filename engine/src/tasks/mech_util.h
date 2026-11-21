@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include "spike/engine.h"
+#include "task_util.h"
 
 namespace spike::tasks::mech
 {
@@ -67,7 +68,7 @@ inline PopSet reach( const Structure& st, const PopSet& from, int parity = 0, in
     for ( const auto& [ p, par ] : frontier )
       for ( const auto& pr : st.projections )
       {
-        if ( pr.n_edges <= 0 or pr.sign == 0 or pr.pre_index != p or pr.post_index < 0 or pr.post_index >= n or ( edge_sign != 0 and pr.sign != edge_sign ) )
+        if ( not functional( st, pr ) or pr.pre_index != p or pr.post_index >= n or ( edge_sign != 0 and pr.sign != edge_sign ) )
           continue;
         const int np = par ^ ( pr.sign < 0 ? 1 : 0 );
         if ( not seen[ pr.post_index ][ np ] )
@@ -101,7 +102,7 @@ inline bool excitatory_loop( const Structure& st, const PopSet& pops, bool autap
   {
     PopSet first;
     for ( const auto& pr : st.projections )
-      if ( pr.n_edges > 0 and pr.sign > 0 and pr.pre_index == p )
+      if ( functional( st, pr ) and pr.sign > 0 and pr.pre_index == p )
       {
         if ( not autapse_ok and pr.post_index == p and ( st.populations[ p ].n < 2 or pr.rule == "one_to_one" ) )
           continue;

@@ -84,6 +84,9 @@ Spec spec()
     "and activating them shifts the bump in a predictable way. This level is a ring-attractor model after the published cell types, not synapse-level wiring.",
     "Turner-Evans D et al. (2017) eLife 6:e23496, doi:10.7554/eLife.23496; Green J et al. (2017) Nature 546:101-106, doi:10.1038/nature22343" };
   s.vec = { "heading" };
+  // The turn sensors carry the fly's true angular velocity, which is also what the checkpoints judge the bump against: an episode gain on them (the researcher noise) would make the stimulus disagree with its own
+  // truth by up to several per cent of a path of hundreds of degrees, and fail a compass that integrates exactly. They are the world's, not noisy; the landmark cues keep their gain noise.
+  s.raw = { "turn_left", "turn_right" };
   s.schedule = [ & ]( bool quick ) {
     Schedule c;
     c.dur = quick ? kQuickEnd : kFullEnd;
