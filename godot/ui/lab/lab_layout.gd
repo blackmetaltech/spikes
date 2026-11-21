@@ -20,6 +20,11 @@ var check_btn: Button
 var menu: Control = null
 var parts_ov: Control = null
 var histo_ov: Control = null
+var import_ov: Control = null
+var undo_btn: Button = null
+var redo_btn: Button = null
+const SLOTS := ["A", "B", "C"]
+static var _mem_slots := {}       # solution slots while saving is off (test hooks): "<task>/<slot>" -> circuit text, for the session only
 
 func build() -> void:
 	var phone := Layout.phone; var f := Kit.f()
@@ -43,6 +48,8 @@ func build() -> void:
 	editor.custom_minimum_size = Vector2(300, 200)
 	var edp := PanelContainer.new(); edp.add_theme_stylebox_override("panel", Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.75), 1, 2, 0, false)); edp.size_flags_vertical = Control.SIZE_EXPAND_FILL; edp.add_child(editor); left.add_child(edp)
 	editor.structure_changed.connect(lab._on_structure); editor.moved.connect(lab._autosave)   # a dropped neuron is saved at once
+	editor.history_changed.connect(sync_undo); editor.circuit_restored.connect(_on_restored); editor.command.connect(_on_command)
+	editor.blocked = modal_open
 	editor.selection_changed.connect(func(_s): lab._sel_audio(); lab._build_inspector())
 	editor.lesion_clicked.connect(lab.les.click)
 	editor.editable = not lab._is_dx()   # a diagnosis case is probed, never rebuilt
@@ -163,6 +170,52 @@ func fill_palette() -> void:
 	connect_btn = Kit.btn("Connect", lab._toggle_connect, "panel", sz); palette_row.add_child(connect_btn)
 	connect_btn.tooltip_text = "Connect mode: click a source, then a target. You can also drag from a neuron's rim."
 	sync_connect_btn()
+	undo_btn = Kit.btn("Undo", func(): lab.editor.undo(), "panel", sz); undo_btn.tooltip_text = "Undo the last change (Ctrl+Z)"; palette_row.add_child(undo_btn)
+	redo_btn = Kit.btn("Redo", func(): lab.editor.redo(), "panel", sz); redo_btn.tooltip_text = "Redo (Ctrl+Shift+Z or Ctrl+Y)"; palette_row.add_child(redo_btn)
+	sync_undo()
+
+## Undo / Redo are greyed out when there is nothing to undo or redo.
+func sync_undo() -> void:
+	if lab.editor == null: return
+	if undo_btn != null and is_instance_valid(undo_btn): undo_btn.disabled = not lab.editor.can_undo()
+	if redo_btn != null and is_instance_valid(redo_btn): redo_btn.disabled = not lab.editor.can_redo()
+
+## Undo / redo put an older circuit on the bench: the reference lock follows the circuit (meta.editor.ref_lock), as when a kept bench is restored.
+func _on_restored() -> void:
+	var tid := lab.task_id
+	if tid == "": return
+	var ed: Variant = (lab.circuit.get("meta", {}) as Dictionary).get("editor", {})
+	if ed is Dictionary and bool((ed as Dictionary).get("ref_lock", false)): LabScreen._ref_loaded[tid] = true
+	else: LabScreen._ref_loaded.erase(tid)
+
+## The bench's shortcuts (CircuitEditor.command): Space run / pause, C Check, R Reset, I / Y the inspector.
+func _on_command(name: String) -> void:
+	match name:
+		"run": lab._toggle_run()
+		"check": if check_btn != null and is_instance_valid(check_btn) and check_btn.is_visible_in_tree() and not check_btn.disabled: lab.play.check_start()
+		"reset": lab._restart()
+		"inspect": focus_inspector.call_deferred()
+
+## The first control of the inspector takes the focus (keyboard and pad: Y / I on the bench).
+func focus_inspector() -> void:
+	if lab.insp_body == null: return
+	if Layout.phone: sheet_sync()
+	for c in lab.insp_body.find_children("*", "Control", true, false):
+		var cc := c as Control
+		if cc.focus_mode == Control.FOCUS_ALL and cc.is_visible_in_tree() and (cc is BaseButton or cc is Kit.Stepper or cc is HSlider) and not (cc is BaseButton and (cc as BaseButton).disabled):
+			cc.grab_focus(); return
+
+## A modal covers the bench (its shortcuts are off): a confirm card, the More menu, the parts bin, an end / test / results card, the import list, a file dialog.
+func modal_open() -> bool:
+	if ConfirmCard.is_open(): return true
+	for o in [menu, parts_ov, histo_ov, lab._overlay, import_ov]:
+		if o != null and is_instance_valid(o): return true
+	return lab._file_dlg != null and lab._file_dlg.visible
+
+## Esc closes the import list first (LabScreen.on_back).
+func close_extra() -> bool:
+	if import_ov != null and is_instance_valid(import_ov): close_import(); return true
+	return false
 
 func sync_connect_btn() -> void:
 	if connect_btn != null and is_instance_valid(connect_btn) and lab.editor != null: Kit.skin(connect_btn, "amber" if lab.editor.tool == "connect" else "panel", 12)
@@ -253,11 +306,24 @@ func open_menu() -> void:
 			if reference_open(): item.call(lv2, "Reference", lab._load_reference, "panel")
 			item.call(lv2, "Empty bench", lab._empty_bench)
 			if lab._has_history(): item.call(lv2, "Restore previous bench", lab._restore_bench)
+	# II b. solution slots: three saved circuits per level, kept across restarts
+	if not dxm:
+		var sl: HFlowContainer = group.call("Solution slots")
+		var info := PackedStringArray()
+		for x in SLOTS:
+			Kit.ident(item.call(sl, "Save to " + x, func(): slot_save(x)), "BtnSaveTo" + x)
+			var st := slot_text(x)
+			if st != "": Kit.ident(item.call(sl, "Load " + x, func(): slot_load(x)), "BtnLoad" + x)
+			info.append("%s: %s" % [x, slot_summary(st)])
+		var il := Kit.label("   ".join(info), 15, Kit.TEXT_SOFT, true); il.custom_minimum_size.x = mw - 60.0; v.add_child(il)
 	# III. tools
 	var tools: HFlowContainer = group.call("Tools")
 	if tid != "" and (lab.lesion_on or lab._lesion_ok()): item.call(tools, "Leave lesions" if lab.lesion_on else "Lesions", lab._lesion_toggle, "amber" if lab.lesion_on else "panel")
 	if LabUnlocks.has(tid, "analysis"): item.call(tools, "Analysis", lab._open_analysis, "green")
-	if not dxm and LabUnlocks.has(tid, "loadsave"): item.call(tools, "Load", lab._load_dialog); item.call(tools, "Save", lab._save_dialog)
+	if not dxm and LabUnlocks.has(tid, "loadsave"):
+		item.call(tools, "Load", lab._load_dialog); item.call(tools, "Save", lab._save_dialog)
+		item.call(tools, "Copy circuit as JSON", copy_json); item.call(tools, "Paste circuit JSON", paste_json)
+		item.call(tools, "Import from a passed level", open_import)
 	if tools.get_child_count() == 0:   # an empty group: drop its heading and rule too
 		var n := v.get_child_count()
 		for k in 3: var c := v.get_child(n - 1 - k); v.remove_child(c); c.queue_free()
@@ -279,6 +345,122 @@ func reference_open() -> bool: return lab.mode == "guided" or passed_here()
 func _size_menu(sc: ScrollContainer, v: Control) -> void:
 	await lab.get_tree().process_frame
 	if is_instance_valid(sc) and is_instance_valid(v): sc.custom_minimum_size.y = minf(v.get_combined_minimum_size().y, lab.size.y - 90.0)
+
+# ---------- solution slots, circuit JSON, import ----------
+func _slot_key(x: String) -> String: return "%s/%s" % [lab.task_id if lab.task_id != "" else "free", x]
+static func slot_path_of(tid: String, x: String) -> String: return Circuits.user_dir().path_join(tid if tid != "" else "free").path_join("slot_%s.json" % x)
+
+## The circuit text in slot `x` of task `tid` ("" when empty): the file through SaveIO, or the session copy while saving is off.
+static func slot_text_of(tid: String, x: String) -> String:
+	if not SaveIO.enabled(): return str(_mem_slots.get("%s/%s" % [tid if tid != "" else "free", x], ""))
+	var p := slot_path_of(tid, x)
+	return FileAccess.get_file_as_string(p) if FileAccess.file_exists(p) else ""
+
+func slot_text(x: String) -> String: return slot_text_of(lab.task_id, x)
+
+func slot_summary(text: String) -> String:
+	if text == "": return "empty"
+	var c := Circuits.parse(text)
+	return Progress.neurons_text(Circuits.neuron_count(c)) if not c.is_empty() else "damaged"
+
+## Save to slot `x`: atomic write (SaveIO), no confirmation (the slot only ever holds what you put in it).
+func slot_save(x: String) -> void:
+	var text := Circuits.to_json(lab.circuit)
+	var ok := true
+	if SaveIO.enabled(): ok = SaveIO.write_text(slot_path_of(lab.task_id, x), text, -1.0)
+	else: _mem_slots[_slot_key(x)] = text
+	if ok: lab.editor.note("Saved to slot %s (%s)" % [x, Progress.neurons_text(Circuits.neuron_count(lab.circuit))])
+	else: lab._banner_raw("Slot %s could not be saved." % x)
+
+## Load slot `x` onto the bench (asks first when the bench has work on it; the replaced bench goes into the history and one undo brings it back).
+func slot_load(x: String) -> void:
+	var r := Circuits.parse_checked(slot_text(x))
+	if str(r["error"]) != "": lab._banner_raw("Slot %s could not be opened: %s." % [x, str(r["error"])]); return
+	adopt_bench(r, "Load slot %s?" % x, "The bench is replaced by the circuit in slot %s." % x, "Load " + x)
+
+## Put a checked circuit (Circuits.parse_checked result) on the bench, as Load does: confirm, keep the old bench, the reference lock from the file.
+func adopt_bench(r: Dictionary, title: String, what: String, yes: String) -> void:
+	lab._replace_bench(title, what, yes, func():
+		lab._autosave(); lab._keep_bench()
+		lab.circuit = r["circuit"]; lab._notice_repairs(int(r["repaired"])); lab._drop_old_flag(); Circuits.ensure_pos(lab.circuit)
+		if lab.task_id != "":
+			if bool((lab.circuit.get("meta", {}) as Dictionary).get("editor", {}).get("ref_lock", false)): LabScreen._ref_loaded[lab.task_id] = true
+			else: LabScreen._ref_loaded.erase(lab.task_id)
+		lab.editor.select({}); lab.les.reset(); lab._reload(true); lab._build_inspector(); lab._autosave())
+
+## More > Copy circuit as JSON: the whole circuit on the clipboard (to share or keep).
+func copy_json() -> void:
+	var t := Circuits.to_json(lab.circuit)
+	CircuitClip.text = t; DisplayServer.clipboard_set(t)
+	lab.editor.note("Circuit copied as JSON")
+
+## More > Paste circuit JSON: a circuit from the clipboard, checked (Circuits.validate) before it replaces the bench.
+func paste_json() -> void:
+	var t := DisplayServer.clipboard_get()
+	if t.strip_edges() == "": t = CircuitClip.text   # no system clipboard (headless): the last copy made in the game
+	var r := Circuits.parse_checked(t)
+	if str(r["error"]) != "": lab._banner_raw("The clipboard does not hold a usable circuit: %s." % str(r["error"])); return
+	adopt_bench(r, "Paste this circuit?", "The bench is replaced by the circuit on the clipboard.", "Paste")
+
+func close_import() -> void:
+	if import_ov != null and is_instance_valid(import_ov): import_ov.queue_free()
+	import_ov = null
+
+## The circuits that can be imported: each passed level's saved bench and slots, the player's own (a bench built from a reference is not offered).
+## [{tid, src ("bench" | "A" | "B" | "C"), title, circuit}], and how many reference-derived ones were left out.
+func import_sources() -> Array:
+	var out := []; var skipped := 0
+	for t in Campaign.order():
+		var tid := str(t)
+		if tid == lab.task_id or not Campaign.passed(tid) or str(Campaign.info(tid).get("kind", "")) == "diagnosis": continue
+		var srcs := [["bench", ""]]
+		for x in SLOTS: srcs.append([x, slot_text_of(tid, x)])
+		if SaveIO.enabled():
+			var lp := Circuits.user_dir().path_join("last_%s.json" % tid)
+			srcs[0][1] = FileAccess.get_file_as_string(lp) if FileAccess.file_exists(lp) else ""
+		for s in srcs:
+			if str(s[1]) == "": continue
+			var r := Circuits.parse_checked(str(s[1]))
+			if str(r["error"]) != "" or Circuits.neuron_count(r["circuit"]) == 0: continue
+			var c: Dictionary = r["circuit"]
+			var ed: Variant = (c.get("meta", {}) as Dictionary).get("editor", {})
+			if (ed is Dictionary and bool((ed as Dictionary).get("ref_lock", false))) or Circuits.is_reference_of(c, tid): skipped += 1; continue
+			out.append({"tid": tid, "src": str(s[0]), "title": str(Campaign.info(tid).get("title", tid)), "circuit": c})
+	return [out, skipped]
+
+## More > Import from a passed level: pick one of your solved circuits; its groups are pasted onto this bench as one selected group.
+func open_import() -> void:
+	close_menu(); close_import()
+	var phone := Layout.phone
+	var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; lab.ov.add_child(root); import_ov = root; Kit.ident(root, "ImportModal")
+	var dim := ColorRect.new(); dim.color = Color(Kit.BENCH, 0.78); dim.set_anchors_preset(Control.PRESET_FULL_RECT); root.add_child(dim)
+	var cc := CenterContainer.new(); cc.set_anchors_preset(Control.PRESET_FULL_RECT); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(cc)
+	var pn := PanelContainer.new(); pn.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL, Kit.LINE, 1, 16, 14 if phone else 22, true)); cc.add_child(pn)
+	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 10); v.custom_minimum_size.x = minf(720.0, lab.size.x - 40.0); pn.add_child(v)
+	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 12); v.add_child(hd)
+	var t := Kit.shout("Import from a passed level", 30 if not phone else 22, Kit.TEXT); t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; hd.add_child(t)
+	hd.add_child(Kit.btn("Close", close_import, "panel", 20 if not phone else 18))
+	v.add_child(Kit.label("Your circuit from a level you passed is pasted onto this bench as one group, selected so you can move it. Links to sensors and motors this level does not have are dropped, and the note says which.", 17 if not phone else 15, Kit.TEXT, true))
+	var res := import_sources(); var list: Array = res[0]
+	var sc := ScrollContainer.new(); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.custom_minimum_size.y = minf(56.0 * maxf(list.size(), 1.0), lab.size.y * 0.5); v.add_child(sc)
+	var lv := VBoxContainer.new(); lv.add_theme_constant_override("separation", 6); lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sc.add_child(lv)
+	for s in list:
+		var what := "saved bench" if str(s["src"]) == "bench" else "slot " + str(s["src"])
+		var b := Kit.btn("%s · %s (%s)" % [str(s["title"]), what, Progress.neurons_text(Circuits.neuron_count(s["circuit"]))], func(): import_from(s), "panel", 18)
+		Kit.ident(b, "Imp_%s_%s" % [str(s["tid"]), str(s["src"])]); b.alignment = HORIZONTAL_ALIGNMENT_LEFT; lv.add_child(b)
+	if list.is_empty(): lv.add_child(Kit.label("No passed level has a circuit of your own saved yet. Pass a level (its bench is saved as you build) or save one to a slot.", 17, Kit.TEXT_SOFT, true))
+	if int(res[1]) > 0: v.add_child(Kit.label("%d saved circuit%s built from a reference circuit %s not offered." % [int(res[1]), "" if int(res[1]) == 1 else "s", "is" if int(res[1]) == 1 else "are"], 15, Kit.TEXT_SOFT, true))
+
+func import_from(s: Dictionary) -> void:
+	close_import()
+	var c: Dictionary = s["circuit"]; var ids := []
+	for p in c.get("populations", []): ids.append(str(p.get("id", "")))
+	var r := lab.editor.paste_fragment(CircuitClip.fragment(c, ids, true))
+	if r.has("error"): lab._banner_raw("The import did not fit on this bench: %s." % str(r["error"])); return
+	var msg := "Imported %s (%d group%s)." % [str(s["title"]), (r["ids"] as Array).size(), "" if (r["ids"] as Array).size() == 1 else "s"]
+	if not (r["dropped"] as Array).is_empty(): msg += " Dropped links to channels this level does not have: %s." % ", ".join(r["dropped"])
+	lab.editor.note(msg, 9.0)
+	Playlog.event("import", {"task": lab.task_id, "from": str(s["tid"]), "src": str(s["src"])})
 
 # ---------- the phone sheet ----------
 ## On a phone the inspector is a bottom sheet that shows only while something is selected (or the brief is asked for) and only on the circuit tab.
