@@ -241,7 +241,7 @@ flowchart LR
 | `settings` | screen | Settings, Display tab | `BtnBack`, `TabDisplay`, `TabAudio`, `TabControls`, `TabGame`, `OptWindowMode`, `OptVSync`, `OptFrameCap`, `OptLayout`, `OptUiScale`, `OptTextSize`, `OptReducedMotion`, `OptColourBlindSafeColours`, `BtnCredits` |
 | `settings.audio` | tab | Settings, Audio tab | `OptMaster`, `OptSpikeClicks`, `OptBodyAndUi`, `OptAmbience` |
 | `settings.controls` | tab | Settings, Controls tab (read-only key list) |  |
-| `settings.game` | tab | Settings, Game tab (difficulty, play log) | `OptMode`, `OptRecordMyPlay`, `BtnExportJson`, `BtnClear` |
+| `settings.game` | tab | Settings, Game tab (difficulty, play log) | `OptMode`, `OptRecordMyPlay`, `BtnExportJson`, `BtnClear`, `BtnExportSave`, `BtnImportSave`, `BtnOpenLogFolder`, `BtnResetProgress` |
 | `credits` | screen | Credits | `BtnBack`, `BtnWhatIsReal` |
 | `analysis` | screen | Analysis, 3-node motifs | `BtnBack`, `StepTab`, `StepLevel`, `StepSign`, `StepNull` |
 | `analysis.4node` | tab | Analysis, 4-node motifs tab |  |
@@ -265,7 +265,7 @@ flowchart LR
 | `lab.dx.wrong` | state | Diagnosis: a wrong answer was submitted |  |
 | `lab.dx.solved` | state | Diagnosis: solved (CORRECT card, notebook entry) |  |
 | `lab.dx.revealed` | state | Diagnosis: answer revealed after three wrong tries |  |
-| `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?` |
+| `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?`, `BtnRestorePreviousBench?` |
 | `lab.parts_modal` | modal | Parts bin (pick the next neuron's type) | `BtnClose`, `PartsBin`, `Use_*`, `Select_*` |
 | `lab.endcard` | modal | End-of-episode card (score, stars, next steps) | `BtnRunAgain`, `BtnTestX5`, `BtnClose`, `BtnResults?`, `BtnHint?`, `BtnNextTask?`, `BtnLesionLab?`, `BtnAnalysis?` |
 | `lab.testcard` | modal | Testing x5 progress card | `BtnCancel` |

@@ -330,7 +330,11 @@
     "OptMode",
     "OptRecordMyPlay",
     "BtnExportJson",
-    "BtnClear"
+    "BtnClear",
+    "BtnExportSave",
+    "BtnImportSave",
+    "BtnOpenLogFolder",
+    "BtnResetProgress"
    ],
    "state_of": "settings"
   },
@@ -713,7 +717,8 @@
     "BtnLeaveLesions",
     "BtnAnalysis",
     "BtnLoad",
-    "BtnSave"
+    "BtnSave",
+    "BtnRestorePreviousBench"
    ],
    "scope": "MoreMenu",
    "modal": true,
