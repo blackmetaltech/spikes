@@ -938,7 +938,7 @@
      "pop": "PENL"
     }
    ],
-   "weight": 3.0,
+   "weight": 2.8,
    "value": 40.0
   },
   {
@@ -949,7 +949,7 @@
      "pop": "PENR"
     }
    ],
-   "weight": 3.0,
+   "weight": 2.8,
    "value": 40.0
   }
  ],
