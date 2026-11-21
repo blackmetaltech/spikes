@@ -673,6 +673,12 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
             model = f"stdp_dopamine_synapse__p{k}"
             nest.CopyModel("stdp_dopamine_synapse", model, {**pp["common"], "volume_transmitter": vts[pp["dopamine_pop"]]})
             syn["synapse_model"] = model
+        elif any(j != k and q["pre"] == pr["pre"] and q["post"] == pr["post"] and prepared[j]["syn"]["synapse_model"] == syn["synapse_model"]
+                 for j, q in enumerate(spec["projections"])):
+            # another projection joins the same populations with the same synapse model: a private model copy tells their connections apart (as in the engine)
+            model = f"{syn['synapse_model']}__p{k}"
+            nest.CopyModel(syn["synapse_model"], model)
+            syn["synapse_model"] = model
         proj_nc[k] = (pre_nc, post_nc, syn["synapse_model"])
         if pp["edges"] is not None:
             ed = pp["edges"]

@@ -136,7 +136,7 @@ if(SPIKE_BUILD_TESTS)
   set_tests_properties(fuzz_circuits PROPERTIES TIMEOUT 900)
   add_test(NAME evidence_circuits COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz/run_evidence.py $<TARGET_FILE:spike-run> ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-  set_tests_properties(evidence_circuits PROPERTIES TIMEOUT 600)
+  set_tests_properties(evidence_circuits PROPERTIES TIMEOUT 600)  # the script judges CPU time, so load does not fail it
   # NESTML: engine vs PyNEST spike parity (skips when PyNEST or scripts/build-nestml.sh --pynest output is missing)
   if(SPIKE_HAVE_NESTML)
     add_test(NAME test_nestml_parity COMMAND python3 ${CMAKE_SOURCE_DIR}/models/nestml/test_parity.py $<TARGET_FILE:spike-run>)
