@@ -1,5 +1,15 @@
 # 0.5 design: The Bestiary
 
+**Status: shipped in 0.5.0, with changes.** What changed from the plan below:
+- **Gated, not open from the start.** The Bestiary opens once the Invertebrates (chapter I) spine is passed. Inside it, Sea slug waits for the Heart level `m_neuromodulation`, Crab waits for the Leech spine and the Fly mushroom body waits for the Sea slug spine (`WING_GATES` in `godot/game/campaign.gd`). Guided mode drops the in-wing waits and keeps the chapter I gate. Every level card has "Needs" chips that name the earlier levels whose concepts it uses.
+- **Chapter order** in the game is Worm, Leech, Sea slug, Fly compass, Fly mushroom body, Crab (the table below lists them in the planning order).
+- **Diagnosis cases:** seven, not twelve: `dx_worm`, `dx_leech`, `dx_aplysia`, `dx_compass`, `dx_mb_apl`, `dx_mb_dan`, `dx_crab`. The compass and the worm have one case each. Diagnosis is scored on probes, with the candidate order independent of the answer.
+- **The lamprey and the touch-reflex levels stayed in Invertebrates.** The Bestiary has only the new chapters (18 levels plus the 7 cases). `worm` (salt-seeking) stays in Invertebrates; the Bestiary worm chapter is `w_latch`, `w_switch`, `worm_touch`.
+- **Real wiring:** only `worm_touch` (OpenWorm `cect`, Cook et al. 2019 counts). The fly compass and mushroom body are built from published cell types, not synapse-level data, and the crab is hand-entered. The fly connectome excerpt was never extracted (the hosts were unreachable), so the "excerpt" rows are not met.
+- **Engine:** `tsodyks2_synapse` depression, modulator gating of a synapse parameter, dopamine-gated learning (`ProjectionInfo::dopamine_source`), the `population_vector` ring output, `spike_generator` and `sinusoidal_poisson` inputs and the `stg_cell` NESTML cell all shipped. Graded transmission stayed a spike-only approximation (said on the What-is-real page).
+- **Bestiary map plates** are engraved (`tools/art/plates.py`), and the map has a wing selector (Body / Bestiary / Theory).
+- Not done: the leech heart level's escape-versus-release concept (a rework is planned), 0.6 species (locust, zebrafish, barn owl, songbird, cat, rat) and any real fly synapse data.
+
 Research: `research/bestiary-a.md` (0.5 species), `research/bestiary-b.md` (0.6 species). Numbers tagged `[mem]`/`[M]` there are unverified and may not reach player text until checked.
 
 ## Idea

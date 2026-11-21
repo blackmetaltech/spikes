@@ -25,7 +25,7 @@ After you pass a level, Spike gives you tools to take your circuit apart and mea
 
 A lesion is a removal. The lesion lab lets you remove a part of a passed circuit and see what the circuit loses. This is the experiment real neuroscientists do: damage a region, see which behaviour goes.
 
-**When it opens.** After you pass the level, or when you load the reference circuit, or on a diagnosis case. Before that, pressing Lesions shows: "The lesion lab opens after a pass: pass the level, then cut and silence parts to see what each one does."
+**When it opens.** After you pass the level, or when you load the reference circuit, or on a diagnosis case (where the button is LESION LAB). Before that, pressing Lesions shows: "The lesion lab opens after a pass: pass the level, then cut and silence parts to see what each one does."
 
 ### Three kinds of lesion
 
@@ -35,7 +35,7 @@ A lesion is a removal. The lesion lab lets you remove a part of a passed circuit
 | Silence a population | The group stops firing. | Click the group. |
 | Cut a sensor | Disconnects a sensor card from its targets. | Click the sensor card. |
 
-Click again to restore it. Lesioned parts are marked on the bench. The live view restarts at once on the lesioned circuit, so you see the effect as it happens.
+Click again to restore it. Lesioned parts are marked on the bench. The live view restarts at once on the lesioned circuit, so you see the effect as it happens. A sensor card that is wired to nothing cannot be lesioned. In the lesion lab the bench is not editable; with the keyboard, the bench cursor's Enter cuts or silences.
 
 ### Re-running on seeds
 
@@ -43,7 +43,7 @@ The live view shows one run. To measure, use the buttons.
 
 | Button | What it does |
 |---|---|
-| **Run lesion** | Re-runs the whole episode on three seeds (1, 2, 3) with the current lesions. The world and the circuit are reseeded. The table shows the mean score and range. |
+| **Run lesion** | Re-runs the whole episode on three seeds (1, 2, 3) with the current lesions. The world and the circuit are reseeded. The table shows the mean score and range. It needs at least one lesion, and a progress line shows which row and seed is running (Cancel stops it). |
 | **Sweep all singles** | Tries every single lesion one at a time, and adds a row for each. |
 | **Clear set** | Removes all lesion marks. |
 | **Exit** | Leaves the lesion lab. |
@@ -54,7 +54,7 @@ If the intact circuit itself fails on some seeds, the table says: "The intact ci
 
 ### Export
 
-**Copy Markdown**, **Copy CSV** and **Save files** write the table out. Save files writes a `.md` and a `.csv`.
+**Copy Markdown** and **Copy CSV** put the table on the clipboard. **Save files** writes a `.md` and a `.csv` into the `lesions` folder of the game's data folder (see [settings and performance](settings-and-performance.html#saves-backups-and-logs)) and says where.
 
 ### A lesion that helps
 
@@ -80,7 +80,7 @@ A motif is a small wiring pattern of a few cells, like "A drives B and C, and B 
 
 - The 3-node tab counts the 13 connected classes of three-node patterns (Milo et al. 2002).
 - The 4-node tab counts the 199 connected classes of four-node patterns. It lists the ten with the strongest score. If the work estimate is too big it refuses with a message.
-- **z-score**: how many standard deviations the real count is from the mean of random networks that keep every cell's in- and out-degree. A z beyond 2 (and a null standard deviation of at least 0.5) is called significant. Sienna means more than chance, blue means fewer.
+- **z-score**: how many standard deviations the real count is from the mean of random networks that keep every cell's in- and out-degree. A z beyond 2 (and a null standard deviation of at least 0.5) is called significant. Sienna means more than chance, slate grey means fewer (blue is kept for inhibition).
 - **graph**: the nodes are populations or single neurons. **edges**: all, excitatory only, or inhibitory only. **nulls**: how many random networks, 20, 100 or 500.
 - You need at least three (or four) populations for the tab to work.
 
@@ -107,7 +107,7 @@ If you push an oscillator at different moments in its cycle, the next beat comes
 
 ### Energy
 
-The mean rate per neuron, the level's budget, the number of neurons, the number of spikes, and the ATP cost (about 1e8 to 1e9 ATP per spike; Attwell and Laughlin 2001; Lennie 2003). A bar compares you with the budget. The tab says "Energy: within budget" or "over budget, no third star", and what blocked the third star. A list shows the rate of each population. See [stars, par and hints](stars-and-hints.html).
+The mean rate per neuron, the level's budget, the number of neurons, the number of spikes, and the ATP cost (about 1e8 to 1e9 ATP per spike; Attwell and Laughlin 2001; Lennie 2003). A bar compares you with the budget. The tab says "Energy: within budget" or, on a level whose challenge has an energy ceiling, "over budget, no third star" (on other levels the bar shows a reference ceiling that earns nothing). A list shows the rate of each population. See [stars, par and hints](stars-and-hints.html).
 
 ### STA: spike-triggered average
 

@@ -1,7 +1,14 @@
 # 0.6 design: the Theory wing
 
+**Status: shipped in 0.5.0** (the wing was folded into the 0.5 release; there is no separate 0.6). All 12 levels, the four lab views, the rate-unit engine work and the spike-triggered-average tab are in. What changed from the plan below:
+- **The wing is not open from the start.** Like the Bestiary it opens after the Invertebrates (chapter I) spine is passed; there is no further gate inside the Theory wing (`WING_GATES` has no Theory entry). The levels inside a chapter open in order.
+- Every level card has "Needs" chips for the concepts it uses that another level teaches. Guided mode drops in-wing waits only (there are none in Theory).
+- Star rules are those of the other levels: CHECK runs five worlds, star 3 is a per-level challenge, Guided caps at two stars.
+- The Python package was not extended: it lacks the `rate_drive` and `tuned_poisson` input kinds, the `rate_value` output and the rate populations. A Theory circuit runs in the game and in `spike-run`, not in `spike.build`.
+- Cheap-circuit rows for the wing are in `engine/tests/cheap_rows_f.inc`.
+
 ## Idea
-A third campaign wing next to the body chapters and the Bestiary: four chapters that cover what a graduate computational-neuroscience course teaches and the game lacked. Each chapter keeps the format of the others: 2-3 micro-puzzles (one concept each), one scored task, references, notebook entries, glossary cards, What-is-real entries, a three-tier hint ladder and a recipe. The honesty contract of 0.4 is unchanged: the mechanism is checked through the circuit's structure, verdicts and hint tiers 1-3 carry no numbers, every level has a table of cheap circuits that must fail (`engine/tests/cheap_rows_f.inc`), the reference circuits pass on several seeds, and no check is weakened to make a level pass. The wing is open from the start, like the Bestiary.
+A third campaign wing next to the body chapters and the Bestiary: four chapters that cover what a graduate computational-neuroscience course teaches and the game lacked. Each chapter keeps the format of the others: 2-3 micro-puzzles (one concept each), one scored task, references, notebook entries, glossary cards, What-is-real entries, a three-tier hint ladder and a recipe. The honesty contract of 0.4 is unchanged: the mechanism is checked through the circuit's structure, verdicts and hint tiers 1-3 carry no numbers, every level has a table of cheap circuits that must fail (`engine/tests/cheap_rows_f.inc`), the reference circuits pass on several seeds, and no check is weakened to make a level pass. The wing is open after the chapter I spine, like the Bestiary (planned as open from the start; see the status above).
 
 ## Chapters
 | Chapter | Levels (micro, micro, task) | Concepts | Scored behaviour |
