@@ -139,11 +139,18 @@ static func hmax(t: Telemetry, k: String, floor_ := 1e-6) -> float:
 	return m
 
 ## A tile: caption on top, big value, in a recessed well.
+## Both texts are fitted to the tile (Kit.fit_size, then a shortening at a word for the caption): at 1366x768, with Large text and in the phone layout nothing is clipped
+## or cut mid-number. `overflow` counts the tiles whose text still did not fit at the smallest size (the smoke test asserts it stays 0).
+static var overflow := 0
 static func _tile(c: Control, r: Rect2, cap: String, val: String, col: Color, big := 30) -> void:
-	var fz := Kit.fs(14)
+	var fz := Kit.fs(14); var wd := r.size.x - 14.0
 	c.draw_style_box(Kit.sb(Gfx.SHEET, Kit.LINE, 1, 2, 0, false), r)
-	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 9, r.position.y + float(fz) + 3.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14, fz, Kit.TEXT)
-	c.draw_string(Gfx.mono(), Vector2(r.position.x + 9, r.end.y - 8.0), val, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 14, Kit.fs(big), col.darkened(0.1) if col != Kit.TEXT else col)
+	var cf := Kit.fit_size(Gfx.serif_italic(), cap, wd, 14, 10)
+	if Gfx.serif_italic().get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, cf).x > wd: cap = Kit.fit_words(Gfx.serif_italic(), cap, wd, cf)
+	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 9, r.position.y + float(fz) + 3.0), cap, HORIZONTAL_ALIGNMENT_LEFT, wd, cf, Kit.TEXT)
+	var vf := Kit.fit_size(Gfx.mono(), val, wd, big, 12)
+	if Gfx.mono().get_string_size(val, HORIZONTAL_ALIGNMENT_LEFT, -1, vf).x > wd + 0.5: overflow += 1
+	c.draw_string(Gfx.mono(), Vector2(r.position.x + 9, r.end.y - 8.0), val, HORIZONTAL_ALIGNMENT_LEFT, -1, vf, col.darkened(0.1) if col != Kit.TEXT else col)
 
 static func _tile_h(big := 30) -> float: return float(Kit.fs(big)) + float(Kit.fs(14)) + 18.0
 
@@ -363,7 +370,7 @@ static func _heart(c: Control, t: Telemetry, r: Rect2) -> void:
 	var mapv := first(d, ["map_mmHg", "map_mmhg"], -1.0)
 	if d.has("sys_mmHg") and d.has("dia_mmHg"): tiles.append(["pressure (mmHg)", "%s/%s" % [_n(rv(d, "sys_mmHg")), _n(rv(d, "dia_mmHg"))], Kit.RED])
 	elif mapv >= 0.0: tiles.append(["mean pressure (mmHg)", _n(mapv), Kit.RED])
-	if d.has("stroke_ml"): tiles.append(["stroke volume (mL)", _n(rv(d, "stroke_ml")), Kit.inh()])
+	if d.has("stroke_ml"): tiles.append(["stroke volume (mL)", _n(rv(d, "stroke_ml")), Specimens.SLATE])
 	if small and tiles.size() > 2: tiles.resize(2)
 	y += _banner(c, t, Rect2(x, y, w, 20.0)) if not small else 0.0
 	var th := _tile_h(26 if small else 30); var gap := 6.0
@@ -420,7 +427,7 @@ static func _lungs(c: Control, t: Telemetry, r: Rect2) -> void:
 	var tiles := []
 	if d.has("rr_per_min"): tiles.append(["breath rate (/min)", _n(rv(d, "rr_per_min"), 1), Kit.TEXT])
 	if d.has("co2_mmhg"): tiles.append(["arterial CO2 (mmHg)", _n(rv(d, "co2_mmhg"), 1), Kit.exc()])
-	if d.has("ventilation"): tiles.append(["ventilation (L/min)", _n(rv(d, "ventilation"), 1), Kit.inh()])
+	if d.has("ventilation"): tiles.append(["ventilation (L/min)", _n(rv(d, "ventilation"), 1), Specimens.SLATE])
 	if tiles.size() > 2 and small: tiles.resize(2)
 	var gap := 6.0
 	for q in tiles.size():
@@ -457,7 +464,7 @@ static func _spark(c: Control, r: Rect2, arr: PackedFloat32Array, t: Telemetry, 
 	c.draw_string(Gfx.serif_italic(), r.position + Vector2(8, float(fz) + 2.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12, fz, Kit.TEXT)
 
 # ---------------------------------------------------------------- eye
-## An eye: the iris with its radial dilator fibres (amber, sympathetic) and the circular sphincter at the pupil margin (cyan, parasympathetic), the pupil of
+## An eye: the iris with its radial dilator fibres (amber, sympathetic) and the circular sphincter at the pupil margin (verdigris, parasympathetic), the pupil of
 ## pupil_mm, light (0..1) as rays and a glow at the left. Reads pupil_mm, light, sphincter, dilator (0..1 activations).
 static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	var d := ro(t); var fz := Kit.fs(14)
@@ -480,12 +487,13 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 	if not small:   # callouts on the two muscles
 		var s1: Vector2 = res["sphincter"]; var s2: Vector2 = res["dilator"]
 		var p1 := Vector2(ec.x + ew * 0.45, ec.y - ew * 0.86); var p2 := Vector2(ec.x + ew * 0.45, minf(ec.y + ew * 0.70, area.end.y - float(fz) * 2.0 - 6.0))
-		c.draw_line(s1, p1, Color(Kit.inh(), 0.7), 1.3, true); c.draw_circle(s1, 3.0, Kit.inh())
+		c.draw_line(s1, p1, Color(Anatomy.para(), 0.7), 1.3, true); c.draw_circle(s1, 3.0, Anatomy.para())   # the parasympathetic colour: a muscle, not an inhibitory cell
 		c.draw_line(s2, p2, Color(Kit.exc(), 0.7), 1.3, true); c.draw_circle(s2, 3.0, Kit.exc())
-		c.draw_string(Fonts.bold, p1 + Vector2(4, 0), "sphincter", HORIZONTAL_ALIGNMENT_LEFT, 120.0, fz, Kit.inh())
-		c.draw_string(Fonts.regular, p1 + Vector2(4, float(fz) + 2.0), "parasympathetic", HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
-		c.draw_string(Fonts.bold, p2 + Vector2(4, float(fz) * 0.8), "dilator", HORIZONTAL_ALIGNMENT_LEFT, 120.0, fz, Kit.exc())
-		c.draw_string(Fonts.regular, p2 + Vector2(4, float(fz) * 1.8 + 2.0), "sympathetic", HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
+		var cw := maxf(area.end.x - p1.x - 8.0, 20.0)   # the call-outs stay in the eye's own panel, never under the banner and value
+		c.draw_string(Fonts.bold, p1 + Vector2(4, 0), "sphincter", HORIZONTAL_ALIGNMENT_LEFT, cw, fz, Color(Anatomy.para(), 1.0).darkened(0.25))
+		c.draw_string(Fonts.regular, p1 + Vector2(4, float(fz) + 2.0), Kit.fit_words(Fonts.regular, "parasympathetic", cw, fz), HORIZONTAL_ALIGNMENT_LEFT, cw, fz, Kit.TEXT_SOFT)
+		c.draw_string(Fonts.bold, p2 + Vector2(4, float(fz) * 0.8), "dilator", HORIZONTAL_ALIGNMENT_LEFT, cw, fz, Kit.exc())
+		c.draw_string(Fonts.regular, p2 + Vector2(4, float(fz) * 1.8 + 2.0), Kit.fit_words(Fonts.regular, "sympathetic", cw, fz), HORIZONTAL_ALIGNMENT_LEFT, cw, fz, Kit.TEXT_SOFT)
 	var rr := Rect2(r.position.x + area.size.x + 10.0, r.position.y + 4.0, r.size.x - area.size.x - 10.0, r.size.y - strip_h - 8.0)
 	var ban := _banner(c, t, rr); var big := Kit.fs(32 if not small else 26)
 	var y0 := rr.position.y + ban + float(big) * 0.95
@@ -501,7 +509,7 @@ static func _eye(c: Control, t: Telemetry, r: Rect2) -> void:
 
 # ---------------------------------------------------------------- gut
 ## A bowel segment as a tube with eight circular-muscle bands that constrict behind the bolus and relax ahead of it (the law of the intestine), the bands coloured by
-## ACh (amber) and NO (cyan). Reads bolus (0..1 along the tube), seg0..seg7 (0..1 contraction) and, when the task has them, ex0..ex7 / inh0..inh7.
+## ACh (amber) and NO (inhibitory: blue). Reads bolus (0..1 along the tube), seg0..seg7 (0..1 contraction) and, when the task has them, ex0..ex7 / inh0..inh7.
 static func _gut(c: Control, t: Telemetry, r: Rect2) -> void:
 	var d := ro(t); var fz := Kit.fs(14)
 	if not d.has("bolus"): _empty(c, r, "Waiting for bolus in the task's readouts."); return
@@ -775,7 +783,8 @@ static func _dashboard(c: Control, t: Telemetry, r: Rect2) -> void:
 	var cw := g.size.x / float(cols); var chh := g.size.y / float(rows); var compact := chh < 112.0
 	for i in nb:
 		var b: Dictionary = bands[i]; var cr := Rect2(g.position + Vector2(cw * float(i % cols), chh * float(i / cols)), Vector2(cw, chh)).grow(-4.0)
-		_gauge(c, t, cr, b, rv(d, str(b["name"])), compact, d.has(str(b["name"])))
+		var dv := t.display(str(b["name"]))   # the one smoothed value every widget shows; NAN while a per-cycle metric has none yet: the dial says "measuring"
+		_gauge(c, t, cr, b, dv if is_finite(dv) else (float(b["lo"]) + float(b["hi"])) * 0.5, compact, is_finite(dv))
 	if strip_h > 0.0:
 		var items := []
 		for k in others: items.append([k, rv(d, k)])
@@ -795,13 +804,18 @@ static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, 
 	var title := str(pretty(key)[0])
 	var cap := title if unit == "" or title.contains(unit) else "%s (%s)" % [title, unit]
 	c.draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.55), 1, 2, 0, false), r)
-	c.draw_string(Gfx.serif_italic(), r.position + Vector2(10, float(fz) + 4.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, fz, Kit.TEXT_SOFT)
-	var vtxt := _n(v, 0 if absf(v) >= 100.0 else 1) if has else "—"
+	var cfz := Kit.fit_size(Gfx.serif_italic(), cap, r.size.x - 16.0, 14, 10)
+	if Gfx.serif_italic().get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, cfz).x > r.size.x - 16.0: cap = Kit.fit_words(Gfx.serif_italic(), cap, r.size.x - 16.0, cfz)
+	c.draw_string(Gfx.serif_italic(), r.position + Vector2(10, float(fz) + 4.0), cap, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, cfz, Kit.TEXT_SOFT)
+	var vtxt := _n(v, 0 if absf(v) >= 100.0 else 1) if has else "measuring…"
+	var vsz := Kit.fit_size(Gfx.mono() if has else Gfx.serif_italic(), vtxt, r.size.x - 16.0, 24, 12)
+	if compact: vsz = mini(vsz, maxi(int(r.size.y - float(fz) - 34.0), 12))   # a short box: the value must clear the caption above and the bar below
+	if not has: Kit.draw_hatch(c, Rect2(r.position.x + 4.0, r.position.y + float(fz) + 8.0, r.size.x - 8.0, r.size.y - float(fz) - 12.0), Color(Kit.INK, 0.10), 6.0, 1.0)   # not measured yet: hatched, no needle, no verdict
 	if compact:   # a bar with the band marked and a marker at the value
 		var bx := Rect2(r.position.x + 10.0, r.end.y - 18.0, r.size.x - 20.0, 8.0)
 		c.draw_rect(bx, Color(Kit.LINE, 0.7)); c.draw_rect(Rect2(bx.position.x + bx.size.x * (lo - glo) / (ghi - glo), bx.position.y, bx.size.x * span / (ghi - glo), bx.size.y), Color(Kit.GREEN, 0.7))
 		if has: var mx := bx.position.x + bx.size.x * clampf((v - glo) / (ghi - glo), 0, 1); c.draw_rect(Rect2(mx - 2.0, bx.position.y - 4.0, 4.0, bx.size.y + 8.0), col)
-		c.draw_string(Fonts.bold, Vector2(r.position.x + 10.0, r.position.y + float(fz) + float(Kit.fs(24)) + 6.0), vtxt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, Kit.fs(24), col)
+		c.draw_string(Fonts.bold if has else Gfx.serif_italic(), Vector2(r.position.x + 10.0, r.position.y + float(fz) + float(vsz) + 6.0), vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, vsz, col)
 		return
 	# an arc gauge: 240 degrees, the tolerance band on the rim, the needle on top, the value in the gap below the hub
 	var spark_h := minf(r.size.y * 0.24, 40.0)
@@ -819,7 +833,7 @@ static func _gauge(c: Control, t: Telemetry, r: Rect2, b: Dictionary, v: float, 
 	var nl := PackedVector2Array([cc + dn.orthogonal() * 2.6, tip, cc - dn.orthogonal() * 2.6, cc - dn * 10.0])
 	if has: c.draw_colored_polygon(nl, Kit.INK)
 	c.draw_circle(cc, 6.0, Kit.INK); c.draw_circle(cc, 2.4, Gfx.SHEET)
-	c.draw_string(Gfx.mono(), Vector2(r.position.x, cc.y + rad * 0.78), vtxt, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, Kit.fs(24), col.darkened(0.1))
+	c.draw_string(Gfx.mono() if has else Gfx.serif_italic(), Vector2(r.position.x, cc.y + rad * 0.78), vtxt, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, vsz, col.darkened(0.1))
 	var sr := Rect2(r.position.x + 10.0, r.end.y - spark_h - 6.0, r.size.x - 20.0, spark_h)
 	if arr.size() > 2:
 		var n := mini(arr.size(), 400); var pl := PackedVector2Array(); var step := maxi(1, n / maxi(int(sr.size.x / 2.0), 1))
@@ -836,9 +850,10 @@ static func _tiles(c: Control, t: Telemetry, r: Rect2, keys: Array, d: Dictionar
 		var cr := Rect2(r.position + Vector2(cw * float(i % cols), chh * float(i / cols)), Vector2(cw, chh)).grow(-3.0)
 		if cr.end.y > r.end.y + 1.0: break
 		c.draw_style_box(Kit.sb(Gfx.SHEET, Kit.LINE, 1, 2, 0, false), cr)
-		c.draw_string(Gfx.serif_italic(), cr.position + Vector2(8, float(fz) + 2.0), titled(str(keys[i])), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 12.0, fz, Kit.TEXT_SOFT)
+		c.draw_string(Gfx.serif_italic(), cr.position + Vector2(8, float(fz) + 2.0), Kit.fit_words(Gfx.serif_italic(), titled(str(keys[i])), cr.size.x - 12.0, fz), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 12.0, fz, Kit.TEXT_SOFT)
 		var arr := hist(t, str(keys[i]))
-		c.draw_string(Gfx.mono(), Vector2(cr.position.x + 8.0, cr.end.y - 7.0), num(rv(d, str(keys[i])), str(keys[i])), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x * 0.5, Kit.fs(20), Kit.TEXT)
+		var nt := num(rv(d, str(keys[i])), str(keys[i])); var nw := cr.size.x * (0.5 if cr.size.x > 150.0 else 1.0) - 10.0
+		c.draw_string(Gfx.mono(), Vector2(cr.position.x + 8.0, cr.end.y - 7.0), nt, HORIZONTAL_ALIGNMENT_LEFT, -1, Kit.fit_size(Gfx.mono(), nt, nw, 20, 12), Kit.TEXT)
 		if arr.size() > 2 and cr.size.x > 150.0:
 			var lo := arr[0]; var hi := arr[0]
 			for q in arr: lo = minf(lo, q); hi = maxf(hi, q)
