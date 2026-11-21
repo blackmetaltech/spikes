@@ -102,13 +102,16 @@ private:
 class Wiring
 {
 public:
-  void invalidate() { probed_ = false; unwired_.clear(); }
+  void invalidate() { probed_ = false; unwired_.clear(); bare_ = false; }
+  /// True when the bench holds no cell at all (nothing built): a score of 0 with no criterion counted as met, whatever the vacuous criteria say.
+  bool bare() const { return bare_; }
   void probe( const Engine& e, const std::vector< std::string >& sensors, const std::vector< std::string >& motors )
   {
     if ( probed_ )
       return;
     probed_ = true;
     unwired_.clear();
+    bare_ = e.structure().populations.empty();
     auto check = [ & ]( const std::vector< ChannelInfo >& have, const std::vector< std::string >& want, const char* kind ) {
       for ( const auto& w : want )
       {
@@ -160,6 +163,7 @@ public:
 
 private:
   bool probed_ = false;
+  bool bare_ = false;
   std::vector< std::string > unwired_;
 };
 

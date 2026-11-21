@@ -239,8 +239,12 @@ static func atp_text(spikes_per_s: float) -> String:
 	var r := atp_range(spikes_per_s)
 	return "%s to %s ATP/s" % [_sci(r.x), _sci(r.y)]
 static func _sci(v: float) -> String:
-	var e := int(floor(log(maxf(v, 1.0)) / log(10.0))); var m := v / pow(10.0, e)
-	return "%.1fe%d" % [m, e]
+	# spelled out, two figures ("26 billion"), not scientific notation
+	var names := [[1.0e12, "trillion"], [1.0e9, "billion"], [1.0e6, "million"], [1.0e3, "thousand"]]
+	for nm in names:
+		if v >= float(nm[0]):
+			var x := v / float(nm[0]); return ("%d %s" % [int(roundf(x)), nm[1]]) if x >= 10.0 else ("%.1f %s" % [x, nm[1]])
+	return "%d" % int(roundf(v))
 
 func set_watched(list: Array) -> void:
 	watched = list.slice(0, 4)

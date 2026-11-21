@@ -31,6 +31,8 @@ var rec := {}             # {pairs, n, t_ms, task_id}: the last recording
 var _rec_run := {}        # a recording in progress
 var _head_motif: Array = []
 var _head_rec: Array = []
+var _rec_step: Kit.Stepper = null
+const STA_MAX_S := 20     # the reverse-correlation recording is at most this long (the stimulus is kept per millisecond)
 
 func default_focus() -> Control: return back_btn
 
@@ -62,19 +64,26 @@ func build() -> void:
 		for i in pops.size(): popts.append([i, str(pops[i].get("id", i))])
 		_head_rec.append(Kit.ident(Kit.stepper(popts, str(pop_idx), func(i): pop_idx = int(i); compute(), 200.0 if not phone else 150.0), "StepPop")); mrow.add_child(_head_rec[-1])
 	_head_rec.append(Kit.italic("record", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
-	_head_rec.append(Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")); mrow.add_child(_head_rec[-1])
+	_head_rec.append(Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")); mrow.add_child(_head_rec[-1]); _rec_step = _head_rec[-1]
 	_head_rec.append(Kit.btn("RECORD", func(): _start_record(), "green", 20, Vector2(120, 0))); mrow.add_child(_head_rec[-1])
 	var cols := HBoxContainer.new(); cols.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_theme_constant_override("separation", int(16 * f)); v.add_child(cols)
 	chart = MotifChart.new(); chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chart.size_flags_stretch_ratio = 1.5; chart.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(chart)
 	panel = SeriesPanel.new(); panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; panel.size_flags_stretch_ratio = 1.5; panel.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(panel)
 	stats_view = StatsView.new(); stats_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL; stats_view.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(stats_view)
 	stats_view.tele = tele; stats_view.circuit = circuit
+	if OS.get_environment("SP_ATAB") != "": tab = int(OS.get_environment("SP_ATAB"))   # screenshot hooks: open on a tab, and press Record
 	_tab_changed()
+	if OS.get_environment("SP_AREC") != "": _start_record()
+
+func _sta_msg() -> String:
+	return "Press “Record”: the first cell of the population is driven by a Gaussian white-noise current for the length chosen (at most %d s; 10 s is usually plenty), and the current that came before each of its spikes is averaged, minus the average of the whole current." % STA_MAX_S
 
 func _tab_changed() -> void:
 	chart.visible = tab <= 0; panel.visible = tab > 0
 	for c in _head_motif: c.visible = tab <= 1
 	for c in _head_rec: c.visible = (tab >= 2 and tab <= 4) or tab == 6
+	if tab == 6 and (rec_s == 0 or rec_s > STA_MAX_S) and _rec_step != null:   # the default length is within the stated maximum: the first option, 10 s
+		rec_s = int(RECORDS[0][0]); _rec_step.idx = 0; _rec_step.val.text = Kit.label_case(str(RECORDS[0][1]))
 	compute()
 
 ## The population the heart / breathing tasks read first: the one behind the task's first motor output (the SA node, the preBotC...), else the first.
@@ -151,7 +160,7 @@ func _start_record() -> void:
 	if t != null and (rec_s == 0 or total > float(t.duration_ms())): total = float(t.duration_ms())
 	if t == null and rec_s == 0: total = 30000.0
 	_rec_run = {"sim": sim, "task": t, "t": 0.0, "total": total, "pairs": PackedFloat64Array(), "sta": sta, "stim": PackedFloat64Array(), "rng": RandomNumberGenerator.new()}
-	if sta: (_rec_run["rng"] as RandomNumberGenerator).seed = int(circuit.get("seed", 1)) + 7919; _rec_run["total"] = minf(total, 20000.0)
+	if sta: (_rec_run["rng"] as RandomNumberGenerator).seed = int(circuit.get("seed", 1)) + 7919; _rec_run["total"] = minf(total, float(STA_MAX_S) * 1000.0)
 	rec = {}; _compute_series()
 
 func _process(_dt: float) -> void:
@@ -209,11 +218,12 @@ func _compute_series() -> void:
 	if tab == 5: _compute_energy(); return
 	if not _rec_run.is_empty():
 		panel.message = "Recording... %.0f of %.0f s" % [float(_rec_run["t"]) * 0.001, float(_rec_run["total"]) * 0.001]; panel.queue_redraw(); return
+	if rec.is_empty() and tab == 6: panel.message = _sta_msg(); panel.queue_redraw(); return
 	if rec.is_empty():
 		panel.message = "Press “Record”: the circuit is run on the task for the length chosen and every spike is kept, then analysed here."
 		panel.queue_redraw(); return
 	if tab == 6:
-		if not bool(rec.get("sta", false)): panel.message = "Press “Record” on this tab: the first cell of the population is driven by a Gaussian white-noise current for the length chosen (at most 20 s), and the stimulus that preceded each of its spikes is averaged."; panel.queue_redraw(); return
+		if not bool(rec.get("sta", false)): panel.message = _sta_msg(); panel.queue_redraw(); return
 		var pr0: PackedFloat64Array = rec["pairs"]; var first := Circuits.pop_first(circuit, int(rec["sta_pop"])); var st := PackedFloat64Array()
 		for j in range(0, pr0.size() - 1, 2):
 			if int(pr0[j]) == first: st.append(pr0[j + 1])
@@ -460,18 +470,37 @@ class SeriesPanel extends Control:
 	func _draw_sta(f: Font, fb: Font, fz: int) -> void:
 		var d := data; var m: Array = d.get("mean", []); var n := int(d.get("n", 0))
 		if m.is_empty() or n < 5: draw_string(f, Vector2(16, 70), "Too few spikes (%d): the cell fired hardly at all under this noise." % n, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT); return
-		var sd := float(extra.get("sd", 1.0)); var P := Rect2(60, 70, size.x - 84.0, size.y - 170.0)
+		var sd := float(extra.get("sd", 1.0)); var P := Rect2(100, 84, size.x - 124.0, size.y - 184.0)
 		draw_rect(P, Color(Gfx.SHEET, 0.9)); draw_rect(P, Kit.INK, false, 1.2)
+		var se := 2.0 * float(d.get("stim_sd", sd)) / sqrt(float(n))   # what an average of n spikes wanders by chance (two standard errors): a lobe inside it is not a filter
 		var lo := 0.0; var hi := 0.0
 		for v in m: lo = minf(lo, float(v)); hi = maxf(hi, float(v))
-		lo = minf(lo, -0.2 * sd); hi = maxf(hi, 0.2 * sd)
-		var yz := P.end.y - (0.0 - lo) / maxf(hi - lo, 1e-9) * P.size.y; draw_line(Vector2(P.position.x, yz), Vector2(P.end.x, yz), Color(Kit.INK, 0.35), 1.0)
+		lo = minf(lo, -maxf(0.15 * sd, 1.5 * se)); hi = maxf(hi, maxf(0.15 * sd, 1.5 * se))
+		var rng := maxf(hi - lo, 1e-9)
+		var yz := P.end.y - (0.0 - lo) / rng * P.size.y
+		draw_rect(Rect2(P.position.x, yz - se / rng * P.size.y, P.size.x, 2.0 * se / rng * P.size.y), Color(Kit.INK, 0.07))
+		draw_line(Vector2(P.position.x, yz), Vector2(P.end.x, yz), Color(Kit.INK, 0.6), 1.2)
+		var unit := "pA"
+		var step := pow(10.0, floorf(log(rng / 3.0) / log(10.0))); var mult := 1.0
+		for cand in [1.0, 2.0, 5.0, 10.0]:
+			if rng / (step * cand) <= 6.0: mult = cand; break
+		step *= mult
+		var tv := ceilf(lo / step) * step
+		while tv <= hi + 1e-9:   # y ticks in the stimulus' own unit, with the zero line labelled
+			var yy := P.end.y - (tv - lo) / rng * P.size.y
+			draw_line(Vector2(P.position.x - 5.0, yy), Vector2(P.position.x, yy), Kit.INK, 1.0)
+			draw_string(f, Vector2(P.position.x - 92.0, yy + float(fz) * 0.35), ("%d" % int(roundf(tv))) if step >= 1.0 else ("%.1f" % tv), HORIZONTAL_ALIGNMENT_RIGHT, 82.0, fz, Kit.TEXT if absf(tv) < 1e-9 else Kit.TEXT_SOFT)
+			tv += step
+		draw_string(f, Vector2(P.position.x - 92.0, P.position.y - 8.0), "stimulus minus its mean (%s)" % unit, HORIZONTAL_ALIGNMENT_LEFT, 360.0, fz, Kit.TEXT_SOFT)
 		var before := float(d.get("before_ms", 80.0)); var span := float(m.size() - 1); var xs := P.position.x + P.size.x * before / span; draw_line(Vector2(xs, P.position.y), Vector2(xs, P.end.y), Color(Kit.AMBER, 0.8), 1.4)
+		for ms in range(-int(before), 11, 20):   # x ticks: milliseconds before (-) or after (+) the spike
+			var xx := P.position.x + P.size.x * (before + float(ms)) / span
+			draw_line(Vector2(xx, P.end.y), Vector2(xx, P.end.y + 5.0), Kit.INK, 1.0)
+			draw_string(f, Vector2(xx - 24.0, P.end.y + float(fz) + 6.0), "%d" % ms, HORIZONTAL_ALIGNMENT_CENTER, 48.0, fz, Kit.TEXT_SOFT)
+		draw_string(f, Vector2(P.position.x, P.end.y + float(fz) * 2.0 + 12.0), "ms before the spike (0: the spike). Grey band: what chance alone gives with this many spikes.", HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT_SOFT)
 		var q := PackedVector2Array()
-		for k in m.size(): q.append(Vector2(P.position.x + P.size.x * float(k) / span, P.end.y - (float(m[k]) - lo) / maxf(hi - lo, 1e-9) * P.size.y))
+		for k in m.size(): q.append(Vector2(P.position.x + P.size.x * float(k) / span, P.end.y - (float(m[k]) - lo) / rng * P.size.y))
 		draw_polyline(q, Kit.exc(), 2.4, true)
-		draw_string(f, Vector2(P.position.x, P.end.y + float(fz) + 4.0), "-%d ms" % int(before), HORIZONTAL_ALIGNMENT_LEFT, 80, fz, Kit.TEXT_SOFT)
-		draw_string(f, Vector2(xs - 20.0, P.end.y + float(fz) + 4.0), "spike", HORIZONTAL_ALIGNMENT_LEFT, 60, fz, Kit.AMBER)
 		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %.3g)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, sd], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
 		_note("The average of a Gaussian white-noise stimulus around the spikes is the cell's linear filter (Chichilnisky 2001): a bump just before the spike means the cell integrates the recent past.", size.y - 18.0 - float(fz), f, fz)
 

@@ -30,7 +30,7 @@ func build() -> void:
 	col.add_child(Kit.italic("grow a nervous system", int(52 * f) if not phone else 30, Kit.exc()))
 	if not phone:
 		col.add_child(Kit.spacer(16 * f))
-		col.add_child(Kit.label("Wire spiking neurons, simulated with NEST, into small circuits that drive simplified bodies: steer a worm up a salt gradient, swim a lamprey, pace a heart.", int(24 * f), Kit.TEXT_SOFT, true))
+		col.add_child(Kit.label("Wire spiking neurons, simulated with NEST, into small circuits that drive simplified bodies: pace a heart, drive a breath. Then a Bestiary of model animals and a Theory wing of computational ideas.", int(22 * f), Kit.TEXT_SOFT, true))
 	col.add_child(Kit.spacer(0, true))
 	var menu := VBoxContainer.new(); menu.add_theme_constant_override("separation", 0); col.add_child(menu)
 	var defs := [["I", "Play", "the campaign", "tasks"], ["II", "Laboratory", "free bench", "lab"], ["III", "What is real", "models, tuning, sources", "real"], ["IV", "Settings", "", "settings"], ["V", "Credits", "", "credits"], ["VI", "Quit", "", "quit"]]
@@ -52,7 +52,7 @@ func build() -> void:
 	var fr := HBoxContainer.new(); fr.add_theme_constant_override("separation", 24); foot.add_child(fr)
 	var cap := "A, pyramidal cell; a, excitatory neuron (Golgi stain); b, basket interneuron, inhibitory. Simulated with NEST." if not phone else "A, pyramidal cell; a, excitatory; b, basket cell, inhibitory."
 	var fc := Kit.fig_caption(1, cap, 19 if not phone else 18); fc.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fr.add_child(fc)
-	var ver := Kit.mono("v%s · Godot %s" % [ProjectSettings.get_setting("application/config/version", "dev"), Engine.get_version_info().string.get_slice("-", 0)], 15, Kit.TEXT_SOFT)
+	var ver := Kit.mono("v%s · Godot %s" % [str(ProjectSettings.get_setting("application/config/version", "dev")), Engine.get_version_info().string.get_slice("-", 0)], 15, Kit.TEXT_SOFT)
 	ver.size_flags_vertical = Control.SIZE_SHRINK_END; fr.add_child(ver)
 
 func _press(id: String) -> void:

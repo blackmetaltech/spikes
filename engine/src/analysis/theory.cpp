@@ -299,9 +299,18 @@ Sta spike_triggered_average( const std::vector< double >& s, double dt, const st
       r.mean[ static_cast< size_t >( j + nb ) ] += s[ static_cast< size_t >( k + j ) ];
     ++r.n_used;
   }
+  if ( !s.empty() )
+  {
+    double m = 0, v = 0;
+    for ( double x : s ) m += x;
+    m /= static_cast< double >( s.size() );
+    for ( double x : s ) v += ( x - m ) * ( x - m );
+    r.stim_mean = m;
+    r.stim_sd = std::sqrt( v / static_cast< double >( s.size() ) );
+  }
   if ( r.n_used > 0 )
     for ( double& x : r.mean )
-      x /= r.n_used;
+      x = x / r.n_used - r.stim_mean;   // mean-subtracted: the deviation of the spike-triggered stimulus from the stimulus average
   return r;
 }
 
