@@ -44,9 +44,11 @@
 
   CHEAP_ROW_V( "d_switch", "regular-spiking cell: the reset lands on the rest side of the border", "set", cheap::from_ref( "d_switch", cheap::set_params( "N", { { "c", -65.0 }, { "d", 8.0 } } ) ) );
   CHEAP_ROW_V( "d_switch", "reference without the holding current", "connected", cheap::from_ref( "d_switch", cheap::scale_input( "hold", 0.0 ) ) );
-  CHEAP_ROW_V( "d_switch", "holding current twice too high: the cell fires on its own", "on its own", cheap::from_ref( "d_switch", cheap::scale_input( "hold", 2.0 ) ) );
+  CHEAP_ROW_V( "d_switch", "holding current five times too high: the cell fires on its own", "rest quietly", cheap::from_ref( "d_switch", cheap::scale_input( "hold", 5.0 ) ) );
   CHEAP_ROW_V( "d_switch", "'set' not wired to the cell", "connected", cheap::from_ref( "d_switch", cheap::scale_input( "set", 0.0 ) ) );
-  CHEAP_ROW( "d_switch", "'reset' pulse far too weak (x0.05)", cheap::from_ref( "d_switch", cheap::scale_input( "reset", 0.05 ) ) );
+  CHEAP_ROW( "d_switch", "'reset' pulse far too weak (x0.005: the low-rate firing state is barely stable, so a pulse of a tenth of the reference already switches it off)", cheap::from_ref( "d_switch", cheap::scale_input( "reset", 0.005 ) ) );
+  CHEAP_ROW_V( "d_switch", "the on-state fires far too fast (the old reference: b 0.2 with a holding weight of 2.5, about 255 Hz)", "unrealistic", cheap::from_ref( "d_switch", cheap::both( cheap::set_params( "N", { { "b", 0.2 } } ), cheap::scale_input( "hold", 5.0 ) ) ) );
+  CHEAP_ROW_V( "d_switch", "the reset far above the border (c -40): firing at several hundred Hz", "unrealistic", cheap::from_ref( "d_switch", cheap::both( cheap::set_params( "N", { { "b", 0.2 }, { "c", -40.0 }, { "d", 0.5 } } ), cheap::scale_input( "hold", 5.0 ) ) ) );
   CHEAP_ROW( "d_switch", "reset adds a lot to the recovery variable (d 8): firing cannot persist", cheap::from_ref( "d_switch", cheap::set_params( "N", { { "d", 8.0 } } ) ) );
   CHEAP_ROW( "d_switch", "holding current too low (x0.2): 'set' cannot start firing", cheap::from_ref( "d_switch", cheap::scale_input( "hold", 0.2 ) ) );
 
@@ -79,6 +81,9 @@
   CHEAP_ROW( "r_choose", "self-excitation and inhibition far too strong: the first winner never gives way", cheap::from_ref( "r_choose", cheap::all( cut_f( "A", "A", 3.0 ), cut_f( "B", "B", 3.0 ), cut_f( "A", "B", 3.0 ), cut_f( "B", "A", 3.0 ) ) ) );
   CHEAP_ROW( "r_choose", "inhibition far too weak (x0.1): both win", cheap::from_ref( "r_choose", cheap::both( cut_f( "A", "B", 0.1 ), cut_f( "B", "A", 0.1 ) ) ) );
   CHEAP_ROW( "r_choose", "b_in not wired", cheap::from_ref( "r_choose", cheap::scale_input( "b_in", 0.0 ) ) );
+  CHEAP_ROW_V( "r_choose", "feed-forward bias: loops of 0.01 and a_in 4.0 against b_in 2.7 (the first side always leads, so a static bias looks like a memory)", "bias",
+    cheap::from_ref( "r_choose", cheap::all( cheap::all( cut_f( "A", "A", 0.008 ), cut_f( "B", "B", 0.008 ), cut_f( "A", "B", 0.01 ), cut_f( "B", "A", 0.01 ) ), cheap::scale_input( "a_in", 4.0 ), cheap::scale_input( "b_in", 2.7 ) ) ) );
+  CHEAP_ROW_V( "r_oscillate", "loop through the inhibitory unit four times too strong: the excitation is pinned just above the drive", "too strong", cheap::from_ref( "r_oscillate", cut_f( "E", "I", 4.0 ) ) );
   CHEAP_ROW_V( "r_choose", "both motors read A", "same unit", [] {
     json c = cheap::reference( "r_choose" );
     for ( auto& o : c[ "outputs" ] ) o[ "neurons" ] = json::array( { { { "pop", "A" } } } );
@@ -103,6 +108,10 @@
   CHEAP_ROW( "r_meanfield", "prediction with a quarter of the inhibition (SI K 5 instead of 20)", cheap::from_ref( "r_meanfield", [ & ]( json& c ) {
     for ( auto& p : c[ "projections" ] )
       if ( p[ "pre" ] == "SI" ) p[ "synapse" ][ "K" ] = 5;
+  } ) );
+  CHEAP_ROW_V( "r_meanfield", "prediction with K = 1 on every projection (J tuned by hand to match the rates)", "network's K", cheap::from_ref( "r_meanfield", [ & ]( json& c ) {
+    for ( auto& p : c[ "projections" ] )
+      if ( p[ "pre" ] == "SE" || p[ "pre" ] == "SI" ) p[ "synapse" ][ "K" ] = 1;
   } ) );
   CHEAP_ROW( "r_meanfield", "prediction driven at half the rate", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext_mf", 0.5 ) ) );
   CHEAP_ROW( "r_meanfield", "the siegert drive not wired", cheap::from_ref( "r_meanfield", cheap::scale_input( "ext_mf", 0.0 ) ) );

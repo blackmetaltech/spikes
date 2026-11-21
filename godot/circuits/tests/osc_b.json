@@ -1,0 +1,111 @@
+{
+ "schema_version": 1,
+ "name": "osc_b.json",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "E",
+   "model": "threshold_lin_rate_ipn",
+   "n": 1,
+   "params": {
+    "tau": 10,
+    "sigma": 0,
+    "g": 1,
+    "theta": 0,
+    "alpha": 1
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     120
+    ]
+   ]
+  },
+  {
+   "id": "I",
+   "model": "threshold_lin_rate_ipn",
+   "n": 1,
+   "params": {
+    "tau": 10,
+    "sigma": 0,
+    "g": 1,
+    "theta": 0,
+    "alpha": 1
+   },
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     120
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "E",
+   "post": "E",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": 3
+   },
+   "allow_autapses": true
+  },
+  {
+   "pre": "E",
+   "post": "I",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": 3
+   },
+   "allow_autapses": true
+  },
+  {
+   "pre": "I",
+   "post": "E",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "rate_connection_instantaneous",
+    "weight": -3
+   },
+   "allow_autapses": true
+  }
+ ],
+ "inputs": [
+  {
+   "name": "drive",
+   "kind": "rate_drive",
+   "targets": [
+    {
+     "pop": "E"
+    }
+   ],
+   "weight": 1.0,
+   "value": 0.2
+  }
+ ],
+ "outputs": [
+  {
+   "name": "e",
+   "kind": "rate_value",
+   "neurons": [
+    {
+     "pop": "E"
+    }
+   ]
+  },
+  {
+   "name": "i",
+   "kind": "rate_value",
+   "neurons": [
+    {
+     "pop": "I"
+    }
+   ]
+  }
+ ]
+}

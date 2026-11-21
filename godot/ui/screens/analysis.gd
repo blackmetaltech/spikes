@@ -472,7 +472,7 @@ class SeriesPanel extends Control:
 		draw_polyline(q, Kit.exc(), 2.4, true)
 		draw_string(f, Vector2(P.position.x, P.end.y + float(fz) + 4.0), "-%d ms" % int(before), HORIZONTAL_ALIGNMENT_LEFT, 80, fz, Kit.TEXT_SOFT)
 		draw_string(f, Vector2(xs - 20.0, P.end.y + float(fz) + 4.0), "spike", HORIZONTAL_ALIGNMENT_LEFT, 60, fz, Kit.AMBER)
-		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %.3g)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, sd], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		draw_string(f, Vector2(16, 56), "mean stimulus before a spike, from %d spikes in %.0f s (noise sd %s)" % [n, float(extra.get("t_ms", 0.0)) * 0.001, String.num(sd, 2)], HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
 		_note("The average of a Gaussian white-noise stimulus around the spikes is the cell's linear filter (Chichilnisky 2001): a bump just before the spike means the cell integrates the recent past.", size.y - 18.0 - float(fz), f, fz)
 
 	func _draw_energy(f: Font, fb: Font, fz: int) -> void:

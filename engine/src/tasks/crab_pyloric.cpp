@@ -33,7 +33,8 @@ Spec spec()
             "and LP inhibits PY, so PY comes last: the three outputs fire in the order PD, LP, PY. The cells are conductance-based (cell type stg_cell: sodium, delayed rectifier, two calcium currents, A-type and calcium-activated "
             "potassium, and the hyperpolarisation-activated current H); the wiring is the published three-cell scheme, the parameters are not. Build a pacemaker kernel of AB and PD, an LP cell and PY cells, and read 'pd', 'lp' and 'py'. "
             "The sensor 'modulator' is the neuromodulator bath that the pacemaker needs. AB and PD inhibit LP and PY; LP inhibits PD and PY; PY inhibits LP. You are scored on the rhythm: cycles of about a second, regular, "
-            "with the bursts in the order PD, LP, PY, and with sensible burst lengths. Many different sets of conductances give the same pattern (that is the point of degeneracy); the game gives you one.";
+            "with the bursts in the order PD, LP, PY, and with sensible burst lengths. Many different sets of conductances give the same pattern (that is the point of degeneracy); the game gives you one. A new stg_cell has only the spike currents and is silent: the conductances you add make it burst or rebound. Conductances are in nS, a bias in pA, and a connection's weight is a synaptic "
+            "conductance in nS (negative inhibits); the modulator's weight is a current in pA per unit of modulator.";
   i.chapter = "crab";
   i.sensors = { "modulator" };
   i.motors = { "pd", "lp", "py" };
@@ -94,26 +95,33 @@ Spec spec()
                    : "The cycles are not clean: in many of them LP or PY fires twice or not at all. Each follower should fire exactly one burst per pacemaker cycle." } );
     const double plo = wide ? 600 : ( tight ? 800 : 700 ), phi = wide ? 1800 : ( tight ? 1300 : 1500 );
     c.push_back( { "period", r.period >= plo && r.period <= phi, r.period <= 0 ? 0.0 : 1.0 - clampd( std::fabs( std::log( r.period / clampd( r.period, plo, phi ) ) ), 0.0, 1.0 ),
-      r.period > phi ? "The cycle is too slow for a pyloric rhythm: lengthen nothing, speed up the pacemaker (less calcium-activated potassium, or more modulator drive)."
-                     : "The cycle is too fast for a pyloric rhythm: slow the pacemaker (more calcium-activated potassium, or less modulator drive)." } );
+      r.period > phi ? "The cycle is too slow for a pyloric rhythm. The cycle is set mainly by what starts the pacemaker's next burst: strengthen the H current of the burster AB, or the modulator's drive onto the pacemaker cells "
+                       "(more of either speeds the cycle up; change it in small steps, the rhythm is fragile). The calcium-activated potassium current mostly sets how long the bursts last."
+                     : "The cycle is too fast for a pyloric rhythm. The cycle is set mainly by what starts the pacemaker's next burst: weaken the H current of the burster AB, or the modulator's drive onto the pacemaker cells "
+                       "(less of either slows the cycle down; change it in small steps, the rhythm is fragile). The calcium-activated potassium current mostly sets how long the bursts last." } );
     c.push_back( { "regular", r.period_cv <= ( wide ? 0.25 : 0.16 ), 1.0 - ramp( r.period_cv, wide ? 0.25 : 0.16, 0.5 ),
       "The cycles vary a lot in length: the rhythm is irregular. The pacemaker kernel should be locked together (AB and PD coupled both ways) and the followers should not disturb it." } );
     const bool order = r.ok >= 1 && r.on_b > 0.12 && r.on_c >= r.on_b + 0.1 && r.on_c < 0.95;
-    c.push_back( { "order", order, r.ok < 1 ? 0.0 : ( r.on_b > 0.12 ? 0.5 : 0.0 ) + ( r.on_c >= r.on_b + 0.1 ? 0.5 : 0.0 ),
-      r.on_b <= 0.12 ? "LP starts together with the pacemaker instead of after it: the pacemaker's inhibition of LP is too weak, or LP does not need to rebound."
-                     : "PY does not come after LP: the order must be PD, then LP, then PY. LP must inhibit PY, and PY needs to fire only once both the pacemaker and LP have let go." } );
+    const std::string order_msg = r.on_b <= 0.12 ? "LP starts together with the pacemaker instead of after it: the pacemaker's inhibition of LP is too weak, or LP does not need to rebound."
+      : r.on_c >= 0.95 ? "PY starts at the very end of the cycle, just as the pacemaker bursts again, and is cut short: its rebound comes too late. Give the PY cells more H or T-type calcium conductance, or more bias current, so that they rebound earlier."
+                       : "PY does not come after LP: the order must be PD, then LP, then PY. LP must inhibit PY, and PY needs to fire only once both the pacemaker and LP have let go.";
+    c.push_back( { "order", order, r.ok < 1 ? 0.0 : ( r.on_b > 0.12 ? 0.5 : 0.0 ) + ( r.on_c >= r.on_b + 0.1 && r.on_c < 0.95 ? 0.5 : 0.0 ), order_msg } );
     const double dlo = wide ? 0.08 : 0.15, dhi = wide ? 0.6 : 0.5, flo = wide ? 0.05 : 0.08, fhi = wide ? 0.55 : 0.45;
     const bool duty = r.ok >= 1 && r.duty_a >= dlo && r.duty_a <= dhi && r.duty_b >= flo && r.duty_b <= fhi && r.duty_c >= flo && r.duty_c <= fhi;
-    c.push_back( { "duty", duty, r.ok < 1 ? 0.0 : 0.6,
-      r.duty_a < dlo || r.duty_a > dhi ? "The pacemaker's bursts are too short or too long for the cycle: they should fill between a sixth and a half of it."
-                                       : "LP or PY bursts are too short or too long: each should fill a fraction of the cycle that is neither tiny nor most of it. Their length is set by their rebound conductances and the inhibition that holds them." } );
+    const std::string duty_msg = r.duty_a < dlo ? "The pacemaker's bursts are too short for the cycle: they should fill between a sixth and a half of it. Their length is set by the calcium-activated potassium current that ends them: less of it makes them longer."
+      : r.duty_a > dhi ? "The pacemaker's bursts fill too much of the cycle: they should fill between a sixth and a half of it. More calcium-activated potassium in the pacemaker cells ends them sooner."
+      : r.duty_c < flo ? "The PY bursts are far too short: PY rebounds late and is cut off by the pacemaker. More H or T-type calcium conductance, or more bias current, in the PY cells makes them start earlier and last longer."
+      : r.duty_c > fhi ? "The PY bursts fill most of the cycle: PY rebounds too easily. Less H or T-type calcium conductance in the PY cells, or stronger inhibition onto them, shortens the burst."
+      : r.duty_b < flo ? "The LP burst is far too short: more H current in LP, or less inhibition onto it, makes it last longer."
+                       : "The LP burst fills most of the cycle: less H current in LP, or more inhibition onto it, shortens it.";
+    c.push_back( { "duty", duty, r.ok < 1 ? 0.0 : 0.6, duty_msg } );
   };
   s.ok_verdict = "The pyloric rhythm: a regular cycle of about a second in which the pacemaker kernel bursts, then LP rebounds, then PY, with sensible burst lengths.";
   s.h1 = "The pattern comes from a pacemaker that bursts by itself and followers that are silenced by it and rebound when it stops; a second inhibition (LP onto PY) puts PY last.";
   s.h2 = "AB and PD (coupled both ways) are the pacemaker kernel; both inhibit LP and PY. LP inhibits PD and PY, and PY inhibits LP. LP and PY need conductance-based cells with an H current and calcium currents for the rebound.";
   s.h2_target = "lp";
   s.h3 = "A pacemaker with slow calcium-activated potassium (it ends its bursts); followers with the H current and a calcium current (they rebound); the inhibition from the pacemaker to each follower sets when they start. If PY fires with LP, strengthen LP's "
-         "inhibition of PY or make PY's rebound slower; if the rhythm stops, check the modulator and the pacemaker's bias; if the cycle is too fast or slow, change the pacemaker's calcium-activated potassium.";
+         "inhibition of PY or make PY's rebound slower; if the rhythm stops, check the modulator and the pacemaker's bias; if the cycle is too fast or slow, change the H current of AB or the modulator's drive (more speeds it up).";
   s.metric_name = "period_ms";
   s.metric_unit = "ms";
   s.metric_lower = false;

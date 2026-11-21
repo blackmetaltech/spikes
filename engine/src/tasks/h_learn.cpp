@@ -95,13 +95,14 @@ Spec spec()
     for ( const auto& p : g.st.projections )
       if ( p.n_edges > 0 && p.synapse_model == "stdp_synapse" && Graph::overlap( M, { p.pre_index } ) && Graph::overlap( M, { p.post_index } ) ) plastic = true;
     if ( !plastic ) return "The connections among the cells of the pattern are fixed: nothing can be learned. Make them plastic (spike-timing-dependent) and start them weak, so that showing the pattern writes it.";
-    if ( !mech::excitatory_loop( g.st, mech::PopSet( M.begin(), M.end() ) ) ) return "The cells of the pattern do not excite each other, so there is nothing for the plasticity to strengthen.";
+    const CellGraph cg( e );
+    if ( !cg.excitatory_loop( mc ) ) return "The cells of the pattern do not excite each other, so there is nothing for the plasticity to strengthen.";
     int cued = 0, shown = 0;
     for ( int n : mc ) { cued += cc.count( n ) ? 1 : 0; shown += sc.count( n ) ? 1 : 0; }
     if ( cued == 0 ) return "The cue does not reach the pattern: connect 'cue' to some of the cells that 'memory' reads.";
     if ( cued == static_cast< int >( mc.size() ) ) return "The cue reaches every cell of the pattern: it must reach only part of it, or nothing is completed.";
     if ( shown < static_cast< int >( mc.size() ) ) return "'show' has to drive every cell of the pattern, so that all of them fire together and the connections among them can strengthen.";
-    return asymmetry( g, M );
+    return asymmetry_cells( cg, mc );
   };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const int nm = m.size_of( "memory" ), nu = m.size_of( "uncued" );
@@ -120,7 +121,7 @@ Spec spec()
       "The cue already completes the pattern before anything was shown: the connections were strong enough from the start, so nothing was learned. Start them weak and let the exposure strengthen them." } );
     c.push_back( { "learned", growth >= mult, ramp( growth, 1.0, mult ),
       "The connections among the pattern's cells did not grow during the exposure. A connection grows when its presynaptic cell fires just before its postsynaptic one: the cells must fire together while the pattern is shown, "
-      "and the learning rate and the asymmetry of the rule must favour strengthening over weakening." } );
+      "and the learning rate and the asymmetry of the rule must not let weakening win over strengthening." } );
     c.push_back( { "persist", fr >= need && hz >= 5.0, 0.5 * ramp( fr, 0, need ) + 0.5 * ramp( hz, 0, 5 ),
       "After the exposure the cue does not leave the pattern lit: what was learned is too weak to hold the pattern (a longer or stronger exposure, a higher learning rate or a higher weight ceiling)." } );
     c.push_back( { "complete", nu > 0 && fu >= need, ramp( fu, 0, need ), "After the exposure the cells the cue never touched do not light up: the pattern is not completed from the part." } );
@@ -129,7 +130,7 @@ Spec spec()
   s.h1 = "Spike-timing-dependent plasticity strengthens connections between cells that fire together, so showing a pattern writes it into the weights.";
   s.h2 = "The connections among the pattern's cells have to be plastic, start weak, and be symmetric. 'show' has to reach every cell, so that the whole pattern fires together while it is shown.";
   s.h2_target = "memory";
-  s.h3 = "Use a plastic synapse on every connection among the cells, weak at first, with a small learning rate, an asymmetry that favours strengthening, and a weight ceiling well above the starting weight. "
+  s.h3 = "Use a plastic synapse on every connection among the cells, weak at first, with a small learning rate, an asymmetry that does not let weakening win (balanced or favouring strengthening), and a weight ceiling well above the starting weight. "
          "If the cue completes the pattern before the exposure, start weaker or learn slower; if nothing is learned, learn faster or raise the ceiling.";
   s.metric_name = "recalled_pct";
   s.metric_unit = "%";

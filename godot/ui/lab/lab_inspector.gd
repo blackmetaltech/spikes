@@ -86,7 +86,7 @@ func inspect_brief(small: int) -> void:
 		var pl := pass_lines(txt, str(ld[0]), 260 if not Layout.phone else 170)
 		if pl != "":
 			var pr := HBoxContainer.new(); pr.add_theme_constant_override("separation", 8); add(pr)
-			var pc := Kit.chip("PASS", Kit.GREEN, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
+			var pc := Kit.chip("TO PASS", Kit.TEXT_SOFT, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)   # a label of the rule, not a status: green PASS read as passed
 			var pt := Kit.label(pl, small, Kit.TEXT, true); pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pr.add_child(pt)
 	var rec := lab._recipe_text()
 	if rec != "" and lab.mode != "researcher":

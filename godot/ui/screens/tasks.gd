@@ -218,7 +218,7 @@ func _fill_detail() -> void:
 		var pl := LabInspector.pass_lines(brief, str(ld[0]), 230 if not phone else 150)
 		if pl != "":
 			var pr := HBoxContainer.new(); pr.add_theme_constant_override("separation", 8); detail_box.add_child(pr)
-			var pc := Kit.chip("PASS", Kit.GREEN, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)
+			var pc := Kit.chip("TO PASS", Kit.TEXT_SOFT, 14); pc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; pr.add_child(pc)   # a label of the rule, not a status: green PASS read as passed
 			var pt := Kit.label(pl, small, Kit.TEXT, true); pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pr.add_child(pt)
 	if bool(ld[1]):
 		var mb := Kit.btn("Less" if _brief_full else "More…", func(): _brief_full = not _brief_full; _fill_detail(), "ghost", 16); mb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; detail_box.add_child(mb)

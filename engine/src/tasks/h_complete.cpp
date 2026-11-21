@@ -7,7 +7,8 @@
 //   quiet     at most 2 spikes in the pattern before the cue                                   the pattern is silent by itself
 //   persist   in the recall window at least 80 % of the pattern's cells fire, at 5 Hz or more on average      the activity outlasts the cue
 //   complete  at least 80 % of the cells the cue did NOT reach fire in the recall window             the pattern is completed from a part
-// MECHANISM (Engine::structure()): the pattern has several cells; its cells excite each other in a loop; the cue reaches some of them but not all; the connections are roughly symmetric.
+// MECHANISM (Engine::structure() and Engine::connections(), the edge list between cells): the pattern has several cells; its cells excite each other in a loop; the cue reaches some of them but not all; the
+// connections among the cells are roughly symmetric (judged cell by cell, so a single population with per-edge weights is judged like several populations, and a directed random graph is not symmetric).
 // Biology: Hopfield JJ (1982) PNAS 79:2554 (a network with symmetric connections has stable states that a partial cue recalls); Amit DJ, Brunel N (1997) Cereb Cortex 7:237 (the same in networks of
 // integrate-and-fire neurons: persistent, selective activity). The sustained rate here is far above real delay activity (no balanced inhibition), and the pattern is a group, not a +1 / -1 vector.
 #include "theory.h"
@@ -65,12 +66,13 @@ Spec spec()
     if ( M.empty() ) return "";
     const std::set< int > mc = out_cells( e, "memory" ), cc = in_cells( e, "cue" );
     if ( mc.size() < 4 ) return "A pattern needs several cells: 'memory' reads too few of them to be a pattern that a part can recall.";
-    if ( !mech::excitatory_loop( g.st, mech::PopSet( M.begin(), M.end() ) ) ) return "The cells of the pattern do not excite each other: without recurrent excitation nothing pulls the rest of the pattern along, and the activity dies with the cue.";
+    const CellGraph cg( e );
+    if ( !cg.excitatory_loop( mc ) ) return "The cells of the pattern do not excite each other: without recurrent excitation nothing pulls the rest of the pattern along, and the activity dies with the cue.";
     int cued = 0;
     for ( int n : mc ) cued += cc.count( n ) ? 1 : 0;
     if ( cued == 0 ) return "The cue does not reach the pattern: connect 'cue' to some of the cells that 'memory' reads.";
     if ( cued == static_cast< int >( mc.size() ) ) return "The cue reaches every cell of the pattern: it must reach only part of it, or nothing is completed.";
-    return asymmetry( g, M );
+    return asymmetry_cells( cg, mc );
   };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     const int nm = m.size_of( "memory" ), nu = m.size_of( "uncued" );

@@ -68,8 +68,8 @@ def d_phasic():
 
 def d_switch():
     write("d_switch", circuit("A neuron that remembers a pulse", "d_switch",
-          [pop("N", "izhikevich", 1, {"a": 0.02, "b": 0.2, "c": -50.0, "d": 0.0}, (220, 140))], [],
-          [inp("hold", "dc", 2.5, ["N"]), inp("set", "dc", 10.0, ["N"]), inp("reset", "dc", 10.0, ["N"])], [out("spikes", ["N"])]))
+          [pop("N", "izhikevich", 1, {"a": 0.02, "b": 0.22, "c": -50.0, "d": 0.0}, (220, 140))], [],
+          [inp("hold", "dc", 0.5, ["N"]), inp("set", "dc", 10.0, ["N"]), inp("reset", "dc", 10.0, ["N"])], [out("spikes", ["N"])]))
 
 
 RATE = {"tau": 10.0, "sigma": 0.0, "g": 1.0, "theta": 0.0, "alpha": 1.0}
