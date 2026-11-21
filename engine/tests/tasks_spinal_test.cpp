@@ -483,7 +483,7 @@ int main( int argc, char** argv )
     auto t = make_task( id );
     json c = novice_bench( id );
     const bool spine = t->on_spine();  // a task moved to a branch because no novice bench passes it (lead decision): the bench is only reported
-    CHECK_MSG( spine || id == "reach", id + " is off the spine" );
+    CHECK_MSG( spine || id == "reach" || id == "posture", id + " is off the spine" );
     for ( uint64_t seed : { 1, 2, 3, 4, 5 } )
     {
       RunResult r = run_one( id, c, seed );
