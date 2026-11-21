@@ -320,12 +320,22 @@ func _draw_limb(pts: PackedVector2Array, ro: Dictionary) -> void:
 	var base := w2s(pts[0]); var tip := w2s(pts[pts.size() - 1]); var mid := w2s(pts[1])
 	var touching := float(ro.get("touching", 0.0)) > 0.5; var wd := float(ro.get("withdrawn", 0.0))
 	var W := minf(size.x, size.y) * 0.075
-	# the body wall the limb grows from: an engraved, hatched block
-	var wall := Rect2(Vector2(base.x - W * 2.6, size.y * 0.16), Vector2(W * 2.6, size.y * 0.68))
-	var wp := PackedVector2Array([wall.position, Vector2(wall.end.x, wall.position.y), wall.end, Vector2(wall.position.x, wall.end.y)])
-	draw_colored_polygon(wp, Gfx.SHADE); Gfx.hatch(self, wp, PI * 0.25, 7.0, Color(Kit.INK, 0.35), 1.0); Gfx.ink_poly(self, wp, Color(0, 0, 0, 0), Kit.INK, 1.5)
+	# the reflex arc, as in the textbook figure: the body segment the limb grows from (a sepia specimen, hatched) with its ganglion; a sensory neuron (verdigris)
+	# from the skin of the limb tip into the ganglion, an interneuron there, and a motor neuron (madder plum) back out to the muscle of the limb, each lit by its own
+	# readout (the afferent rate, the withdrawal)
+	var aff := clampf(float(ro.get("touch_rate_hz", 0.0)) / 300.0, 0.0, 1.0)
+	var seg := Rect2(Vector2(base.x - W * 5.0, size.y * 0.12), Vector2(W * 5.0, size.y * 0.72))
+	var body := Anatomy.closed_spline(PackedVector2Array([seg.position + Vector2(W * 0.8, 0), Vector2(seg.end.x, seg.position.y + W * 0.6), Vector2(seg.end.x + W * 0.25, seg.get_center().y), Vector2(seg.end.x, seg.end.y - W * 0.6), Vector2(seg.position.x + W * 0.8, seg.end.y), Vector2(seg.position.x, seg.get_center().y)]), 6)
+	draw_colored_polygon(body, Color(Anatomy.TISSUE, 0.95)); Gfx.hatch(self, body, PI * 0.3, 7.0, Color(Gfx.BODY, 0.18), 1.0); Gfx.stipple_poly(self, body, 90, Color(Gfx.BODY, 0.35), 3, 1.6)
+	var bc := body.duplicate(); bc.append(body[0]); draw_polyline(bc, Color(Gfx.BODY, 0.85), 1.8, true)
+	var gc := Vector2(seg.position.x + W * 1.9, seg.get_center().y + W * 0.9)
+	Gfx.wash(self, gc, W * (1.3 + 0.8 * wd), Kit.exc(), 0.15 + 0.45 * wd, 5)
+	var gpoly := Gfx.ellipse(gc, W * 0.95, W * 0.7, 28)
+	Gfx.ink_poly(self, gpoly, Color("#E9C9A0"), Kit.exc(), 1.4); Gfx.stipple_poly(self, gpoly, 14, Color(Anatomy.NUC, 0.6), 4, 2.6)
 	var sp := Gfx.cr_spline(PackedVector2Array([base, mid, tip]), 10)
-	Gfx.tube_rim(self, sp, func(u): return W * (1.0 - 0.45 * u), Color("#E9D2B8").lerp(Kit.exc().lightened(0.4), 0.5 * wd), Kit.INK, 1.6)
+	Gfx.tube_rim(self, sp, func(u): return W * (1.0 - 0.45 * u), Color("#E9D2B8"), Kit.INK, 1.6)
+	var mus := Gfx.cr_spline(PackedVector2Array([base.lerp(mid, 0.15), base.lerp(mid, 0.6), mid.lerp(tip, 0.2)]), 6)   # the flexor muscle, stained as it contracts
+	Gfx.tube_rim(self, mus, func(u): return W * 0.42 * sin(PI * clampf(u * 0.9 + 0.05, 0.0, 1.0)) * (0.8 + 0.35 * wd), Color("#F1DDD2").lerp(Kit.MOTOR.lightened(0.15), 0.25 + 0.6 * wd), Color(Kit.MOTOR, 0.8), 1.2)
 	# shading: stipple along the lower flank
 	var shade := PackedVector2Array()
 	for i in sp.size():
@@ -344,6 +354,18 @@ func _draw_limb(pts: PackedVector2Array, ro: Dictionary) -> void:
 	draw_circle(Vector2(probe_x, py), W * 0.5, Gfx.SHEET); draw_arc(Vector2(probe_x, py), W * 0.5, 0, TAU, 24, Kit.INK, 1.6, true)
 	if touching:
 		for k in 3: draw_arc(Vector2(probe_x, py), W * (0.9 + 0.5 * k), PI * 0.75, PI * 1.25, 8, Color(Kit.INK, 0.7 - 0.2 * k), 1.4, true)
+	var tip_skin := tip + (tip - mid).normalized() * W * 0.2
+	var s_path := Gfx.cr_spline(PackedVector2Array([tip_skin, mid + Vector2(0, -W * 0.55), base + Vector2(0, -W * 0.6), Vector2(seg.end.x - W * 0.9, base.y - W * 1.4), gc + Vector2(W * 0.4, -W * 0.5)]), 8)
+	var m_path := Gfx.cr_spline(PackedVector2Array([gc + Vector2(W * 0.5, W * 0.45), Vector2(seg.end.x - W * 0.9, base.y + W * 1.3), base + Vector2(0, W * 0.4), base.lerp(mid, 0.55) + Vector2(0, W * 0.3)]), 8)
+	Anatomy.nerve(self, s_path, Kit.SENSOR, 2.2, aff, tele.now(), 1.0, 3)
+	Anatomy.nerve(self, m_path, Kit.MOTOR, 2.2, wd, tele.now(), 1.0, 3)
+	var drg := s_path[int(s_path.size() * 0.72)]
+	draw_circle(drg, W * 0.26, Kit.SENSOR); draw_arc(drg, W * 0.26, 0, TAU, 16, Kit.INK, 1.0, true)
+	draw_circle(gc + Vector2(0, W * 0.05), W * 0.18, Kit.exc()); draw_arc(gc + Vector2(0, W * 0.05), W * 0.18, 0, TAU, 14, Kit.INK, 1.0, true)
+	var lfz := 13
+	Anatomy.tag(self, "sensory neuron", drg + Vector2(-W * 0.6, -W * 0.9), Kit.SENSOR, lfz, HORIZONTAL_ALIGNMENT_CENTER, false, 0.75)
+	Anatomy.tag(self, "ganglion", gc + Vector2(-W * 0.9, W * 1.5), Kit.EXC_INK, lfz, HORIZONTAL_ALIGNMENT_CENTER, false, 0.75)
+	Anatomy.tag(self, "motor neuron", m_path[int(m_path.size() * 0.45)] + Vector2(W * 1.6, W * 1.9), Kit.MOTOR, lfz, HORIZONTAL_ALIGNMENT_CENTER, false, 0.75)
 	draw_string(Gfx.mono(), Vector2(14, size.y - 24), "poke %s   afferent %d Hz   bursts %d" % ["ON" if touching else "off", int(float(ro.get("touch_rate_hz", 0.0))), int(float(ro.get("bursts", 0.0)))], HORIZONTAL_ALIGNMENT_LEFT, size.x - 28, Kit.fs(14), Kit.TEXT_SOFT)
 
 ## The plate's caption (task title in italic), the model clock in mono, and the run's progress as an inked rule along the bottom.
