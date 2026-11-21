@@ -53,7 +53,7 @@ func show_state(mode: String, hints: Array, shown: int, fails: int) -> HintPanel
 	for tr in [1, 2, 3]:
 		if tr > shown or not by.has(tr): continue
 		var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 10); body.add_child(row)
-		var ch := Kit.chip("%d  %s" % [tr, TIER_NAMES[tr]], Kit.AMBER if tr < 3 else Kit.CYAN, 14); ch.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; row.add_child(ch)
+		var ch := Kit.chip("%d  %s" % [tr, TIER_NAMES[tr]], Kit.GAMBOGE if tr < 3 else Kit.TEXT, 14); ch.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; row.add_child(ch)
 		var h: Dictionary = by[tr]; var txt := str(h.get("text", ""))
 		if tr == 2 and str(h.get("target", "")) != "": txt += "  (outlined in the editor)" if txt != "" else "Look at the outlined part of the circuit."
 		var l := Kit.label(txt, fs, Kit.TEXT, true); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(l)
