@@ -57,6 +57,15 @@ func _init() -> void:
 	var free := Telemetry.new()
 	for k in 40: free.sp_t.append(100.0 * k); free.sp_n.append(0)
 	_check(not Surprise.stimulus_locked([{"t_ms": 500.0, "dur_ms": 50.0}, {"t_ms": 2500.0, "dur_ms": 50.0}], free, 0.0, 4000.0), "a free-running rhythm is called stimulus-locked")
+	# one value per signal: a motor channel and the task's "<channel>_hz" readout give the same 500 ms mean (dx_pick showed 52.3 / 79.3 / 75)
+	var tl := Telemetry.new(); tl.t_ms = 2000.0
+	var ht := PackedFloat32Array(); var hv := PackedFloat32Array()
+	for k in 41: ht.append(50.0 * k); hv.append(0.0 if k < 38 else 90.0)
+	tl.hist_t = ht; tl.hist = {"forward_hz": hv}; tl.rates = {"forward": 75.0}; tl.body = {"readouts": {"forward_hz": 90.0}}
+	_check(is_equal_approx(tl.display("forward"), tl.display("forward_hz")), "the motor channel and its readout disagree (%s vs %s)" % [tl.display("forward"), tl.display("forward_hz")])
+	_check(absf(tl.display("forward_hz") - 27.0) < 0.01, "the display value is the 500 ms mean (%s)" % tl.display("forward_hz"))
+	var tm := Telemetry.new(); tm.body = {"readouts": {"period_s": -1.0}}
+	_check(is_nan(tm.display("period_s")), "a per-cycle metric not measured yet must read as measuring (NAN), not a number")
 	# toast text quotes no digits
 	var tx := Surprise.oscillation_text({"period_ms": 250.0, "pop": "AVA"})
 	var re := RegEx.new(); re.compile("[0-9]")

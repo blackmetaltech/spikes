@@ -84,7 +84,8 @@ func build() -> void:
 	if body_view and not phone: lab.raster.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 70.0; lab.traces.custom_minimum_size.y = 90.0 if Kit.vh >= 900.0 else 64.0   # the scopes give way to the body view and its timeline
 	lab.gauges = GaugeView.new(); lab.gauges.custom_minimum_size = Vector2(0, (40.0 + 30.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2)) if Kit.vh >= 900.0 else (32.0 + 24.0 * maxi(1, lab.tele.rates.size() if lab.tele.sim != null else 2))); scopes.add_child(lab.gauges)
 	if tid != "" and not (info.get("modulators", []) as Array).is_empty() and ModDials.available():   # task-driven neuromodulators: read-only gauges
-		lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false, tid); scopes.add_child(lab.mod_dials)
+		if Kit.vh >= 900.0 or phone: lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false, tid); scopes.add_child(lab.mod_dials)
+		else: lab.gauges.mods = info["modulators"]   # a short window (1366x768, Large text): the levels ride on the motor-output header instead of their own panel
 	lab.banner = Kit.label("", 17, Kit.RED, true); lab.banner.visible = false; v.add_child(lab.banner)
 	lab.celebration = Celebration.new(); ov.add_child(lab.celebration)
 	lab.celebration.open_notebook = func(): lab.app.show_screen("notebook")   # Back on the notebook returns to this lab (main.gd origin), circuit kept (lab_keep)

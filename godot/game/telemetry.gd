@@ -251,14 +251,15 @@ static func _sci(v: float) -> String:
 ## ONE value per signal (read-only; added for the lab chrome): every widget that shows a readout or a motor channel (the body view's gauge, the
 ## timeline strip, the motor-output bar) reads this, so they agree at every instant. It is the mean over the last DISPLAY_MS of model time:
 ## a task readout from its 50 ms history (the instant readout before the history has samples), a motor channel's spikes per neuron counted
-## over the same window (a rate unit's own value). NAN while the signal is not measured yet (the tasks' -1 sentinel, or no such key).
+## over the same window (a rate unit's own value). A motor channel the task also reports as "<channel>_hz" reads that readout. NAN while the signal is not measured yet (the tasks' -1 sentinel, or no such key).
 const DISPLAY_MS := 500.0
 func display(key: String) -> float:
 	var ro: Dictionary = body.get("readouts", {})
+	if not hist.has(key) and not ro.has(key) and (hist.has(key + "_hz") or ro.has(key + "_hz")): key += "_hz"   # a motor channel and the task's readout of it ("forward" / "forward_hz") are one signal
 	var a: PackedFloat32Array = hist.get(key, PackedFloat32Array())
 	if a.size() > 0 and hist_t.size() == a.size():
 		var sum := 0.0; var k := 0; var j := a.size() - 1
-		while j >= 0 and hist_t[j] > t_ms - DISPLAY_MS - 1.0:
+		while j >= 0 and hist_t[j] > t_ms - DISPLAY_MS + 0.5:   # (t - 500 ms, t]: ten 50 ms samples
 			if not is_equal_approx(a[j], -1.0) and is_finite(a[j]): sum += a[j]; k += 1
 			j -= 1
 		if k > 0: return sum / float(k)

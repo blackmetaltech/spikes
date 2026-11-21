@@ -4,6 +4,7 @@ extends Control
 ## The value is Telemetry.display(channel): the same 500 ms mean the body view's gauge and the timeline strip read, so the three never disagree.
 var tele: Telemetry = null
 var _max := {}
+var mods: Array = []   # read-only neuromodulator levels shown in the header ("NE 0.02  ACh 0.63") when the lab has no room for their own panel
 
 func _ready() -> void: clip_contents = true
 func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
@@ -20,8 +21,12 @@ func _run_mean(ch: String) -> float:
 
 func _any_run_mean() -> bool:
 	for name in tele.rates:
-		if tele.out_mask.has(name) and not tele.rate_units.has(name) and not (tele.body.get("readouts", {}) as Dictionary).has(name): return true
+		if tele.out_mask.has(name) and not tele.rate_units.has(name) and not _has_readout(str(name)): return true
 	return false
+
+func _has_readout(ch: String) -> bool:
+	var ro: Dictionary = tele.body.get("readouts", {})
+	return ro.has(ch) or ro.has(ch + "_hz")
 
 func rows() -> int: return maxi(1, tele.rates.size() if tele != null else 1)
 
@@ -30,11 +35,14 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Kit.CARD)
 	if tele == null or tele.sim == null: return
 	draw_string(Gfx.serif_italic(), Vector2(14, 20), "Motor output", HORIZONTAL_ALIGNMENT_LEFT, 200, Kit.fs(16), Kit.TEXT)
+	if not mods.is_empty():
+		var mt := "   ".join(mods.map(func(m): return "%s %.2f" % [str(m), tele.modulator_level(str(m))]))
+		draw_string(Gfx.mono(), Vector2(160, 20), mt, HORIZONTAL_ALIGNMENT_LEFT, maxf(size.x - 160.0 - 270.0, 60.0), fz, Kit.TEXT)
 	draw_string(Gfx.mono(), Vector2(size.x - 260, 20), ("rate" if not tele.rate_units.is_empty() else "Hz") + ((", whole run" if tele.finished and _any_run_mean() else ", last 0.5 s") if size.x > 420.0 else ""), HORIZONTAL_ALIGNMENT_RIGHT, 246, fz, Kit.TEXT_SOFT)
 	var r := 0; var lab_w := float(fz) * 9.0; var bh := minf(18.0, (size.y - 34.0) / float(rows()) - 6.0)
 	for name in tele.rates:
 		var dv := tele.display(str(name)); var measuring := is_nan(dv)
-		if tele.finished and tele.out_mask.has(name) and not tele.rate_units.has(name) and not (tele.body.get("readouts", {}) as Dictionary).has(name): dv = _run_mean(str(name)); measuring = false   # the run is over: its whole-run mean, not the last half second
+		if tele.finished and tele.out_mask.has(name) and not tele.rate_units.has(name) and not _has_readout(str(name)): dv = _run_mean(str(name)); measuring = false   # the run is over: its whole-run mean, not the last half second
 		var v := 0.0 if measuring else dv; var ru: bool = tele.rate_units.has(name); var floor_mx := 1.0 if ru and v < 20.0 else 40.0   # rate units: arbitrary units around 1 (a siegert unit is in Hz)
 		var mx := maxf(float(_max.get(name, floor_mx)) * 0.995, maxf(floor_mx, v * 1.25)); _max[name] = mx
 		var y := 32.0 + r * (bh + 8.0); r += 1
