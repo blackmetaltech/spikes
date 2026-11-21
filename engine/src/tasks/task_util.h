@@ -134,6 +134,7 @@ public:
       const int n = std::min( p.n, 4 );
       for ( int k = 0; k < n; ++k ) g.cells.push_back( p.first_index + ( p.n > n ? k * ( p.n / n ) : k ) );
       g.prev.assign( g.cells.size(), -1e9 );
+      g.base.assign( g.cells.size(), -1e9 );
       groups_.push_back( g );
     }
   }
@@ -148,7 +149,8 @@ public:
       {
         const int32_t n = g.cells[ i ];
         const double ts = e.neuron_state( n, "t_spike" ), v = e.voltage( n ), vth = e.neuron_state( n, "V_th" );
-        if ( std::isfinite( ts ) && ts >= 0.0 ) g.fired = true;
+        if ( g.base[ i ] < -1e8 ) g.base[ i ] = std::isfinite( ts ) ? ts : -1.0;   // the last-spike time at the first watched slice: only a LATER spike counts (a task may start watching late)
+        if ( std::isfinite( ts ) && ts > g.base[ i ] + 0.05 ) g.fired = true;
         else if ( g.prev[ i ] > -1e8 && g.prev[ i ] - v >= 5.0 ) g.fired = true;
         else if ( std::isfinite( vth ) && v >= vth - 0.5 ) g.fired = true;
         g.prev[ i ] = v;
@@ -180,7 +182,7 @@ private:
   {
     int pop = -1;
     std::vector< int32_t > cells;
-    std::vector< double > prev;
+    std::vector< double > prev, base;
     bool fired = false;
   };
   std::vector< Group > groups_;
