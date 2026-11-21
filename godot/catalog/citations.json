@@ -4739,6 +4739,27 @@
    "match": "Song(?: S)?,? (?:et al\\.?)? ?\\(?2000|Song 2000",
    "note": "",
    "used_in": []
+  },
+  {
+   "id": "raman1999",
+   "authors": [
+    "Raman IM",
+    "Bean BP"
+   ],
+   "year": 1999,
+   "title": "Ionic currents underlying spontaneous action potentials in isolated cerebellar Purkinje neurons",
+   "journal": "J Neurosci",
+   "volume": "19",
+   "pages": "1663-1674",
+   "doi": "10.1523/JNEUROSCI.19-05-01663.1999",
+   "pmid": "10024353",
+   "status": "verified",
+   "verified_by": "PubMed record (title, authors, journal, volume, pages, DOI read from the PubMed record), 2026-11-21",
+   "match": "Raman(?: IM)?,? (?:&|and) Bean(?: BP)?,? \\(?1999",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks/m_tonic.cpp"
+   ]
   }
  ]
 }

@@ -292,6 +292,7 @@ int main( int argc, char** argv )
     { "m_inhibition", "invertebrates", "inhibition", { "threshold", "excitation" }, "worm" },
     { "m_subtraction", "invertebrates", "subtraction", { "inhibition", "convergence" }, "worm" },
     { "m_adaptation", "invertebrates", "adaptation", { "threshold" }, "lamprey" },
+    { "m_tonic", "invertebrates", "tonic_drive", { "inhibition" }, "lamprey" },
     { "m_half_centre", "invertebrates", "half_centre", { "inhibition", "adaptation" }, "lamprey" },
     { "m_pacemaking", "heart", "pacemaking", { "threshold" }, "heart_pacemaker" },
     { "m_coupling", "heart", "coupling", { "pacemaking", "excitation" }, "heart_pacemaker" },
@@ -449,6 +450,10 @@ int main( int argc, char** argv )
     { "m_adaptation", set_params( "N1", { { "b", 0.0 }, { "a", 0.0 } } ), "adaptation removed (a = b = 0): the rate stays flat" },
     { "m_adaptation", set_params( "N1", { { "tau_w", 30.0 } } ), "tau_w 30 ms: the adaptation current fades before it builds up" },
     { "m_adaptation", silence( "N1" ), "cell silenced" },
+    { "m_tonic", set_params( "N1", { { "I_e", 0.0 } } ), "bias removed: the cell is silent at rest" },
+    { "m_tonic", set_params( "N1", { { "I_e", 700.0 } } ), "bias far over threshold: the cell races at rest" },
+    { "m_tonic", cut( "N2", "N1" ), "the inhibitory link cut (the cue does nothing)" },
+    { "m_tonic", cut( "N2", "N1", 0.05 ), "inhibition x0.05: the cue only slows the cell" },
     { "m_half_centre", cut( "N1", "N2" ), "one of the two inhibitory links cut (L silences nothing)" },
     { "m_half_centre", both( cut( "N1", "N2" ), cut( "N2", "N1" ) ), "no inhibition at all: both sides fire together" },
     { "m_half_centre", both( set_params( "N1", { { "b", 0.0 }, { "a", 2.0 }, { "tau_w", 30.0 } } ), set_params( "N2", { { "b", 0.0 }, { "a", 2.0 }, { "tau_w", 30.0 } } ) ), "no adaptation (the Tonic preset): one side wins or both fire in step" },
@@ -618,6 +623,23 @@ int main( int argc, char** argv )
         if ( says( v, "strengthen the step" ) ) s.k[ "step" ].up( 1.4 );
         else if ( says( v, "lower the adaptation" ) ) { s.f.insert( "touched_tau" ); s.k[ "tau_w" ].down( 1.4 ); }
         else if ( says( v, "tau_w" ) ) { s.f.insert( "touched_tau" ); s.k[ "tau_w" ].up( 2 ); }
+      } );
+  }
+  {  // m_tonic: a bias on the cell that fires (advanced parameters, I_e), the cue through an inhibitory cell onto it
+    reads( "m_tonic", { "bias", "I_e", "inhibitory", "neuron of its own", "cue" } );
+    State s;
+    s.knob( "ie", 0.0 );
+    s.knob( "w", lab_w( "m_tonic" ) );
+    novice[ "m_tonic" ] = play( "m_tonic", s,
+      []( const State& s ) {
+        json extra = json::object();
+        if ( s( "ie" ) > 0 ) extra[ "I_e" ] = s( "ie" );
+        return Bench( "m_tonic" ).cell( "N1", 1, extra ).cell( "N2" ).sense( "cue", { "N2" } ).out( "spikes", { "N1" } ).proj( "N2", "N1", -s( "w" ) ).c;
+      },
+      [ & ]( State& s, const std::string& v ) {
+        if ( says( v, "races" ) ) s.k[ "ie" ].down( 1.15 );
+        else if ( says( v, "silent" ) ) { if ( s( "ie" ) < 250 ) s.k[ "ie" ].v = 250; else s.k[ "ie" ].up( 1.25 ); }
+        else if ( says( v, "strengthen" ) ) s.k[ "w" ].up( 3 );
       } );
   }
   {  // m_half_centre: two cells, each inhibiting the other, the same drive on both
