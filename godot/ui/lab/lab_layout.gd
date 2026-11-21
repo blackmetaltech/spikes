@@ -84,6 +84,7 @@ func build() -> void:
 		lab.mod_dials = ModDials.new().setup(func(): return lab.tele, info["modulators"], false, tid); scopes.add_child(lab.mod_dials)
 	lab.banner = Kit.label("", 17, Kit.RED, true); lab.banner.visible = false; v.add_child(lab.banner)
 	lab.celebration = Celebration.new(); ov.add_child(lab.celebration)
+	lab.celebration.open_notebook = func(): lab.app.show_screen("notebook")   # Back on the notebook returns to this lab (main.gd origin), circuit kept (lab_keep)
 	lab.celebration.blocked = func() -> bool: return lab._overlay != null and is_instance_valid(lab._overlay)
 	lab.add_child(ov)
 
@@ -114,7 +115,7 @@ func fill_bar() -> void:
 	lab.status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; lab.status.custom_minimum_size.x = 0; lab.status.clip_text = true
 	bar.add_child(lab.status)
 	if phone: lab.status.visible = false   # shown in the menu on a phone
-	var mb := Kit.btn("Menu" if phone else "More", toggle_menu, "cyan" if phone else "panel", bs, Vector2(84, 0)); Kit.ident(mb, "BtnMore"); mb.tooltip_text = "Speed, difficulty, tests, lesions, analysis, files"; bar.add_child(mb)
+	var mb := Kit.btn("Menu" if phone else "More", toggle_menu, "panel", bs, Vector2(84, 0)); Kit.ident(mb, "BtnMore"); mb.tooltip_text = "Speed, difficulty, tests, lesions, analysis, files"; bar.add_child(mb)
 	lab.play.hint_btn_sync()
 	lab._sync_run_btn.call_deferred()
 
@@ -151,9 +152,9 @@ func fill_palette() -> void:
 	for c in palette_row.get_children(): palette_row.remove_child(c); c.queue_free()
 	var sz := 18; var tid := lab.task_id
 	parts_btn = null
-	if not Layout.phone and LabUnlocks.has(tid, "parts"): parts_btn = Kit.btn(part_text(), open_parts, "cyan", sz); Kit.ident(parts_btn, "BtnParts"); palette_row.add_child(parts_btn)   # on a phone the parts button lives in the menu
+	if not Layout.phone and LabUnlocks.has(tid, "parts"): parts_btn = Kit.btn(part_text(), open_parts, "panel", sz); Kit.ident(parts_btn, "BtnParts"); palette_row.add_child(parts_btn)   # on a phone the parts button lives in the menu
 	palette_row.add_child(Kit.btn("+ Excitatory", func(): lab._add_neuron("E"), "amber", sz))
-	if LabUnlocks.has(tid, "inhibitory"): palette_row.add_child(Kit.btn("+ Inhibitory", func(): lab._add_neuron("I"), "cyan", sz))
+	if LabUnlocks.has(tid, "inhibitory"): palette_row.add_child(Kit.btn("+ Inhibitory", func(): lab._add_neuron("I"), "panel", sz))
 	if LabUnlocks.has(tid, "noise"): palette_row.add_child(Kit.btn("+ Noise", lab._add_noise, "panel", sz))
 	connect_btn = Kit.btn("Connect", lab._toggle_connect, "panel", sz); palette_row.add_child(connect_btn)
 	connect_btn.tooltip_text = "Connect mode: click a source, then a target. You can also drag from a neuron's rim."
@@ -221,7 +222,7 @@ func open_menu() -> void:
 		if stx != "": v.add_child(Kit.label(stx, 16, Kit.TEXT_SOFT))
 		if LabUnlocks.has(tid, "parts"):
 			v.add_child(Kit.small_caps("New neuron type", 15, Kit.TEXT_SOFT))
-			var pb := Kit.btn(part_text(), open_parts, "cyan", 18); pb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; v.add_child(pb)
+			var pb := Kit.btn(part_text(), open_parts, "panel", 18); pb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; v.add_child(pb)
 	# I. the run
 	var run: HFlowContainer = group.call("Run")
 	run.add_child(Kit.ident(Kit.stepper(LabScreen.SPEEDS, String.num(lab.tele.speed), func(id): lab.tele.speed = float(id), 76.0 if not phone else 60.0, 20 if not phone else 18, 44.0 if not phone else 36.0), "StepSpeed"))
@@ -244,8 +245,8 @@ func open_menu() -> void:
 				Kit.skin(hb, "amber" if HintPanel.available(lab.mode, int(LabScreen._fails.get(tid, 0))) else "ghost", 12)
 		if not dxm:
 			if phone or not test_on_bar(): item.call(lv2, "Test x5", lab._test_start, "green")
-			if passed_here(): item.call(lv2, "Results", histo_show, "cyan")
-			if reference_open(): item.call(lv2, "Reference", lab._load_reference, "cyan")
+			if passed_here(): item.call(lv2, "Results", histo_show, "panel")
+			if reference_open(): item.call(lv2, "Reference", lab._load_reference, "panel")
 			item.call(lv2, "Empty bench", lab._empty_bench)
 	# III. tools
 	var tools: HFlowContainer = group.call("Tools")
@@ -346,26 +347,32 @@ func overlay_show(testing := false) -> void:
 		var pl := Kit.label("", 20 if not phone else 17, Kit.TEXT_SOFT, true); pl.name = "TestProg"; v.add_child(pl)
 		v.add_child(Kit.btn("Cancel", lab._test_cancel, "panel", 20))
 		return
-	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 18); v.add_child(hd)
+	# a rubber stamp beside "N of 100" and the stars; one soft line for a reference circuit; one primary button (the next level after a pass, else run
+	# again), the rest outlined. The energy bill lives in Results (its Energy row), not here.
+	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 22 if not phone else 14); v.add_child(hd)
 	var col := Kit.GREEN if passed else Kit.RED
-	var tl := Kit.shout(("Passed" if passed else "Not passed") if lab._test_result.is_empty() else "%d of %d seeds passed" % [int(lab._test_result["passes"]), int(lab._test_result["n"])], 40 if not phone else 28, col); tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hd.add_child(tl)
-	hd.add_child(Kit.shout(str(val), 54 if not phone else 36, Kit.TEXT))
-	var sr := HBoxContainer.new(); sr.add_theme_constant_override("separation", 14); v.add_child(sr)
 	var ref := lab._is_reference()
-	var best := Progress.best(tid); var ev := _OvStars.new(); ev.n = int(best["stars"]) if not ref else 0; ev.custom_minimum_size = Vector2(110, 30); sr.add_child(ev)
-	var bl := Kit.label("best %d" % int(roundf(float(best["value"]))) if not ref else "reference circuit: not recorded", 18 if not phone else 16, Kit.TEXT_SOFT); bl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(bl)
-	v.add_child(Kit.label(_end_text(), 19 if not phone else 16, Kit.TEXT, true))
-	if tele.sim != null:   # the energy bill of this run
-		var hz := tele.spike_rate_hz()
-		v.add_child(Kit.label("Energy: %s spikes/s, about %s (roughly 1e8 to 1e9 ATP per spike)." % [str(int(roundf(hz))), Telemetry.atp_text(hz)], 16 if not phone else 15, Kit.exc(), true))
+	var seeds := not lab._test_result.is_empty()
+	var stp := Kit.stamp(str(val), "PASSED" if passed else "NOT PASSED", "of 100", col, 120.0 if not phone else 88.0); Kit.ident(stp, "EndStamp"); hd.add_child(stp)
+	var hv := VBoxContainer.new(); hv.add_theme_constant_override("separation", 6); hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hv.alignment = BoxContainer.ALIGNMENT_CENTER; hd.add_child(hv)
+	var tl := Kit.display("%d of 100" % val if not seeds else "%d of %d worlds passed" % [int(lab._test_result["passes"]), int(lab._test_result["n"])], 40 if not phone else 28, Kit.TEXT); hv.add_child(tl)
+	var best := Progress.best(tid)
+	if ref: hv.add_child(Kit.italic("Reference circuit: practice only", 19 if not phone else 16, Kit.TEXT_SOFT))
+	else:
+		var sr := HBoxContainer.new(); sr.add_theme_constant_override("separation", 14); hv.add_child(sr)
+		var ev := _OvStars.new(); ev.n = int(best["stars"]); ev.custom_minimum_size = Vector2(110, 30); sr.add_child(ev)
+		var bl := Kit.label("best %d" % int(roundf(float(best["value"]))), 18 if not phone else 16, Kit.TEXT_SOFT); bl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; sr.add_child(bl)
+	var et := _end_text()
+	if et != "": v.add_child(Kit.label(et, 19 if not phone else 16, Kit.TEXT, true))
 	var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 10); br.add_theme_constant_override("v_separation", 8); v.add_child(br)
-	br.add_child(Kit.btn("Run again", lab._restart, "amber", 20))
-	br.add_child(Kit.btn("Test x5", lab._test_start, "green", 20))
-	if passed and not ref: br.add_child(Kit.btn("Results", histo_show, "cyan", 20))
-	var fails := int(LabScreen._fails.get(tid, 0))
-	if not passed and lab.mode != "researcher" and lab._test_result.is_empty(): br.add_child(Kit.ident(Kit.btn(HintPanel.button_text(lab.mode, fails, int(LabScreen._hint_tier.get(tid, 0))), func(): lab._overlay_dismissed = true; overlay_hide(); lab.play.hint_toggle(), "amber" if HintPanel.available(lab.mode, fails) else "ghost", 20), "BtnHint"))
 	var nx := Progress.next_task(tid)
-	if passed and nx != "": br.add_child(Kit.btn("Next task", func(): lab.app.open_lab(nx), "cyan", 20))
+	var next_first := passed and nx != ""
+	if next_first: br.add_child(Kit.ident(Kit.btn("Next level →", func(): lab.app.open_lab(nx), "amber", 22), "BtnNextTask"))
+	br.add_child(Kit.btn("Run again", lab._restart, "panel" if next_first else "amber", 20))
+	br.add_child(Kit.btn("Test x5", lab._test_start, "panel", 20))
+	if passed and not ref: br.add_child(Kit.btn("Results", histo_show, "panel", 20))
+	var fails := int(LabScreen._fails.get(tid, 0))
+	if not passed and lab.mode != "researcher" and lab._test_result.is_empty(): br.add_child(Kit.ident(Kit.btn(HintPanel.button_text(lab.mode, fails, int(LabScreen._hint_tier.get(tid, 0))), func(): lab._overlay_dismissed = true; overlay_hide(); lab.play.hint_toggle(), "panel" if HintPanel.available(lab.mode, fails) else "ghost", 20), "BtnHint"))
 	if lab._lesion_ok(): br.add_child(Kit.btn("Lesion lab", lab.les.open, "panel", 20))
 	if LabUnlocks.has(tid, "analysis"): br.add_child(Kit.btn("Analysis", lab._open_analysis, "panel", 20))
 	br.add_child(Kit.btn("Close", func(): lab._overlay_dismissed = true; overlay_hide(), "ghost", 20))
@@ -381,7 +388,7 @@ func test_progress(seed: int, pct: float, done: Array) -> void:
 class _OvStars extends Control:
 	var n := 0
 	func _draw() -> void:
-		for k in 3: ScoreCard.draw_star_on(self, Vector2(14.0 + 34.0 * k, size.y * 0.5), 13.0, Kit.AMBER if k < n else Color(Kit.LINE, 0.95))
+		for k in 3: ScoreCard.draw_star_on(self, Vector2(14.0 + 34.0 * k, size.y * 0.5), 13.0, Kit.GAMBOGE if k < n else Color(Kit.LINE, 0.95))
 
 # ---------- post-solve histograms ----------
 ## The three axes of the post-solve card: neurons, energy (mean spikes/s per neuron, the ATP bill) and the task's own quality metric.
@@ -436,4 +443,7 @@ func histo_show() -> void:
 		hv.custom_minimum_size.x = 300.0 if phone else 440.0; hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fl.add_child(hv)
 		if HistogramView.beats_median(hv.dist, float(r["value"]), bool(r["lower"])): wins += 1
 	if wins > 0: v.add_child(Kit.label("You beat the variants' median on %d of 3 axes." % wins, 19, Kit.GREEN, true))
+	if lab.tele.sim != null:   # the energy bill of this run (moved here from the end card)
+		var hz := lab.tele.spike_rate_hz()
+		v.add_child(Kit.label("Energy: %s spikes/s in the whole circuit, about %s (each spike costs roughly a hundred million to a billion ATP)." % [str(int(roundf(hz))), Telemetry.atp_text(hz)], 16 if not phone else 15, Kit.TEXT_SOFT, true))
 	Playlog.event("histogram", {"task": tid})
