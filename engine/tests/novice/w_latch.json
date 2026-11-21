@@ -1,0 +1,98 @@
+{
+ "schema_version": 1,
+ "name": "novice",
+ "resolution_ms": 0.1,
+ "seed": 1,
+ "populations": [
+  {
+   "id": "R",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "S",
+   "model": "iaf_psc_alpha",
+   "n": 1,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "R",
+   "post": "R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 1280,
+    "delay": 2.0
+   }
+  },
+  {
+   "pre": "S",
+   "post": "R",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -2560,
+    "delay": 2.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "touch",
+   "kind": "poisson",
+   "weight": 1000,
+   "value": 150,
+   "targets": [
+    {
+     "pop": "R"
+    }
+   ]
+  },
+  {
+   "name": "stop",
+   "kind": "poisson",
+   "weight": 1000,
+   "value": 150,
+   "targets": [
+    {
+     "pop": "S"
+    }
+   ]
+  }
+ ],
+ "outputs": [
+  {
+   "name": "reverse",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "R"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "novice",
+  "task": "w_latch"
+ }
+}

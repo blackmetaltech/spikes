@@ -70,6 +70,7 @@ Stats stats( const Meas& m, double t_end )
   const auto& r = m.cnt.at( "right" );
   const int nb = static_cast< int >( ( t_end - kW0 ) / kBin );
   int last = 0, active = 0, both = 0;
+  std::vector< double > times;   // the bins at which the winning side changed
   double tl = 0, tr = 0;
   for ( int b = 0; b < nb; ++b )
   {
@@ -86,12 +87,25 @@ Stats stats( const Meas& m, double t_end )
     if ( x > 0 && y > 0 ) ++both;
     const int d = x > y ? 1 : ( y > x ? -1 : 0 );
     if ( d == 0 ) continue;
-    if ( last != 0 && d != last ) st.switches += 1;
+    if ( last != 0 && d != last )
+    {
+      st.switches += 1;
+      times.push_back( kW0 + b * kBin );
+    }
     last = d;
   }
   st.overlap = active > 0 ? static_cast< double >( both ) / active : 1.0;
   st.balance = tl + tr > 0 ? std::min( tl, tr ) / ( tl + tr ) : 0.0;
-  st.period = st.switches >= 2 ? ( t_end - kW0 ) / ( st.switches / 2.0 ) : 0.0;
+  // the cycle time from the MEDIAN interval between turns (two turns make a cycle), not from the window length over the number of turns: that one is quantised by the window and by a
+  // missed or an extra turn at its edges, and a quick episode (shorter window) would read a different period from the full one for the same circuit
+  if ( times.size() >= 2 )
+  {
+    std::vector< double > iv;
+    for ( size_t k = 1; k < times.size(); ++k ) iv.push_back( times[ k ] - times[ k - 1 ] );
+    std::sort( iv.begin(), iv.end() );
+    const size_t h = iv.size() / 2;
+    st.period = 2.0 * ( iv.size() % 2 ? iv[ h ] : 0.5 * ( iv[ h - 1 ] + iv[ h ] ) );
+  }
   auto mean_burst = [ & ]( const std::vector< float >& v ) {
     const auto rs = runs_of( v, kW0, t_end, 100 );
     double s = 0;
@@ -177,7 +191,7 @@ Spec spec()
     p[ "burst_right" ] = st.burst_r;
     const double tl = m.n( "left", "window" ), tr = m.n( "right", "window" );
     const double sw_need = m.tol > 1.2 ? 3 : ( m.tol < 0.9 ? 5 : 4 );
-    c.push_back( { "fires", tl >= 1 && tr >= 1, ( tl >= 1 ? 0.5 : 0.0 ) + ( tr >= 1 ? 0.5 : 0.0 ) * 0.5,
+    c.push_back( { "fires", tl >= 1 && tr >= 1, 0.5 * ( ( tl >= 1 ? 0.5 : 0.0 ) + ( tr >= 1 ? 0.5 : 0.0 ) ),
       tl + tr < 1 ? "Nothing fired in the analysis window. The drive must reach both cells and be over their rheobase: strengthen the drive."
                   : std::string( "Only the " ) + ( tl >= 1 ? "left" : "right" ) + " side fires: the other is silenced for good (or never got the drive). The side that is silenced needs a way back: slow adaptation in "
                     "the active cell so that it gives way, and the drive on both cells." } );

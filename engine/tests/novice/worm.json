@@ -1,0 +1,147 @@
+{
+ "schema_version": 1,
+ "name": "novice",
+ "resolution_ms": 0.1,
+ "seed": 1,
+ "populations": [
+  {
+   "id": "R",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "L",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  },
+  {
+   "id": "TL",
+   "model": "iaf_psc_alpha",
+   "n": 4,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ],
+    [
+     200,
+     200
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "R",
+   "post": "TL",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 800,
+    "delay": 1.0
+   }
+  },
+  {
+   "pre": "L",
+   "post": "TL",
+   "rule": "all_to_all",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": -1500,
+    "delay": 1.0
+   }
+  }
+ ],
+ "inputs": [
+  {
+   "name": "ASER",
+   "kind": "poisson",
+   "weight": 1000,
+   "value": 5,
+   "targets": [
+    {
+     "pop": "R"
+    }
+   ]
+  },
+  {
+   "name": "ASEL",
+   "kind": "poisson",
+   "weight": 1000,
+   "value": 5,
+   "targets": [
+    {
+     "pop": "L"
+    }
+   ]
+  }
+ ],
+ "outputs": [
+  {
+   "name": "turn_left",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "TL"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "novice",
+  "task": "worm"
+ }
+}

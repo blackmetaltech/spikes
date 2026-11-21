@@ -172,6 +172,7 @@ public:
     t_reach_ = -1;
     dist_sum_ = 0;
     nsteps_ = 0;
+    turn_src_.reset();
     ml_.tau_ms = mr_.tau_ms = kMotorTau;
     ml_.reset( 0 );
     mr_.reset( 0 );
@@ -204,10 +205,15 @@ public:
     {
       inspected_ = true;
       inspect( e );
+      micro::Graph gs( e.structure() );
+      std::set< int > tp;
+      for ( const char* ch : { "turn_left", "turn_right" } ) for ( int p : gs.out_pops( ch ) ) tp.insert( p );
+      turn_src_.arm( gs.st, tp, 0 );
     }
     e.set_input( "ASEL", rate_l_ );
     e.set_input( "ASER", rate_r_ );
     e.step( dt );
+    turn_src_.tick( e );
     double l = motor_.hz_per_neuron( e, "turn_left" ), r = motor_.hz_per_neuron( e, "turn_right" );
     spikes_l_ += motor_.spike_count( e, "turn_left", dt );
     spikes_r_ += motor_.spike_count( e, "turn_right", dt );
@@ -287,6 +293,9 @@ public:
     else if ( spikes_l_ < 1 && spikes_r_ < 1 )
       o << "Neither turn_left nor turn_right ever fired, so the worm walks straight and leaves. "
            "Check ASEL/ASER reach a cell that drives a motor pool, and that the weights are strong enough.";
+    else if ( turn_src_.armed() && turn_src_.some_silent() )
+      o << "The worm did not get to the peak in time. " << turn_src_.say( "cells that carry the salt signal to the turning command" )
+        << " (the salt cells' own weights decide whether they fire: strengthen the sensors, or give the cells a bias current).";
     else
       o << "The worm did not get to the peak in time. Turn when "
            "ASER fires and ASEL does not; stay straight when ASEL fires.";
@@ -379,6 +388,7 @@ private:
   double psi_ = 0, t_ = 0, start_dist_ = 1, t_reach_ = -1, dist_sum_ = 0, prev_lnc_ = 0, omega_ = 0;
   double rate_l_ = kBase, rate_r_ = kBase;
   long nsteps_ = 0;
+  SourceWatch turn_src_;   // the groups that feed the turn pools: a silent one is said in the verdict
   double min_dist_ = 1, spikes_l_ = 0, spikes_r_ = 0;
   Wiring wiring_;
   bool inspected_ = false;

@@ -200,6 +200,14 @@ public:
       for ( const auto& c : e.outputs() )
         if ( c.name == "gamma_motor" && !c.neurons.empty() )
           gamma_present_ = true;
+      // the interneurons that inhibit the motor pools: a verdict that says "strengthen the inhibition" must first know whether they fire at all
+      mechb::PopSet motors;
+      for ( const char* ch : { "ag_motor", "ant_motor", "gamma_motor" } )
+      {
+        const auto p = graph_.out_pops( ch );
+        motors.insert( p.begin(), p.end() );
+      }
+      inhib_.arm( e.structure(), std::set< int >( motors.begin(), motors.end() ), -1 );
       probed_inputs_ = true;
     }
     wiring_.probe( e, sensor_channels(), motor_channels() );
@@ -212,6 +220,7 @@ public:
     put( e, "ant_Ib", rig_.ib_ant );
     cues( e, t_ );
     e.step( dt );
+    if ( watch_inhib_now() ) inhib_.tick( e );
     const double ag = motor_.hz_per_neuron( e, "ag_motor" ), ant = motor_.hz_per_neuron( e, "ant_motor" );
     const bool hg = gamma_present_;
     const double gm = hg ? motor_.hz_per_neuron( e, "gamma_motor" ) : 0.0;
@@ -311,6 +320,8 @@ protected:
   }
   virtual double torque( double t_ms ) const = 0;
   virtual void cues( Engine&, double /*t_ms*/ ) {}
+  /// Is the model time one in which the inhibitory interneurons are expected to fire on their own (a brief volley at a tap is not a steady stretch)? Default: always.
+  virtual bool watch_inhib_now() const { return true; }
   virtual void after_tick( double /*h*/ ) {}
   /// Angle the limb is asked to hold (rad). Meaningful only while has_target(); otherwise it follows the limb, so a view that prints
   /// "off by theta - target" shows 0 rather than the angle itself.
@@ -343,6 +354,7 @@ protected:
     inputs_.clear();
     mech_.clear();
     graph_.clear();
+    inhib_.reset();
   }
 
   LimbRig rig_;
@@ -350,6 +362,7 @@ protected:
   Wiring wiring_;
   std::set< std::string > inputs_;
   mechb::Graph graph_;
+  SourceWatch inhib_;   // the cells that inhibit the motor pools (reciprocal Ia inhibition, Renshaw cells)
   std::vector< mechb::Issue > mech_;
   bool probed_inputs_ = false, gamma_present_ = false;
   double t_ = 0, tq_ = 0, spikes_ag_ = 0, spikes_ant_ = 0, pool_ag_ = 1, pool_ant_ = 1;

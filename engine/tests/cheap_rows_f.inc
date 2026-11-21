@@ -81,7 +81,8 @@
   CHEAP_ROW( "r_choose", "self-excitation and inhibition far too strong: the first winner never gives way", cheap::from_ref( "r_choose", cheap::all( cut_f( "A", "A", 3.0 ), cut_f( "B", "B", 3.0 ), cut_f( "A", "B", 3.0 ), cut_f( "B", "A", 3.0 ) ) ) );
   CHEAP_ROW( "r_choose", "inhibition far too weak (x0.1): both win", cheap::from_ref( "r_choose", cheap::both( cut_f( "A", "B", 0.1 ), cut_f( "B", "A", 0.1 ) ) ) );
   CHEAP_ROW( "r_choose", "b_in not wired", cheap::from_ref( "r_choose", cheap::scale_input( "b_in", 0.0 ) ) );
-  CHEAP_ROW_V( "r_choose", "feed-forward bias: loops of 0.01 and a_in 4.0 against b_in 2.7 (the first side always leads, so a static bias looks like a memory)", "bias",
+  CHEAP_ROW_V( "r_choose", "feed-forward bias: loops of 0.01 and a_in 4.0 against b_in 2.7 (the first side always leads, so a static bias looks like a memory)", "excite itself",   // (the 0.01 loops are token weights: the floor now names the missing self-excitation before the bias is looked at)
+   
     cheap::from_ref( "r_choose", cheap::all( cheap::all( cut_f( "A", "A", 0.008 ), cut_f( "B", "B", 0.008 ), cut_f( "A", "B", 0.01 ), cut_f( "B", "A", 0.01 ) ), cheap::scale_input( "a_in", 4.0 ), cheap::scale_input( "b_in", 2.7 ) ) ) );
   CHEAP_ROW_V( "r_oscillate", "loop through the inhibitory unit four times too strong: the excitation is pinned just above the drive", "too strong", cheap::from_ref( "r_oscillate", cut_f( "E", "I", 4.0 ) ) );
   CHEAP_ROW_V( "r_choose", "both motors read A", "same unit", [] {
