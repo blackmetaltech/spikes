@@ -13,13 +13,14 @@ static func rv(d: Dictionary, k: String, dflt := 0.0) -> float: return float(d.g
 static func hist(t: Telemetry, k: String) -> PackedFloat32Array: return t.hist.get(k, PackedFloat32Array()) if t != null else PackedFloat32Array()
 
 static func draw(kind: String, c: Control, t: Telemetry, r: Rect2) -> void:
+	if Specimens.handles(t): Specimens.draw(c, t, r); return   # every Bestiary level (and its diagnosis case) is a living specimen, whatever kind its task names
 	match kind:
 		"limb": _limb(c, t, r)
 		"heart": _heart(c, t, r)
 		"lungs": _lungs(c, t, r)
 		"eye": _eye(c, t, r)
 		"gut": _gut(c, t, r)
-		"compass": _compass(c, t, r)
+		"compass": Specimens._compass(c, t, r)
 		"phase": _phase(c, t, r)
 		"rates": _rates(c, t, r)
 		"memory": _memory(c, t, r)
@@ -518,33 +519,7 @@ static func _gut(c: Control, t: Telemetry, r: Rect2) -> void:
 			if d.has(kk): extra.append([kk, rv(d, kk)])
 		_strip(c, Rect2(r.position.x, r.end.y - 30.0, r.size.x, 28.0), extra)
 
-# ---------------------------------------------------------------- compass (v0.5, the fly heading ring)
-## A dial of the ring readout: the fly's true heading (ink needle, the heading the fly really has), the bump of the circuit (cyan needle, its length is how sharp the bump is) and the landmark (a mark on the rim while the
-## lights are on). Readouts: true_deg, bump_deg, bump_strength, landmark_deg, dark. Angles run clockwise from the top, like a compass.
-static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
-	var d := ro(t); var fz := Kit.fs(14)
-	if d.is_empty(): _empty(c, r, "No readouts from this task yet."); return
-	var y := r.position.y + _banner(c, t, r)
-	var area := Rect2(r.position.x, y, r.size.x, r.end.y - y - float(fz) - 8.0)
-	var rad := maxf(minf(area.size.x, area.size.y) * 0.42, 30.0); var cc := area.get_center()
-	var ang := func(deg: float) -> float: return deg_to_rad(deg) - PI * 0.5
-	c.draw_circle(cc, rad + 4.0, Color(Gfx.SHEET, 0.9)); c.draw_arc(cc, rad, 0.0, TAU, 64, Color(Kit.INK, 0.85), 1.6, true)
-	for k in 16:
-		var a: float = ang.call(22.5 * float(k)); var dv := Vector2(cos(a), sin(a))
-		c.draw_line(cc + dv * rad, cc + dv * (rad - (9.0 if k % 4 == 0 else 5.0)), Color(Kit.INK, 0.75), 1.4 if k % 4 == 0 else 1.0, true)
-	var lm := rv(d, "landmark_deg"); var dark := rv(d, "dark") > 0.5
-	if not dark:
-		var la: float = ang.call(lm); var lp := cc + Vector2(cos(la), sin(la)) * (rad + 10.0); c.draw_circle(lp, 6.0, Kit.AMBER); c.draw_arc(lp, 6.0, 0.0, TAU, 16, Kit.INK, 1.2, true)
-	var ta: float = ang.call(rv(d, "true_deg")); var td := Vector2(cos(ta), sin(ta))
-	c.draw_line(cc, cc + td * (rad - 6.0), Kit.INK, 3.0, true); c.draw_circle(cc + td * (rad - 6.0), 4.0, Kit.INK)
-	var st := clampf(rv(d, "bump_strength") / 0.8, 0.0, 1.0)
-	if st > 0.02:
-		var ba: float = ang.call(rv(d, "bump_deg")); var bd := Vector2(cos(ba), sin(ba))
-		c.draw_line(cc, cc + bd * ((rad - 6.0) * st), Kit.CYAN, 5.0, true); c.draw_circle(cc + bd * ((rad - 6.0) * st), 6.0, Kit.CYAN)
-	c.draw_circle(cc, 5.0, Kit.INK)
-	var err := absf(wrapf(rv(d, "bump_deg") - rv(d, "true_deg"), -180.0, 180.0)) if st > 0.02 else 180.0
-	var txt := ("heading error %d deg   (ink: the fly's heading, cyan: the circuit's bump)" % int(roundf(err))) if st > 0.02 else "no bump on the ring yet   (ink: the fly's heading, cyan: the circuit's bump)"   # no bump, no error: 180 deg for nothing read as a score
-	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+# ---------------------------------------------------------------- compass: the fly compass specimen, godot/ui/specimens.gd (Specimens._compass)
 
 # ---------------------------------------------------------------- phase plane (v0.6, Theory wing)
 ## The V-w phase plane of the first cell the level's motor channel reads (an Izhikevich or adaptive exponential cell): the two nullclines computed by the engine from the cell's own
@@ -564,11 +539,19 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 	var pp: Dictionary = t.sim.phase_plane(cell, i_ext)
 	if not bool(pp.get("ok", false)): _empty(c, r, str(pp.get("note", "This cell has no phase plane."))); return
 	var y0 := r.position.y + _banner(c, t, r)
-	var P := Rect2(r.position.x + 56.0, y0 + 8.0, r.size.x - 70.0, r.end.y - y0 - 8.0 - float(fz) * 3.0 - 22.0)
-	if P.size.x < 60.0 or P.size.y < 40.0: return
+	var small := r.size.y < 150.0
+	var foot := (float(fz) + 6.0) * (1.0 if small else 2.0) + 6.0   # the footer lines are reserved before the plot is laid out
+	var P := Rect2(r.position.x + 56.0, y0 + 12.0, r.size.x - 76.0, r.end.y - y0 - 12.0 - float(fz) - 10.0 - foot)
+	if P.size.x < 60.0 or P.size.y < 30.0: return
 	var v_lo := float(pp["v_lo"]); var v_hi := float(pp["v_hi"]); var w_lo := float(pp["w_lo"]); var w_hi := float(pp["w_hi"])
 	var to := func(v: float, w: float) -> Vector2: return Vector2(P.position.x + (v - v_lo) / maxf(v_hi - v_lo, 1e-6) * P.size.x, P.end.y - (w - w_lo) / maxf(w_hi - w_lo, 1e-6) * P.size.y)
-	c.draw_rect(P, Color(Gfx.SHEET, 0.9)); c.draw_rect(P, Kit.INK, false, 1.4)
+	c.draw_rect(P, Color(Gfx.SHEET, 0.9))
+	# engraved axes: an ink L with arrowheads (as on the Dynamics plate), hairline grid
+	c.draw_line(Vector2(P.position.x, P.end.y), Vector2(P.end.x + 8.0, P.end.y), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.end.x + 12.0, P.end.y), Vector2(1, 0), Kit.INK, 8.0)
+	c.draw_line(Vector2(P.position.x, P.end.y), Vector2(P.position.x, P.position.y - 6.0), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.position.x, P.position.y - 10.0), Vector2(0, -1), Kit.INK, 8.0)
+	for k in range(1, 4):
+		c.draw_line(Vector2(P.position.x + P.size.x * float(k) / 4.0, P.position.y), Vector2(P.position.x + P.size.x * float(k) / 4.0, P.end.y), Color(Kit.INK, 0.06), 1.0)
+		c.draw_line(Vector2(P.position.x, P.position.y + P.size.y * float(k) / 4.0), Vector2(P.end.x, P.position.y + P.size.y * float(k) / 4.0), Color(Kit.INK, 0.06), 1.0)
 	var wn := str(pp["w_name"])
 	for k in 5:   # ticks and numbers
 		var v := v_lo + (v_hi - v_lo) * float(k) / 4.0; var w := w_lo + (w_hi - w_lo) * float(k) / 4.0
@@ -576,8 +559,8 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 		c.draw_line(Vector2(px, P.end.y), Vector2(px, P.end.y + 4.0), Kit.INK, 1.0); c.draw_line(Vector2(P.position.x - 4.0, py), Vector2(P.position.x, py), Kit.INK, 1.0)
 		c.draw_string(Fonts.regular, Vector2(px - 14.0, P.end.y + float(fz) + 4.0), "%d" % int(roundf(v)), HORIZONTAL_ALIGNMENT_LEFT, 40.0, fz, Kit.TEXT_SOFT)
 		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), "%d" % int(roundf(w)) if absf(w_hi - w_lo) >= 20.0 else "%.1f" % w, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
-	c.draw_string(Fonts.regular, Vector2(P.end.x - 90.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 86.0, fz, Kit.TEXT_SOFT)
-	c.draw_string(Fonts.regular, Vector2(P.position.x + 6.0, P.position.y + float(fz) + 2.0), "%s (%s)" % [wn, "pA" if wn == "w" else "recovery, arbitrary units"], HORIZONTAL_ALIGNMENT_LEFT, 150.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 120.0, P.end.y - 6.0), "V (mV)", HORIZONTAL_ALIGNMENT_RIGHT, 116.0, fz, Kit.TEXT)
+	Anatomy.tag(c, "%s (%s)" % [wn, "pA" if wn == "w" else "recovery, arbitrary units"], Vector2(P.position.x + 10.0, P.position.y + float(fz) + 2.0), Kit.TEXT, 14, HORIZONTAL_ALIGNMENT_LEFT, false, 0.8)
 	var line := func(pts: PackedVector2Array, col: Color) -> void:
 		var q := PackedVector2Array()
 		for p in pts:
@@ -586,7 +569,7 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 			elif q.size() >= 2: c.draw_polyline(q, col, 2.4, true); q = PackedVector2Array()
 			else: q = PackedVector2Array()
 		if q.size() >= 2: c.draw_polyline(q, col, 2.4, true)
-	line.call(pp["v_null"], Kit.exc()); line.call(pp["w_null"], Kit.inh())
+	line.call(pp["v_null"], Kit.exc()); line.call(pp["w_null"], Specimens.SLATE)   # blue is for inhibition only: the recovery nullcline is slate
 	var vr := float(pp["v_reset"])   # the reset: a dashed vertical line
 	if vr > v_lo and vr < v_hi:
 		var x: float = (to.call(vr, w_lo) as Vector2).x
@@ -612,12 +595,11 @@ static func _phase(c: Control, t: Telemetry, r: Rect2) -> void:
 		t.set_meta("phase_trail", trail)
 		var tq := PackedVector2Array()
 		for p in trail: tq.append(to.call(clampf(p.x, v_lo, v_hi), clampf(p.y, w_lo, w_hi)))
-		if tq.size() >= 2: c.draw_polyline(tq, Color(Kit.CYAN, 0.8), 1.6, true)
-		var hd: Vector2 = to.call(clampf(v_now, v_lo, v_hi), clampf(w_now, w_lo, w_hi)); c.draw_circle(hd, 5.0, Kit.CYAN); c.draw_arc(hd, 5.0, 0.0, TAU, 16, Kit.INK, 1.2, true)
-	var ty := P.end.y + float(fz) * 2.0 + 6.0
-	c.draw_string(Fonts.regular, Vector2(P.position.x, ty), "sienna: voltage nullcline    blue: %s nullcline    filled point: stable, ring: unstable, cross: saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT_SOFT)
+		if tq.size() >= 2: c.draw_polyline(tq, Color(Kit.INK, 0.75), 1.4, true)
+		var hd: Vector2 = to.call(clampf(v_now, v_lo, v_hi), clampf(w_now, w_lo, w_hi)); c.draw_circle(hd, 5.5, Kit.GAMBOGE); c.draw_arc(hd, 5.5, 0.0, TAU, 16, Kit.INK, 1.2, true)
 	var txt := ("resting state: " + stable_kind) if stable_kind != "" else "no stable resting state at this current"
-	c.draw_string(Fonts.bold, Vector2(P.position.x, ty + float(fz) + 4.0), "current now %s pA   %s" % [String.num(float(pp["i_total"]), 1), txt], HORIZONTAL_ALIGNMENT_LEFT, P.size.x, fz, Kit.TEXT)
+	c.draw_string(Fonts.bold, Vector2(r.position.x + 6.0, r.end.y - 6.0), "current now %s pA   %s" % [String.num(float(pp["i_total"]), 1), txt], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT)
+	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - float(fz) - 12.0), "sienna: voltage nullcline; slate: %s nullcline; ink: the cell's path, gamboge its state now; filled point stable, ring unstable, cross saddle" % wn, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- rate units (v0.6, Theory wing)
 ## The motor channels of a rate level as scrolling traces on one shared scale: a `rate_value` channel is the mean rate of rate units (arbitrary units, or spikes per second for a siegert
@@ -639,37 +621,65 @@ static func _rates(c: Control, t: Telemetry, r: Rect2) -> void:
 			for m in hist: hist[m] = (hist[m] as PackedFloat32Array).slice((hist[m] as PackedFloat32Array).size() - 1200)
 		t.set_meta("rates_h", hist); t.set_meta("rates_t", ts)
 	var y0 := r.position.y + _banner(c, t, r)
-	var P := Rect2(r.position.x + 56.0, y0 + 8.0, r.size.x - 70.0, r.end.y - y0 - 8.0 - float(fz) * 2.0 - 20.0)
-	if P.size.x < 60.0 or P.size.y < 40.0: return
+	var small := r.size.y < 150.0
+	var foot := 0.0 if small else float(fz) + 12.0   # reserved before the plot is laid out: the caption never clips
+	var lab_w := 0.0
+	for m in motors: lab_w = maxf(lab_w, Fonts.bold.get_string_size("%s 00.00" % str(m), HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x)
+	var P := Rect2(r.position.x + 48.0, y0 + 10.0, r.size.x - 60.0 - lab_w - 14.0, r.end.y - y0 - 10.0 - float(fz) - 12.0 - foot)
+	if P.size.x < 60.0 or P.size.y < 30.0: return
 	var win := 3000.0; var t1 := t.t_ms; var t0 := t1 - win
 	var mx := 0.0; var mn := 0.0
 	for m in hist:
 		for v in (hist[m] as PackedFloat32Array): mx = maxf(mx, v); mn = minf(mn, v)
 	mx = maxf(mx * 1.1, 1.0 if mx < 1.5 else 0.0)
-	c.draw_rect(P, Color(Gfx.SHEET, 0.9)); c.draw_rect(P, Kit.INK, false, 1.4)
+	# engraved axes: an ink L with arrowheads, fine ticks, the axis letters in italic (as on the Rate models plate)
+	var org := Vector2(P.position.x, P.end.y)
+	c.draw_line(org, Vector2(P.end.x + 8.0, org.y), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(P.end.x + 12.0, org.y), Vector2(1, 0), Kit.INK, 8.0)
+	c.draw_line(org, Vector2(org.x, P.position.y - 6.0), Kit.INK, 1.4, true); Gfx.arrow_head(c, Vector2(org.x, P.position.y - 10.0), Vector2(0, -1), Kit.INK, 8.0)
 	for k in 5:
 		var vv := mn + (mx - mn) * float(k) / 4.0; var py := P.end.y - (vv - mn) / maxf(mx - mn, 1e-6) * P.size.y
-		c.draw_line(Vector2(P.position.x, py), Vector2(P.end.x, py), Color(Kit.INK, 0.12), 1.0)
-		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), ("%d" % int(roundf(vv))) if mx >= 20.0 else ("%.1f" % vv), HORIZONTAL_ALIGNMENT_RIGHT, 50.0, fz, Kit.TEXT_SOFT)
-	var cols := [Kit.exc(), Kit.inh(), Kit.CYAN, Kit.AMBER]; var lx := P.position.x
-	var ly := P.end.y + float(fz) + 6.0
+		c.draw_line(Vector2(org.x - 4.0, py), Vector2(org.x, py), Kit.INK, 1.0)
+		if k > 0: c.draw_line(Vector2(org.x, py), Vector2(P.end.x, py), Color(Kit.INK, 0.07), 1.0)
+		c.draw_string(Fonts.regular, Vector2(r.position.x, py + 5.0), ("%d" % int(roundf(vv))) if mx >= 20.0 else ("%.1f" % vv), HORIZONTAL_ALIGNMENT_RIGHT, 40.0, fz, Kit.TEXT_SOFT)
+	for k in 4:   # time ticks, one a second
+		var x := P.position.x + P.size.x * float(k) / 3.0
+		c.draw_line(Vector2(x, org.y), Vector2(x, org.y + 4.0), Kit.INK, 1.0)
+		c.draw_string(Fonts.regular, Vector2(x - 30.0, org.y + float(fz) + 6.0), "%d s" % (k - 3) if k < 3 else "now", HORIZONTAL_ALIGNMENT_CENTER, 60.0, fz, Kit.TEXT_SOFT)
+	c.draw_string(Gfx.serif_italic(), Vector2(org.x + 6.0, P.position.y + float(fz) * 0.4), "rate", HORIZONTAL_ALIGNMENT_LEFT, 80.0, fz, Kit.TEXT)
+	# the curves, smoothed (a 25 ms running mean of the 5 ms samples), each labelled at its end
+	var ends := []
+	var e_seen := false
 	for mi in motors.size():
-		var m := str(motors[mi]); var a: PackedFloat32Array = hist.get(m, PackedFloat32Array()); var col: Color = cols[mi % cols.size()]
-		var q := PackedVector2Array()
-		for j in ts.size():
-			if ts[j] < t0 or j >= a.size(): continue
-			q.append(Vector2(P.position.x + (ts[j] - t0) / win * P.size.x, P.end.y - clampf((a[j] - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
-		if q.size() >= 2: c.draw_polyline(q, col, 2.4, true)
+		var m := str(motors[mi]); var a: PackedFloat32Array = hist.get(m, PackedFloat32Array())
+		var col: Color
+		if m.to_lower() in ["i", "inh", "inhibitory"]: col = Kit.inh()
+		elif not e_seen: col = Kit.exc(); e_seen = true
+		else: col = [Kit.INK, Kit.GAMBOGE, Kit.SENSOR][mi % 3]
+		var q := PackedVector2Array(); var acc := 0.0; var na := 0
+		for j2 in ts.size():
+			if j2 >= a.size(): break
+			acc += a[j2]; na += 1
+			if na > 5: acc -= a[j2 - 5]; na = 5
+			if ts[j2] < t0: continue
+			q.append(Vector2(P.position.x + (ts[j2] - t0) / win * P.size.x, P.end.y - clampf((acc / float(na) - mn) / maxf(mx - mn, 1e-6), 0.0, 1.0) * P.size.y))
+		if q.size() >= 2: c.draw_polyline(q, col, 2.2, true)
 		var cur := a[a.size() - 1] if not a.is_empty() else 0.0
 		var lab := "%s %s" % [m, ("%d Hz" % int(roundf(cur))) if (kinds.get(m, "") != "rate_value" or mx >= 20.0) else "%.2f" % cur]
-		c.draw_line(Vector2(lx, ly - 5.0), Vector2(lx + 22.0, ly - 5.0), col, 3.0)
-		c.draw_string(Fonts.bold, Vector2(lx + 28.0, ly), lab, HORIZONTAL_ALIGNMENT_LEFT, 220.0, fz, Kit.TEXT)
-		lx += 28.0 + Fonts.bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 22.0
-	c.draw_string(Gfx.serif_italic(), Vector2(P.end.x - 330.0, ly), "last 3 s, rate units in arbitrary units", HORIZONTAL_ALIGNMENT_RIGHT, 326.0, fz, Kit.TEXT_SOFT)
+		ends.append([q[q.size() - 1].y if not q.is_empty() else P.end.y, lab, col])
+	ends.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
+	var last_y := -1.0e9
+	for e in ends:   # labels at the line ends, nudged apart so they never sit on each other
+		var yy := maxf(float(e[0]) + 5.0, last_y + float(fz) + 2.0); last_y = yy
+		c.draw_line(Vector2(P.end.x + 2.0, float(e[0])), Vector2(P.end.x + 12.0, yy - 5.0), Color(e[2], 0.6), 1.0, true)
+		c.draw_string(Fonts.bold, Vector2(P.end.x + 14.0, yy), str(e[1]), HORIZONTAL_ALIGNMENT_LEFT, lab_w + 10.0, fz, (e[2] as Color).darkened(0.15))
+	if not small: c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "the last 3 s; rate units in arbitrary units, spiking pools in spikes per second per cell; sienna excitatory, blue inhibitory", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- patterns of cells (v0.6, memory chapter)
-## The cells the level's motor channels read, laid out on a grid in the order of their channels and lit by their own spikes (a soma glows for a moment after each spike, Telemetry.flash). Cells that a
-## sensor reaches are ringed in amber and named by the sensor: the cue is the part that is touched, the pattern is the whole.
+## An engraved cell array per stored pattern (each motor channel's cells, in channel order), as on the Attractor memory plate: every cell an inked ring, its
+## interior hatched while it is silent; the target pattern (the cells the channel reads) framed by a dashed gamboge outline; a cell fills with sienna as it
+## fires (its spikes in the last 150 ms of model time), so the recalled pattern fills in; the cells a cue reaches carry a verdigris tick. Under each array:
+## how many of its cells are firing now. The footer is reserved before the arrays are laid out.
+static var _hatch_cell := PackedVector2Array()
 static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 	var fz := Kit.fs(14)
 	if t == null or t.sim == null or t.task == null: _empty(c, r, "Build the pattern: its cells light up here."); return
@@ -683,27 +693,47 @@ static func _memory(c: Control, t: Telemetry, r: Rect2) -> void:
 			groups.append([str(m), cells])
 	var cued := {}
 	for ch in t.sim.inputs():
-		if not str(ch["name"]).begins_with("cue"): continue   # the ring marks the cue, not the sensor that shows the whole pattern
-		for n in (ch["neurons"] as PackedInt32Array):
-			if not cued.has(int(n)): cued[int(n)] = []
-			(cued[int(n)] as Array).append(str(ch["name"]))
+		if not str(ch["name"]).begins_with("cue"): continue   # the tick marks the cue, not the sensor that shows the whole pattern
+		for n in (ch["neurons"] as PackedInt32Array): cued[int(n)] = true
+	var small := r.size.y < 150.0
+	var foot := 0.0 if small else float(fz) + 10.0
 	var y0 := r.position.y + _banner(c, t, r)
-	var area := Rect2(r.position.x, y0 + 6.0, r.size.x, r.end.y - y0 - 6.0 - float(fz) - 14.0)
+	var area := Rect2(r.position.x, y0 + 4.0, r.size.x, r.end.y - y0 - 4.0 - foot)
 	var gw := area.size.x / float(maxi(groups.size(), 1))
+	var cap_h := float(fz) + 6.0
 	for gi in groups.size():
 		var cells: Array = groups[gi][1]; var n := cells.size()
 		var cols := maxi(1, int(ceilf(sqrt(float(maxi(n, 1))))))
 		var rows := maxi(1, int(ceilf(float(n) / float(cols))))
-		var cell := minf(minf(gw / float(cols + 1), area.size.y / float(rows + 1)), 64.0)
-		var org := Vector2(area.position.x + gw * float(gi) + (gw - cell * float(cols)) * 0.5, area.position.y + (area.size.y - cell * float(rows)) * 0.5 + 8.0)
-		c.draw_string(Gfx.serif_italic(), Vector2(area.position.x + gw * float(gi) + 6.0, area.position.y + float(fz)), str(groups[gi][0]), HORIZONTAL_ALIGNMENT_LEFT, gw - 12.0, fz, Kit.TEXT)
+		var cell := minf(minf((gw - 40.0) / float(cols), (area.size.y - cap_h * 2.0 - 16.0) / float(rows)), 58.0)
+		if cell < 6.0: continue
+		var frame := Rect2(area.position.x + gw * float(gi) + (gw - cell * float(cols)) * 0.5 - 10.0, area.position.y + cap_h + 8.0, cell * float(cols) + 20.0, cell * float(rows) + 20.0)
+		frame.position.y += maxf(0.0, (area.size.y - cap_h * 2.0 - 16.0 - frame.size.y) * 0.5)
+		var title := "Fig. %d. " % (gi + 1); var tw := Fonts.bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x
+		c.draw_string(Fonts.bold, Vector2(frame.position.x, frame.position.y - 8.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fz, Kit.TEXT)
+		c.draw_string(Gfx.serif_italic(), Vector2(frame.position.x + tw, frame.position.y - 8.0), "pattern '%s'" % str(groups[gi][0]), HORIZONTAL_ALIGNMENT_LEFT, gw - tw - 10.0, fz, Kit.TEXT_SOFT)
+		c.draw_rect(frame, Color(Gfx.SHEET, 0.9)); c.draw_rect(frame, Color(Kit.INK, 0.5), false, 1.0)
+		var org := frame.position + Vector2(10.0, 10.0); var lit_n := 0
+		var tgt := PackedVector2Array([org + Vector2(-5, -5), org + Vector2(cell * float(cols) + 5.0, -5), org + Vector2(cell * float(cols) + 5.0, cell * float(rows) + 5.0), org + Vector2(-5, cell * float(rows) + 5.0), org + Vector2(-5, -5)])
+		Gfx.dashed(c, tgt, Kit.GAMBOGE, 2.0, 7.0, 5.0)   # the target: the whole pattern
 		for k in n:
-			var id: int = cells[k]; var ctr := org + Vector2(float(k % cols) + 0.5, float(k / cols) + 0.5) * cell
-			var lit := clampf(float(t.flash[id]) if id < t.flash.size() else 0.0, 0.0, 1.0)
-			c.draw_circle(ctr, cell * 0.36, Color(Kit.exc(), 0.12 + 0.88 * lit)); c.draw_arc(ctr, cell * 0.36, 0.0, TAU, 24, Kit.INK, 1.4, true)
-			if cued.has(id): c.draw_arc(ctr, cell * 0.46, 0.0, TAU, 24, Kit.AMBER, 3.0, true)
-	var legend := "cells that fire glow sienna; an amber ring marks the cells a cue reaches"
-	c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), legend, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
+			var id: int = cells[k]; var ctr := org + Vector2(float(k % cols) + 0.5, float(k / cols) + 0.5) * cell; var rad := cell * 0.36
+			var lit := Specimens.cell_act(t, id, 150.0)
+			if lit > 0.3: lit_n += 1
+			c.draw_circle(ctr, rad, Gfx.SHEET.lerp(Color("#EFE2CC"), 0.6))
+			if lit < 0.6:   # silent: an engraver's hatch inside the ring
+				_hatch_cell.clear()
+				for q in 5:
+					var off := (float(q) - 2.0) / 2.6 * rad; var hw := sqrt(maxf(rad * rad - off * off, 0.0)) * 0.9
+					var dv := Vector2(0.7071, -0.7071); var nv := Vector2(0.7071, 0.7071)
+					_hatch_cell.append(ctr + nv * off - dv * hw); _hatch_cell.append(ctr + nv * off + dv * hw)
+				c.draw_multiline(_hatch_cell, Color(Kit.INK, 0.22 * (1.0 - lit)), 1.0)
+			if lit > 0.02: c.draw_circle(ctr, rad * (0.55 + 0.45 * lit), Color(Kit.exc(), 0.2 + 0.8 * lit))
+			c.draw_arc(ctr, rad, 0.0, TAU, 28, Kit.INK, 1.3, true)
+			if cued.has(id): c.draw_line(ctr + Vector2(rad * 0.75, -rad * 0.75), ctr + Vector2(rad * 1.15, -rad * 1.15), Kit.SENSOR, 3.0, true)
+		c.draw_string(Fonts.mono, Vector2(frame.position.x, frame.end.y + float(fz) + 4.0), "firing %d of %d" % [lit_n, n], HORIZONTAL_ALIGNMENT_LEFT, gw - 10.0, fz, Kit.TEXT)
+	if not small:
+		c.draw_string(Gfx.serif_italic(), Vector2(r.position.x + 6.0, r.end.y - 6.0), "a cell fills with sienna as it fires; the dashed gamboge frame is the stored pattern; a verdigris tick marks a cell the cue reaches", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, fz, Kit.TEXT_SOFT)
 
 # ---------------------------------------------------------------- tuning (v0.6)
 ## The dial, the cells' bars and a single cell's tuning curve: godot/ui/tuning_view.gd.
