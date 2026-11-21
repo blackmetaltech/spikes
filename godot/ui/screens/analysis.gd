@@ -447,7 +447,7 @@ class SeriesPanel extends Control:
 		draw_string(f, Vector2(8, r.position.y + float(fz)), "+%.1f" % smax, HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(8, y0 + 5.0), "0", HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(8, r.end.y), "-%.1f" % smax, HORIZONTAL_ALIGNMENT_LEFT, 44, fz, Kit.TEXT_SOFT)
 		for p in pts:
 			var x := r.position.x + r.size.x * float(p["phase"]); var yy := y0 - r.size.y * 0.5 * float(p["shift"]) / smax
-			draw_circle(Vector2(x, yy), 3.5, Color(Kit.inh(), 0.7))
+			draw_circle(Vector2(x, yy), 3.5, Color(Kit.TEXT, 0.7))
 		var line := PackedVector2Array()
 		for b in d.get("bins", []):
 			if b.get("mean_shift") != null and int(b.get("count", 0)) > 0: line.append(Vector2(r.position.x + r.size.x * float(b["phase"]), y0 - r.size.y * 0.5 * float(b["mean_shift"]) / smax))
