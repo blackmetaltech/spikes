@@ -19,16 +19,16 @@ const CHAPTERS := [
 	{"id": "invertebrates", "title": "Invertebrates", "organ": "worm", "blurb": "Reflexes, a swimming rhythm, a nose for salt. Small circuits, real behaviour."},
 	{"id": "spinal", "title": "Spinal cord", "organ": "spine", "blurb": "Stretch, hold and reach: muscle spindles, motor neurons, Renshaw cells."},
 	{"id": "heart", "title": "Heart", "organ": "heart", "blurb": "A pacemaker cell sets the beat; the autonomic nerves and the baroreflex steer it."},
-	{"id": "breathing", "title": "Breathing", "organ": "lungs", "blurb": "A bursting pacemaker network in the brainstem drives the diaphragm, tuned by CO2."},
+	{"id": "breathing", "title": "Breathing", "organ": "lungs", "blurb": "A short chapter on purpose: one micro-puzzle, one task and a diagnosis case. A bursting pacemaker network in the brainstem drives the diaphragm, tuned by CO2; the autonomic exam reuses it."},
 	{"id": "autonomic", "title": "Autonomic", "organ": "autonomic", "blurb": "Pupil, gut and the whole fight-or-flight response: two opposing nerves, one body."},
-	# v0.5 Bestiary wing (docs/DESIGN-0.5.md): one chapter per model organism. Open from the start, never counted by the unlock rule of the body chapters. No plate art yet (organ "bestiary").
+	# v0.5 Bestiary wing (docs/DESIGN-0.5.md): one chapter per model organism. Opens after the chapter I spine (WING_GATES says what each waits for), never counted by the unlock rule of the body chapters. No plate art yet (organ "bestiary").
 	{"id": "worm", "title": "Bestiary: Worm", "organ": "bestiary", "wing": "bestiary", "blurb": "C. elegans: touch the head and it backs up, touch the tail and it goes. The command switch, wired from the real touch circuit."},
 	{"id": "leech", "title": "Bestiary: Leech", "organ": "bestiary", "wing": "bestiary", "blurb": "The leech heartbeat: two cells that burst in turn, a half-centre with a slow cycle."},
 	{"id": "aplysia", "title": "Bestiary: Sea slug", "organ": "bestiary", "wing": "bestiary", "blurb": "Aplysia: a reflex that habituates, recovers and is sensitised, all in one synapse."},
 	{"id": "fly_compass", "title": "Bestiary: Fly compass", "organ": "bestiary", "wing": "bestiary", "blurb": "Drosophila: a bump of activity on a ring of compass cells holds the heading in the dark and follows the fly's turns. After Turner-Evans/Hulse cell types, not synapse-level data."},
 	{"id": "fly_mb", "title": "Bestiary: Fly mushroom body", "organ": "bestiary", "wing": "bestiary", "blurb": "Drosophila: a sparse odour code, and a dopamine-gated depression that teaches the fly to avoid a punished odour. After the published cell types, not synapse-level data."},
 	{"id": "crab", "title": "Bestiary: Crab", "organ": "bestiary", "wing": "bestiary", "blurb": "The crab stomatogastric ganglion: a conductance-based pacemaker kernel and two rebound followers make the triphasic pyloric rhythm, and many different parameter sets give the same pattern."},
-	# v0.6 Theory wing (docs/DESIGN-THEORY.md): what a graduate comp-neuro course teaches. Open from the start like the Bestiary.
+	# v0.6 Theory wing (docs/DESIGN-THEORY.md): what a graduate comp-neuro course teaches. Opens after the chapter I spine like the Bestiary.
 	{"id": "dynamics", "title": "Theory: Dynamics", "organ": "bestiary", "wing": "theory", "blurb": "The phase plane: nullclines, fixed points and what happens to the resting state as the current grows. Class I and class II firing, a cell that reports only change, and a single neuron that remembers a pulse."},
 	{"id": "rates", "title": "Theory: Rate models", "organ": "bestiary", "wing": "theory", "blurb": "A population as one number: the Wilson-Cowan excitatory-inhibitory pair that oscillates, two populations that compete, and the mean field of a spiking network, so you can see when the shortcut holds."},
 	{"id": "memory", "title": "Theory: Attractor memory", "organ": "bestiary", "wing": "theory", "blurb": "Hopfield's idea in spiking cells: a partial cue recalls a whole pattern, two patterns without blends, and a pattern written by spike-timing-dependent plasticity during an exposure."},
@@ -64,6 +64,7 @@ const CONCEPTS := {
 	"inhibition": ["Inhibition", "An inhibitory synapse pushes the next cell away from threshold. It silences, gates and shapes; without it a circuit can only ever add.", "Hartline HK, Wagner HG, Ratliff F (1956) J Gen Physiol 39:651, doi:10.1085/jgp.39.5.651"],
 	"subtraction": ["Subtraction", "Excitation from one source and inhibition from another give a cell that reports the difference. ON minus OFF is how a nervous system computes a gradient.", "Suzuki H et al. (2008) Nature 454:114, doi:10.1038/nature06927"],
 	"adaptation": ["Adaptation", "Under a steady drive many neurons fire a burst and then slow down as a slow current builds up. The cell reports change more than level.", "Madison DV, Nicoll RA (1984) J Physiol 354:319, doi:10.1113/jphysiol.1984.sp015378; Benda J, Herz AVM (2003) Neural Comput 15:2523, doi:10.1162/089976603322385063"],
+	"tonic_drive": ["Tonic drive (bias)", "A steady current of a cell's own keeps it just over threshold, so it fires all the time at a low rate. A humming cell can signal less as well as more, and a pool held near threshold answers at once. Posture, pupil size and heart rate all rest on such a bias.", "Raman IM, Bean BP (1999) J Neurosci 19:1663, doi:10.1523/JNEUROSCI.19-05-01663.1999"],
 	"half_centre": ["Mutual inhibition and the half-centre", "Two groups that inhibit each other cannot both win for long. With adaptation or fatigue they alternate: a half-centre oscillator, the core of many walking and swimming rhythms.", "Brown TG (1911) Proc R Soc Lond B 84:308; Grillner S (2003) Nat Rev Neurosci 4:573, doi:10.1038/nrn1137"],
 	"coupling": ["Coupling and synchrony", "Oscillators that influence each other tend to lock their phases. Coupling strength and delay decide whether they fire together or in antiphase.", "Jalife J (1984) J Physiol 356:221, doi:10.1113/jphysiol.1984.sp015461"],
 	"pacemaking": ["Intrinsic pacemaking", "Some cells fire without any input: a slow inward current drifts the voltage up to threshold again and again. The sinoatrial node sets the heartbeat this way.", "DiFrancesco D (1993) Annu Rev Physiol 55:455, doi:10.1146/annurev.ph.55.030193.002323"],
@@ -284,7 +285,7 @@ static func _build_nodes(ch: String) -> Array:
 	for id in in_ch:
 		var d := info(id)
 		var n := {"id": id, "task": id, "variant": "", "title": str(d["title"]), "installed": true, "pos": pos.get(id, Vector2(-1, -1)), "kind": str(d["kind"]), "spine": bool(d["spine"]),
-			"parent": "", "concepts_new": d["concepts_new"], "concepts_used": d["concepts_used"], "synthetic": bool(d["synthetic"])}
+			"parent": "", "concepts_new": d["concepts_new"], "concepts_used": d["concepts_used"], "synthetic": bool(d["synthetic"]), "needs": needs(id).map(func(x): return {"concept": x["concept"], "level": x["level"]})}
 		if bool(d["spine"]): spine.append(n)
 		else: n["parent"] = _parent_of(id, in_ch); branches.append(n)
 	for n in spine:
@@ -369,26 +370,59 @@ static func _playable_chapters() -> Array:
 		if installed_count(str(c["id"])) > 0: out.append(str(c["id"]))
 	return out
 
-## True for the chapters of the Bestiary wing (v0.5): open from the start, never gating a body chapter.
+## True for the chapters of the Bestiary wing (v0.5): open after the chapter I spine, never gating a body chapter.
 static func is_bestiary(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "bestiary"
-## v0.6: the Theory wing (dynamics, rates, memory, tuning): open from the start as well.
+## v0.6: the Theory wing (dynamics, rates, memory, tuning): open after the chapter I spine as well.
 static func is_theory(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "theory"
 static func is_wing(ch: String) -> bool: return is_bestiary(ch) or is_theory(ch)
 ## "body", "bestiary" or "theory": the row of the campaign map the chapter's tab sits in.
 static func wing_of(ch: String) -> String: return "theory" if is_theory(ch) else ("bestiary" if is_bestiary(ch) else "body")
 
-## A chapter opens when the spine of the previous chapter (that has levels) is passed, OR the spine of the chapter two before it is passed, so one stuck task
-## never blocks the game. The first two chapters are open from the start. A task that sets on_spine false is a branch and never gates.
+## The Bestiary and Theory wings open once the chapter I spine (Invertebrates) is passed, and inside the wings a chapter may wait for a level or a chapter it
+## builds on (WING_GATES). Guided mode drops the in-wing prerequisites (it keeps the chapter I gate): a Guided player may wander, and the "Needs" chips on
+## the level card still say what the level uses. The body chapters: a chapter opens when the spine of the previous chapter (that has levels) is passed, OR the
+## spine of the chapter two before it is passed, so one stuck task never blocks the game; the first two are open from the start. A task that sets on_spine
+## false is a branch and never gates.
+const FIRST_CHAPTER := "invertebrates"
+## chapter -> {level: a level that must be passed, or chapter: a chapter whose spine must be passed, title: what the card says}
+const WING_GATES := {
+	"aplysia": {"level": "m_neuromodulation", "title": "Heart: Neuromodulation"},
+	"crab": {"chapter": "leech", "title": "Bestiary: Leech"},
+	"fly_mb": {"chapter": "aplysia", "title": "Bestiary: Sea slug"}}
+
 static func chapter_open(ch: String) -> bool:
-	if unlock_all() or is_wing(ch): return true
+	if unlock_all(): return true
+	if is_wing(ch):
+		if not spine_passed(FIRST_CHAPTER): return false
+		return wing_gate_met(ch) or Progress.mode() == "guided"
 	var pl := _playable_chapters(); var i := pl.find(ch)
 	if i < 2: return true   # (also true for a chapter with no levels yet)
 	return spine_passed(str(pl[i - 1])) or spine_passed(str(pl[i - 2]))
 
-## The chapter whose spine opens `ch` (the previous one with levels; "" for the first two).
+## The in-wing prerequisite of a wing chapter is met (true for chapters without one).
+static func wing_gate_met(ch: String) -> bool:
+	if not WING_GATES.has(ch): return true
+	var g: Dictionary = WING_GATES[ch]
+	if g.has("level"): return passed(str(g["level"]))
+	return spine_passed(str(g["chapter"]))
+
+## The chapter whose spine opens `ch` (the previous one with levels; "" for the first two; a wing: Invertebrates).
 static func gate_chapter(ch: String) -> String:
+	if is_wing(ch): return FIRST_CHAPTER
 	var pl := _playable_chapters(); var i := pl.find(ch)
 	return str(pl[i - 1]) if i >= 2 else ""
+
+## What a node needs, for the "Needs" chips of the level card (the node dict carries the static part as "needs": [{concept, level}]): [{concept, title, level, level_title, met}] for every concept the level
+## uses (Task::concepts_used) that another level teaches (the first level that introduces it). `met` is true when that level is passed. Data only: nothing here gates.
+static func needs(id: String) -> Array:
+	var out := []; var idx := concept_index(); id = task_of(id)
+	for c0 in info(id)["concepts_used"]:
+		var c := concept_id(str(c0))
+		if not idx.has(c): continue
+		var lvl := str(idx[c]["level"])
+		if lvl == id: continue
+		out.append({"concept": c, "title": concept_short(c), "level": lvl, "level_title": str(info(lvl)["title"]), "met": passed(lvl)})
+	return out
 
 ## A spine node opens when the spine node before it is passed (the chapter's first opens with the chapter); a branch when the task it hangs off is passed.
 static func unlocked(id: String) -> bool:
@@ -406,14 +440,23 @@ static func unlocked(id: String) -> bool:
 		if n["installed"]: prev = str(n["id"])
 	return prev == "" or passed(prev)
 
+## Why a chapter is closed ("" when it is open): the sentence of the locked-chapter banner and of the level card.
+static func chapter_lock_reason(ch: String) -> String:
+	if chapter_open(ch): return ""
+	if is_wing(ch):
+		if not spine_passed(FIRST_CHAPTER): return "Pass the %s spine first" % str(chapter_def(FIRST_CHAPTER)["title"])
+		var g: Dictionary = WING_GATES.get(ch, {})
+		if g.has("level"): return "Pass %s (%s) first" % [str(info(str(g["level"]))["title"]), str(g["title"])]
+		return "Pass the %s spine first" % str(g.get("title", ""))
+	var g2 := gate_chapter(ch)
+	if g2 == "": return ""
+	var pl := _playable_chapters(); var gi := pl.find(ch)
+	return "Pass the %s spine (or the %s spine) first" % [str(chapter_def(g2)["title"]), str(chapter_def(str(pl[gi - 2]))["title"])]
+
 ## What gates a locked node, for the card: "Pass <level> first" or "Pass the <chapter> spine first".
 static func lock_reason(id: String) -> String:
 	var t := task_of(id); var ch := chapter_of(t)
-	if not chapter_open(ch):
-		var g := gate_chapter(ch)
-		if g == "": return ""
-		var pl := _playable_chapters(); var gi := pl.find(ch)
-		return "Pass the %s spine (or the %s spine) first" % [str(chapter_def(g)["title"]), str(chapter_def(str(pl[gi - 2]))["title"])]
+	if not chapter_open(ch): return chapter_lock_reason(ch)
 	var nd := {}
 	for n in nodes(ch):
 		if n["id"] == id: nd = n
