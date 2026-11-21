@@ -148,10 +148,16 @@ inline std::string ring_neighbours_missing( const Graph& g, const std::string& c
 {
   const auto h = g.out_pops( ch );
   if ( h.empty() ) return "";
+  double self_w = 0, nbr_w = 0;
   for ( const auto& p : g.st.projections )
-    if ( p.n_ring_edges > 0 && p.sign > 0 && Graph::overlap( { p.pre_index }, h ) && Graph::overlap( { p.post_index }, h ) )
-      return "";
-  return "The ring cells excite themselves but not each other: a bump is held by each cell driving its two neighbours on the ring (each cell onto the cell before it and the cell after it), so that the activity can spread to the next cell and back. A cell that only re-excites itself is a latch, not a ring.";
+    if ( Graph::overlap( { p.pre_index }, h ) && Graph::overlap( { p.post_index }, h ) )
+    {
+      self_w = std::max( self_w, p.self_w_max );
+      if ( p.n_ring_edges > 0 ) nbr_w = std::max( nbr_w, p.ring_w_max );
+    }
+  // the neighbour excitation has to matter: at least a quarter of the strongest self-latch (a token neighbour weight beside strong latches is still sixteen latches)
+  if ( nbr_w > 0 && nbr_w >= 0.25 * self_w ) return "";
+  return "The ring cells excite themselves but hardly each other: a bump is held by each cell driving its two neighbours on the ring (each cell onto the cell before it and the cell after it), so that the activity can spread to the next cell and back. A cell that only re-excites itself is a latch, not a ring.";
 }
 /// "" when the turn inputs reach two separate shifter groups, each driven by the heading and returning to it.
 inline std::string shifters_missing( const Graph& g, const std::string& heading, const std::string& left, const std::string& right )

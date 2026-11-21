@@ -62,6 +62,7 @@ struct ProjectionInfo
   int32_t dopamine_index = -1;                // 0.5, add-only: stdp_dopamine_synapse: position in Structure::populations of its "dopamine_source" (-1 otherwise)
   std::string dopamine_source;                // 0.5, add-only: the id of that population (empty otherwise)
   int32_t n_self_edges = 0;                   // 0.5, add-only: connections of a cell onto itself (pre = post neuron)
+  double self_w_max = 0, ring_w_max = 0;      // 0.5, add-only: strongest self connection (absolute), strongest ring-neighbour connection (signed; 0 when there is none)
   int32_t n_ring_edges = 0;                   // 0.5, add-only: connections between two different cells: inside one population only those at ring distance 1 (cell k to cell k+-1 of its N, wrapping), between two populations all of them
 };
 
