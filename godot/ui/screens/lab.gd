@@ -395,8 +395,15 @@ func _process(dt: float) -> void:
 	if status != null and tele != null:
 		var spd := String.num(tele.speed) + "x"
 		if tele.sim != null and tele.running and tele.speed > 1.0 and tele.achieved < tele.speed * 0.85: spd = "%.1fx of %sx" % [tele.achieved, String.num(tele.speed)]
-		status.text = "t %.2f s    %s spikes    %s" % [tele.t_ms * 0.001, _short(tele.total_spikes), spd] if tele.sim != null else "no circuit running"
-		if Time.get_ticks_msec() - _saved_ms < 2200: status.text += "    Saved"
+		var full := "t %.2f s    %s spikes    %s" % [tele.t_ms * 0.001, _short(tele.total_spikes), spd] if tele.sim != null else "no circuit running"
+		if Time.get_ticks_msec() - _saved_ms < 2200: full += "    Saved"
+		# a narrow bar (1366 wide, Large text, Undo / Redo and Test x5 on it): drop the spike count, then the speed, rather than clip a number in half
+		var fnt := status.get_theme_font("font"); var fs := status.get_theme_font_size("font_size"); var room := status.size.x - 4.0
+		if tele.sim != null and fnt != null and room > 0.0 and fnt.get_string_size(full, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+			full = "t %.2f s    %s" % [tele.t_ms * 0.001, spd]
+			if fnt.get_string_size(full, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room: full = "t %.1f s" % (tele.t_ms * 0.001)
+			if fnt.get_string_size(full, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room: full = ""
+		status.text = full
 
 static func _short(n: int) -> String: return "%.1fk" % (n / 1000.0) if n >= 10000 else str(n)
 

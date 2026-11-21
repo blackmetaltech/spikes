@@ -109,7 +109,7 @@ func _game() -> void:
 	br.add_child(Kit.btn("EXPORT JSON", func(): _export_log(), "panel", 22, Vector2(200, 0)))
 	br.add_child(Kit.btn("CLEAR", func(): ConfirmCard.ask(self, "Clear the play log?", "All %d recorded events are deleted. Your progress is not touched." % Playlog.count(), "Clear", func(): Playlog.clear(); _log_refresh()), "panel", 22, Vector2(130, 0)))
 	_log_refresh()
-	var sv := _section("Save and logs", Kit.inh())
+	var sv := _section("Save and logs", Kit.TEXT_SOFT)
 	sv.add_child(Kit.label("Progress, settings, goals, the play log and every circuit you have on a bench live in %s. Each file is written safely and keeps three backups." % ProjectSettings.globalize_path("user://"), 17, Kit.TEXT, true))
 	_save_note = Kit.label("", 17, Kit.TEXT_SOFT, true); sv.add_child(_save_note)
 	var sb := HFlowContainer.new(); sb.add_theme_constant_override("h_separation", 12); sb.add_theme_constant_override("v_separation", 8); sv.add_child(sb)
