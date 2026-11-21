@@ -200,7 +200,7 @@ const SAVE_FILES := ["user://progress.cfg", "user://settings.cfg", "user://goals
 const MANIFEST := "spike-save.json"
 
 static func _circuit_entry(name: String) -> bool:
-	var r := RegEx.new(); r.compile("^circuits/last_[A-Za-z0-9_]{1,64}\\.json$")
+	var r := RegEx.new(); r.compile("^circuits/(last_[A-Za-z0-9_]{1,64}|[A-Za-z0-9_]{1,64}/slot_[ABC])\\.json$")   # autosaves and the lab's solution slots
 	return r.search(name) != null
 
 ## Pack the player's save (progress, settings, goals, play log, every circuit autosave) into one zip. Returns "" or an error.
@@ -214,6 +214,10 @@ static func export_zip(path: String) -> String:
 	if d != null:
 		for fn in d.get_files():
 			if fn.begins_with("last_") and fn.ends_with(".json"): files["circuits/" + fn] = "user://circuits/" + fn
+		for sub in d.get_directories():   # solution slots A, B, C: circuits/<task>/slot_X.json
+			for x in ["A", "B", "C"]:
+				var sp := "user://circuits/%s/slot_%s.json" % [sub, x]
+				if _circuit_entry("circuits/%s/slot_%s.json" % [sub, x]) and FileAccess.file_exists(sp): files["circuits/%s/slot_%s.json" % [sub, x]] = sp
 	z.start_file(MANIFEST); z.write_file(JSON.stringify({"format": "spike-save-1", "save_version": VERSION, "files": files.keys(), "exported": Time.get_datetime_string_from_system()}).to_utf8_buffer()); z.close_file()
 	for name in files:
 		z.start_file(name); z.write_file(FileAccess.get_file_as_bytes(files[name])); z.close_file()
