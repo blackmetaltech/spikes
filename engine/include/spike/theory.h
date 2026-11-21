@@ -53,13 +53,16 @@ struct Onset
 /// Scan the current from `i_lo` to `i_hi` in `n` steps for the first current with no stable fixed point; the type of the last stable fixed point before it says how rest is lost.
 Onset onset( const std::string& model, const std::map< std::string, double >& params, double i_lo, double i_hi, int n = 400 );
 
-/// Spike-triggered average: for each spike time (ms) the mean of stimulus[t - window_before .. t + window_after] (stimulus sampled every dt_ms, spike times in the same clock);
-/// returns window = (before + after) / dt + 1 values, index 0 = `before_ms` before the spike. Spikes too close to the ends are skipped; `n_used` is how many entered the average.
+/// Spike-triggered average: for each spike time (ms) the mean of stimulus[t - window_before .. t + window_after] (stimulus sampled every dt_ms, spike times in the same clock),
+/// minus the mean of the whole stimulus (so a stimulus with a DC level reads as the deviation from it: 0 means "no different from the average input", a positive lobe before the spike means
+/// the cell fires after an above-average input); returns window = (before + after) / dt + 1 values, index 0 = `before_ms` before the spike. Spikes too close to the ends are skipped;
+/// `n_used` is how many entered the average. `stim_mean` / `stim_sd` are the mean and standard deviation of the stimulus (the average is in the stimulus' own unit; sd is the scale for it).
 struct Sta
 {
   std::vector< double > mean;
   int n_used = 0;
   double dt_ms = 1.0, before_ms = 0;
+  double stim_mean = 0, stim_sd = 0;
 };
 Sta spike_triggered_average( const std::vector< double >& stimulus, double dt_ms, const std::vector< double >& spike_times_ms, double before_ms, double after_ms );
 

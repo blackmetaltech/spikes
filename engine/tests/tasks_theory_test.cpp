@@ -139,7 +139,8 @@ void contract( const Level& L, const std::set< std::string >& gloss )
     CHECK_MSG( !t->metrics().empty(), std::string( L.id ) + ": a quality metric" );
     if ( std::string( L.kind ) == "micro" )
     {
-      CHECK_MSG( t->duration_ms() <= 5000, std::string( L.id ) + ": micro episode <= 5 s" );
+      // t_sharpen is the named exception: the ratio of two small spike counts needs many trials to be steady across seeds (the CHECK runs headless, so only the live playback is longer)
+      CHECK_MSG( t->duration_ms() <= ( std::string( L.id ) == "t_sharpen" ? 15000 : 5000 ), std::string( L.id ) + ": micro episode <= 5 s" );
       CHECK_MSG( t->concepts_new().size() == 1, std::string( L.id ) + ": one new concept" );
     }
   }
@@ -225,6 +226,34 @@ int main( int argc, char** argv )
     r = run_circuit( "d_class", c, 1, "standard", true );
     CHECK_MSG( !r.score.passed, "d_class: a class I cell passes with the sensor weight x" + std::to_string( f ) );
   }
+  // ---- the tuning playtest (pt05): honest circuits that must pass on every seed, cheap ones that must not
+  {
+    auto pt05 = [ & ]( const std::string& f ) { return json::parse( chk::slurp( std::string( SPIKE_SOURCE_DIR ) + "/engine/tests/circuits_pt05/" + f + ".json" ) ); };
+    // t_tuned: a graded Hubel-Wiesel weighting (every afferent excitatory, the preferred ones far stronger) is a valid mechanism; so is flank inhibition, and its pass sentence says so
+    for ( uint64_t seed = 1; seed <= 6; ++seed )
+    {
+      Result g = run_circuit( "t_tuned", pt05( "tuned_e_graded_all_exc" ), seed ), f = run_circuit( "t_tuned", pt05( "tuned_c_all_exc_flank_inh" ), seed );
+      CHECK_MSG( g.score.passed, "t_tuned: graded weights fail on seed " + std::to_string( seed ) + ": " + g.score.verdict );
+      CHECK_MSG( f.score.passed, "t_tuned: flank inhibition fails on seed " + std::to_string( seed ) + ": " + f.score.verdict );
+      CHECK_MSG( f.score.verdict.find( "inhibit" ) != std::string::npos, "t_tuned: the pass sentence does not name the inhibition: " + f.score.verdict );
+      CHECK_MSG( g.score.verdict.find( "inhibit" ) == std::string::npos, "t_tuned: the pass sentence names inhibition for an excitatory circuit: " + g.score.verdict );
+    }
+    // equal weights to every afferent: no preference, whatever the connection count
+    Result eq = run_circuit( "t_tuned", pt05( "tuned_b_all_but_edges" ), 1 );
+    CHECK_MSG( !eq.score.passed, "t_tuned: equal weights to all afferents pass" );
+    // afferents that are not parrot cells never fire: the verdict says so
+    Result sil = run_circuit( "t_tuned", pt05( "tuned_f_iaf_afferents" ), 1 );
+    CHECK_MSG( !sil.score.passed && sil.score.verdict.find( "parrot" ) != std::string::npos, "t_tuned: silent afferents: " + sil.score.verdict );
+    // t_sharpen: inhibition among the cells is the mechanism (self-excitation is optional); weak, strong and interneuron variants pass on every seed, no loop and a silencing loop do not
+    for ( const char* f : { "sharpen_b_inhib_only", "sharpen_c_weak_inh", "sharpen_d_strong_inh", "sharpen_f_interneuron" } )
+      for ( uint64_t seed = 1; seed <= 10; ++seed )
+      {
+        Result r = run_circuit( "t_sharpen", pt05( f ), seed );
+        CHECK_MSG( r.score.passed, std::string( "t_sharpen: " ) + f + " fails on seed " + std::to_string( seed ) + ": " + r.score.verdict );
+      }
+    for ( const char* f : { "sharpen_a_no_loop", "sharpen_e_selfexc_big" } )
+      for ( uint64_t seed = 1; seed <= 10; ++seed ) CHECK_MSG( !run_circuit( "t_sharpen", pt05( f ), seed ).score.passed, std::string( "t_sharpen: " ) + f + " passes on seed " + std::to_string( seed ) );
+  }
   // the campaign order: a chapter's micro-puzzles come before its task
   CHECK( pos( "d_class" ) < pos( "d_phasic" ) && pos( "d_phasic" ) < pos( "d_switch" ) );
   CHECK( pos( "r_oscillate" ) < pos( "r_choose" ) && pos( "r_choose" ) < pos( "r_meanfield" ) );
@@ -242,6 +271,13 @@ int main( int argc, char** argv )
     for ( auto& s : t->sensor_channels() ) b[ "inputs" ].push_back( { { "name", s }, { "kind", "poisson" }, { "targets", json::array( { { { "pop", "N" } } } ) }, { "weight", 1000.0 }, { "value", 0.0 } } );
     for ( auto& m : t->motor_channels() ) b[ "outputs" ].push_back( { { "name", m }, { "kind", "rate" }, { "neurons", json::array( { { { "pop", "N" } } } ) } } );
     run_circuit( L.id, b, 1, "standard", true );
+    // an empty bench has built nothing: score 0 and no criterion met, however vacuous a criterion is at zero activity
+    json empty = b;
+    empty[ "populations" ] = json::array();
+    empty[ "inputs" ] = json::array();
+    empty[ "outputs" ] = json::array();
+    const Result er = run_circuit( L.id, empty, 1, "standard", true );
+    if ( er.loaded ) CHECK_MSG( er.score.value == 0.0 && er.score.parts.count( "criteria_met" ) && er.score.parts.at( "criteria_met" ) == 0.0, std::string( L.id ) + ": the empty bench scores " + std::to_string( er.score.value ) );
   }
   int digits = 0;
   for ( const auto& s : g_text )

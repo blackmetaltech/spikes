@@ -8,7 +8,7 @@
 //   fires    at ninety degrees the cell fires at 12 Hz or more (guided 8)                             it responds
 //   prefers  its rate at ninety degrees is at least 3 x its rate at zero degrees (and 3 at 0 + 2 spikes)  it is selective for that orientation
 //   graded   and at least 1.4 x its rate at 45 and at one hundred and thirty-five degrees                                  not just 'anything near 90'
-// MECHANISM (Engine::structure()): the afferents are the cells 'stim' reaches; the cell that 'resp' reads is not one of them, listens to some of them by excitation and not to all.
+// MECHANISM (Engine::structure()): the afferents are the cells 'stim' reaches; the cell that 'resp' reads is not one of them and weighs them unequally (excitation from the ones that prefer its orientation, more than from the rest; or inhibition from the flanks).
 // Biology: Hubel DH, Wiesel TN (1962) J Physiol 160:106 (orientation-selective cells in the cat's visual cortex; the proposal that they are built from aligned inputs). Here the inputs are Poisson
 // cells with von Mises tuning curves, and the cell is an integrate-and-fire one.
 #include "theory.h"
@@ -23,6 +23,39 @@ using namespace tl;
 
 const double kAng[] = { 0, 45, 90, 135, 0, 45, 90, 135 };
 
+/// The weights with which the afferent populations `X` reach the cell populations `R` (direct projections): one net weight per afferent cell (a projection's mean weight scaled by the
+/// share of the pair's cells it connects; cells that no projection reaches count as zero). `exc` / `inh` count the excitatory and inhibitory projections.
+struct AffW
+{
+  std::vector< double > cell;
+  int exc = 0, inh = 0;
+  /// A preference exists when the weakest net weight is at most half the strongest (and the strongest is excitatory).
+  bool graded() const
+  {
+    if ( cell.empty() ) return false;
+    double lo = cell.front(), hi = cell.front();
+    for ( double v : cell ) { lo = std::min( lo, v ); hi = std::max( hi, v ); }
+    return hi > 0 && lo <= 0.5 * hi;
+  }
+};
+AffW afferent_weights( const Graph& g, const std::vector< int >& X, const std::vector< int >& R )
+{
+  AffW a;
+  const double nr = std::max( 1, g.cells( R ) );
+  for ( int x : X )
+  {
+    double net = 0;
+    for ( const auto& p : g.st.projections )
+    {
+      if ( p.n_edges <= 0 || p.sign == 0 || p.pre_index != x || std::find( R.begin(), R.end(), p.post_index ) == R.end() ) continue;
+      net += p.w_mean * p.n_edges / ( std::max( 1, g.pop( x ).n ) * nr );
+      ( p.sign > 0 ? a.exc : a.inh )++;
+    }
+    for ( int k = 0; k < g.pop( x ).n; ++k ) a.cell.push_back( net );
+  }
+  return a;
+}
+
 Spec spec()
 {
   Spec s;
@@ -30,10 +63,10 @@ Spec spec()
   i.id = "t_tuned";
   i.title = "A cell tuned by its inputs";
   i.brief = "Many sensory neurons answer best to one value of a stimulus, an orientation, a direction, a pitch: their tuning curve peaks at a preferred value. A cell that listens to the right inputs inherits a "
-            "preference. The sensor 'stim' is the orientation of a bar, from 0 to one hundred and eighty degrees, shown for a few hundred milliseconds in turn. Make a population of afferent cells and connect 'stim' to it: "
+            "preference. The sensor 'stim' is the orientation of a bar, from 0 to one hundred and eighty degrees, shown for a few hundred milliseconds in turn. Make a population of afferent cells (parrot cells, which repeat the spikes of the stimulus) and connect 'stim' to it: "
             "each afferent fires Poisson-wise with a rate that peaks at its own preferred orientation, and the cells are spread evenly over the one hundred and eighty degrees in the order they were made (cell k of N prefers "
             "180 k / N degrees, so a group that comes first prefers the small angles). Then build one more cell, 'resp', that listens to some of the afferents and not to others, so that it responds to "
-            "ninety degrees much more than to 0, and more than to forty-five and one hundred and thirty-five degrees. Which afferents it listens to is the whole puzzle; a cell that listens to them all has no preference. The groups of afferents "
+            "ninety degrees much more than to 0, and more than to forty-five and one hundred and thirty-five degrees. Which afferents it listens to, and how strongly, is the whole puzzle; a cell that weighs them all alike has no preference. The groups of afferents "
             "can be separate populations, in the order you create them.";
   i.chapter = "tuning";
   i.view = "tuning";
@@ -72,12 +105,21 @@ Spec spec()
     if ( sc.empty() ) return "";
     for ( int n : rc )
       if ( sc.count( n ) ) return "'resp' reads the afferents themselves: it has to be a cell of its own that listens to them.";
-    int heard = 0;
+    // afferents that are not parrot cells and are driven by 'stim' at a weight of about one never fire: nothing downstream can be tuned
     for ( int x : X )
-      if ( g.edge( { x }, R, +1 ) ) heard += g.pop( x ).n;
-    if ( heard == 0 ) return "'resp' hears none of the afferents by excitation: connect some afferents to the cell.";
-    if ( heard >= static_cast< int >( sc.size() ) ) return "'resp' listens to every afferent: a cell that hears all orientations alike has no preference. Choose which afferents it listens to.";
+      if ( g.pop( x ).model != "parrot_neuron" && e.input_weight( "stim" ) < 100.0 )
+        return "The afferents hardly fire: a cell that is driven by 'stim' at weight one stays silent. Make the afferents parrot cells, which repeat the Poisson spikes of the stimulus.";
+    const auto w = afferent_weights( g, X, R );
+    if ( w.exc == 0 ) return "'resp' hears none of the afferents by excitation: connect some afferents to the cell.";
+    // preference is in the weights, not in the number of connections: a cell that weighs every afferent about alike has none
+    if ( !w.graded() ) return "'resp' listens to every afferent with about the same weight: a cell that hears all orientations alike has no preference. Give the afferents that prefer ninety degrees a stronger say than the rest.";
     return "";
+  };
+  s.ok_g = []( const Graph& g ) -> std::string {
+    const auto w = afferent_weights( g, g.in_pops( "stim" ), g.out_pops( "resp" ) );
+    if ( w.inh > 0 )
+      return "A tuned cell: it fires for an orientation of ninety degrees and much less for the others, because the afferents that prefer other orientations inhibit it (flank inhibition) while the ones that prefer ninety degrees excite it.";
+    return "A tuned cell: it fires for an orientation of ninety degrees and much less for the others, because it weighs the afferents that prefer it far more than the rest.";
   };
   s.judge = []( const Meas& m, std::vector< Crit >& c, std::map< std::string, double >& p ) {
     auto rate = [ & ]( int a, int b ) { return ( m.n( "resp", "t" + std::to_string( a ) ) + m.n( "resp", "t" + std::to_string( b ) ) ) / ( 2.0 * 0.22 * std::max( 1.0, m.pool.count( "resp" ) ? m.pool.at( "resp" ) : 1.0 ) ); };

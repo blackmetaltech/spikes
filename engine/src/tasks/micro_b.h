@@ -151,6 +151,12 @@ public:
       s.value = std::min( s.value, 40.0 );  // behaviour without the mechanism the level teaches is not a solution (docs/REQ-0.4.md rule 1)
     if ( !s.passed && silent() )
       s.value = 0;  // nothing fired anywhere: staying quiet at rest is not partial credit
+    if ( wiring_.bare() )   // an empty bench has built nothing: no score and no criterion met
+    {
+      s.value = 0;
+      s.passed = false;
+      met = 0;
+    }
     s.parts[ "criteria_met" ] = met;
     s.parts[ "criteria_total" ] = static_cast< double >( cs.size() );
     if ( !wiring_.ok() )

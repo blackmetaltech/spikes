@@ -208,6 +208,7 @@ struct Spec
   std::function< std::string( const Graph&, Engine& ) > mech_e;  // 0.6 (add-only): the same, with the live engine (a cell's own parameters and phase plane); used instead of `mech` when set
   std::function< void( const Meas&, std::vector< Crit >&, std::map< std::string, double >& ) > judge;
   std::string ok_verdict;                              // said when everything passes
+  std::function< std::string( const Graph& ) > ok_g;   // 0.6 (add-only): the pass sentence chosen from the circuit's structure (when it returns "" ok_verdict is used)
   std::string h1, h2, h2_target, h3, h3_target;        // hint tiers 1-3 (no numbers)
   std::string metric_name, metric_unit;
   bool metric_lower = true;
@@ -301,6 +302,12 @@ public:
     s.value = s.passed ? 100.0 : 85.0 * ( crits.empty() ? 0.0 : soft / static_cast< double >( crits.size() ) );
     if ( !finished() || !wiring_.ok() ) s.passed = false;   // a half-wired circuit never passes (chapters B: a sensor or motor that is not connected is no solution)
     apply_mech( s );
+    if ( wiring_.bare() )   // an empty bench has built nothing: no score, and no criterion counted as met (a criterion that is vacuously true at zero activity is not a result)
+    {
+      s.value = 0;
+      s.passed = false;
+      met = 0;
+    }
     s.parts[ "criteria_met" ] = met;
     s.parts[ "criteria" ] = static_cast< double >( crits.size() );
     std::ostringstream o;
@@ -320,7 +327,10 @@ public:
         }
     }
     else
-      o << s_.ok_verdict;
+    {
+      const std::string alt = s_.ok_g && !g_.empty() ? s_.ok_g( g_ ) : std::string();
+      o << ( alt.empty() ? s_.ok_verdict : alt );
+    }
     s.verdict = o.str();
     return s;
   }

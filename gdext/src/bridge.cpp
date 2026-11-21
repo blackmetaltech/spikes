@@ -173,7 +173,7 @@ std::string sta_json( const std::vector< double >& stimulus, double dt_ms, const
     std::snprintf( buf, sizeof buf, "%s%.9g", k ? "," : "", r.mean[ k ] );
     out += buf;
   }
-  std::snprintf( buf, sizeof buf, "],\"n\":%d,\"before_ms\":%.6g,\"dt_ms\":%.6g}", r.n_used, r.before_ms, r.dt_ms );
+  std::snprintf( buf, sizeof buf, "],\"n\":%d,\"before_ms\":%.6g,\"dt_ms\":%.6g,\"stim_mean\":%.9g,\"stim_sd\":%.9g}", r.n_used, r.before_ms, r.dt_ms, r.stim_mean, r.stim_sd );
   return out + buf;
 }
 
