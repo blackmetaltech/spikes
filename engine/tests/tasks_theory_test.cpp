@@ -231,6 +231,37 @@ int main( int argc, char** argv )
   CHECK( pos( "t_tuned" ) < pos( "t_sharpen" ) && pos( "t_sharpen" ) < pos( "t_decode" ) );
   CHECK( pos( "h_complete" ) < pos( "h_two" ) && pos( "h_two" ) < pos( "h_learn" ) );
 
+  // ---- playtest circuits (godot/circuits/tests): honest circuits that a novice builds must pass, cheap tricks must fail and the verdict must say what is wrong
+  {
+    struct Case { const char* task; const char* file; bool pass; const char* word; };
+    const Case cases[] = {
+      { "h_two", "h2_hopfield_ok.json", true, "" },          // an outer-product Hopfield wiring of 8 cells in ONE population (per-edge weights): judged on the edge list between the two cell sets
+      { "h_complete", "hc_hopfield.json", true, "" },        // the same, one pattern
+      { "h_complete", "hc_rand.json", false, "symmetric" },  // a directed random graph completes the pattern but is not symmetric
+      { "r_choose", "ch_novice1.json", true, "" },
+      { "r_choose", "ch_bias.json", false, "bias" },         // feed-forward gain bias, loops of 0.01: holds only its favourite
+      { "r_oscillate", "osc_eq.json", true, "" },            // equal time constants oscillate: the inhibition need not be slower
+      { "r_oscillate", "osc_b.json", false, "too strong" },  // the loop through the inhibitory unit pins the excitation just above the drive
+      { "r_meanfield", "mf_k1_tuned.json", false, "network's k" },     // K = 1 with the J tuned to match the rates: not the network's description
+    };
+    for ( const Case& k : cases )
+    {
+      const json c = json::parse( chk::slurp( std::string( SPIKE_SOURCE_DIR ) + "/godot/circuits/tests/" + k.file ) );
+      for ( uint64_t seed : { 1, 2 } )
+      {
+        Result r = run_circuit( k.task, c, seed, "standard", false );
+        CHECK_MSG( r.loaded, std::string( k.file ) + " does not load: " + r.error );
+        CHECK_MSG( r.score.passed == k.pass, std::string( k.task ) + " / " + k.file + " seed " + std::to_string( seed ) + ( k.pass ? ": an honest circuit fails: " : ": a cheap trick passes: " ) + r.score.verdict );
+        if ( !k.pass && *k.word )
+        {
+          std::string v = r.score.verdict;
+          for ( auto& ch : v ) ch = static_cast< char >( std::tolower( static_cast< unsigned char >( ch ) ) );
+          CHECK_MSG( v.find( k.word ) != std::string::npos, std::string( k.file ) + ": the verdict does not name the problem (" + k.word + "): " + r.score.verdict );
+        }
+      }
+    }
+  }
+
   // ---- no numbers in verdicts or hint tiers 1-3 (honesty contract rule 2)
   // (extra circuits so that many verdicts are produced: the empty bench and one cell of each level)
   for ( const Level& L : kLevels )

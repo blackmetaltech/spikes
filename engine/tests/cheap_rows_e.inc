@@ -171,4 +171,17 @@
   CHEAP_ROW( "crab_pyloric", "pacemaker without calcium-activated potassium (tonic)", cheap::from_ref( "crab_pyloric", cheap::both( no_params( "AB", { "g_KCa" } ), no_params( "PD", { "g_KCa" } ) ) ) );
   CHEAP_ROW( "crab_pyloric", "every synapse ten times stronger", cheap::from_ref( "crab_pyloric", scale_all( 10.0 ) ) );
   CHEAP_ROW( "crab_pyloric", "every synapse twenty times weaker", cheap::from_ref( "crab_pyloric", scale_all( 0.05 ) ) );
+
+  // a stg_cell as the parts bin hands it out (the card's preset: spike currents only): untouched, it must pass none of the crab levels (the taught currents H, CaT, KCa are needed)
+  auto bin_cell = []( std::vector< std::string > ids ) -> cheap::Mut {
+    return [ = ]( json& c ) {
+      const json preset = { { "g_Na", 62800.0 }, { "g_Kd", 31400.0 }, { "g_CaT", 0.0 }, { "g_CaS", 0.0 }, { "g_A", 6280.0 }, { "g_KCa", 0.0 }, { "g_H", 0.0 }, { "g_L", 6.28 }, { "I_e", 0.0 } };
+      for ( auto& p : c[ "populations" ] )
+        for ( const auto& id : ids ) if ( p[ "id" ] == id ) p[ "params" ] = preset;
+    };
+  };
+  CHEAP_ROW( "s_phase", "the parts-bin stg_cell, nothing changed", cheap::from_ref( "s_phase", bin_cell( { "LP" } ) ) );
+  CHEAP_ROW( "s_pacemaker", "the parts-bin stg_cell for AB and PD, nothing changed", cheap::from_ref( "s_pacemaker", bin_cell( { "AB", "PD" } ) ) );
+  CHEAP_ROW( "crab_pyloric", "the parts-bin stg_cell everywhere, nothing changed", cheap::from_ref( "crab_pyloric", bin_cell( { "AB", "PD", "LP", "PY" } ) ) );
+  CHEAP_ROW_V( "s_pacemaker", "a slow but regular burster (modulator weight x0.4): too slow, not 'does not burst'", "too slowly", cheap::from_ref( "s_pacemaker", cheap::scale_input( "modulator", 0.4 ) ) );
 }

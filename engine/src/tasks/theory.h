@@ -153,19 +153,80 @@ inline void pattern_sets( Engine& e, Meas& m, const std::string& mem, const std:
   m.sets[ "cued" ];
   m.sets[ "uncued" ];
 }
-/// "" when the connections among the populations `pops` that carry excitation are roughly symmetric (every projection between two different populations has a partner back of about the same
-/// weight, within a factor of two), else the sentence. Self-projections are symmetric by construction.
-inline std::string asymmetry( const Graph& g, const std::vector< int >& pops )
+/// The edge list of the circuit at the level of CELLS (Engine::connections()): the memory levels judge who connects to whom, whatever the population layout (a pattern can be a set of cells of
+/// one population wired with per-edge weights, or a whole population, or several).
+struct CellGraph
 {
-  auto in = [ & ]( int p ) { return std::find( pops.begin(), pops.end(), p ) != pops.end(); };
-  for ( const auto& a : g.st.projections )
+  std::map< std::pair< int, int >, double > w;   // summed weight of the connections pre -> post (every connection with a non-zero weight)
+  std::map< int, std::vector< int > > out;       // post cells per pre cell
+  explicit CellGraph( const Engine& e )
   {
-    if ( a.n_edges <= 0 || a.sign == 0 || a.pre_index == a.post_index || !in( a.pre_index ) || !in( a.post_index ) ) continue;
-    bool partner = false;
-    for ( const auto& b : g.st.projections )
-      if ( b.n_edges > 0 && b.sign == a.sign && b.pre_index == a.post_index && b.post_index == a.pre_index && std::fabs( b.w_mean ) <= 2.0 * std::fabs( a.w_mean ) && std::fabs( a.w_mean ) <= 2.0 * std::fabs( b.w_mean ) ) partner = true;
-    if ( !partner )
-      return "The connections are not symmetric: a Hopfield-style memory has the same weight from cell A to cell B as from B to A. Some connection between two groups has no partner back of about the same strength.";
+    for ( const auto& c : e.connections() )
+    {
+      w[ { c.pre, c.post } ] += c.weight;
+    }
+    for ( const auto& [ k, v ] : w )
+      if ( v != 0.0 ) out[ k.first ].push_back( k.second );
+  }
+  double weight( int a, int b ) const
+  {
+    auto it = w.find( { a, b } );
+    return it == w.end() ? 0.0 : it->second;
+  }
+  /// Some cell of `S` lies on a cycle of positive connections (a cell exciting itself counts: a latch).
+  bool excitatory_loop( const std::set< int >& S ) const
+  {
+    for ( int s : S )
+    {
+      std::set< int > seen;
+      std::vector< int > stack{ s };
+      while ( !stack.empty() )
+      {
+        const int x = stack.back();
+        stack.pop_back();
+        auto o = out.find( x );
+        if ( o == out.end() ) continue;
+        for ( int y : o->second )
+        {
+          if ( weight( x, y ) <= 0 ) continue;
+          if ( y == s ) return true;
+          if ( seen.insert( y ).second ) stack.push_back( y );
+        }
+      }
+    }
+    return false;
+  }
+  /// Some cell of `A` pushes some cell of `B` down: a negative connection, or a positive one followed by a negative one (or the other way round) through a cell that is in neither set.
+  bool inhibits( const std::set< int >& A, const std::set< int >& B ) const
+  {
+    for ( int a : A )
+    {
+      auto o = out.find( a );
+      if ( o == out.end() ) continue;
+      for ( int x : o->second )
+      {
+        const double w1 = weight( a, x );
+        if ( B.count( x ) && w1 < 0 ) return true;
+        if ( A.count( x ) || B.count( x ) ) continue;
+        auto o2 = out.find( x );
+        if ( o2 == out.end() ) continue;
+        for ( int y : o2->second )
+          if ( B.count( y ) && w1 * weight( x, y ) < 0 ) return true;
+      }
+    }
+    return false;
+  }
+};
+/// "" when the connections among the cells `S` are roughly symmetric (every connection between two different cells of S has a partner back of the same sign and about the same weight, within a factor of
+/// two), else the sentence. Judged on the actual edge list, so it holds inside one population with per-edge weights as well as across populations: a directed random graph is not symmetric.
+inline std::string asymmetry_cells( const CellGraph& g, const std::set< int >& S )
+{
+  for ( const auto& [ k, v ] : g.w )
+  {
+    if ( v == 0.0 || k.first == k.second || !S.count( k.first ) || !S.count( k.second ) ) continue;
+    const double b = g.weight( k.second, k.first );
+    if ( b * v <= 0.0 || std::fabs( b ) > 2.0 * std::fabs( v ) || std::fabs( v ) > 2.0 * std::fabs( b ) )
+      return "The connections are not symmetric: a Hopfield-style memory has the same weight from cell A to cell B as from B to A. Some connection between two cells has no partner back of about the same strength.";
   }
   return "";
 }

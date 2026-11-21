@@ -1,0 +1,91 @@
+{
+ "schema_version": 1,
+ "name": "rand",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "P",
+   "model": "iaf_psc_alpha",
+   "n": 8,
+   "params": {},
+   "role": "neuron",
+   "pos": [
+    [
+     100,
+     100
+    ],
+    [
+     110,
+     100
+    ],
+    [
+     120,
+     100
+    ],
+    [
+     130,
+     100
+    ],
+    [
+     140,
+     100
+    ],
+    [
+     150,
+     100
+    ],
+    [
+     160,
+     100
+    ],
+    [
+     170,
+     100
+    ]
+   ]
+  }
+ ],
+ "projections": [
+  {
+   "pre": "P",
+   "post": "P",
+   "rule": "fixed_indegree",
+   "synapse": {
+    "synapse_model": "static_synapse",
+    "weight": 500,
+    "delay": 2.0
+   },
+   "indegree": 3
+  }
+ ],
+ "inputs": [
+  {
+   "name": "cue",
+   "kind": "poisson",
+   "targets": [
+    {
+     "pop": "P",
+     "idx": [
+      0,
+      1,
+      2
+     ]
+    }
+   ],
+   "weight": 1500.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "memory",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "P"
+    }
+   ]
+  }
+ ]
+}

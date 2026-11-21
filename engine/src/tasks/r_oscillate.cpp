@@ -2,7 +2,7 @@
 // unit, which shuts the excitatory one down; then the inhibition fades and the cycle starts again. The model is the Wilson-Cowan pair; the units are NEST threshold-linear rate neurons.
 //
 // WORLD (3000 ms; rate_drive sensor 'drive', weight = the player's): 0 until 600 ms, then a constant level (0.2 x weight is written to the excitatory unit's mu). Readouts: 'e' and 'i' (rate_value).
-// SCORING
+// SCORING (the units are threshold-linear: X' = (-X + drive + clip(sum of weight x rate))/tau, so the drive is added after the nonlinearity and inhibition cannot cancel it)
 //   quiet    'e' stays below a small value in [200, 600)                              silent without drive
 //   swing    in [1400, 3000) the rate of 'e' swings by at least a clear amount            it does not just settle
 //   cycles   at least 4 (guided 3) cycles in that window                                  it keeps going
@@ -31,8 +31,10 @@ Spec spec()
             "inhibits it back, form the Wilson-Cowan pair, and it can oscillate: excitation builds and drives the inhibition, the inhibition shuts the excitation down, then fades, and excitation "
             "builds again. The sensor 'drive' is zero and then switches on. Build two rate units: 'e' reads the excitatory one and 'i' the inhibitory one. The excitatory rate must stay quiet before "
             "the drive, then swing up and down again and again, and the inhibitory rate must follow it a little later in each cycle. A rate unit has a time constant, a gain, a threshold and a "
-            "ceiling; a connection between rate units is a weight (negative for inhibition). If the rate just climbs and stays there, nothing shuts the excitation down; if it settles, the loop is too weak "
-            "or too fast to overshoot.";
+            "ceiling; a connection between rate units is a weight (negative for inhibition). The drive adds on top of a unit's ceiling, so a rate can read a little above it. Two things have to be right: the "
+            "excitation has to be able to run away by itself, and the loop through the inhibitory unit has to be strong enough to catch it but not so strong that it holds the excitation down for good. If the "
+            "rate sticks near its ceiling, the inhibition is too weak to shut the excitation down; if it stays pinned just above the level of the drive, the inhibition is too strong; if it settles to a "
+            "steady value in between, the excitation does not run away strongly enough compared with how fast the units follow their inputs.";
   i.chapter = "rates";
   i.view = "rates";
   i.sensors = { "drive" };
@@ -50,7 +52,9 @@ Spec spec()
              "The excitatory rate swings between 0 and 1 about six times a second, with the inhibitory rate a little behind.";
   i.note = { "Excitation, inhibition and a rhythm",
     "Wilson and Cowan wrote equations for the activity of a localised population of excitatory and a population of inhibitory neurons. Phase-plane analysis showed that such a pair can sit at a "
-    "steady rate, jump between two steady rates, or oscillate, and that the frequency of the oscillation rises with the strength of the stimulus. The model has been a template for cortical rhythms since.",
+    "steady rate, jump between two steady rates, or oscillate, and that the frequency of the oscillation rises with the strength of the stimulus. Linearising around the steady rate gives the condition: the excitation has to "
+    "run away by itself (the self-connection above what the leak removes), and the loop through the inhibition has to be strong enough to catch it; the inhibition does not have to be slower, a slower inhibition only makes the "
+    "oscillation start more easily and lowers its frequency. The model has been a template for cortical rhythms since.",
     "Wilson HR, Cowan JD (1972) Biophys J 12:1-24, doi:10.1016/S0006-3495(72)86068-5" };
   s.schedule = [ & ]( bool ) {
     Schedule c;
@@ -85,21 +89,34 @@ Spec spec()
     p[ "lag_ms" ] = lag;
     const double need_amp = m.tol > 1.2 ? 0.3 : ( m.tol < 0.9 ? 0.5 : 0.4 );
     c.push_back( { "quiet", pre < 0.05, 1.0 - ramp( pre, 0.05, 0.5 ), "The excitatory rate is not zero before the drive comes: with no drive the pair must rest." } );
-    c.push_back( { "swing", amp >= need_amp, ramp( amp, 0, need_amp ),
-      "The excitatory rate hardly moves: it settles to a steady value (or sticks at its ceiling) instead of oscillating. Excitation has to grow strong enough to drive the inhibition, and the inhibition has to be able to shut it down." } );
+    // where did the rate settle? (the end of the drive phase against the highest it reached since the drive came on)
+    const double peak = m.vmax( "e", 600, 3000 ), end = m.vmean( "e", 2500, 3000 );
+    const bool pinned = peak > 0.05 && ( end < 0.7 * peak || end < 0.3 );
+    const bool high = peak > 0.05 && !pinned && end >= 0.8;
+    const std::string swing_msg = amp >= need_amp ? ""
+      : peak <= 0.05 ? "The excitatory rate never rises: the drive does not reach the unit that 'e' reads, or the weights are too small for anything to happen."
+      : pinned ? "The excitatory rate is pinned just above the level the drive alone gives it: every rise is shut down at once and held down, because the loop through the inhibitory unit is too strong. Weaken the connection "
+                 "from the excitatory unit to the inhibitory one or the inhibition back (or strengthen the self-excitation) so that the excitation can build up before it is caught."
+      : high && m.vmax( "i", 1400, 3000 ) < 0.05 ? "The excitatory rate climbs and stays at its ceiling and the inhibitory unit hardly responds: nothing shuts the excitation down. The excitatory unit has to drive the inhibitory one."
+      : high ? "The excitatory rate settles at a high steady value, at or near its ceiling: the loop through the inhibitory unit is too weak to shut it down. Strengthen the connection from the excitatory unit to the inhibitory one "
+               "or the inhibition back (or weaken the self-excitation)."
+             : "The excitatory rate settles to a steady value instead of oscillating: the excitation does not run away strongly enough compared with how fast the units follow their inputs, so any overshoot dies out. "
+               "Strengthen the self-excitation, make the excitatory unit faster or the inhibitory unit slower, and keep the loop through the inhibitory unit strong enough to catch the rise.";
+    c.push_back( { "swing", amp >= need_amp, ramp( amp, 0, need_amp ), swing_msg } );
     const int need_cyc = m.tol > 1.2 ? 3 : 4;
     c.push_back( { "cycles", cyc >= need_cyc, ramp( cyc, 0, need_cyc ), "The rate swings only once or twice and then settles: the oscillation dies out. The loop has to keep overshooting." } );
     c.push_back( { "period", period >= 40.0 / m.tol && period <= 400.0 * m.tol, period > 0 ? ( period < 40.0 ? ramp( period, 0, 40 ) : 1.0 - ramp( period, 400, 1200 ) ) : 0.0,
-      period > 0 && period < 40.0 ? "The oscillation is far too fast to be a rhythm: the units follow their input too quickly. Slow the inhibitory unit down." : "The oscillation is far too slow: the inhibition takes too long to build or to fade. Speed the units up." } );
+      period > 0 && period < 40.0 ? "The oscillation is far too fast to be a rhythm: the units follow their input too quickly. Larger time constants (especially the inhibitory unit's) slow it down." : "The oscillation is far too slow: the inhibition takes too long to build or to fade. Speed the units up." } );
     c.push_back( { "lag", period > 0 && lag >= 0.05 * period && lag <= 0.7 * period, period > 0 ? 0.4 : 0.0,
-      "The inhibitory rate moves together with the excitatory one instead of following it: the inhibition has to be slower than the excitation (a larger time constant) to be the cause of the turn-around." } );
+      "The inhibitory rate moves together with the excitatory one instead of following it a little later: the inhibitory unit's own time constant is what gives the delay that makes the inhibition the cause of the turn-around, "
+      "so it must not be negligible next to the length of the cycle." } );
   };
   s.ok_verdict = "A Wilson-Cowan oscillator: the excitatory population drives the inhibitory one, which shuts it down and then fades, over and over, and the inhibitory rate follows the excitatory one.";
-  s.h1 = "Excitation that excites itself, plus slower inhibition that it drives and that inhibits it back, makes a rhythm: it overshoots, is shut down, recovers and overshoots again.";
-  s.h2 = "The loop needs three connections: the excitatory unit onto itself, onto the inhibitory unit, and the inhibitory unit back onto it with a negative weight. The inhibitory unit should be the slower one.";
+  s.h1 = "Excitation that excites itself, plus inhibition that it drives and that inhibits it back, makes a rhythm: it overshoots, is shut down, recovers and overshoots again.";
+  s.h2 = "The loop needs three connections: the excitatory unit onto itself, onto the inhibitory unit, and the inhibitory unit back onto it with a negative weight. The excitation has to be able to run away by itself (a self-connection that is strong enough), and the loop through the inhibitory unit has to catch it. A slower inhibitory unit makes that easier and lowers the frequency, but it is not required.";
   s.h2_target = "e";
-  s.h3 = "Give the excitatory unit strong self-excitation and a drive, make the inhibitory unit's time constant larger than the excitatory one's, and make the inhibition back onto the excitatory unit strong. "
-         "If the rate just sits at its ceiling, strengthen the inhibition or speed up the excitatory drive onto it; if it settles to a steady value, strengthen the self-excitation or slow the inhibitory unit down.";
+  s.h3 = "Give the excitatory unit strong self-excitation and a drive, and an inhibitory loop of a strength in between: too weak and the rate sticks at its ceiling, too strong and it stays pinned just above the drive "
+         "level. If it sticks at its ceiling, strengthen the connections through the inhibitory unit; if it is pinned low, weaken them; if it settles to a steady value in between, strengthen the self-excitation or slow the inhibitory unit down.";
   s.metric_name = "period_ms";
   s.metric_unit = "ms";
   s.metric_lower = false;
