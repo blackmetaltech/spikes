@@ -63,6 +63,7 @@ struct ProjectionInfo
   std::string dopamine_source;                // 0.5, add-only: the id of that population (empty otherwise)
   int32_t n_self_edges = 0;                   // 0.5, add-only: connections of a cell onto itself (pre = post neuron)
   double self_w_max = 0, ring_w_max = 0;      // 0.5, add-only: strongest self connection (absolute), strongest ring-neighbour connection (signed; 0 when there is none)
+  double w_abs_max = 0;                       // 0.7, add-only: the largest |weight| over the connections (0 when n_edges == 0): "does any connection of this projection matter"
   int32_t n_ring_edges = 0;                   // 0.5, add-only: connections between two different cells: inside one population only those at ring distance 1 (cell k to cell k+-1 of its N, wrapping), between two populations all of them
 };
 
@@ -168,6 +169,14 @@ public:
   /// sign_filter as for has_path (applied to every projection of the cycle).
   bool has_loop_via( const std::string& pop, const std::string& via, int max_hops = 0, int sign_filter = 0 ) const;
 
+  /// Additions (0.7, add-only): a functional weight floor. A projection counts for the overloads below only if its strongest connection has |weight| >= min_weight
+  /// (ProjectionInfo::w_abs_max), so a task can ask "connected by weights that matter" instead of "connected by any non-zero weight" (a token 0.001 pA wire).
+  /// min_weight <= 0 gives exactly the calls above. The floor is in the units of the weights (pA for current-based, nS for conductance-based cells, mV for mean-field):
+  /// choose it per model. connections(min_abs_weight) is the edge list without the connections weaker than the floor.
+  bool has_path( const std::string& from, const std::string& to, int max_hops, int sign_filter, double min_weight ) const;
+  bool has_loop( const std::string& pop, int max_hops, int via_sign, double min_weight ) const;
+  bool has_loop_via( const std::string& pop, const std::string& via, int max_hops, int sign_filter, double min_weight ) const;
+
   /// Additions (v0.5, add-only). Spike-train inputs: queue_spikes() appends spikes to a "spike_generator" input (absolute model time in ms, a multiple of the
   /// resolution, strictly after the time reached; times need not be sorted). Returns false and sets error() otherwise. They are handed to NEST at the start of the
   /// next step(). set_input() on a spike_generator is an error. set_input_param() changes "rate" (Hz), "amplitude" (Hz), "freq_hz" (Hz) or "phase" (degrees) of a
@@ -204,6 +213,8 @@ public:
   };
   /// Every connection of every projection with a non-zero weight (a diffusion_connection reports its drift factor). Empty when nothing is loaded.
   std::vector< Connection > connections() const;
+  /// 0.7, add-only: connections() without the ones whose |weight| is below `min_abs_weight` (the functional edge view).
+  std::vector< Connection > connections( double min_abs_weight ) const;
 
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.

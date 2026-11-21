@@ -276,6 +276,8 @@ MAX_CURRENT_PA = 10000.0
 
 def weight_limit(neuron_model: str):
     """(limit, unit) of |weight| onto `neuron_model`: nS for "_cond_" models, pA for "_psc_" / "_curr_" models, else (0.0, None)."""
+    if neuron_model in ("butera_burster", "stg_cell", "sa_node_pacemaker", "icc_slow_wave"):
+        return 250.0, "nS"  # NESTML cells (engine/src/circuit.cpp kMaxNestmlWeightNs)
     if "_cond_" in neuron_model:
         return MAX_CONDUCTANCE_NS, "nS"
     if "_psc_" in neuron_model or "_curr_" in neuron_model:
@@ -484,11 +486,6 @@ def _parse_modulation(spec: dict) -> list:
                 raise CircuitError(f"{path}.param: the weight of a plastic {sm} projection is owned by the plasticity rule and cannot be modulated")
             if m["param"] in ("delay", "synapse_model", "port", "target", "source"):
                 raise CircuitError(f"{path}.param: '{m['param']}' cannot be modulated")
-            for j, q in enumerate(projs):
-                if j != proj and q["pre"] == projs[proj]["pre"] and q["post"] == projs[proj]["post"] and (q.get("synapse") or {}).get("synapse_model", "static_synapse") == sm:
-                    raise CircuitError(
-                        f"{path}.projection: projections {min(j, proj)} and {max(j, proj)} connect the same populations with the same synapse model, "
-                        "so their connections cannot be told apart: use another synapse model for one of them")
         if ("gain" in m) == ("scale_per_unit" in m):
             raise CircuitError(f"{path}: exactly one of 'gain' (value += gain * conc) or 'scale_per_unit' (value *= 1 + scale_per_unit * conc) is required")
         scale = "scale_per_unit" in m

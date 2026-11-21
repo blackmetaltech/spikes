@@ -174,12 +174,19 @@ bool opt_number( const json& o, const char* key, const std::string& path, double
 
 }  // namespace
 
+bool is_nestml_model( const std::string& m ) { return m == "butera_burster" or m == "stg_cell" or m == "sa_node_pacemaker" or m == "icc_slow_wave"; }
+
 // Documented physiological weight ceilings (docs/CIRCUIT-FORMAT.md "Weight limits"); mirrored in python/spike/circuit.py (weight_limit).
 double weight_limit( const std::string& neuron_model, const char** unit )
 {
   const char* u = nullptr;
   double lim = 0;
-  if ( neuron_model.find( "_cond_" ) != std::string::npos )
+  if ( is_nestml_model( neuron_model ) )
+  {
+    u = "nS";
+    lim = kMaxNestmlWeightNs;
+  }
+  else if ( neuron_model.find( "_cond_" ) != std::string::npos )
   {
     u = "nS";
     lim = kMaxConductanceNs;
@@ -220,6 +227,9 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
       w.push_back( 1.0 );  // NEST default
     return w;
   };
+
+  if ( opt_number( pr.synapse, "delay", spath, v ) and not( v <= kMaxDelayMs ) )
+    fail( sub( spath, "delay" ), "delay " + std::to_string( v ) + " ms is above the allowed " + std::to_string( static_cast< long >( kMaxDelayMs ) ) + " ms" );
 
   // weight ceiling of the postsynaptic model (a huge conductance makes the GSL integrator of aeif_cond_* diverge, and NEST then aborts)
   if ( model != "gap_junction" )
@@ -292,6 +302,8 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
     for ( double w : weights() )
       if ( not( w > 0 ) )
         fail( spath + ".weight", "gap_junction weight is a conductance in nS and must be > 0" );
+      else if ( w > kMaxGapNs )
+        fail( spath + ".weight", "gap_junction weight " + std::to_string( w ) + " nS is above the allowed " + std::to_string( static_cast< long >( kMaxGapNs ) ) + " nS" );
     if ( not pr.has_edges )
     {
       const std::string rn = pr.rule[ "rule" ].get< std::string >();
@@ -429,7 +441,12 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
     json j;
     try
     {
-      j = json::parse( text );
+      // depth guard first: deeply nested values would overflow the stack of every recursive walk over the document
+      j = json::parse( text, [ & ]( int depth, json::parse_event_t ev, json& ) {
+        if ( ( ev == json::parse_event_t::object_start or ev == json::parse_event_t::array_start ) and depth >= kMaxJsonDepth )
+          fail( "$", "JSON is nested deeper than " + std::to_string( kMaxJsonDepth ) + " levels" );
+        return true;
+      } );
     }
     catch ( const json::parse_error& e )
     {
@@ -446,10 +463,11 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
     c.resolution_ms = get_number( j, "resolution_ms", "resolution_ms", 0.1 );
     if ( not( c.resolution_ms >= 0.001 and c.resolution_ms <= 10.0 ) )
       fail( "resolution_ms", "must be between 0.001 and 10 ms" );
+    c.seed = 1;  // NEST refuses seed 0
     if ( auto it = j.find( "seed" ); it != j.end() )
     {
-      if ( not it->is_number_integer() or it->get< long long >() < 0 )
-        fail( "seed", "must be a non-negative integer" );
+      if ( not it->is_number_integer() or not( it->get< double >() >= 1.0 and it->get< double >() <= static_cast< double >( kMaxSeed ) ) )
+        fail( "seed", "must be an integer from 1 to " + std::to_string( kMaxSeed ) );
       c.seed = it->get< unsigned long long >();
     }
 
@@ -471,14 +489,22 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         fail( sub( path, "id" ), "duplicate population id '" + ps.id + "'" );
       ps.model = get_string( p, "model", path, true );
       const json& n = need( p, "n", path );
-      if ( not n.is_number_integer() or n.get< long >() < 1 or n.get< long >() > 10000000 )
+      if ( not n.is_number_integer() or not( n.get< double >() >= 1.0 ) )
         fail( sub( path, "n" ), "must be an integer >= 1" );
+      if ( n.get< double >() > static_cast< double >( kMaxNeurons ) or static_cast< double >( c.n_neurons ) + n.get< double >() > static_cast< double >( kMaxNeurons ) )
+        fail( sub( path, "n" ), "this circuit has more than " + std::to_string( kMaxNeurons ) + " neurons in total (the limit that keeps the simulation responsive)" );
       ps.n = n.get< int32_t >();
       ps.role = get_string( p, "role", path, false );
       if ( auto it = p.find( "params" ); it != p.end() )
       {
         require_object( *it, sub( path, "params" ) );
         ps.params = *it;
+        if ( auto ie = it->find( "I_e" ); ie != it->end() and ie->is_number() )
+        {
+          const double cap = is_nestml_model( ps.model ) ? kMaxNestmlDcPa : kMaxDcPa;
+          if ( not( std::fabs( ie->get< double >() ) <= cap ) )
+            fail( sub( sub( path, "params" ), "I_e" ), "a constant current of " + std::to_string( ie->get< double >() ) + " pA is above the allowed " + std::to_string( static_cast< long >( cap ) ) + " pA" );
+        }
       }
       if ( auto it = p.find( "pos" ); it != p.end() )
       {
@@ -580,6 +606,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             double d = e[ 3 ].get< double >();
             if ( not( d >= c.resolution_ms ) )
               fail( ep, "delay must be >= resolution_ms" );
+            if ( not( d <= kMaxDelayMs ) )
+              fail( ep, "delay " + std::to_string( d ) + " ms is above the allowed " + std::to_string( static_cast< long >( kMaxDelayMs ) ) + " ms" );
             pr.edges.emplace_back( e[ 0 ].get< int32_t >(), e[ 1 ].get< int32_t >() );
             pr.edge_wd.push_back( { e[ 2 ].get< double >(), d } );
           }
@@ -601,6 +629,36 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         if ( pr.dopamine_pop >= 0 and pr.synapse[ "synapse_model" ] != "stdp_dopamine_synapse" )
           fail( sub( path, "dopamine_source" ), "only valid with synapse_model stdp_dopamine_synapse" );
         validate_synapse( c, pr, path );
+        {  // connection budget: an estimate from the rule, before anything is built
+          const double npre = c.pops[ pr.pre_pop ].n, npost = c.pops[ pr.post_pop ].n;
+          auto num = [ & ]( const char* k, double def ) {
+            auto f = pr.rule.find( k );
+            return f != pr.rule.end() and f->is_number() ? f->get< double >() : def;
+          };
+          double est = npre * npost;
+          if ( pr.has_edges )
+            est = static_cast< double >( pr.edges.size() );
+          else
+          {
+            const std::string rn = pr.rule.value( "rule", std::string() );
+            if ( rn == "one_to_one" )
+              est = std::min( npre, npost );
+            else if ( rn == "fixed_indegree" )
+              est = std::max( 0.0, num( "indegree", 0.0 ) ) * npost;
+            else if ( rn == "fixed_outdegree" )
+              est = std::max( 0.0, num( "outdegree", 0.0 ) ) * npre;
+            else if ( rn == "fixed_total_number" )
+              est = std::max( 0.0, num( "N", 0.0 ) );
+            else if ( rn == "pairwise_bernoulli" )
+              est = std::min( est, std::max( 0.0, num( "p", 1.0 ) ) * npre * npost );
+          }
+          if ( pr.gap )
+            est *= 2;
+          c.n_connections += est;
+          if ( not( est <= kMaxConnections ) or not( c.n_connections <= kMaxConnections ) )
+            fail( path, "this circuit would make about " + std::to_string( static_cast< long long >( std::min( c.n_connections, 1e18 ) ) ) + " connections; the limit is " +
+                          std::to_string( static_cast< long long >( kMaxConnections ) ) );
+        }
         c.projs.push_back( std::move( pr ) );
       }
     }
@@ -645,6 +703,34 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         in.weight = get_number( p, "weight", path, 1.0 );
         in.value = get_number( p, "value", path, 0.0 );
         in.delay = get_number( p, "delay", path, -1.0 );
+        if ( not std::isfinite( in.weight ) or not std::isfinite( in.value ) )
+          fail( path, "weight and value must be finite numbers" );
+        if ( in.delay > kMaxDelayMs )
+          fail( sub( path, "delay" ), "delay " + std::to_string( in.delay ) + " ms is above the allowed " + std::to_string( static_cast< long >( kMaxDelayMs ) ) + " ms" );
+        if ( in.kind != "rate_drive" and in.kind != "tuned_poisson" )
+        {
+          // an input weight is a synaptic weight onto the targets: same ceiling as a projection; a dc input's current is weight * value
+          for ( int32_t n : in.targets )
+          {
+            const PopSpec* q = nullptr;
+            for ( const auto& pp : c.pops )
+              if ( n >= pp.first and n < pp.first + pp.n )
+                q = &pp;
+            if ( not q )
+              continue;
+            const char* unit = nullptr;
+            const double lim = weight_limit( q->model, &unit );
+            if ( lim > 0 and in.kind != "dc" and std::fabs( in.weight ) > lim )
+              fail( sub( path, "weight" ), "weight " + std::to_string( in.weight ) + " is outside the allowed range |w| <= " + std::to_string( static_cast< long >( lim ) ) + " " + unit +
+                                               " for " + q->model );
+            if ( in.kind == "dc" )
+            {
+              const double cap = is_nestml_model( q->model ) ? kMaxNestmlDcPa : kMaxDcPa;
+              if ( std::fabs( in.weight * in.value ) > cap )
+                fail( sub( path, "value" ), "a constant current of " + std::to_string( in.weight * in.value ) + " pA onto '" + q->id + "' is above the allowed " + std::to_string( static_cast< long >( cap ) ) + " pA" );
+            }
+          }
+        }
         const bool sg = in.kind == "spike_generator", sp = in.kind == "sinusoidal_poisson";
         if ( not sg and p.contains( "spike_times" ) )
           fail( sub( path, "spike_times" ), "only valid for kind \"spike_generator\"" );
@@ -655,6 +741,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           fail( sub( path, "value" ), sg ? "a spike_generator has no value: give \"spike_times\" (ms)" : "a sinusoidal_poisson input has no value: give \"rate\" (mean, Hz), \"amplitude\" (Hz), \"freq_hz\" and \"phase\" (degrees)" );
         if ( in.kind == "poisson" and in.value < 0 )
           fail( sub( path, "value" ), "rate must be >= 0" );
+        if ( in.kind == "poisson" and in.value > kMaxRateHz )
+          fail( sub( path, "value" ), "rate " + std::to_string( in.value ) + " Hz is above the allowed " + std::to_string( static_cast< long >( kMaxRateHz ) ) + " Hz" );
         for ( const char* k : { "rate_max", "rate_base", "kappa", "period_deg" } )
           if ( in.kind != "tuned_poisson" and p.contains( k ) )
             fail( sub( path, k ), "only valid for kind \"tuned_poisson\"" );
@@ -666,6 +754,10 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           in.period_deg = get_number( p, "period_deg", path, in.period_deg );
           if ( not( in.rate_base >= 0 and in.rate_max >= in.rate_base ) )
             fail( sub( path, "rate_max" ), "need 0 <= rate_base <= rate_max (Hz)" );
+          if ( in.rate_max > kMaxRateHz )
+            fail( sub( path, "rate_max" ), "rate_max " + std::to_string( in.rate_max ) + " Hz is above the allowed " + std::to_string( static_cast< long >( kMaxRateHz ) ) + " Hz" );
+          if ( not( in.kappa <= 1e4 ) )
+            fail( sub( path, "kappa" ), "kappa is above the allowed 10000" );
           if ( not( in.kappa >= 0 ) )
             fail( sub( path, "kappa" ), "kappa (tuning sharpness) must be >= 0" );
           if ( not( in.period_deg > 0 ) )
@@ -704,6 +796,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             fail( sub( path, "rate" ), "mean rate must be >= 0 Hz" );
           if ( not( in.amplitude >= 0 ) )
             fail( sub( path, "amplitude" ), "amplitude must be >= 0 Hz" );
+          if ( in.value > kMaxRateHz or in.amplitude > kMaxRateHz )
+            fail( sub( path, in.value > kMaxRateHz ? "rate" : "amplitude" ), "rate above the allowed " + std::to_string( static_cast< long >( kMaxRateHz ) ) + " Hz" );
           if ( not( in.freq_hz >= 0 and in.freq_hz * c.resolution_ms / 1000.0 < 0.5 ) )
             fail( sub( path, "freq_hz" ), "frequency must be >= 0 and below the Nyquist limit of the resolution (" + std::to_string( 500.0 / c.resolution_ms ) + " Hz)" );
         }
@@ -800,11 +894,6 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           const std::string prm = get_string( p, "param", path, true );
           if ( prm == "weight" and sm.rfind( "stdp", 0 ) == 0 )
             fail( sub( path, "param" ), "the weight of a plastic " + sm + " projection is owned by the plasticity rule and cannot be modulated" );
-          for ( size_t j = 0; j < c.projs.size(); ++j )
-            if ( static_cast< int >( j ) != m.proj_index and c.projs[ j ].pre_pop == c.projs[ m.proj_index ].pre_pop and c.projs[ j ].post_pop == c.projs[ m.proj_index ].post_pop and
-                 c.projs[ j ].synapse[ "synapse_model" ] == c.projs[ m.proj_index ].synapse[ "synapse_model" ] )
-              fail( sub( path, "projection" ), "projections " + std::to_string( std::min< size_t >( j, m.proj_index ) ) + " and " + std::to_string( std::max< size_t >( j, m.proj_index ) ) +
-                                                 " connect the same populations with the same synapse model, so their connections cannot be told apart: use another synapse model for one of them" );
           if ( prm == "delay" or prm == "synapse_model" or prm == "port" or prm == "target" or prm == "source" )
             fail( sub( path, "param" ), "'" + prm + "' cannot be modulated" );
         }
