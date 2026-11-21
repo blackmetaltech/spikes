@@ -122,6 +122,7 @@ func fill_bar() -> void:
 		hint_btn = Kit.btn("Hint", lab.play.hint_toggle, "amber", bs); Kit.ident(hint_btn, "BtnHint"); bar.add_child(hint_btn)
 		bar.add_child(Kit.btn("Case" if dxm else "Brief", func(): show_brief(), "ghost", bs, Vector2(84, 0)))
 		if not dxm and test_on_bar(): bar.add_child(Kit.btn("Test x5", lab._test_start, "green", bs, Vector2(110, 0)))
+	if not phone: _add_undo(bar, bs - 2)
 	lab.status = Kit.label("", 17 if not phone else 15, Kit.TEXT_SOFT); lab.status.size_flags_vertical = Control.SIZE_SHRINK_CENTER; lab.status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lab.status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; lab.status.custom_minimum_size.x = 0; lab.status.clip_text = true
 	bar.add_child(lab.status)
@@ -170,8 +171,13 @@ func fill_palette() -> void:
 	connect_btn = Kit.btn("Connect", lab._toggle_connect, "panel", sz); palette_row.add_child(connect_btn)
 	connect_btn.tooltip_text = "Connect mode: click a source, then a target. You can also drag from a neuron's rim."
 	sync_connect_btn()
-	undo_btn = Kit.btn("Undo", func(): lab.editor.undo(), "panel", sz); undo_btn.tooltip_text = "Undo the last change (Ctrl+Z)"; palette_row.add_child(undo_btn)
-	redo_btn = Kit.btn("Redo", func(): lab.editor.redo(), "panel", sz); redo_btn.tooltip_text = "Redo (Ctrl+Shift+Z or Ctrl+Y)"; palette_row.add_child(redo_btn)
+	if Layout.phone: _add_undo(palette_row, sz)   # on a phone the bar has no room
+
+## Undo / Redo: on the top bar (desktop), in the palette (phone); not on a diagnosis case (read-only).
+func _add_undo(row: Control, sz: int) -> void:
+	if lab._is_dx(): return
+	undo_btn = Kit.btn("Undo", func(): lab.editor.undo(), "panel", sz); undo_btn.tooltip_text = "Undo the last change (Ctrl+Z)"; row.add_child(undo_btn)
+	redo_btn = Kit.btn("Redo", func(): lab.editor.redo(), "panel", sz); redo_btn.tooltip_text = "Redo (Ctrl+Shift+Z or Ctrl+Y)"; row.add_child(redo_btn)
 	sync_undo()
 
 ## Undo / Redo are greyed out when there is nothing to undo or redo.
@@ -466,6 +472,7 @@ func import_from(s: Dictionary) -> void:
 ## On a phone the inspector is a bottom sheet that shows only while something is selected (or the brief is asked for) and only on the circuit tab.
 func sheet_sync() -> void:
 	if lab.inspector == null or lab.editor == null: return
+	sync_undo()
 	if not Layout.phone:
 		lab.inspector.visible = true
 		if palette_row != null: palette_row.visible = not lab.lesion_on and not lab._is_dx()

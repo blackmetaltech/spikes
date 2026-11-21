@@ -259,13 +259,15 @@ func _bbox(ns: Array) -> Rect2:
 	return Rect2(lo, hi - lo)
 
 func _card_size() -> Vector2:
-	var k := clampf(Kit.f(), 0.85, 1.0); return Vector2(150.0 * k, maxf(52.0 * k, float(Kit.fs(14)) * 2.0 + 18.0))
+	var k := clampf(Kit.f(), 0.85, 1.0)
+	var w := clampf(size.x * 0.135, 112.0, 150.0 * k) if size.x > 0.0 else 150.0 * k   # narrower on a small bench
+	return Vector2(w, maxf(52.0 * k, float(Kit.fs(14)) * 2.0 + 18.0))
 
 ## Channel cards stack in one column down each side; many cards go in several columns so none run off the bench.
 func _card_cols(count: int) -> int:
 	if count <= 0 or inset_bottom > 0.0: return 1   # with the phone sheet open the canvas is a strip: one column, squeezed
-	var avail := maxf(size.y - 80.0 - inset_bottom, 120.0)
-	return clampi(ceili(float(count) * (_card_size().y + 8.0) / avail), 1, 4)
+	var avail := maxf(size.y - 40.0 - inset_bottom, 120.0)   # cards may overlap like a fanned stack (each still shows its name) before a second column opens
+	return clampi(ceili(float(count) * (_card_size().y * 0.62) / avail), 1, 4)
 
 ## Centre of card `i` of `count` on one side (side -1 left, +1 right), `x0` the x of the column nearest the neurons.
 func _card_centre(count: int, i: int, side: int, x0: float, cy: float, pitch: float) -> Vector2:
@@ -318,16 +320,20 @@ func _do_fit() -> void:
 			if r.size.x <= room.size.x and r.size.y <= room.size.y: good = mid; lo = mid
 			else: hi = mid
 		if good > 0.0: ub = fits.call(good)
-		else:   # the cards alone fill the window (a small window, many channels): fit the neuron block between the card columns instead
-			var av2 := _fit_avail(); var blk := func(sc: float) -> Rect2:
-				view_scale = sc; var g := _build(true); return g.get("bbp", Rect2(0, 0, 1, 1))
-			lo = ZOOM_MIN; hi = s0; good = ZOOM_MIN
-			for it in 7:
-				var mid := (lo + hi) * 0.5; var r: Rect2 = blk.call(mid)
-				if r.size.x <= av2.size.x and r.size.y <= av2.size.y: good = mid; lo = mid
-				else: hi = mid
-			var bp: Rect2 = blk.call(good)
-			view_off = av2.get_center() - bp.get_center(); _gkey = []; view_changed.emit(); return
+		else:   # nothing fits (a small window, many groups and channels): the zoom whose layout overflows least, centred (pan for the rest)
+			var best := ZOOM_MIN; var bo := INF   # first a zoom at which the neuron block (with its labels) fits, then the least overflow of block and cards
+			for k in 9:
+				var sc := lerpf(ZOOM_MIN, maxf(s0, ZOOM_MIN), float(k) / 8.0); view_scale = sc; var gk := _build(true)
+				var r: Rect2 = gk.get("bb", room); var rb: Rect2 = gk.get("bbp", r)
+				var ob := maxf(rb.size.x / room.size.x, rb.size.y / room.size.y)
+				var over := maxf(r.size.x / room.size.x, r.size.y / room.size.y) if ob <= 1.0 else 100.0 + ob
+				if over < bo - 0.01: bo = over; best = sc
+			view_scale = best; var gb := _build(true); ub = gb.get("bb", ub); var bp: Rect2 = gb.get("bbp", ub)
+			var off := room.get_center() - ub.get_center()   # centred, then moved so the neuron block and its labels stay in view (cards may be a pan away)
+			for ax in 2:
+				if bp.size[ax] >= room.size[ax]: off[ax] = room.get_center()[ax] - bp.get_center()[ax]
+				else: off[ax] = clampf(off[ax], room.position[ax] - bp.position[ax], room.end[ax] - bp.end[ax])
+			view_off = off; _gkey = []; view_changed.emit(); return
 	view_off = room.get_center() - ub.get_center()
 	_gkey = []; view_changed.emit()
 
@@ -547,7 +553,7 @@ func _build(shapes_only := false) -> Dictionary:
 				pre = PackedVector2Array([a, Vector2(sx, a.y), Vector2(sx, gy), Vector2(gx + (10.0 if is_in else -10.0), gy)])
 			var start := pre[pre.size() - 1]
 			var dir := ((pd["c"] as Vector2) - start).normalized()
-			var e := _edge_pt(pd, -dir if is_in else dir) + (-dir if is_in else dir) * 4.0
+			var e := _edge_pt(pd, -dir) - dir * 4.0   # the point of the outline that faces the card
 			var p0 := start if is_in else e; var p1 := e if is_in else start
 			var nrm := (p1 - p0).orthogonal().normalized() * 20.0
 			var curve := Gfx.bez_points(p0, p0 + (p1 - p0) * 0.4 + nrm, p0 + (p1 - p0) * 0.7 + nrm, p1, 20)
@@ -838,7 +844,8 @@ func _draw() -> void:
 	var in_sensor := {}
 	if tele != null and tele.task != null:
 		for s in tele.task.sensor_channels(): in_sensor[str(s)] = true
-	for it in g["items"]: _draw_item(font, fz, it, in_sensor, now)
+	var its: Array = g["items"]
+	for ii in range(its.size() - 1, -1, -1): _draw_item(font, fz, its[ii], in_sensor, now)   # bottom card first: a squeezed column shows every card's name
 	# --- labels, last, on a paper halo
 	for p in P: _draw_label(p, fz)
 	# --- keyboard cursor and wire
@@ -869,11 +876,14 @@ func _draw() -> void:
 	_draw_zoom()
 	if _note != "": _draw_note(font, fz)
 	if circuit.get("populations", []).is_empty():
-		var lo := 8.0; var hi := size.x - 8.0   # the hint sits between the card columns, not over them
+		var lo := 8.0; var hi := size.x - 8.0   # the hint sits between the card columns, not over them (full width when the cards are all below it)
+		var hint_bottom := size.y * 0.16 + float(Kit.fs(18)) * 4.0
 		for it in g["items"]:
 			var rc: Rect2 = _g2s_rect(it["rect"])
+			if rc.position.y - 12.0 > hint_bottom: continue
 			if rc.get_center().x < size.x * 0.5: lo = maxf(lo, rc.end.x + 10.0)
 			else: hi = minf(hi, rc.position.x - 10.0)
+		if hi - lo > size.x * 0.7: lo = size.x * 0.15; hi = size.x * 0.85
 		var hw := maxf(hi - lo, 160.0)
 		draw_multiline_string(font, Vector2(lo, size.y * 0.16), "An empty bench. Press “+ Excitatory” above to add a neuron, then drag from a sensor card to it and from it to a motor card.", HORIZONTAL_ALIGNMENT_CENTER, hw, Kit.fs(18), 6, Kit.TEXT_SOFT)
 
@@ -1170,7 +1180,12 @@ func _draw_scale_bar() -> void:
 ## The zoom readout in the bottom-left corner ("100%"): click it to fit.
 func _zoom_rect() -> Rect2:
 	var fz := Kit.fs(14); var w := Fonts.mono.get_string_size("300%", HORIZONTAL_ALIGNMENT_LEFT, -1, fz).x + 18.0
-	return Rect2(Vector2(10.0, size.y - inset_bottom - float(fz) - 22.0), Vector2(w, float(fz) + 12.0))
+	var r := Rect2(Vector2(10.0, size.y - inset_bottom - float(fz) - 22.0), Vector2(w, float(fz) + 12.0))
+	if not _g.is_empty():   # never over a card: right of the left card column
+		for it in _g["items"]:
+			var cr := _g2s_rect(it["rect"])
+			if cr.grow(4.0).intersects(r): r.position.x = cr.end.x + 10.0
+	return r
 
 func _draw_zoom() -> void:
 	var fz := Kit.fs(14); var r := _zoom_rect()
