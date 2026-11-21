@@ -50,7 +50,8 @@ def c_shift():
 
 
 def fly_compass():
-    write("fly_compass", ring_ref())
+    # wt 2.8, not 3.0: the shifting is a few per cent too strong at 3.0, and the error after four turns then crosses the track limit on some seeds (researcher mode)
+    write("fly_compass", ring_ref(wt=2.8))
 
 
 DX = {"dx_compass": ("fly_compass.json", "PENL>EPG")}

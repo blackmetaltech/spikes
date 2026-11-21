@@ -1,7 +1,7 @@
 // Task "leech_heart" (leech chapter): the heartbeat half-centre. Two heart interneurons (HN) inhibit each other and fire in alternating bursts; the rhythm has to come from the
 // circuit and its period must fall in a band. (research/bestiary-a.md section 2.)
 //
-// WORLD (dc sensor 'drive', level 2.0 x sensor weight, on from t = 0; full episode 14 s, quick episode 9 s: the analysis window is (3000 ms, end])
+// WORLD (dc sensor 'drive', level 2.0 x sensor weight, on from t = 0; full and quick episode 14 s: the analysis window is (3000 ms, end])
 //   At t = 0 the task starts the 'left' output cells at V_m = -50 mV and the 'right' ones at -75 mV, and the cells that inhibit them the other way round, so that the symmetry between
 //   identical cells is broken the same way on every seed (the left motor side is released first).
 //   Motors 'left' and 'right': the two sides' HN cells.
@@ -151,9 +151,9 @@ Spec spec()
     "interneurons and lock to the faster of them. This level is the single oscillator, with spiking cells and a compressed time scale; the real inhibition is partly graded "
     "(transmission that depends smoothly on the presynaptic voltage), which the game's spike-based synapses do not model.",
     "Hill AA, Lu J, Masino MA, Olsen OH, Calabrese RL (2001) J Comput Neurosci 10:281-302, doi:10.1023/a:1011216131638; Nadim F, Olsen OH, De Schutter E, Calabrese RL (1995) J Comput Neurosci 2:215-235, doi:10.1007/BF00961435" };
-  s.schedule = [ & ]( bool quick ) {
+  s.schedule = [ & ]( bool ) {
     Schedule c;
-    c.dur = quick ? 9000 : 14000;
+    c.dur = 14000;   // the quick check is the full episode: four cells run it in about a second, and a shorter window (two cycles instead of four) passed circuits whose overlap and period drift later
     c.segs = { { "drive", 0, c.dur, 2.0 } };
     c.wins = { { "window", kW0, c.dur } };
     return c;
