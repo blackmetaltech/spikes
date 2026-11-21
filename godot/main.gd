@@ -278,6 +278,9 @@ func _fit_checks() -> void:
 			await _frames(12)
 			var vp := get_viewport().get_visible_rect()
 			bad += _clipped(screen, vp, "%s %dx%d text x%.1f" % [id, cfg[0].x, cfg[0].y, cfg[1]])
+			if id == "lab":   # painted body-view tiles (not Controls): BodyViews._tile counts a value that did not fit at its smallest size
+				if BodyViews.overflow > 0: printerr("FIT body-view tile overflow x%d at %dx%d text x%.1f" % [BodyViews.overflow, cfg[0].x, cfg[0].y, cfg[1]])
+				bad += BodyViews.overflow; BodyViews.overflow = 0
 	win.size = size0; Settings.text_boost = boost0; relayout(); await _frames(2)
 	print("FIT clipped: %d" % bad); _check(bad == 0, "text clipped or off-screen at 1366x768 or Large text")
 

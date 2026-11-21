@@ -393,7 +393,7 @@ static func spine(ci: CanvasItem, top: Vector2, h: float, st: Dictionary) -> Dic
 		var spin := PackedVector2Array([Vector2(sx - pitch * 0.1, p.y - bh * 0.30), Vector2(sx + pitch * 0.45, p.y - bh * 0.2), Vector2(sx + ulen * 0.85, p.y + bh * 0.55 + ulen * 0.22), Vector2(sx + ulen * 0.55, p.y + bh * 0.62 + ulen * 0.22), Vector2(sx - pitch * 0.1, p.y + bh * 0.25)])
 		ci.draw_colored_polygon(spin, Color("#E9DDC4", al)); ci.draw_polyline(PackedVector2Array([spin[0], spin[1], spin[2], spin[3], spin[4]]), Color(BONE, 0.6 * al), 1.4, true)
 		Gfx.rounded_rect(ci, Rect2(p.x - bw * 0.5, p.y - bh * 0.5, bw, bh), Color("#ECE0C6", al), Color(BONE, 0.75 * al), bh * 0.28, 1.4)
-		if i < n - 1: Gfx.rounded_rect(ci, Rect2(p.x - bw * 0.42, p.y + bh * 0.5 + 1.0, bw * 0.84, pitch * 0.2), Color(Kit.CYAN, 0.28 * al), Color(0, 0, 0, 0), pitch * 0.1, 0.0)
+		if i < n - 1: Gfx.rounded_rect(ci, Rect2(p.x - bw * 0.42, p.y + bh * 0.5 + 1.0, bw * 0.84, pitch * 0.2), Color(Specimens.SLATE, 0.28 * al), Color(0, 0, 0, 0), pitch * 0.1, 0.0)
 	var last: Vector2 = bodies[n - 1][0]
 	var sac := PackedVector2Array([last + Vector2(-h * 0.05, pitch * 0.5), last + Vector2(h * 0.045, pitch * 0.5), last + Vector2(h * 0.075, pitch * 2.6), last + Vector2(h * 0.015, pitch * 3.2), last + Vector2(-h * 0.02, pitch * 2.2)])
 	if top.y + pitch * (float(n) + 3.2) <= top.y + h + pitch * 0.6:
@@ -529,7 +529,7 @@ static func limb(ci: CanvasItem, sh: Vector2, el: Vector2, hd: Vector2, st: Dict
 	return out
 
 # ---------------------------------------------------------------- the eye
-## An eye: sclera, iris with radial fibres (the dilator, amber, lights with `dilator`), the sphincter ring at the pupil margin (cyan, thickens with `sphincter`),
+## An eye: sclera, iris with radial fibres (the dilator, amber, lights with `dilator`), the sphincter ring at the pupil margin (parasympathetic colour, thickens with `sphincter`),
 ## the pupil of `pupil_mm` and a catch-light. c = centre, ew = half width of the lid opening.
 static func eye(ci: CanvasItem, c: Vector2, ew: float, st: Dictionary) -> Dictionary:
 	var al := float(st.get("alpha", 1.0)); var eh := ew * 0.62
@@ -594,7 +594,7 @@ static func gut(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	for i in range(bot.size() - 1, -1, -1): lumen.append(bot[i])
 	ci.draw_colored_polygon(lumen, Color("#F6EEDF", al))
 	var lc := lumen.duplicate(); lc.append(lumen[0]); ci.draw_polyline(lc, Color(Kit.exc(), 0.30 * al), 1.2, true)
-	# circular muscle bands, coloured by ACh (amber) and NO (cyan)
+	# circular muscle bands, coloured by ACh (amber) and NO (the inhibitory transmitter: Prussian blue)
 	for i in n:
 		var q := (float(i) + 0.5) / float(n); var j := int(q * float(N)); var a := clampf(float(seg[i]), 0.0, 1.0) if i < seg.size() else 0.0
 		var e := clampf(float(ex[i]), 0.0, 1.0) if i < ex.size() else a

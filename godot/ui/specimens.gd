@@ -205,7 +205,7 @@ static func fig(c: Control, p: Vector2, num: int, text: String, w: float) -> voi
 	var f := fz(); var lead := "Fig. %d. " % num
 	var lw := Fonts.bold.get_string_size(lead, HORIZONTAL_ALIGNMENT_LEFT, -1, f).x
 	c.draw_string(Fonts.bold, p, lead, HORIZONTAL_ALIGNMENT_LEFT, w, f, Kit.TEXT)
-	if w - lw > 20.0: c.draw_string(Gfx.serif_italic(), p + Vector2(lw, 0), text, HORIZONTAL_ALIGNMENT_LEFT, w - lw, f, Kit.TEXT_SOFT)
+	if w - lw > 20.0: c.draw_string(Gfx.serif_italic(), p + Vector2(lw, 0), Kit.fit_words(Gfx.serif_italic(), text, w - lw, f), HORIZONTAL_ALIGNMENT_LEFT, w - lw, f, Kit.TEXT_SOFT)
 
 static func tag(c: Control, s: String, p: Vector2, col: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> Rect2: return Anatomy.tag(c, s, p, col, 13, align, false, 0.72)
 
@@ -351,7 +351,8 @@ static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
 	var parts := split(r, 0.44 if not sm else 0.52); var box: Rect2 = parts[0]; var col: Rect2 = parts[1]
 	var cap_h := 0.0 if sm else float(f) + 8.0
 	var area := Rect2(box.position, Vector2(box.size.x, box.size.y - cap_h))
-	var ro := maxf(minf(area.size.x * 0.5 - 30.0, area.size.y * 0.5 - 16.0), 26.0); var ri := ro * 0.40; var cc := area.get_center()
+	var mg := 14.0 if sm else 26.0   # the room outside the rim: the heading tick, the landmark tick and its tag
+	var ro := maxf(minf(area.size.x * 0.5 - mg - 6.0, area.size.y * 0.5 - mg), 22.0); var ri := ro * 0.40; var cc := area.get_center()
 	var ang := func(deg: float) -> float: return deg_to_rad(deg) - PI * 0.5
 	# the ring cells: the heading channel's cells, in circuit order round the ring (16 wedges; a larger ring shares a wedge between neighbours)
 	var cells := out_cells(t, "heading"); var n := cells.size()
@@ -391,7 +392,9 @@ static func _compass(c: Control, t: Telemetry, r: Rect2) -> void:
 		var la: float = ang.call(BodyViews.rv(d, "landmark_deg")); var ld := Vector2(cos(la), sin(la))
 		c.draw_line(cc + ld * (ro + 4.0), cc + ld * (ro + 18.0), Kit.SENSOR, 3.0, true)
 		Gfx.arrow_head(c, cc + ld * (ro + 4.0), -ld, Kit.SENSOR, 8.0)
-		if not sm: tag(c, "landmark", cc + ld * (ro + 22.0) + Vector2(-26 if ld.x < -0.3 else 0, 4), Kit.SENSOR)
+		if not sm:
+			var tp := cc + ld * (ro + 22.0) + Vector2(-26 if ld.x < -0.3 else 0, 4)
+			tag(c, "landmark", Vector2(clampf(tp.x, box.position.x + 2.0, box.end.x - 62.0), clampf(tp.y, box.position.y + 14.0, area.end.y - 2.0)), Kit.SENSOR)   # kept inside the panel
 	# the bump: a gamboge needle across the ring, its reach the bump's strength
 	var st := clampf(BodyViews.rv(d, "bump_strength") / 0.8, 0.0, 1.0); var bdeg := BodyViews.rv(d, "bump_deg")
 	if st > 0.02:
@@ -441,8 +444,9 @@ static func _heading_trace(c: Control, t: Telemetry, r: Rect2) -> void:
 		else: lb.clear()
 	if lh.size() > 1: c.draw_polyline(lh, Kit.INK, 1.3, true)
 	if lb.size() > 1: c.draw_polyline(lb, Kit.GAMBOGE, 2.0, true)
+	var iw := Gfx.serif_italic().get_string_size("ink: heading", HORIZONTAL_ALIGNMENT_LEFT, -1, f).x
 	if lh.size() > 0: c.draw_string(Gfx.serif_italic(), Vector2(P.position.x, P.end.y - 4.0), "ink: heading", HORIZONTAL_ALIGNMENT_LEFT, 120.0, f, Kit.TEXT)
-	c.draw_string(Gfx.serif_italic(), Vector2(P.position.x + 96.0, P.end.y - 4.0), "gamboge: bump", HORIZONTAL_ALIGNMENT_LEFT, 120.0, f, Color("#8A6410"))
+	c.draw_string(Gfx.serif_italic(), Vector2(P.position.x + iw + 12.0, P.end.y - 4.0), "gamboge: bump", HORIZONTAL_ALIGNMENT_LEFT, 120.0, f, Color("#8A6410"))
 
 # ================================================================ crab (s_pacemaker, s_phase, crab_pyloric, dx_crab)
 
