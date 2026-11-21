@@ -29,6 +29,9 @@ if(SPIKE_BUILD_TESTS)
   # The save layer (godot/tests/test_save.gd): damaged / future / read-only saves, hostile circuits, the Reference and reference-lock repros. Needs only godot.
   add_test(NAME save_io COMMAND ${CMAKE_SOURCE_DIR}/scripts/save_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(save_io PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77)
+  # Plate 0's first-run logic (godot/tests/test_tutorial.gd): fresh save starts at step 1, skipped / finished never restarts. Needs only godot.
+  add_test(NAME tutorial COMMAND ${CMAKE_SOURCE_DIR}/scripts/tutorial_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  set_tests_properties(tutorial PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
   add_test(NAME godot_polish COMMAND ${CMAKE_SOURCE_DIR}/scripts/polish_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(godot_polish PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
   # The lab's specimen layers (godot/assets/specimens) against the plate drawings they are cut from; skips (77) without pycairo.

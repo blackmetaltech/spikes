@@ -163,6 +163,7 @@ func _level(tok: String) -> String:
 		"$locked":
 			for id in Campaign.order():
 				if not Campaign.unlocked(str(id)): out = str(id); break
+		"$inhibition": out = "m_inhibition" if Campaign.order().has("m_inhibition") else ""
 		"$dx":
 			for c in Campaign.CHAPTERS:
 				for n in Campaign.nodes(str(c["id"])):
@@ -182,6 +183,7 @@ func _reset_world(setup: Dictionary) -> void:
 	Settings.reduced_motion = false; Settings.telemetry = false
 	if bool(setup.get("unlock_all", false)): OS.set_environment("SP_UNLOCK_ALL", "1")
 	else: OS.unset_environment("SP_UNLOCK_ALL")
+	app.tutorial.reset_for_test(); Tutorial.test_world(str(setup.get("tutorial", "seen")))   # Plate 0: "seen" unless the edge is about the tutorial (fresh | skipped | tips)
 	LabUnlocks.refresh(); Campaign.refresh()
 	if setup.has("mode"): Progress._mode = str(setup["mode"])
 	var tid := _level(str(setup.get("level", "$first")))
@@ -228,6 +230,7 @@ func _root_for(nid: String) -> Node:
 	var n: Dictionary = nodes.get(nid, {})
 	var sc := str(n.get("scope", ""))
 	if sc == "": return app.screen
+	if sc == "Tutorial": return app.tutorial if app.tutorial.ui_visible() else null
 	if sc == "FileDlg": return _lab()._file_dlg if _lab() != null and _lab()._file_dlg.visible else null
 	var all: Array = []; _all_controls(app.screen, all)
 	for c in all:
@@ -299,6 +302,7 @@ func _detect(nid: String) -> bool:
 			"wrong": if not (int(st.get("tries", 0)) > 0 and not bool(st.get("solved", false)) and not bool(st.get("gave_up", false))): return false
 			"solved": if not bool(st.get("solved", false)): return false
 			"revealed": if not bool(st.get("gave_up", false)): return false
+	if d.has("tutorial") and app.tutorial.step_id() != str(d["tutorial"]): return false
 	if d.has("find"):
 		if lab == null: return false
 		if str(d["find"]) == "FileDlg": return lab._file_dlg != null and lab._file_dlg.visible
@@ -341,6 +345,7 @@ func _check_complete(nid: String) -> void:
 			if str(n["detect"].get("screen", "")) == app.cur: screens_listed = true
 	if not screens_listed: _fail("the screen '%s' is not a node of the graph" % app.cur)
 	var all: Array = []; _all_controls(_top_root(), all)
+	if app.tutorial.ui_visible(): _all_controls(app.tutorial, all)   # the overlay's own buttons (Plate 0: banner, picker, pointer) are listed by their nodes too
 	for c in all:
 		if not _interactive(c) or not c.is_visible_in_tree() or _ignored(c): continue
 		var id := _cid(c)
@@ -421,7 +426,10 @@ func _step(id: String, nid: String) -> void:
 	await _press_control((c as Kit.Stepper).right, "stepper " + id)
 
 # ---------------------------------------------------------------------------------------------------- navigation
+var _path_tut := false   # the path being planned ends at a Plate 0 node: only then may it use the tutorial's own edges (they would otherwise be shortcuts into the lab)
+
 func _allowed_path_edge(e: Dictionary, need_ref: bool) -> bool:
+	if str(e["id"]).begins_with("tut.") and not _path_tut: return false
 	if bool(e.get("reference_entry", false)) and not need_ref: return false
 	if bool(e.get("plain_entry", false)) and need_ref: return false
 	if bool(e.get("sandbox_only", false)): return false
@@ -435,6 +443,7 @@ func _allowed_path_edge(e: Dictionary, need_ref: bool) -> bool:
 
 ## The shortest list of edges from the entry to a state in which `nid` is active.
 func _path_to(nid: String, need_ref: bool) -> Array:
+	_path_tut = nid.begins_with("tut.")
 	var start := str(g["entry"])
 	if _implied(start).has(nid): return []
 	var prev := {start: null}; var queue: Array = [start]; var i := 0
@@ -511,18 +520,60 @@ func _trigger_control(e: Dictionary, world: Dictionary, act: String, ctl: String
 				pick = c; break
 			if pick == null: _fail("no control matches '%s'" % ctl)
 			else: await _press_control(pick, "edge " + str(e["id"]) + " (" + _raw_id(pick) + ")")
+		"key:escape": await _key_escape()
 		"terminal":
 			var tc := _control(ctl, from)
 			if tc == null: _fail("the %s entry is missing" % ctl)
 			elif tc is BaseButton and (tc as BaseButton).disabled: _fail("the %s entry is disabled" % ctl)
 		_:
 			if act.begins_with("press_after:"): await _pre(act.substr(12), from); await _press_id(ctl, from, "edge " + str(e["id"]))
+			elif act.begins_with("tut:"): await _tutorial_action(act.substr(4))
 			elif act.begins_with("select:") or act == "link" or act == "lesion_pick" or act.begins_with("dx:"): await _editor_action(act)
 			else: _fail("unknown action '%s'" % act)
 
 func _pre(what: String, from: String) -> void:
 	if what == "lesion_pick": await _editor_action("lesion_pick")
 	else: await _press_id(what, from, "preparing")
+
+## Plate 0 actions, done the way a player does them: real mouse drags on the editor, a real click on the sensor card, the weight slider moved.
+func _tutorial_action(what: String) -> void:
+	var lab := _lab()
+	if lab == null: _fail("not in the lab for tutorial action %s" % what); return
+	var ed := lab.editor
+	var origin := ed.get_global_rect().position
+	match what:
+		"drag_in":
+			var c: Rect2 = ed._cards["in:pulse"]; var cell := origin + ed.to_screen(Vector2(lab.circuit["populations"][0]["pos"][0][0], lab.circuit["populations"][0]["pos"][0][1]))
+			await _drag(origin + Vector2(c.end.x - 12.0, c.get_center().y), cell)
+		"drag_out":
+			var m: Rect2 = ed._cards["out:spike"]; var cell2 := origin + ed.to_screen(Vector2(lab.circuit["populations"][0]["pos"][0][0], lab.circuit["populations"][0]["pos"][0][1]))
+			await _drag(cell2 + Vector2(ed._r * 0.85, 0.0), origin + m.get_center())
+		"raise":
+			var c2: Rect2 = ed._cards["in:pulse"]
+			await _click_at(origin + c2.get_center() - Vector2(18.0, 0.0))
+			var sl := lab.insp_body.find_children("*", "HSlider", true, false)
+			if sl.is_empty(): _fail("the sensor's weight slider did not appear after clicking the card")
+			else:
+				var hs := sl[0] as HSlider
+				hs.value = sqrt(470.0 / Circuits.input_wmax_for("", "dc", lab.task_id))   # the weight slider is square-law (value = wmax * s^2): 470 pA is inside the level's band
+		_: _fail("unknown tutorial action '%s'" % what)
+	await _frames(3)
+
+func _click_at(pos: Vector2) -> void:
+	var mv := InputEventMouseMotion.new(); mv.position = pos; mv.global_position = pos; vp.push_input(mv, true); await _frames(1)
+	var down := InputEventMouseButton.new(); down.position = pos; down.global_position = pos; down.button_index = MOUSE_BUTTON_LEFT; down.pressed = true; down.button_mask = MOUSE_BUTTON_MASK_LEFT; vp.push_input(down, true)
+	var up := InputEventMouseButton.new(); up.position = pos; up.global_position = pos; up.button_index = MOUSE_BUTTON_LEFT; up.pressed = false; up.button_mask = 0; vp.push_input(up, true)
+	clicks += 1; await _frames(2)
+
+func _drag(a: Vector2, b: Vector2) -> void:
+	var mv := InputEventMouseMotion.new(); mv.position = a; mv.global_position = a; vp.push_input(mv, true); await _frames(1)
+	var down := InputEventMouseButton.new(); down.position = a; down.global_position = a; down.button_index = MOUSE_BUTTON_LEFT; down.pressed = true; down.button_mask = MOUSE_BUTTON_MASK_LEFT; vp.push_input(down, true)
+	await _frames(1)
+	for i in range(1, 7):
+		var p := a.lerp(b, float(i) / 6.0)
+		var m2 := InputEventMouseMotion.new(); m2.position = p; m2.global_position = p; m2.button_mask = MOUSE_BUTTON_MASK_LEFT; vp.push_input(m2, true); await _frames(1)
+	var up := InputEventMouseButton.new(); up.position = b; up.global_position = b; up.button_index = MOUSE_BUTTON_LEFT; up.pressed = false; up.button_mask = 0; vp.push_input(up, true)
+	clicks += 1; await _frames(2)
 
 func _first_pop() -> String:
 	var lab := _lab()
@@ -585,6 +636,8 @@ func _event(name: String, e: Dictionary) -> void:
 			if not await _wait(func(): return _detect("lab.endcard"), 400.0): _fail("the 5-seed test never finished (400 s)")
 		"check_done":
 			if not await _wait(func(): return _detect("lab.toast"), 120.0): _fail("Check never produced its verdict toast (120 s)")
+		"tut_pass":   # Plate 0 step 7: the live run finishes and passes by itself (the weight is already in the band)
+			if not await _wait(func(): return _detect(str(e["to"])), 90.0): _fail("the live run never passed: the tutorial did not leave step 7")
 		"first_pass": lab._celebrate(); await _frames(3)
 		"celebration_ends":
 			if not await _wait(func(): return not lab.celebration.active(), 12.0): _fail("the celebration never ended")
@@ -633,6 +686,7 @@ func _check_expect(e: Dictionary, before: Dictionary) -> void:
 # ---------------------------------------------------------------------------------------------------- one edge
 func _walk_edge(e: Dictionary) -> void:
 	ctx = "edge " + str(e["id"]); cur_known = str(e.get("known_bug", "")); cur_failed = false
+	if OS.get_environment("SP_UIGRAPH_ONLY") != "": print("UIGRAPH walking ", e["id"])   # progress for a partial walk (stdout is buffered when redirected: run with stdbuf -oL)
 	var from := str(e["from"]); var to := str(e["to"])
 	var setup: Dictionary = e.get("setup", {})
 	var need_ref := bool(e.get("needs_reference", false))
