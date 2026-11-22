@@ -39,7 +39,7 @@ The app is ad-hoc signed and not notarized (no Apple developer account), so macO
 
 ### Windows
 
-Windows x86_64 is built and smoke-tested entirely on a GitHub `windows-latest` runner (`.github/workflows/build-windows.yml`: `workflow_call`, `workflow_dispatch`, and a push to `w-port-windows`); it uploads the artifact `spike-windows-x86_64` (`spike-windows-x86_64.zip` and its `.sha256`). Nothing here needs a Windows machine of your own, and the Linux scripts and image are not involved.
+Windows x86_64 is built and smoke-tested entirely on a GitHub `windows-latest` runner (`.github/workflows/build-windows.yml`: `workflow_call` and `workflow_dispatch`); it uploads the artifact `spike-windows-x86_64` (`spike-windows-x86_64.zip` and its `.sha256`). Nothing here needs a Windows machine of your own, and the Linux scripts and image are not involved.
 
 - **Toolchain.** MSYS2 UCRT64 (MinGW-w64 GCC, CMake, Ninja, GSL, Python). NESTML runs on the runner's native CPython (the generated C++ does not depend on the platform). The three pins are read out of the Linux scripts (`NEST_REF`, `NESTML_VERSION`, `GODOT_CPP_TAG`) and the Dockerfile (Godot 4.7.2), so each stays in one place.
 - **`scripts/build-windows.sh`** (MSYS2 UCRT64 shell): NEST static libraries, the NESTML sources, godot-cpp, then `godot/bin/spike_gd_release.dll` and `godot/bin/spike-run.exe`. Both are linked with `-static -static-libgcc -static-libstdc++` and GSL statically, and the script fails if either imports `libgcc`, `libstdc++`, `libwinpthread`, `libgsl` or an `msys-` DLL: only Windows system DLLs. The NEST build tree is cached by the workflow (key: NEST pin + hash of the script and the patches).

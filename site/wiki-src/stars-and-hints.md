@@ -7,7 +7,7 @@ summary: How stars are earned, what the five-world Check, par and the challenge 
 
 # Stars, par and the hint ladder
 
-Each level can give up to three stars. This page says exactly what earns them, what par and the energy budget are, and how hints work.
+Each level gives up to three stars. This page says what earns them, what par and the energy budget are, and how hints work.
 
 ## The three stars
 
@@ -15,21 +15,21 @@ Each level can give up to three stars. This page says exactly what earns them, w
 |---|---|
 | 1 | The level is passed. |
 | 2 | **Check** (or **Test x5**) passes all five worlds (Standard or Researcher). |
-| 3 | Star 2, plus the level's own **challenge**: an optional goal written on the level card before you start, for example "Build it with no more than 16 neurons (par)". In Standard mode you also must never have opened **Show recipe**. |
+| 3 | Star 2, plus the level's own **challenge**: an optional goal written on the level card before you start, for example "Build it with no more than 16 neurons (par)". In Standard mode you must also never have opened **Show recipe**. |
 
-**Guided mode earns at most two stars.** It is the mode with the recipe and free hints, so the third star is not offered there. In **Researcher** mode a pass is all five worlds under the mode's physiological noise and tight bands, and it earns the **Researcher seal** as well, a mark kept apart from the stars on the level card ("sealed"). A circuit that is a copy of the level's reference circuit, even a nudged one, earns no stars, no seal and unlocks nothing.
+**Guided mode earns at most two stars.** It has the recipe and free hints, so it does not offer the third star. In **Researcher** mode a pass is all five worlds under the mode's physiological noise and tight bands. It also earns the **Researcher seal**, a mark kept apart from the stars on the level card ("sealed"). A copy of the level's reference circuit, even a nudged one, earns no stars, no seal and unlocks nothing.
 
-The level card shows the three conditions for your current mode, with the challenge text in full, and below them your best result in each mode ("Guided: 2 of 2 stars   Standard: 1 of 3 stars   Researcher: not yet"). Nothing that can block a star is left unstated. A diagnosis case has its own three conditions: see [diagnosis cases](diagnosis-cases.html).
+The level card shows the three conditions for your current mode, with the challenge text in full. Below them is your best result in each mode ("Guided: 2 of 2 stars   Standard: 1 of 3 stars   Researcher: not yet"). Nothing that can block a star is left unstated. A diagnosis case has its own three conditions: see [diagnosis cases](diagnosis-cases.html).
 
 ### How Check runs the five worlds
 
-**Check** scores your circuit in five slightly different worlds at once: seeds 101 to 105, with the circuit reseeded as well, using the level's quick episode (a shorter run under the same rules; a level without one runs its full episode). The toast says "Check: 4 of 5 worlds passed", followed by the score, and shows the verdict of the first world that failed. A pass in one world is the first star; all five is the second. A circuit that only just works fails some of the five: make it less fragile, then check again. A Check on a challenge variant runs one world only. **Test x5** runs the five worlds as full episodes and records the mean score. It sits on the bar once you have passed the level (always in Researcher mode), and in the More menu.
+**Check** scores your circuit in five slightly different worlds at once: seeds 101 to 105, with the circuit reseeded as well, on the level's quick episode (a shorter run under the same rules; a level without one runs its full episode). The toast says "Check: 4 of 5 worlds passed", then the score, and shows the verdict of the first world that failed. One world is the first star. All five is the second. A circuit that only just works fails some of the five. Make it less fragile, then check again. A Check on a challenge variant runs one world only. **Test x5** runs the five worlds as full episodes and records the mean score. It sits on the bar once you have passed the level (always in Researcher mode), and in the More menu.
 
 A **spread** on a connection (a percentage of weight variation across the synapses of an axon) is drawn again for every world. A circuit that only works with identical weights fails here.
 
 ## Par
 
-Par is a neuron count that each level sets, and the default challenge asks for it. **The rule:** par is the number of neurons in the level's reference circuit, plus a declared slack. Most levels have no slack, so par is exactly the size of the reference. A level with slack says so on its card ("The reference circuit has 20; the 4 spare leave room for another honest build"): the ring and compass levels, the sparse odour code and the mean-field network, where a different honest build needs a few more cells, and a handful of tasks. The slack is never hidden in the number. The card states the par ("Build it with no more than 16 neurons (par)").
+Par is a neuron count that each level sets. The default challenge asks for it. **The rule:** par is the number of neurons in the level's reference circuit, plus a declared slack. Most levels have no slack, so par is exactly the size of the reference. A level with slack says so on its card ("The reference circuit has 20; the 4 spare leave room for another honest build"). These are the ring and compass levels, the sparse odour code and the mean-field network, where a different honest build needs a few more cells, and a handful of tasks. The slack is never hidden in the number. The card states the par ("Build it with no more than 16 neurons (par)").
 
 Par counts the neurons of your circuit, with the cells of each group added up. A group of ten counts as ten. Sensors and motor outputs are not neurons and do not count.
 
@@ -48,7 +48,7 @@ The campaign pages list the par of every level: [body](campaign-body.html), [Bes
 
 ## The energy clause
 
-A real neuron pays for every spike in the molecule ATP, the cell's energy currency. The game counts it as the **mean firing rate per neuron over a whole episode**, in spikes per second. A few levels add an energy clause to their challenge, and then the card says so: "Keep the mean rate under 40 spikes/s per neuron". The ceiling is 1.6 times the rate of the level's reference circuit, rounded.
+A real neuron pays for every spike in the molecule ATP, the cell's energy currency. The game counts it as the **mean firing rate per neuron over a whole episode**, in spikes per second. A few levels add an energy clause to their challenge, and the card says so: "Keep the mean rate under 40 spikes/s per neuron". The ceiling is 1.6 times the rate of the level's reference circuit, rounded.
 
 | Level | Ceiling (spikes/s per neuron) |
 |---|---|
@@ -67,13 +67,13 @@ A real neuron pays for every spike in the molecule ATP, the cell's energy curren
 | Peristalsis | 10 |
 | Fight or flight | 26 |
 
-Levels not in the table have no energy clause. The Analysis energy tab still shows a reference ceiling of 40 for them, for information only. The Results view of a passed level translates the rate to a rough cost: about 1e8 to 1e9 ATP per spike (Attwell and Laughlin 2001; Lennie 2003), so read it as an order of magnitude. See [the lesion lab and analysis tools](lesion-lab-and-analysis.html).
+Levels not in the table have no energy clause. The Analysis energy tab still shows a reference ceiling of 40 for them, for information only. The Results view of a passed level translates the rate to a rough cost: about 1e8 to 1e9 ATP per spike (Attwell and Laughlin 2001; Lennie 2003). Read it as an order of magnitude. See [the lesion lab and analysis tools](lesion-lab-and-analysis.html).
 
-If a third star is blocked, the end card says "Third star: pass again with N neurons or fewer (you have M)", and the Analysis energy tab says why in the same terms: "N neurons, par is M" or "x spikes/s per neuron, ceiling y".
+If a third star is blocked, the end card says "Third star: pass again with N neurons or fewer (you have M)". The Analysis energy tab gives the reason in the same terms: "N neurons, par is M" or "x spikes/s per neuron, ceiling y".
 
 ## The recipe
 
-The recipe is the reference circuit's numbers written out in words. In Guided mode it is shown in the lab for free. In Standard mode it is behind **Show recipe**. Pressing it is saved for that level and caps the level at two stars. The inspector then says: "You used the recipe: this level can earn two stars, not three." Researcher mode has no recipe.
+The recipe is the reference circuit's numbers in words. In Guided mode the lab shows it for free. In Standard mode it is behind **Show recipe**. Pressing it is saved for that level and caps the level at two stars. The inspector then says: "You used the recipe: this level can earn two stars, not three." Researcher mode has no recipe.
 
 ## The hint ladder
 
@@ -106,22 +106,22 @@ After a failed run a part of the bench glows red. This is not a hint. It is free
 ## What does not give stars
 
 - A copy of the reference circuit.
-- A challenge variant (it has a DONE chip and gives no stars). The half-neurons variant also has to fit in half the par, rounded up (a par of 7 gives 4); the lab and the engine use the same number.
+- A challenge variant (it has a DONE chip and gives no stars). The half-neurons variant must also fit in half the par, rounded up (a par of 7 gives 4). The lab and the engine use the same number.
 - A diagnosis case: it has its own star rules (its third star needs a probe). See [diagnosis cases](diagnosis-cases.html).
 
 ## Scoring that cannot be gamed
 
 A pass has to come from the mechanism the level teaches. The engine checks this for every level.
 
-- A level has its own sensors, and a circuit may only use those. A circuit that brings a stimulus of its own (a recorded spike train, an extra generator, an input the level does not drive) is rejected: it cannot pass, its score is held under 50, and the verdict says so.
-- Levels check the structure of the circuit as well as its behaviour. A circuit that behaves right without the mechanism is held under 50 and the verdict names what is missing.
-- A wire that is too weak to move its target does not count as a connection. Token weights do not satisfy a structure check.
+- A level has its own sensors, and a circuit may only use those. A circuit that brings a stimulus of its own (a recorded spike train, an extra generator, an input the level does not drive) is rejected. It cannot pass, its score is held under 50, and the verdict says so.
+- Levels check the structure of the circuit as well as its behaviour. A circuit that behaves right without the mechanism is held under 50, and the verdict names what is missing.
+- A wire too weak to move its target does not count as a connection. Token weights do not satisfy a structure check.
 - A run that did not pass never shows 100.
 - Switching mode never changes which mechanism is checked, only the bands, the noise and the help.
 
 ## The score stamp
 
-While a level runs, the score read-out is a round stamp with the score out of 100, the stars you hold, and one row per pass criterion: a tick when met, a cross when not, a dot while the run has not got that far. **Details** swaps the rows for every number the score is computed from, each under a plain label. A failed verdict says in words what to change; it never gives the answer as a number. When an episode ends, the end card shows PASSED or NOT PASSED, the score, your best, and one main button (the next level after a pass).
+While a level runs, the score read-out is a round stamp with the score out of 100, the stars you hold, and one row per pass criterion: a tick when met, a cross when not, a dot while the run has not got that far. **Details** swaps the rows for every number the score is computed from, each under a plain label. A failed verdict says in words what to change. It never gives the answer as a number. When an episode ends, the end card shows PASSED or NOT PASSED, the score, your best, and one main button (the next level after a pass).
 
 ## Related pages
 
