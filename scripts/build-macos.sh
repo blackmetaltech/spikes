@@ -41,7 +41,7 @@ do_nest() {
   mkdir -p "$BUILD"
   ( cd "$BUILD"
     PATH="$VENV/bin:$PATH" cmake -G Ninja "$SRC" "${OSX[@]}" -DCMAKE_BUILD_TYPE=Release \
-      -DPython_EXECUTABLE="$VENV/bin/python" -DPython3_EXECUTABLE="$VENV/bin/python" \
+      -DPython_EXECUTABLE="$VENV/bin/python" \
       -Dwith-mpi=OFF -Dwith-openmp=OFF -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-readline=OFF -Dwith-gsl=ON
     ninja -j"$JOBS" models nestkernel nestutil )
   echo "$stamp" > "$BUILD/.spike-macos-stamp"
