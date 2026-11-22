@@ -111,9 +111,11 @@ def parse_pb(instance):
 
 
 def ring_index(side, glom):
-    """Phase slot 0..7 of a protocerebral-bridge glomerulus. Each PB half (L1..L8 and R1..R8 for E-PG) carries the whole circle in eight glomeruli (45 deg each); P-EN
-    cells also sit in glomerulus 9, which has the phase of glomerulus 1 (it takes its input from the E-PG of glomerulus 8: see the offsets reported by atlas_stats.py)."""
-    return (glom - 1) % 8
+    """Position 0..15 on the protocerebral bridge, read left to right: left glomerulus g (L8 .. L1) is at 8 - g, right glomerulus g (R1 .. R8) at 7 + g, taken mod 16
+    (so L9 is 15 and R9 is 0: the P-EN cells' extra ninth glomerulus sits next to the eighth of the other side). One step is 22.5 deg when the sixteen E-PG glomeruli
+    are taken as the sixteen wedges of the ring. Evidence for this choice that the data themselves give: every Delta7 name lists glomeruli exactly eight positions apart
+    (L2R7: 6 and 14; L8R1R9: 0, 8, 0; L1L9R8: 7, 15, 15), that is half a ring. The instances carry no ellipsoid-body wedge, so the order is derived, not read."""
+    return (8 - glom) % 16 if side == "L" else (7 + glom) % 16
 
 
 def extract_compass(neurons):
@@ -210,7 +212,7 @@ def build(download=True):
     comp = extract_compass(neurons)
     mb = extract_mb(neurons)
     ctab = {"source": source(sha, date), "format": "connections are [pre_index, post_index, synapse_count] into neurons; neurons sorted by (type, ring, side, id)",
-            "ring_note": "ring = 0..7 phase slot from the protocerebral-bridge glomerulus ((glomerulus - 1) mod 8); the instance names carry no ellipsoid-body wedge",
+            "ring_note": "ring = 0..15 position along the protocerebral bridge, left to right (L g: 8-g, R g: 7+g, mod 16), one step 22.5 deg if the 16 glomeruli are the 16 ring positions; derived from the instance names, see ring_index() in tools/connectome/hemibrain.py",
             "types": COMPASS_TYPES, "counts": counts(comp["neurons"], "type"), "n_connections": len(comp["connections"]),
             "neurons": comp["neurons"], "connections": comp["connections"]}
     mtab = {"source": source(sha, date), "format": "connections are [pre_index, post_index, synapse_count] into neurons; neurons sorted by (role, type, id); right hemisphere only (instance ends _R)",
@@ -255,7 +257,7 @@ The script is deterministic: neurons and connections are sorted, nothing random.
 ## compass.json: the head-direction circuit
 - Neurons: all neurons whose `type` is exactly one of: `EPG`, `PEN_a(PEN1)`, `PEN_b(PEN2)`, `PEG`, `Delta7` (the type strings of the file; the file also has `EPGt`, 4 neurons, which are not included).
 - Connections: every connection of the file with both ends in this set, with its synapse count. No threshold. {ctab["n_connections"]} connections.
-- Each neuron has body id, type, instance name. Instances look like `EPG(PB08)_L3` (type, tract, protocerebral-bridge glomerulus: side L or R and number), `Delta7(PB15)_L6R3_L` (glomeruli it covers, then the soma side). `ring` is the phase slot, `(glomerulus - 1) mod 8` (E-PG sit in glomeruli 1 to 8 on each side; P-EN also in 9, which gets slot 0). The instance carries no ellipsoid-body wedge, so the ring has eight phase slots per side, not sixteen wedges. This is a choice made by the script, not a field of the data.
+- Each neuron has body id, type, instance name. Instances look like `EPG(PB08)_L3` (type, tract, protocerebral-bridge glomerulus: side L or R and number), `Delta7(PB15)_L6R3_L` (glomeruli it covers, then the soma side). `ring` is the position along the protocerebral bridge from left to right, 0 to 15: left glomerulus g is at 8 - g, right glomerulus g at 7 + g, modulo 16 (E-PG sit in glomeruli 1 to 8 on each side, 16 in all; P-EN cells also sit in glomerulus 9, which wraps to the neighbour of the eighth glomerulus of the other side). The sixteen positions are taken as the sixteen ring positions (22.5 degrees each). The instance carries no ellipsoid-body wedge, so this order is derived by the script, not a field of the data. Support from the data: every Delta7 instance name lists glomeruli exactly eight positions apart (for example `L2R7` is positions 6 and 14), which is half a ring. Direction (clockwise or not) is arbitrary.
 
 | type | neurons |
 |---|---|

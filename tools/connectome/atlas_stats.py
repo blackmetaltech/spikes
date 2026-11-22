@@ -4,6 +4,8 @@
 Usage: python3 tools/connectome/atlas_stats.py [compass|mb|all]
 """
 import collections, json, os, random, statistics, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from hemibrain import ring_index
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.normpath(os.path.join(HERE, "..", "..", "data", "connectome", "hemibrain"))
@@ -34,15 +36,15 @@ def compass():
             if ty[a] == src_t and ty[b] == dst_t:
                 A, B = ns[a], ns[b]
                 same = A["side"] == B["side"]
-                o = (B["ring"] - A["ring"]) % 8
-                h[(("same" if same else "opposite") + " side", o if o <= 4 else o - 8)] += w
+                o = (B["ring"] - A["ring"]) % 16
+                h[(("same" if same else "opposite") + " side", o if o <= 8 else o - 16)] += w
                 tot += w
         return h, tot
     for s, t in [("EPG", "PEN_a(PEN1)"), ("EPG", "PEN_b(PEN2)"), ("PEN_a(PEN1)", "EPG"), ("PEN_b(PEN2)", "EPG"), ("EPG", "PEG"), ("PEG", "EPG")]:
         h, tot = off(s, t)
-        print("offset in ring slots (45 deg each), synapse-weighted, %s > %s (total %d synapses; slot = post.ring - pre.ring mod 8, in -3..4)" % (s, t, tot))
+        print("offset in ring slots (22.5 deg each), synapse-weighted, %s > %s (total %d synapses; position = post.ring - pre.ring mod 16, in -7..8)" % (s, t, tot))
         for side in ("same side", "opposite side"):
-            row = {o: h.get((side, o), 0) for o in range(-3, 5)}
+            row = {o: h.get((side, o), 0) for o in range(-8, 9)}
             share = {o: round(100 * v / tot, 1) for o, v in row.items() if v}
             print("   %-13s %s" % (side, share))
     # the glomerulus offset (raw numbers), same hemisphere, for the shift direction: PEN glomerulus - EPG glomerulus in the EPG > PEN direction (PB)
@@ -75,11 +77,11 @@ def compass():
     dist = collections.Counter()
     for a, b, w in cs:
         if ty[a] == "Delta7" and ty[b] == "EPG":
-            slots = {(g - 1) % 8 for s, g in ns[a]["glomeruli"]}
-            dd = min(min((ns[b]["ring"] - s) % 8, (s - ns[b]["ring"]) % 8) for s in slots)
+            slots = {ring_index(s, g) for s, g in ns[a]["glomeruli"]}
+            dd = min(min((ns[b]["ring"] - s) % 16, (s - ns[b]["ring"]) % 16) for s in slots)
             dist[dd] += w
     tot = sum(dist.values())
-    print("Delta7 > EPG synapse share by ring-slot distance from the nearest slot the Delta7 covers (0..4):", {k: round(100 * v / tot, 1) for k, v in sorted(dist.items())})
+    print("Delta7 > EPG synapse share by ring-position distance from the nearest position the Delta7 covers (0..8):", {k: round(100 * v / tot, 1) for k, v in sorted(dist.items())})
     # per EPG: number of Delta7 inputs and PEN inputs, per type in-degree and out-degree (neurons and synapses)
     for t in d["types"]:
         idx = [i for i, x in enumerate(ty) if x == t]
