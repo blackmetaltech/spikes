@@ -7,6 +7,10 @@
 # Each step is incremental; the whole thing runs in the Dockerfile image (docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd); cd "$root"
+# build-gd.sh sources scripts/prebuilt.sh, which reads $ROOT, but sets only $root itself: on a checkout with no third_party/godot-cpp (every fresh CI
+# checkout) it died with "ROOT: unbound variable". Exported here because editing build-gd.sh changes the toolchain image tag; fold it into build-gd.sh
+# at the next pin bump.
+export ROOT="$root"
 tests=0; debug=0; pynest=0
 for a in "$@"; do case "$a" in --tests) tests=1 ;; --debug) debug=1 ;; --pynest) pynest=1 ;; *) echo "usage: $0 [--tests] [--debug] [--pynest]" >&2; exit 2 ;; esac; done
 step() { echo; echo "=== $*"; }
