@@ -96,6 +96,7 @@ bool Engine::set_input_param( const std::string&, const std::string&, double ) {
 double Engine::input_weight( const std::string& ) const { return 0.0; }
 double Engine::input_value( const std::string& ) const { return 0.0; }
 double Engine::output_value( const std::string& ) const { return 0.0; }
+LockedDigest Engine::locked_digest() const { return {}; }   // 0.6 Atlas stub: the guard of make_task() asks for it (never driven here)
 RunStats Engine::stats() const { return {}; }
 void Engine::stop() {}
 void spike::set_threads( int ) {}

@@ -39,10 +39,58 @@ A circuit is one JSON file. The game, the C++ engine, the Python package and eve
 - **Empty channels.** `targets` (inputs) and `neurons` (outputs) may be empty (`[]`). The device is still created, nothing is connected, and an empty output always reads 0. This lets the editor run a half-wired circuit.
 - **Outputs** are readouts over a set of neurons: `"kind": "rate"` (default, spike counts), `"kind": "modulator"` (see "Neuromodulation") or `"kind": "population_vector"` (0.5, see "Population-vector output").
 - **Initial membrane potential.** If a population's `params` has no `V_m`, and the model has `V_m`, `E_L` and `V_th` with `V_th > E_L` (after `params` are applied), each neuron gets a seeded random `V_m = lo + u * (hi - lo)`, with `u` in [0, 1) and `[lo, hi]` = `[E_L, V_th]`, except for models with their own range: `sa_node_pacemaker` uses `[-74, -45]` mV (its E_L = -30 mV and V_th = 0 mV are not a resting range: drawing from them started every clone depolarised and in lock-step, so five uncoupled cells scored as one; from -74 to -45 mV the clones start at different phases of the diastolic depolarisation and only coupling brings them together). The table is `vm_init_range()` in `engine/src/circuit.cpp` and `VM_INIT_RANGE` in `python/spike/circuit.py`. This breaks symmetry between identical cells (for example a half-centre). `u` comes from splitmix64 keyed by the circuit `seed` and the circuit-level neuron index `i`, independent of NEST's RNG: `z = seed + (i+1) * 0x9E3779B97F4A7C15 (mod 2^64)`; `z = (z ^ z>>30) * 0xBF58476D1CE4E5B9`; `z = (z ^ z>>27) * 0x94D049BB133111EB`; `z ^= z>>31`; `u = (z >> 11) / 2^53`. The C++ engine and `python/spike/circuit.py` implement exactly this. Set `V_m` explicitly (for example to the resting potential) to disable it; the reference circuits and the `iaf_dc` golden do so where timing must be analytic.
-- **Top-level keys.** `schema_version`, `name`, `resolution_ms`, `seed`, `populations`, `projections`, `inputs`, `outputs`, `modulation`, `record`, `meta`.
+- **Top-level keys.** `schema_version`, `name`, `resolution_ms`, `seed`, `populations`, `projections`, `inputs`, `outputs`, `modulation`, `groups` (0.6), `record`, `meta`.
 - **`pos`** holds editor coordinates, one `[x, y]` per neuron. It is optional and ignored by simulators.
 - **Determinism.** `seed` sets NEST's `rng_seed`. The same file and the same seed give the same spikes for the same NEST version and thread count.
 - **Unknown keys** under `meta` are preserved. Unknown top-level keys are an error.
+
+## Locked parts and groups (0.6, the Atlas wing; add-only)
+
+A locked-wiring level gives the player a circuit whose wiring is data, and lets the player set only what the data does not contain: per cell type, a sign and a scale. A file without `groups` and without `locked` behaves exactly as before.
+
+```json
+"populations": [
+  { "id": "I", "model": "iaf_psc_alpha", "n": 2, "locked": true },
+  { "id": "M", "model": "iaf_psc_alpha", "n": 2, "locked": true } ],
+"groups": [
+  { "id": "I", "label": "Interneuron", "pops": ["I"], "sign": -1, "scale": 0.98,
+    "free": ["sign", "scale"], "ranges": { "scale": [0.25, 2.0] } } ],
+"projections": [
+  { "pre": "I", "post": "M", "locked": true, "synapse": { "synapse_model": "static_synapse" }, "edges": [[0, 0, 150.0, 2.0], [1, 1, 150.0, 2.0]] } ]
+```
+
+**`locked`** (a boolean, default false) on a **projection**: its endpoints, edges, delays and synapse model are data and cannot be edited, added to or deleted. A locked projection lists its `edges` (a rule that draws its wiring is refused: the wiring must be data). On a **population**: it cannot be deleted, resized or have its model changed. The flags are carried through `Engine::structure()` (`PopulationInfo::locked`, `ProjectionInfo::locked`). The engine itself loads a locked circuit like any other; the lock is enforced where a level judges a circuit (below) and by the editor.
+
+**`groups`** is a list of cell types. Each has:
+
+| key | meaning |
+|---|---|
+| `id` | unique among groups |
+| `label` | optional name shown on the card |
+| `pops` | population ids in the group (non-empty; a population is in at most one group) |
+| `sign` | `+1` or `-1` (default `+1`) |
+| `scale` | a positive number (default `1`) |
+| `free` | the parameters the player may change, a list of names (default none). Known names: `"sign"`, `"scale"` |
+| `ranges` | an object with one `[lo, hi]` (0 < lo <= hi) for every free parameter that has a numeric range; `scale` needs one when it is free |
+
+At load, the weight of every connection of every projection whose **presynaptic** population is in the group becomes `|stored weight| x scale x sign` (the stored weight is a magnitude: its own sign is ignored). It applies to `edges` weights and to a rule projection's `synapse.weight` (a missing weight is NEST's default 1; a weight that is not a plain number is an error), and `weight_sd` is multiplied by `scale` (`weight_cv` is relative and unchanged). Everything downstream, the live NEST weights, `structure()`, `connections()`, `set_weight()`, sees the effective weights. Populations in no group are unaffected.
+
+A `scale` outside its range still loads (a sandbox bench may hold it); `Structure::groups[i].scale_in_range` says so and a level rejects such a circuit. `free` and `ranges` are a table, not a fixed pair: a later free parameter (a synaptic or a membrane time constant) is one more name in `free`, one more key in the group and one more entry in `ranges`, and needs no format change (the engine's list of known names grows with its code; an older engine refuses a name it does not know with a plain error).
+
+### Holding a submission to the given circuit
+
+A locked level declares the circuit it gave (`Task::given()`: the file name and a **LockedDigest**). The engine computes the same digest of the circuit it actually runs (`Engine::locked_digest()`), and `make_task()`'s guard rejects a run whose digest differs, or whose free values are out of range. The digest is four SHA-256 hashes (first 32 hex digits) of canonical text, so the check lives in the engine and `spike-run` on a hand-edited file fails exactly as the game does:
+
+| section | what it covers | verdict when it differs |
+|---|---|---|
+| `pops` | the resolution; every population in file order (a locked one: id, model, `n`, `params`; an unlocked one: its id) | the given cells were changed |
+| `wiring` | every projection in file order (a locked one: its whole data including `locked`; an unlocked one: a placeholder) and the `modulation` table | the given wiring was changed |
+| `types` | every group with every value that is not free (so `sign` and `scale` are left out when free), the `free` list and the `ranges` | a cell type was changed |
+| `channels` | every input (all keys except its initial `value`) and every output | the inputs and outputs were changed |
+
+Not part of the digest: editor positions (`pos`), `name`, `meta`, `seed`, `record`, the values of the free parameters (judged by range), a population's `role`. Whole-valued floats equal integers. A run that is rejected never passes and never scores above the cap of a rejected circuit; its verdict names no number. `spike-run --task <id> --lesion pre>post*k` on a locked level is applied to the loaded circuit (an experiment), not to the file. `spike-run --locked-digest circuit.json` prints the four hashes of a file (what a level's `given()` holds).
+
+The development-only level `atlas_probe` (`circuits/atlas_probe_given.json`, its reference `circuits/atlas_probe.json`, generated by `circuits/tools/gen_atlas_probe.py`) proves the loop; tests: `engine/tests/tasks_atlas_test.cpp`, `engine/tests/cheap_rows_g.inc`.
 
 ## Weight spread (v0.3)
 

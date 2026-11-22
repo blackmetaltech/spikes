@@ -134,6 +134,7 @@ public:
   Note notebook() const override { return t_->notebook(); }
   std::string default_model() const override { return t_->default_model(); }
   std::string recipe() const override { return t_->recipe(); }
+  Given given() const override { return t_->given(); }
 
 private:
   void audit( Engine& e )
@@ -148,6 +149,34 @@ private:
                   "delete that input and wire the sensors the brief names.";
         return;
       }
+    audit_locked( e );
+  }
+  /// A locked-wiring level (Task::given): the circuit must be the given one in everything that is locked or not free, and every free value must lie in its range. The verdicts name
+  /// no numbers; which part differs is told by section (the digests of LockedDigest), not by value.
+  void audit_locked( Engine& e )
+  {
+    const Given g = t_->given();
+    if ( g.digest.empty() )
+      return;
+    const LockedDigest d = e.locked_digest();
+    const char* tail = " Load the given circuit again and set only the controls the level marks free.";
+    if ( d.pops != g.digest.pops )
+      reject_ = std::string( "The given cells were changed: a locked population was resized, removed, given another model or other parameters, or one was added. In this level the cells are data." ) + tail;
+    else if ( d.wiring != g.digest.wiring )
+      reject_ = std::string( "The given wiring was changed: a locked connection was added, removed, re-weighted or re-timed. In this level the wiring is data and cannot be edited." ) + tail;
+    else if ( d.types != g.digest.types )
+      reject_ = std::string( "A cell type was changed in a way this level does not allow: only the sign and the scale the level marks free can be set, and its cell types cannot be added, removed or regrouped." ) + tail;
+    else if ( d.channels != g.digest.channels )
+      reject_ = std::string( "The level's inputs and outputs were changed: they are part of the given circuit." ) + tail;
+    else
+    {
+      for ( const auto& gi : e.structure().groups )
+        if ( !gi.scale_in_range )
+        {
+          reject_ = "A free scale is outside the range this level allows for its cell type, so the circuit cannot be scored. Bring it back inside the range the card shows.";
+          return;
+        }
+    }
   }
   std::unique_ptr< Task > t_;
   bool audited_ = false, bad_mode_ = false, bad_variant_ = false;

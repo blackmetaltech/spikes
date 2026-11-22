@@ -2,6 +2,7 @@
 //   {"neuron":3,"t":12.5,"step":125}   (neuron = circuit-level index, t in ms, step = NEST time stamp in steps)
 // sorted by (step, neuron). A summary line goes to stderr so stdout holds spikes only.
 //
+// spike-run --locked-digest <circuit.json> prints the circuit's LockedDigest (0.6, Atlas).
 // spike-run --list-tasks prints the registered task ids, one per line. spike-run --list-variants <task> prints the ids that task accepts for --variant.
 // spike-run --task <id> [--quick] [--jobs n]   (--quick: run Task::quick_duration_ms() instead of the full episode; --jobs: seeds run in parallel child processes, default = cores, 1 = in-process)
 // spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--circuit-seed n | --circuit-seeds a,b,c] [--lesion pre>post*k ...] [--require any|all] [--circuits-dir dir]
@@ -273,6 +274,7 @@ static int run_task_mode_impl( int argc, char** argv )
       return 2;
     }
   }
+  const bool locked_level = not probe->given().digest.empty();   // 0.6 (Atlas): a lesion must not edit the file (that would be tampering); it is applied after the load
   probe.reset();
   if ( circuit_file.empty() )
   {
@@ -313,6 +315,8 @@ static int run_task_mode_impl( int argc, char** argv )
   }
   for ( const auto& l : lesions )
   {
+    if ( locked_level )
+      break;
     bool hit = false;
     if ( not base.contains( "projections" ) or not base[ "projections" ].is_array() )
       break;
@@ -359,6 +363,38 @@ static int run_task_mode_impl( int argc, char** argv )
     spike::Engine e;
     if ( not e.load( c.dump() ) )
       return { { "error", "seed " + std::to_string( seed ) + ": " + e.error() } };
+    if ( locked_level and not lesions.empty() )
+    {
+      // a locked level's lesion is an experiment on the loaded circuit, not an edit of the file: the weights of every edge of the projection pre->post are scaled in place
+      const auto st = e.structure();
+      const auto conns = e.connections();
+      for ( const auto& l : lesions )
+      {
+        bool hit = false;
+        for ( const auto& pi : st.projections )
+        {
+          if ( pi.pre_pop != l.pre or pi.post_pop != l.post )
+            continue;
+          hit = true;
+          const json& edges = base[ "projections" ][ pi.index ][ "edges" ];
+          std::vector< bool > used( conns.size(), false );
+          for ( size_t k = 0; k < edges.size(); ++k )
+          {
+            const int32_t a = st.populations[ pi.pre_index ].first_index + edges[ k ][ 0 ].get< int32_t >();
+            const int32_t b = st.populations[ pi.post_index ].first_index + edges[ k ][ 1 ].get< int32_t >();
+            for ( size_t q = 0; q < conns.size(); ++q )
+              if ( not used[ q ] and conns[ q ].projection == pi.index and conns[ q ].pre == a and conns[ q ].post == b )
+              {
+                used[ q ] = true;
+                e.set_weight( pi.index, static_cast< int32_t >( k ), conns[ q ].weight * l.factor );
+                break;
+              }
+          }
+        }
+        if ( not hit )
+          return { { "error", "lesion " + l.pre + ">" + l.post + " matched no projection" } };
+      }
+    }
     auto task = spike::make_task( task_id );
     task->set_mode( mode.empty() ? "standard" : mode );
     task->set_variant( variant );
@@ -539,6 +575,26 @@ static int main_impl( int argc, char** argv )
       std::printf( "%s\n", v.first.c_str() );
     for ( const auto& c : task->diagnosis().candidates )  // a diagnosis case is answered through --variant too (never prints which one is right)
       std::printf( "%s\n", c.c_str() );
+    return 0;
+  }
+  if ( argc == 3 and std::string( argv[ 1 ] ) == "--locked-digest" )  // 0.6 (Atlas): the LockedDigest of a circuit file, as JSON (what a locked level's Task::given() carries)
+  {
+    std::ifstream f( argv[ 2 ] );
+    if ( not f )
+    {
+      std::fprintf( stderr, "spike-run: cannot open %s\n", argv[ 2 ] );
+      return 2;
+    }
+    std::stringstream buf;
+    buf << f.rdbuf();
+    spike::LockedDigest d;
+    std::string err;
+    if ( not spike::circuit_locked_digest( buf.str(), d, err ) )
+    {
+      std::fprintf( stderr, "spike-run: %s: %s\n", argv[ 2 ], err.c_str() );
+      return 1;
+    }
+    std::printf( "%s\n", json{ { "pops", d.pops }, { "wiring", d.wiring }, { "types", d.types }, { "channels", d.channels } }.dump().c_str() );
     return 0;
   }
   for ( int i = 1; i < argc; ++i )
