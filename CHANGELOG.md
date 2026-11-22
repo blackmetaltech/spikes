@@ -61,9 +61,8 @@ Fixes from a fact-check of the documentation against the code.
 - Several tuning, diagnosis and compass fixes (`t_tuned` judged by weights, `t_sharpen` steady across seeds, mean-subtracted STA, compass overshoot called "too strong", `dx_leech` patient robust on every seed, `dx_aplysia` findings no longer name the answer).
 
 ### Known gaps
-- **`leech_heart`:** the planned rework of its escape-versus-release concept is not done.
-- **The spinal boss reference passes about 80% of held-out seeds**, not all of them.
-- **`stretch_reflex`'s quick CHECK misses 1 or 2 of 35 seeds** (the full episode passes).
+- **`leech_heart` teaches release only.** The level now tests escape versus release with a small test current and reads which one the circuit shows, but no cell in the parts bin makes a robust escape oscillator (it needs an h-current cell), so the escape branch of the check has never run on a real circuit.
+- **Two spinal references are not fully seed-proof.** On seeds the tuning never saw, in Researcher mode, the spinal boss reference passes about 90% of full episodes and `stretch_reflex` about 93 to 98%; both pass all of seeds 1-30 and 101-105 in every mode. A brief-only scripted novice no longer solves `stretch_reflex` (its earlier passes came from an estimator artefact that is now fixed).
 - **No counterfactual mechanism check:** structure checks look at the wiring and the behaviour, but nothing yet re-runs a circuit with the mechanism removed to prove it matters.
 - **The fly connectome excerpt is not real synapse data.** The compass and the mushroom body follow published cell types; only `worm_touch` is wired from a real connectome.
 - **The Python package lacks the Theory wing's input and population kinds** (`rate_drive`, `tuned_poisson`, rate populations): it now refuses such a circuit with a plain message (see `python/README.md`); those circuits run in the game and `spike-run` only.
