@@ -42,16 +42,14 @@ public:
               "its antagonist's. Here two motor pools hold a little tone (the 'tone' sensor, about 40 spikes/s in each). At about 1 s the "
               "flexor is stretched (the 'ia_flexor' afferent switches on for 1 s): the flexor pool must speed up by at least 15 spikes/s "
               "while the extensor pool drops to a third of its resting rate or less, and the extensor must come back after the stretch. "
-              "Wire tone to both pools, ia_flexor to the flexor pool, and give ia_flexor a second route to the extensor that inverts its "
-              "sign: through an interneuron set to inhibitory. The extensor only has a little drive above its threshold, so a little "
-              "inhibition is enough.";
+              "The extensor only has a little drive above its threshold, so a little inhibition is enough.";
     i.chapter = "spinal";
     i.sensors = { "tone", "ia_flexor" };
     i.motors = { "flexor", "extensor" };
     i.duration_ms = kDur;
     i.concepts_new = { "reciprocal_inhibition" };
     i.concepts_used = { "excitation", "inhibition" };
-    i.par_neurons = 3;
+    i.par_neurons = 6;   // the reference circuit's neuron count (par rule: tests/tasks_rules_test.cpp)
     i.default_model = "iaf_psc_alpha";
     i.recipe = "tone onto a flexor group and an extensor group (2 cells each; the lab starts the tone sensor at 450 pA per unit; "
                "300 is gentler, and the recipe below works at either). ia_flexor onto the flexor group (the stretch adds 600 pA) and onto an interneuron group of 2 cells "

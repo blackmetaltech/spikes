@@ -7,6 +7,8 @@
 namespace spike
 
 {
+long max_circuit_neurons() { return kMaxNeurons; }
+
 /// Standard-normal draw for the weight spread: splitmix64 keyed by (circuit seed, projection index, edge index), two uniforms, Box-Muller.
 /// Mirrored bit for bit in python/spike/circuit.py (edge_spread_normal).
 static double spread_normal( unsigned long long seed, size_t proj, size_t edge )

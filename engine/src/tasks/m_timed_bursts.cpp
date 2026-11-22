@@ -42,9 +42,7 @@ public:
     i.brief = "A fast reach is not steered while it happens: the brain fires a stereotyped sequence of bursts, one to start the movement, one to brake it, "
               "one to hold it, 100-200 ms apart, and the arm simply obeys. A pattern generator needs nothing but a trigger and delays. Here a brief "
               "'go' (50 ms) must release three bursts in order on 'b1', 'b2', 'b3', each 100-220 ms after the previous one, and then silence. It happens "
-              "twice, at about 0.6 s and 2 s; nothing may fire on its own before. Build a chain: go onto a first group read out on b1; b1's group onto a "
-              "second group read out on b2; that onto a third. The links must be strong enough to make the next group fire (the default weight "
-              "is not) and slow: a delay of the order of 100 ms on each link (the delay slider reaches 250 ms). Cells stop firing when "
+              "twice, at about 0.6 s and 2 s; nothing may fire on its own before. The delay of a link can be set up to 250 ms. Cells stop firing when "
               "their input stops, so each burst ends by itself.";
     i.chapter = "spinal";
     i.sensors = { "go" };

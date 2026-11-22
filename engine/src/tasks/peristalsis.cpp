@@ -69,10 +69,8 @@ public:
            "interneuron chains answer: an ascending one excites the motoneurons just oral (behind) the bolus, which release ACh and contract, "
            "and a descending one excites inhibitory motoneurons aboral (ahead), which release NO and VIP and relax. That is the law of the "
            "intestine: squeeze behind, open ahead. Interstitial cells of Cajal run a slow wave (12 per minute) that decides when the muscle can "
-           "contract. Start simple: wire 'dist0..7' (stretch sensors) through interneurons to 'ach0..7' (excitatory motor pools), each stretch "
-           "segment exciting the pool just oral of it; the gut then runs its own slow wave. That is only half of the law and not enough to pass: "
-           "add the descending chain, a second set of interneurons from the stretch sensors to inhibitory motor pools ('no0..7', ahead of "
-           "the bolus), so that the gut squeezes behind and opens ahead. You may also add 'icc0..7' outputs (slow-wave pacemakers of your own, "
+           "contract. The stretch sensors are 'dist0..7' and the excitatory motor pools 'ach0..7'; the inhibitory pools 'no0..7' (ahead of the bolus) "
+           "are read only if you declare them, and so are 'icc0..7' outputs (slow-wave pacemakers of your own, "
            "which then replace the built-in clock). Score: the bolus must reach the end of the tube within 25 s. ";
   }
   /// The cell type the reference circuit and the verdicts assume; the numbers of the build live in recipe() (shown by mode in the lab).

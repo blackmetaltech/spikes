@@ -76,8 +76,7 @@ public:
            "and turn_right clockwise. Turning one way is enough, so you may leave the other turn channel unconnected: a worm that keeps turning eventually points "
            "uphill. The rule to build: turn while things get worse, go straight while they get better. Catch: the plate "
            "is stirred, and now and then BOTH cells chatter together for a second or so. That chatter means nothing; "
-           "only ASER minus ASEL does. So wire ASER to excite turn_left and ASEL to inhibit it (inhibition does the "
-           "subtraction). Pass: get within 10 % of the plate radius of the peak within 45 s "
+           "only ASER minus ASEL does. Pass: get within 10 % of the plate radius of the peak within 45 s "
            "(one cell listening to ASER alone is too slow and gets thrown off by the chatter). Score: how fast, and "
            "how close you stay on average.";
   }
@@ -98,7 +97,8 @@ public:
   /// The pass rule only asks whether the head got within 1 mm of the peak by the bar (45 s standard, 56 s guided, 40.5 s researcher): nothing after
   /// the bar can change `passed`, so CHECK stops there. (The value and mean_dist_mm of a quick run cover the shorter episode.)
   double quick_duration_ms() const override { return pass_time(); }
-  int par_neurons() const override { return variant_par( variant_, 28 ); }  // A 8 + B 8 + TL 8 + idle 4 of the recipe
+  int par_neurons() const override { return variant_par( variant_, 28 ); }  // the reference circuit has 24 cells; the 4 spare are the idle cells of the recipe (A 8 + B 8 + TL 8 + idle 4)
+  int par_slack() const override { return 4; }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

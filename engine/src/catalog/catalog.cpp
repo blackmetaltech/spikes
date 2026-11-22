@@ -111,6 +111,30 @@ std::vector< CatalogModel > build()
     m.drive = { "dc", "pA", { 0, 400, 600, 1000, 1500, 2000 } };
     add( m );
   }
+  {
+    // the reference circuits of the spinal cord and the lamprey use this cell for their interneurons and motor neurons: a player must be able to build what the reference builds
+    CatalogModel m;
+    m.id = m.model = "iaf_cond_alpha";
+    m.title = "Integrate-and-fire with alpha conductance synapses";
+    m.family = "Integrate-and-fire";
+    m.summary = "The conductance-based integrate-and-fire cell of the card above, but each input opens a channel whose conductance rises and falls smoothly "
+                "(an alpha function) instead of jumping up: the effect of one spike starts a little later and peaks at the synaptic time constant. "
+                "Inputs depend on the membrane voltage and shunt the cell, so inhibition near rest mostly clamps the voltage rather than pushing it down.";
+    m.examples = { "Spinal motor neurons and interneurons with smooth synaptic conductances", "Cells in conductance-based network models that want a rounded synaptic time course" };
+    m.source = "Meffin, Burkitt & Grayden 2004 J Comput Neurosci 16:159-175, doi:10.1023/B:JCNS.0000014108.03012.81; NEST model iaf_cond_alpha";
+    m.params = { P{ "g_L", "nS", "Leak conductance (membrane time constant = C_m / g_L).", 16.6667, 5, 100 },
+      P{ "C_m", "pF", "Membrane capacitance.", 250, 50, 1000 }, P{ "E_L", "mV", "Resting (leak reversal) potential.", -70, -90, -60 },
+      P{ "V_th", "mV", "Spike threshold.", -55, -60, -40 }, P{ "V_reset", "mV", "Voltage right after a spike.", -60, -80, -55 },
+      P{ "t_ref", "ms", "Refractory period.", 2, 0, 10 }, P{ "E_ex", "mV", "Excitatory reversal potential.", 0, -20, 20 },
+      P{ "E_in", "mV", "Inhibitory reversal potential.", -85, -100, -65 }, P{ "tau_syn_ex", "ms", "Excitatory conductance rise and decay.", 0.2, 0.1, 20 },
+      P{ "tau_syn_in", "ms", "Inhibitory conductance rise and decay.", 2, 0.1, 20 }, P{ "I_e", "pA", "Constant input current.", 0, -500, 1000 } };
+    m.input_weight = 20;
+    m.weight_unit = "nS";
+    m.ei = "either";
+    m.ei_note = "Positive weight opens the excitatory channel, negative the inhibitory one.";
+    m.drive = { "dc", "pA", { 0, 260, 300, 400, 600, 800 } };
+    add( m );
+  }
   for ( const char* nm : { "aeif_cond_alpha", "aeif_cond_exp" } )
   {
     const bool alpha = std::string( nm ) == "aeif_cond_alpha";
@@ -136,6 +160,17 @@ std::vector< CatalogModel > build()
     add( m );
   }
 
+  {
+    // the generic cell: the reference circuits of the phase-plane, leech and breathing levels set a, b, c and d themselves, so the bin offers the model with all four free
+    CatalogModel m = izh( "RS", "", "", {}, 0.02, 0.2, -65, 8, "either", "Generic: positive weights for an excitatory cell, negative for an inhibitory one." );
+    m.id = m.model = "izhikevich";
+    m.title = "Izhikevich (set a, b, c and d yourself)";
+    m.summary = "Two equations and four numbers, a, b, c and d, give most of the firing patterns of cortical cells: regular spiking, bursting, chattering, fast "
+                "spiking, rebound bursts, resonance. This card starts as the regular-spiking cell; the presets below it are the named patterns, and any other "
+                "point of the (a, b, c, d) space is yours to set.";
+    m.examples = { "Any cortical firing pattern, by choosing a, b, c and d", "Bursting cells such as a leech heart interneuron or a respiratory pacemaker" };
+    add( m );
+  }
   add( izh( "RS", "regular spiking", "Fires a train that slows down during a steady input (adaptation). The classic neocortical excitatory cell.",
     { "Layer 2/3 and 5 neocortical pyramidal neurons" }, 0.02, 0.2, -65, 8, "excitatory", "The standard excitatory cortical cell." ) );
   add( izh( "IB", "intrinsically bursting", "Starts with a burst of spikes, then settles to regular spiking.",
@@ -425,7 +460,7 @@ std::vector< CatalogModel > build()
     m.id = m.model = "sa_node_pacemaker";
     m.title = "Sinoatrial node pacemaker cell";
     m.family = "Custom (NESTML)";
-    m.summary = "A reduced model of the heart's pacemaker cell: it fires on its own at about 70 beats per minute through the funny current I_f (HCN channels), "
+    m.summary = "A reduced model of the heart's pacemaker cell: it fires on its own at about 99 beats per minute with no autonomic input (about 67 with ACh at 0.5) through the funny current I_f (HCN channels), "
                 "T- and L-type calcium and a delayed-rectifier potassium. Acetylcholine (vagus) slows it; noradrenaline (sympathetic) speeds it up. "
                 "It needs no input to fire: a large depolarising current stops it (depolarisation block).";
     m.examples = { "Sinoatrial node cell setting the heart rate", "Autonomic control of heart rate (vagal and sympathetic)" };

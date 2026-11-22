@@ -80,13 +80,14 @@ public:
   double duration_ms() const override { return kDuration; }
   /// Quick check: the first three pushes, each with its ringing window (the same rules as the full episode; a full run judges all six).
   double quick_duration_ms() const override { return kLead + 2 * kSpacing + kJitter + kQuiet1; }
-  int par_neurons() const override { return variant_par( variant_, 54 ); }
+  int par_neurons() const override { return variant_par( variant_, 56 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
   std::vector< std::string > concepts_new() const override { return {}; }
   std::vector< std::string > concepts_used() const override { return { "recruitment", "reciprocal_inhibition", "excitation", "negative_feedback" }; }
   bool on_spine() const override { return false; }
+  std::string parent() const override { return "stretch_reflex"; }   // builds on the stretch reflex (declared: the map no longer guesses)
   /// Perturbation x0.8 (guided) / x1.05 (researcher) on the 1.0-1.8 N m pushes; pass limits rms 0.17 / worst 0.30 / sag 0.17 rad x1.25
   /// (guided) or x0.92 (researcher).
   std::map< std::string, std::string > variants() const override

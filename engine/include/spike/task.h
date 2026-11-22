@@ -101,15 +101,22 @@ public:
 
   /// add-only: the level's optional third-star challenge, shown on the level card before the player starts (never a hidden budget). `text` is the plain
   /// sentence; the game checks the numbers against the circuit: at most `max_neurons` cells (0 = no limit), a mean rate of at most `max_rate_hz` spikes/s per
-  /// cell (0 = no limit), no modulator output at all when `no_modulators`. The default is the par: build it with no more neurons than the reference.
-  struct Challenge { std::string text; int max_neurons = 0; double max_rate_hz = 0; bool no_modulators = false; };
+  /// cell (0 = no limit). The default is the par: build it with no more neurons than the reference circuit has, plus the declared slack.
+  struct Challenge { std::string text; int max_neurons = 0; double max_rate_hz = 0; };
   virtual Challenge challenge() const
   {
     Challenge c;
     c.max_neurons = par_neurons();
     if ( c.max_neurons > 0 ) c.text = "Build it with " + std::string( c.max_neurons == 1 ? "a single neuron" : "no more than " + std::to_string( c.max_neurons ) + " neurons" ) + " (par).";
+    // the par rule: par = the reference circuit's neuron count + par_slack(); a level with slack says so on its card (not in a variant, where the par is halved)
+    if ( c.max_neurons > 0 and par_slack() > 0 and variant_.empty() )
+      c.text += " The reference circuit has " + std::to_string( c.max_neurons - par_slack() ) + "; the " + std::to_string( par_slack() ) + " spare leave room for another honest build.";
     return c;
   }
+  /// The par rule (tests/tasks_rules_test.cpp): par_neurons() == (neurons of the reference circuit) + par_slack(). Slack is 0 unless a level declares spare cells.
+  virtual int par_slack() const { return 0; }
+  /// The spine level a non-spine level (a diagnosis case, a branch such as Posture) hangs off: it opens when that level is passed. "" for a spine level.
+  virtual std::string parent() const { return ""; }
 
   /// Difficulty mode, set before reset(): "guided" | "standard" | "researcher". Tasks scale tolerance (bands, seeds, noise)
   /// and perturbation strength from it; structure never changes. Default: standard.

@@ -41,7 +41,7 @@ Spec spec()
   i.duration_ms = 3000;
   i.concepts_new = { "ring_attractor" };
   i.concepts_used = { "excitation", "inhibition", "persistence" };
-  i.par_neurons = 24;   // the reference has 20 cells; the budget leaves room for a larger inhibitory group
+  i.par_neurons = 24; i.par_slack = 4;   // the reference has 20 cells; the spare leaves room for a larger inhibitory group
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "heading", ring_kind() } };
   for ( const auto& c : i.sensors ) i.kinds[ c ] = in_kind( "poisson", 300, 400 );

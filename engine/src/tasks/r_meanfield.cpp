@@ -47,7 +47,7 @@ Spec spec()
   i.duration_ms = 2100;
   i.concepts_new = { "mean_field" };
   i.concepts_used = { "wilson_cowan", "inhibition" };
-  i.par_neurons = 255;
+  i.par_neurons = 255; i.par_slack = 2;   // the reference has 253 cells and units
   i.default_model = "iaf_psc_delta";
   i.kinds = { { "ext", in_kind( "poisson", 8000, 0.2 ) }, { "ext_mf", in_kind( "rate_drive", 8000, 1.0 ) }, { "net", micro::rate() }, { "mf", Task::ChannelKind{ "rate_value", 0, "", 0.05, 1000.0, 0.0 } } };
   i.bands = { { "agreement", "%", 0, 100 } };
