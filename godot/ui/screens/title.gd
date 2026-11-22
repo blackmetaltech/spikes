@@ -60,8 +60,9 @@ func build() -> void:
 	if not SaveIO.notices.is_empty():   # a damaged or newer save, a read-only disk: said here, with where the file is
 		var nl := Kit.ident(Kit.label("\n".join(SaveIO.notices.slice(-3)), 17 if not phone else 15, Kit.RED, true), "SaveNotices") as Label
 		nl.custom_minimum_size.x = 200.0; nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; foot.add_child(nl)
-	var rule := ColorRect.new(); rule.color = Kit.TEXT; rule.custom_minimum_size.y = 2; rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if not phone: foot.add_child(rule)
+	if not phone:   # created only when added: an unparented node would leak as an orphan
+		var rule := ColorRect.new(); rule.color = Kit.TEXT; rule.custom_minimum_size.y = 2; rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		foot.add_child(rule)
 	var fr := HBoxContainer.new(); fr.add_theme_constant_override("separation", 24); foot.add_child(fr)
 	var cap := "A, pyramidal cell; a, excitatory neuron (Golgi stain); b, basket interneuron, inhibitory. Simulated with NEST." if not phone else "A, pyramidal cell; a, excitatory; b, basket cell, inhibitory."
 	var fc := Kit.fig_caption(1, cap, 19 if not phone else 18); fc.size_flags_horizontal = Control.SIZE_EXPAND_FILL; fr.add_child(fc)
@@ -69,7 +70,9 @@ func build() -> void:
 	ver.size_flags_vertical = Control.SIZE_SHRINK_END; fr.add_child(ver)
 	if phone: fr.remove_child(ver); foot.add_child(ver); ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_foot = foot
-	foot.resized.connect(_fit_column); resized.connect(_fit_column); _fit_column.call_deferred()
+	foot.resized.connect(_fit_column)   # a new foot each build
+	if not resized.is_connected(_fit_column): resized.connect(_fit_column)   # this screen outlives its rebuilds
+	_fit_column.call_deferred()
 
 ## The menu column ends above the plate's foot, whose caption wraps to two lines on narrow windows and with Large text; when the
 ## column would still run into it, the air round the wordmark shrinks, then the blurb under the motto goes (the menu and the wordmark stay).
