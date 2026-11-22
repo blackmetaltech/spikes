@@ -9,7 +9,7 @@ summary: Every cell model you can place in Spike, what it does, its parameters w
 
 The parts bin is the shelf of cell types. Every neuron you add to the bench is one of these. Each card has a plain description, real examples, the key parameters, and two small plots measured by the engine: an f-I curve (firing rate against input current) and a membrane-voltage trace.
 
-Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a custom cell written in NESTML (a language for describing neuron models) and compiled into the engine. The names and units are NEST's own: mV, ms, pA, nS, pF, Hz. See [what is real](what-is-real.html) for which parts are NEST's own maths and which are re-fits.
+Every model is a real [NEST](https://www.nest-simulator.org/) model, or a custom cell written in NESTML (a language for describing neuron models) and compiled into the engine. Names and units are NEST's own: mV, ms, pA, nS, pF, Hz. See [what is real](what-is-real.html) for which parts are NEST's own maths and which are re-fits.
 
 > **Note:** There are 31 cards. A card is one model with one set of preset parameters. The eight Izhikevich cards share one model and differ only in their presets (the generic one has none: a, b, c and d are yours).
 
@@ -17,15 +17,15 @@ Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a c
 
 **Opening it.** In a level the **Parts** button sits on the palette above the circuit editor. The same bin is on the campaign map as a browse-only reference ([the lab](how-to-read-the-lab.html) shows where the buttons are). On a phone the button is in the Menu.
 
-**Picking a part.** In the lab, pick a card and press **Use**. The button on the palette then reads `Parts: <card title>`, and every neuron you add with **+ Excitatory** or **+ Inhibitory** is made from that card, with its preset parameters. Neurons already on the bench keep their type. To change one, select it and use the model and preset steppers in the inspector.
+**Picking a part.** Pick a card and press **Use**. The palette button then reads `Parts: <card title>`. Every neuron you add with **+ Excitatory** or **+ Inhibitory** is made from that card, with its preset parameters. Neurons already on the bench keep their type. To change one, select it and use the model and preset steppers in the inspector.
 
-**For this task.** Inside a level the bin shows a heading **For this task** first. These are the cells the level's reference circuit uses, plus the cells of its chapter.
+**For this task.** Inside a level the bin shows a heading **For this task** first: the cells the level's reference circuit uses, plus the cells of its chapter.
 
 **When it appears.** The Parts button is not on the palette in the first levels. It opens at the first level whose reference circuit uses a cell other than the plain integrate-and-fire cell. That is **Adaptation**, the eighth level of the Invertebrates spine (after Threshold, Excitation, Convergence, Touch reflex, Inhibition, Subtraction and Salt-seeking worm), whose reference uses an adaptive exponential cell. It stays open once you are that far. The sandbox always shows it. The rule is in `godot/ui/lab/lab_unlocks.gd`.
 
-**Which cards are open.** A card is usable when your build can run it and its chapter is open. Locked cards show `UNLOCKS IN <chapter>`. Cards your build cannot run show `NOT IN THIS BUILD`. Two exceptions: a model that the current level's own reference circuit uses is always pickable, and the sandbox opens everything. The table below lists the chapter that opens each card. A chapter opens by the campaign's own rules, not when you pass a level of it: Invertebrates and Spinal cord are open from the start, and each later body chapter opens when the spine of the chapter before it (or the one two before it) is passed. The Bestiary and Theory wings open after the Invertebrates spine is passed, so the rate and mean-field cards ("Rate models") open then. The crab cell waits further: the Crab chapter opens only after the Leech spine is passed (Guided mode drops this extra wait, not the Invertebrates one). See [the Theory wing](campaign-theory.html) and [the Bestiary](campaign-bestiary.html).
+**Which cards are open.** A card is usable when your build can run it and its chapter is open. Locked cards show `UNLOCKS IN <chapter>`. Cards your build cannot run show `NOT IN THIS BUILD`. Two exceptions: a model that the current level's own reference circuit uses is always pickable, and the sandbox opens everything. The table below lists the chapter that opens each card. A chapter opens by the campaign's own rules, not when you pass a level of it. Invertebrates and Spinal cord are open from the start. Each later body chapter opens when the spine of the chapter before it (or the one two before it) is passed. The Bestiary and Theory wings open after the Invertebrates spine is passed, so the rate and mean-field cards ("Rate models") open then. The crab cell waits further: the Crab chapter opens only after the Leech spine is passed (Guided mode drops this extra wait, not the Invertebrates one). See [the Theory wing](campaign-theory.html) and [the Bestiary](campaign-bestiary.html).
 
-> **Note:** The inspector of a selected neuron has a model stepper that lists only models you can use. If a model is not in that list, pick its card in the Parts bin first.
+> **Note:** The inspector of a selected neuron has a model stepper that lists only models you can use. If a model is missing from that list, pick its card in the Parts bin first.
 
 ## All cards at a glance
 
@@ -59,9 +59,9 @@ Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a c
 | Stomatogastric neuron | `stg_cell` | Custom (NESTML) | Crab (Bestiary, after the Leech spine) | nS |
 | Interstitial cell of Cajal | `icc_slow_wave` | Custom (NESTML) | Autonomic | pA |
 
-The column "Weight unit" is the unit of a synaptic weight onto that cell. A weight is how strong one connection is (see [synapses and modulators](synapses-and-modulators.html)). The cell models use different units because NEST models them differently: current-based cells take picoamps, conductance-based cells take nanosiemens, delta-synapse cells take a voltage jump in millivolts.
+"Weight unit" is the unit of a synaptic weight onto that cell. A weight is how strong one connection is (see [synapses and modulators](synapses-and-modulators.html)). The units differ because NEST models the cells differently: current-based cells take picoamps, conductance-based cells take nanosiemens, delta-synapse cells take a voltage jump in millivolts.
 
-> **Note:** Each card also lists a default input weight. It is the weight at which one incoming spike gives a small voltage step (about 1 to 2 mV) at rest. The engine measured it for each cell. The lab uses it when you draw a new connection.
+> **Note:** Each card also lists a default input weight: the weight at which one incoming spike gives a small voltage step (about 1 to 2 mV) at rest. The engine measured it for each cell. The lab uses it when you draw a new connection.
 
 ## Words used on this page
 
@@ -76,7 +76,7 @@ The column "Weight unit" is the unit of a synaptic weight onto that cell. A weig
 
 ## Integrate-and-fire cells
 
-These cells treat the membrane like a leaky capacitor. Input charges it, it leaks back to rest, and when the voltage reaches threshold the cell fires and resets. They are cheap and easy to reason about.
+These cells treat the membrane like a leaky capacitor. Input charges it, it leaks back to rest, and at threshold the cell fires and resets. They are cheap and easy to reason about.
 
 ### Leaky integrate-and-fire (`iaf_psc_alpha`)
 
@@ -99,7 +99,7 @@ Used by: nearly every reference circuit, including all the first micro-puzzles (
 
 ### Integrate-and-fire with conductance synapses (`iaf_cond_exp`)
 
-Like the plain cell, but synapses open ion channels. An input then depends on the voltage and shunts the cell: inhibition near rest mostly clamps the voltage instead of pushing it down.
+Like the plain cell, but synapses open ion channels. Input then depends on the voltage and shunts the cell: inhibition near rest mostly clamps the voltage instead of pushing it down.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -114,11 +114,11 @@ Like the plain cell, but synapses open ion channels. An input then depends on th
 | `tau_syn_in` | ms | 2 | Inhibitory conductance decay |
 | `I_e` | pA | 0 | Constant input current |
 
-Default input weight: 20 nS. Use it when shunting inhibition matters, or to build a model like a cortical cell in a busy network. No reference circuit uses it; it is there for the sandbox and your own designs.
+Default input weight: 20 nS. Use it when shunting inhibition matters, or to model a cortical cell in a busy network. No reference circuit uses it. It is there for the sandbox and your own designs.
 
 ### Integrate-and-fire with alpha conductance synapses (`iaf_cond_alpha`)
 
-The cell of the card above, but each input opens a channel whose conductance rises and falls smoothly (an alpha function) instead of jumping up, so the effect of a spike starts a little later and peaks at the synaptic time constant. The spinal reference circuits and the lamprey use it for their interneurons and motor neurons, so it is in the bin: you can build what the reference builds.
+The cell of the card above, but each input opens a channel whose conductance rises and falls smoothly (an alpha function) instead of jumping up. A spike's effect starts a little later and peaks at the synaptic time constant. The spinal reference circuits and the lamprey use it for their interneurons and motor neurons, so you can build what the reference builds.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -140,7 +140,7 @@ Used by: the lamprey swimmer, the spinal-cord reference circuits (stretch reflex
 
 ### Adapting integrate-and-fire (`iaf_cond_exp_sfa_rr`)
 
-A conductance-based cell with two spike-triggered potassium conductances. One is slow and makes firing slow down under steady input (spike-frequency adaptation, SFA). One is fast and makes the cell harder to fire right after a spike (relative refractoriness, RR). Its card is excitatory by default.
+A conductance-based cell with two spike-triggered potassium conductances. The slow one makes firing slow down under steady input (spike-frequency adaptation, SFA). The fast one makes the cell harder to fire right after a spike (relative refractoriness, RR). Its card is excitatory by default.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -153,11 +153,11 @@ A conductance-based cell with two spike-triggered potassium conductances. One is
 | `V_th` | mV | -57 | Spike threshold |
 | `I_e` | pA | 0 | Constant input current |
 
-Default input weight: 4 nS. Use it for regular-spiking cortical pyramidal cells with adaptation over about 100 ms. Not used by a reference circuit.
+Default input weight: 4 nS. Use it for regular-spiking cortical pyramidal cells with adaptation over about 100 ms. No reference circuit uses it.
 
 ### Multi-timescale adaptive threshold (`mat2_psc_exp`)
 
-An integrate-and-fire cell whose *threshold* jumps at every spike and relaxes back with two time constants (10 and 200 ms). This gives adaptation and bursts, matches recorded cells well, and is cheap.
+An integrate-and-fire cell whose *threshold* jumps at every spike and relaxes back with two time constants (10 and 200 ms). It gives adaptation and bursts, matches recorded cells well, and is cheap.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -170,11 +170,11 @@ An integrate-and-fire cell whose *threshold* jumps at every spike and relaxes ba
 | `C_m` | pF | 100 | Membrane capacitance |
 | `I_e` | pA | 0 | Constant input current |
 
-Default input weight: 150 pA. Not used by a reference circuit.
+Default input weight: 150 pA. No reference circuit uses it.
 
 ### Integrate-and-fire with delta synapses (`iaf_psc_delta`)
 
-Synaptic input is an instantaneous jump in the membrane voltage, so the **weight of a connection is the size of the voltage step in millivolts**. This is the cell that the Siegert mean-field formula describes exactly. It is the spiking partner of the mean-field unit below.
+Synaptic input is an instantaneous jump in the membrane voltage, so the **weight of a connection is the size of the voltage step in millivolts**. The Siegert mean-field formula describes this cell exactly. It is the spiking partner of the mean-field unit below.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -192,7 +192,7 @@ Default input weight: 1 mV. Used by **The network and its mean field** (Theory w
 
 ### Adaptive exponential integrate-and-fire (`aeif_cond_alpha`, `aeif_cond_exp`)
 
-An integrate-and-fire cell with a realistic sharp exponential spike upswing and a slow adaptation current `w`. Depending on `a`, `b` and the reset, one equation gives regular firing, adaptation, bursting or irregular firing. The two cards differ only in the synapse shape: alpha-function conductances (`_alpha`) or exponentially decaying ones (`_exp`).
+An integrate-and-fire cell with a sharp exponential spike upswing and a slow adaptation current `w`. Depending on `a`, `b` and the reset, one equation gives regular firing, adaptation, bursting or irregular firing. The two cards differ only in synapse shape: alpha-function conductances (`_alpha`) or exponentially decaying ones (`_exp`).
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -210,14 +210,14 @@ Default input weight: 8 nS (alpha) or 10 nS (exponential). Set `a` and `b` to 0 
 
 Presets for `aeif_cond_alpha` in the lab (after Naud et al. 2008): **NEST default** (adapting), **Tonic** (`a` 2, `b` 0, `tau_w` 30, `V_reset` -58: regular firing), **Adapting** (`a` 2, `b` 60, `tau_w` 500, `V_reset` -58: slows down under input) and **Bursting** (`a` -0.5, `b` 7, `tau_w` 5, `V_reset` -46).
 
-Use it for: neurons that must adapt, burst or rebound. It is the workhorse for rhythms, since adaptation and rebound are what make half-centre oscillators work.
+Use it for: neurons that must adapt, burst or rebound. It is the workhorse for rhythms, because adaptation and rebound make half-centre oscillators work.
 Used by: **Adaptation**, **Half-centre**, **Rebound after inhibition** and **The heartbeat** (leech), the lamprey swimmer, and the spinal-cord reference circuits (stretch reflex, Renshaw, posture, reach, spinal sprint).
 
 ## Izhikevich cells
 
 ### Izhikevich (`izhikevich`, eight cards)
 
-A two-equation cell with many firing patterns. Four numbers (a, b, c, d) pick the pattern. It is cheap and very flexible. Its voltage and recovery variable are drawn on the phase plane in the Theory wing's first chapter.
+A two-equation cell with many firing patterns. Four numbers (a, b, c, d) pick the pattern. It is cheap and flexible. The Theory wing's first chapter draws its voltage and recovery variable on the phase plane.
 
 | Parameter | Unit | Meaning |
 |---|---|---|
@@ -245,11 +245,11 @@ Used by: **Where firing starts**, **Only the change counts**, **A neuron that re
 
 ## Hodgkin-Huxley cells
 
-These are conductance models of the action potential, with real channels. They are the most detailed and the most expensive cells in the bin. They have a sharp threshold and jump straight to fast firing (class 2). None of the reference circuits uses a plain Hodgkin-Huxley cell, so they are free-play parts for the sandbox.
+These are conductance models of the action potential, with real channels. They are the most detailed and most expensive cells in the bin. They have a sharp threshold and jump straight to fast firing (class 2). No reference circuit uses a plain Hodgkin-Huxley cell, so they are free-play parts for the sandbox.
 
 ### Hodgkin-Huxley, squid axon (`hh_psc_alpha`)
 
-Sodium, potassium and leak channels with the original kinetics. Silent below a sharp threshold; it can fire a rebound spike after a hyperpolarising pulse.
+Sodium, potassium and leak channels with the original kinetics. Silent below a sharp threshold. It can fire a rebound spike after a hyperpolarising pulse.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -283,7 +283,7 @@ Default input weight: 2 nS (one spike gives a 1.9 mV step at rest). Examples: hi
 
 ### Gap-junction cells (`hh_psc_alpha_gap`, `hh_cond_beta_gap_traub`)
 
-These two accept **gap junctions**: electrical coupling between neighbouring cells that synchronises them. They are the only cells that do. Chemical synapses onto them can be excitatory or inhibitory as usual. See [synapses and modulators](synapses-and-modulators.html#gap-junctions).
+These two are the only cells that accept **gap junctions**: electrical coupling between neighbouring cells that synchronises them. Chemical synapses onto them can be excitatory or inhibitory as usual. See [synapses and modulators](synapses-and-modulators.html#gap-junctions).
 
 `hh_psc_alpha_gap` is a Hodgkin-Huxley cell fitted to inferior-olive neurons, with extra Kv1 and persistent sodium channels.
 
@@ -315,7 +315,7 @@ Default input weight: 1 nS (a 1.2 mV step).
 
 ### Hill-Tononi neuron (`ht_neuron`)
 
-A point neuron with four intrinsic currents (persistent sodium, depolarisation-activated potassium, low-threshold calcium T and the h-current) and AMPA, NMDA, GABA-A and GABA-B synapses, each on its own **receptor port**. It switches between tonic and burst firing depending on its state, which gives sleep-like slow oscillations in networks.
+A point neuron with four intrinsic currents (persistent sodium, depolarisation-activated potassium, low-threshold calcium T and the h-current) and AMPA, NMDA, GABA-A and GABA-B synapses, each on its own **receptor port**. It switches between tonic and burst firing with its state, which gives sleep-like slow oscillations in networks.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -331,7 +331,7 @@ Weight unit: multiples of the peak conductance. Weight 1 on the AMPA port gives 
 
 ### Generalised integrate-and-fire (`gif_cond_exp`)
 
-An integrate-and-fire cell with a fuzzy threshold. The chance of firing rises exponentially once the voltage passes threshold, so spike times are irregular. Spike-triggered currents and a moving threshold can be fitted to match recorded cells.
+An integrate-and-fire cell with a fuzzy threshold. The chance of firing rises exponentially once the voltage passes threshold, so spike times are irregular. You can fit spike-triggered currents and a moving threshold to match recorded cells.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -348,7 +348,7 @@ Default input weight: 3 nS.
 
 ### Stochastic point-process neuron (`pp_psc_delta`)
 
-Fires at random, with a rate that grows exponentially with the membrane potential (escape noise), followed by a dead time. Trains look Poisson-like, like cells in the living brain. Input is an instantaneous voltage jump.
+Fires at random, with a rate that grows exponentially with the membrane potential (escape noise), then a dead time. Trains look Poisson-like, like cells in the living brain. Input is an instantaneous voltage jump.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -366,7 +366,7 @@ Default input weight: 1 mV. Use it as a noisy source of spikes or a sensory affe
 
 ### Parrot neuron (`parrot_neuron`)
 
-Repeats every spike it receives, one for one, with no membrane dynamics. It has no parameters. The weight on its input does not matter as long as it is above zero; the sign of the connections it makes decides whether it excites or inhibits downstream.
+Repeats every spike it receives, one for one, with no membrane dynamics. It has no parameters. The weight on its input does not matter as long as it is above zero. The sign of the connections it makes decides whether it excites or inhibits downstream.
 
 Use it to fan one input out to many targets, as a relay station, or to turn a stimulation device into a real neuron that can take plastic synapses.
 Used by: **Renshaw cell** (as part of the limb circuit) and the three tuning levels (**A cell tuned by its inputs**, **Sharpening a tuning curve**, **Reading a direction from a crowd**), where the afferents are parrot cells driven by tuned Poisson input.
@@ -375,7 +375,7 @@ Used by: **Renshaw cell** (as part of the limb circuit) and the three tuning lev
 
 A whole population as one number, its firing rate. It has no spikes, no raster and no membrane voltage. The rate follows its input with a time constant `tau`. The summed input from other units is rectified at a threshold and capped at a ceiling.
 
-Connect rate units with rate connections (the weight is the gain of one unit onto another, negative for inhibition) and drive them with a **rate input** (see [inputs and outputs](inputs-and-outputs.html)).
+Connect rate units with rate connections (the weight is the gain of one unit onto another, negative for inhibition). Drive them with a **rate input** (see [inputs and outputs](inputs-and-outputs.html)).
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -395,7 +395,7 @@ The same idea, but the summed input goes through a hyperbolic tangent, so the ra
 
 ### Mean-field unit, Siegert (`siegert_neuron`)
 
-The mean-field stand-in for a population of integrate-and-fire cells with delta synapses. Its rate comes from the Siegert formula, applied to the mean and the variance of the input it gets from other mean-field units. A connection between two of them carries two numbers: J, the size of one voltage step in mV, and K, how many such inputs each cell gets. A unit with no input of its own, whose `mean` is set to the external rate, stands for the external drive.
+The mean-field stand-in for a population of integrate-and-fire cells with delta synapses. The Siegert formula gives its rate from the mean and variance of the input it gets from other mean-field units. A connection between two of them carries two numbers: J, the size of one voltage step in mV, and K, how many such inputs each cell gets. A unit with no input of its own, whose `mean` is set to the external rate, stands for the external drive.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -411,11 +411,11 @@ Used by: **The network and its mean field** (Theory wing). See [campaign-theory]
 
 ## Custom NESTML cells
 
-These four cells were written for the game in NESTML. Each has an exponential synaptic input with an `excitatory` and an `inhibitory` spike port, so a positive weight excites and a negative weight inhibits. Each has a `continuous` current port (the `dc` inputs) and the parameter `I_e`. Their sources are in `models/nestml/`. They are checked against PyNEST spike for spike, but they are not validated against recordings. See [what is real](what-is-real.html) for the honest account of each.
+These four cells were written for the game in NESTML. Each has an exponential synaptic input with an `excitatory` and an `inhibitory` spike port, so a positive weight excites and a negative weight inhibits. Each has a `continuous` current port (the `dc` inputs) and the parameter `I_e`. Their sources are in `models/nestml/`. They are checked against PyNEST spike for spike. They are not validated against recordings. See [what is real](what-is-real.html) for the honest account of each.
 
 ### Sinoatrial node pacemaker (`sa_node_pacemaker`)
 
-A reduced model of the heart's pacemaker cell. It fires on its own, with no input, through the funny current I_f (HCN channels), T- and L-type calcium, and a delayed-rectifier potassium. **One spike is one heartbeat.** Acetylcholine (the vagus) slows it; noradrenaline (the sympathetic nerves) speeds it up. A large depolarising current stops it (depolarisation block).
+A reduced model of the heart's pacemaker cell. It fires on its own, with no input, through the funny current I_f (HCN channels), T- and L-type calcium, and a delayed-rectifier potassium. **One spike is one heartbeat.** Acetylcholine (the vagus) slows it. Noradrenaline (the sympathetic nerves) speeds it up. A large depolarising current stops it (depolarisation block).
 
 | Parameter | Unit | Default | Slider range | Meaning |
 |---|---|---|---|---|
@@ -434,7 +434,7 @@ Used by: **Pacemaking**, **Coupling**, **Neuromodulation**, the heart tasks, the
 
 ### Bursting pacemaker (`butera_burster`)
 
-A persistent-sodium burster: slow inactivation of the persistent sodium current makes the cell burst rhythmically with no synaptic input. It is the kernel of the brainstem's respiratory rhythm generator (the preBotzinger complex). More tonic drive makes the bursts faster and finally tonic. One spike is one action potential in a burst. The equations and parameters are those of Butera, Rinzel and Smith (1999), model 1.
+A persistent-sodium burster: slow inactivation of the persistent sodium current makes the cell burst rhythmically with no synaptic input. It is the kernel of the brainstem's respiratory rhythm generator (the preBotzinger complex). More tonic drive makes the bursts faster, then tonic. One spike is one action potential in a burst. The equations and parameters are those of Butera, Rinzel and Smith (1999), model 1.
 
 | Parameter | Unit | Default | Meaning |
 |---|---|---|---|
@@ -467,7 +467,7 @@ A single-compartment conductance model with the currents of the crab stomatogast
 | `g_L` | nS | 6.28 | 6.28 | Leak |
 | `I_e` | pA | 0 | 0 | Constant input current |
 
-The "Card default" column is what the card lists. The "Parts-bin cell" column is the preset a new cell actually gets. Default input weight: 20 nS of a spike-triggered synaptic conductance. This cell has no `ne` or `ach` parameters: the pyloric rhythm's modulator is a `dc` input. The card suggests inhibitory use, because pyloric followers are inhibited by the pacemaker.
+"Card default" is what the card lists. "Parts-bin cell" is the preset a new cell actually gets. Default input weight: 20 nS of a spike-triggered synaptic conductance. This cell has no `ne` or `ach` parameters: the pyloric rhythm's modulator is a `dc` input. The card suggests inhibitory use, because the pacemaker inhibits the pyloric followers.
 Used by: **A pacemaker kernel**, **Phase from rebound**, **The pyloric rhythm** and its diagnosis case.
 
 ### Interstitial cell of Cajal (`icc_slow_wave`)
@@ -506,10 +506,10 @@ Used by: **Peristalsis**.
 
 ## Notes on what the levels use
 
-- Most reference circuits use `iaf_psc_alpha`. Rhythm, spinal and Bestiary circuits add `aeif_cond_alpha`, and some spinal circuits and the lamprey use `iaf_cond_alpha`.
-- Every model a reference circuit uses has a card in the bin that is open on that level (a test checks it): `iaf_cond_alpha` for the spinal levels and the lamprey, and the generic `izhikevich` card for the levels that set a, b, c and d themselves. A reference sets some parameters the card's sliders do not offer (a resting potential on `iaf_psc_alpha` or `aeif_cond_alpha`, for example); those you can set in the circuit file or paste in.
+- Most reference circuits use `iaf_psc_alpha`. Rhythm, spinal and Bestiary circuits add `aeif_cond_alpha`. Some spinal circuits and the lamprey use `iaf_cond_alpha`.
+- Every model a reference circuit uses has a card in the bin that is open on that level (a test checks it): `iaf_cond_alpha` for the spinal levels and the lamprey, and the generic `izhikevich` card for the levels that set a, b, c and d themselves. A reference sets some parameters the card's sliders do not offer (a resting potential on `iaf_psc_alpha` or `aeif_cond_alpha`, for example). Set those in the circuit file or paste them in.
 - Weights have limits: the circuit format refuses `|weight|` above 500 nS onto a conductance-based cell (`_cond_` in the model name), above 10000 pA onto a current-based cell (`_psc_`), and above 2000 nS onto a custom NESTML cell. Other limits (neuron count, connections, delay, input rates and currents) are listed under [synapses and modulators](synapses-and-modulators.html). A refused circuit shows "The engine rejected the circuit" with the reason. See [a circuit is data](circuit-is-data.html).
-- The f-I plots and voltage traces are measured by the engine with the `spike-catalog` tool and shipped as `catalog/thumbs.json`. If the file is missing, the cards show their text only. See [spike-run and tools](spike-run.html).
+- The engine measures the f-I plots and voltage traces with the `spike-catalog` tool and ships them as `catalog/thumbs.json`. If the file is missing, the cards show their text only. See [spike-run and tools](spike-run.html).
 
 ## Related pages
 

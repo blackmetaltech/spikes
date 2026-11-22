@@ -7,7 +7,7 @@ summary: Every panel of the building screen: the bench, sensor and motor cards, 
 
 # How to read the lab
 
-The lab is the screen where you build and run a circuit. You reach it with the Build button on a level card, or from the Sandbox. This page names every part of it and says what to read off each.
+The lab is where you build and run a circuit. Reach it with the Build button on a level card, or from the Sandbox. This page names every part and says what to read off each.
 
 ![The lab on a task, with the parts labelled](img/lab-annotated.png)
 
@@ -24,11 +24,11 @@ On a desktop window the lab has two columns under a bar.
 | World | Right, top | The body or world the circuit drives, a timeline of events, and the score card. |
 | Scopes | Right, bottom | The spike raster, voltage traces, and rate gauges. |
 
-In a narrow window (under 1180 px wide) or on a phone, the same parts sit behind three tabs: Circuit, World and Scopes. On a phone the inspector becomes a sheet at the bottom of the screen, Undo and Redo move to the palette row, and the More button reads Menu and also holds the status line, the parts bin, Brief and Hint. See [settings and performance](settings-and-performance.html) for the layout setting.
+In a narrow window (under 1180 px wide) or on a phone, the parts sit behind three tabs: Circuit, World and Scopes. On a phone the inspector becomes a sheet at the bottom, Undo and Redo move to the palette row, and the More button reads Menu and also holds the status line, the parts bin, Brief and Hint. See [settings and performance](settings-and-performance.html) for the layout setting.
 
 ## The bench
 
-The bench is drawn like an engineering sheet of graph paper. Everything on it is live: spikes light up cells and travel along connections as small ink beads.
+The bench is an engineering sheet of graph paper. It is all live: spikes light up cells and travel along connections as small ink beads.
 
 | Thing | How it looks | Meaning |
 |---|---|---|
@@ -42,7 +42,7 @@ The bench is drawn like an engineering sheet of graph paper. Everything on it is
 
 The brief's legend chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the colours.
 
-**Hints and verdicts on the bench.** After a failed run, the part of the circuit the verdict is about glows red. A tier-2 hint puts a pulsing outline on a part. See [stars, par and hints](stars-and-hints.html).
+**Hints and verdicts on the bench.** After a failed run, the part the verdict is about glows red. A tier-2 hint puts a pulsing outline on a part. See [stars, par and hints](stars-and-hints.html).
 
 ### Building on the bench
 
@@ -63,9 +63,9 @@ The brief's legend chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the col
 | Undo a change | **Undo** on the play bar or Ctrl+Z; **Redo** or Ctrl+Shift+Z. Each add, wire, delete, slider change, drag, paste or loaded circuit is one step, up to 100. |
 | Work without a mouse | Click the bench (or Tab onto it): a double-ring cursor walks the cards, groups and connections with Tab or the arrow keys (the D-pad on a gamepad). Enter (A) selects, W (X) starts a wire, Enter (A) on the target finishes it, Esc (B) cancels it, I (Y) opens the inspector, Shift+arrows nudge a group, and Delete removes the selection. See [keyboard and controls](controls.html). |
 
-On a big circuit the bench opens fitted to show every group and its name. If the window is too small for the circuit and its cards, the groups are kept in view and the cards may be a pan away.
+A big circuit opens fitted, showing every group and its name. If the window is too small for the circuit and its cards, the groups stay in view and the cards may be a pan away.
 
-On a level, the sensor and motor cards of the task cannot be deleted. Cards you add yourself can. (+ Noise exists in the sandbox only: a level is scored on its own sensors, so a free input added on a level would keep the circuit from passing.) On a diagnosis case the bench is read-only.
+On a level, you cannot delete the task's sensor and motor cards. Cards you add can be deleted. (+ Noise exists in the sandbox only: a level is scored on its own sensors, so a free input would keep the circuit from passing.) On a diagnosis case the bench is read-only.
 
 ## The inspector
 
@@ -73,9 +73,9 @@ The inspector changes with what you select.
 
 ### The brief
 
-With nothing selected the inspector shows the level's brief. A long brief is cut short, and two parts of it stay in view: TO BUILD (the sentences that say what to wire) and TO PASS (the pass rule in plain words). Press **More...** in the brief to read it in full. Below them comes a RECIPE part. In Guided mode the recipe is printed. In Standard it sits behind **Show recipe**, which costs the third star. In Researcher mode there is none. The colour chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the bench.
+With nothing selected, the inspector shows the level's brief. A long brief is cut short, with two parts kept in view: TO BUILD (what to wire) and TO PASS (the pass rule in plain words). Press **More...** to read it in full. Below comes a RECIPE part. Guided mode prints the recipe. Standard hides it behind **Show recipe**, which costs the third star. Researcher mode has none. The colour chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the bench.
 
-What each star needs is on the level's card on the campaign map (see [stars, par and hints](stars-and-hints.html)).
+The level's card on the campaign map says what each star needs (see [stars, par and hints](stars-and-hints.html)).
 
 ### A neuron group
 
@@ -104,7 +104,7 @@ Selecting a group also lets you listen: only its spikes click.
 
 ### A sensor or motor
 
-A sensor shows what it is wired to, its input kind (Poisson spikes or DC current, where you can choose), its weight, and a **Remove input** button if you added it. A motor shows what feeds it, and its readout kind where the level offers a choice (rate, modulator or ring). **Disconnect all** removes every connection of a card. On a numbered family of channels (such as `limb0` to `limb7`) there is a **Wire all** button ("Wire <group> (n) to all" on a motor): a group with the same number of cells connects cell k to channel k. See [inputs and outputs](inputs-and-outputs.html).
+A sensor shows what it is wired to, its input kind (Poisson spikes or DC current, where you can choose), its weight, and a **Remove input** button if you added it. A motor shows what feeds it, and its readout kind where the level offers a choice (rate, modulator or ring). **Disconnect all** removes every connection of a card. A numbered family of channels (such as `limb0` to `limb7`) has a **Wire all** button ("Wire <group> (n) to all" on a motor). A group with the same number of cells connects cell k to channel k. See [inputs and outputs](inputs-and-outputs.html).
 
 ## The play bar
 
@@ -140,57 +140,57 @@ The bar across the top has these buttons.
 | Tools | Copy circuit as JSON, Paste circuit JSON | Put the whole circuit on the clipboard, or replace the bench with a circuit from the clipboard (it asks first, keeps your bench in the history, and refuses a circuit that fails the checks below). |
 | Tools | Import from a passed level | Lists your own saved bench and slots of every level you have passed (benches built from a reference are left out, and the list says how many). The pick is pasted as one selected group, with its links to sensors and motors that this level also has; links to ones it does not have are dropped, and a note names them. Esc closes the list. |
 
-On a level the More menu ends with a line about what opens later ("More tools open as the campaign needs them: ..."). Load, Save, the JSON copy and paste, Import and Analysis open at the Spinal cord chapter; inhibitory neurons and the parts bin open at the first level whose reference needs them. The [sandbox](sandbox.html) has everything.
+On a level, the More menu ends with a line about what opens later ("More tools open as the campaign needs them: ..."). Load, Save, the JSON copy and paste, Import and Analysis open at the Spinal cord chapter. Inhibitory neurons and the parts bin open at the first level whose reference needs them. The [sandbox](sandbox.html) has everything.
 
-> **Note:** A circuit that is a copy of a level's reference circuit earns no stars and does not unlock anything. The end card says so. Press Empty bench and build your own.
+> **Note:** A copy of a level's reference circuit earns no stars and unlocks nothing. The end card says so. Press Empty bench and build your own.
 
 ### Undo, redo and the bench history
 
-There are two safety nets.
+Two safety nets protect your work.
 
 - **Undo and Redo** (the play bar, Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y) step through your edits on the bench. Each add, wire, delete, slider change, drag, paste or loaded circuit is one step, and 100 steps are kept.
-- **Restore previous bench** (More, Level group) keeps you from losing a circuit to a button. Whenever Reference, Empty bench, Load, a slot, Paste circuit JSON or the tutorial replaces a bench that has neurons, the old bench is saved into the level's history (`circuits/<level>/history`, the newest ten). Restore brings the newest one back and puts the bench you had into the history in its place, so pressing it twice swaps back. A bench identical to the newest entry, an empty bench and a copy of the reference are not kept. The history is per level, and not offered on a diagnosis case.
+- **Restore previous bench** (More, Level group) saves you from losing a circuit to a button. Whenever Reference, Empty bench, Load, a slot, Paste circuit JSON or the tutorial replaces a bench that has neurons, the old bench goes into the level's history (`circuits/<level>/history`, the newest ten). Restore brings back the newest and puts your current bench into the history in its place, so pressing it twice swaps back. A bench identical to the newest entry, an empty bench and a copy of the reference are not kept. The history is per level, and not offered on a diagnosis case.
 
 ## The raster
 
-The raster is a scrolling chart of spikes. Each row is one neuron, grouped by population. Each tick is one spike: sienna for an excitatory cell, blue for an inhibitory one. The "now" edge is on the right. The time window is chosen from the cells' own rhythm (about three cycles wide, automatic). Click the window label in the strip's top right corner to cycle through 500 ms, 1 s, 2 s, 4 s and back to automatic.
+The raster is a scrolling chart of spikes. Each row is one neuron, grouped by population. Each tick is one spike: sienna for excitatory, blue for inhibitory. The "now" edge is on the right. The time window is set automatically from the cells' own rhythm (about three cycles wide). Click the window label in the strip's top right corner to cycle through 500 ms, 1 s, 2 s, 4 s and back to automatic.
 
-What to read: a dense block of ticks is a burst. Rows that tick together are in sync. A row that never ticks is silent. Each group keeps one label in a fixed column at the left and at most twelve rows (a larger group is sampled evenly); above 40 cells or 8 groups the raster draws one rate-heat row per group instead. In a circuit made only of rate units the raster becomes a heat strip, one row per unit, with colour showing the rate.
+What to read: a dense block of ticks is a burst. Rows that tick together are in sync. A row that never ticks is silent. Each group has one label in a fixed column at the left and at most twelve rows (a larger group is sampled evenly). Above 40 cells or 8 groups, the raster draws one rate-heat row per group instead. A circuit of only rate units gets a heat strip, one row per unit, with colour showing the rate.
 
 ## The traces
 
-Up to four membrane-voltage recorders. Each is a pen line on its own strip of chart paper, with a stroke at every spike. The voltage comes from NEST at 1 ms. NEST models reset the voltage at threshold, so the stroke marks the spike itself.
+Up to four membrane-voltage recorders. Each is a pen line on its own strip of chart paper, with a stroke at every spike. NEST supplies the voltage at 1 ms. NEST models reset the voltage at threshold, so the stroke marks the spike itself.
 
-To open one, select a group and press **Trace** (a fifth trace replaces the oldest). What to read: how far the voltage rises before a spike, how fast it recovers, and whether it sits just under threshold. The voltage axis is held to -90 to +40 mV; a model with no voltage floor that sinks below it is clipped and the strip says so. Click the window label in the strip's top right corner to cycle the window (automatic, 500 ms, 1 s, 2 s, 4 s, 10 s). A level that teaches the phase plane shows a phase-plane view in the world panel instead. See [the Theory wing](campaign-theory.html).
+To open one, select a group and press **Trace** (a fifth trace replaces the oldest). Read how far the voltage rises before a spike, how fast it recovers, and whether it sits just under threshold. The voltage axis is held to -90 to +40 mV. A model with no voltage floor that sinks below it is clipped, and the strip says so. Click the window label in the strip's top right corner to cycle the window (automatic, 500 ms, 1 s, 2 s, 4 s, 10 s). A level that teaches the phase plane shows a phase-plane view in the world panel instead. See [the Theory wing](campaign-theory.html).
 
 ## The gauges
 
-One horizontal gauge per motor channel. A bar fills with hatching up to the channel's rate in Hz, and the number sits at the end. The value is a 500 ms mean, and once the episode has ended it is the mean over the whole run. A pale hatched rail that reads "measuring..." means the level has no value yet. Gauges for neuromodulator levels (noradrenaline, acetylcholine, dopamine) show the current level as read-only dials in tasks that use them. In the sandbox they are sliders. See [the sandbox](sandbox.html).
+One horizontal gauge per motor channel. A hatched bar fills up to the channel's rate in Hz, with the number at the end. The value is a 500 ms mean, and once the episode ends it is the mean over the whole run. A pale hatched rail that reads "measuring..." means no value yet. In tasks that use neuromodulators (noradrenaline, acetylcholine, dopamine), their gauges show the current level as read-only dials. In the sandbox they are sliders. See [the sandbox](sandbox.html).
 
 ## The world and the body view
 
-The world panel draws what your circuit is driving. The bodies are described on [the bodies page](bodies.html): a limb with a muscle and a spindle, a heart with blood pressure, lungs with carbon dioxide, an eye, a gut, a swimming lamprey, and several special views (a phase plane, a tuning dial, a pattern grid, rate traces). Every Bestiary level, and its diagnosis case, shows its animal as a **specimen**: an engraving with live parts drawn on it from your running circuit only. The worm crawls forward or backs up, the leech's two heart tubes beat with a pen record of the bursts, the sea slug's gill withdraws with the motor cell, the crab ganglion lights its cells above a record of the three-phase rhythm, the fly's mushroom body shows its Kenyon cells as a field of points, and the compass is a ring of sixteen wedges with the bump as a needle. Nothing on a specimen moves unless the simulation moves it. In a short window the gauges stay and the captions drop.
+The world panel draws what your circuit drives. [The bodies page](bodies.html) describes them: a limb with a muscle and a spindle, a heart with blood pressure, lungs with carbon dioxide, an eye, a gut, a swimming lamprey, and several special views (a phase plane, a tuning dial, a pattern grid, rate traces). Every Bestiary level, and its diagnosis case, shows its animal as a **specimen**: an engraving with live parts drawn from your running circuit only. The worm crawls forward or backs up, the leech's two heart tubes beat with a pen record of the bursts, the sea slug's gill withdraws with the motor cell, the crab ganglion lights its cells above a record of the three-phase rhythm, the fly's mushroom body shows its Kenyon cells as a field of points, and the compass is a ring of sixteen wedges with the bump as a needle. Nothing on a specimen moves unless the simulation moves it. In a short window the gauges stay and the captions drop.
 
-Under the world there may be a **timeline**. It shows the level's scripted events as labelled spans (a push, standing up, exercise, a flash, CO2 rising), and below it one plot per judged trace. Each plot has a shaded band, the range the score accepts. The line is red where it leaves the band. A cursor moves at the model time.
+Under the world there may be a **timeline**. It shows the level's scripted events as labelled spans (a push, standing up, exercise, a flash, CO2 rising), with one plot per judged trace below. Each plot has a shaded band, the range the score accepts. The line is red where it leaves the band. A cursor tracks model time.
 
 ## The score card
 
-The score card sits under the world. It reads like a rubber stamp.
+The score card sits under the world and reads like a rubber stamp.
 
-- A ring holds the score, from 0 to 100, with the word SCORE, in red while the level is not passed. When the run passes, the ring turns green and says PASSED. A run that has not passed never reads 100. With nothing built it shows a dash and asks you to add neurons.
+- A ring holds the score, from 0 to 100, with the word SCORE, in red until the level passes. On a pass the ring turns green and says PASSED. A run that has not passed never reads 100. With nothing built it shows a dash and asks you to add neurons.
 - A status chip (RUNNING, PAUSED, FINISHED: NOT PASSED, PASSED), the result of your last Check, and your best stars for the level.
 - **Criteria rows** below: first the verdict sentence, then one row for each judged trace ("inside the green band" or "outside"), then each pass flag, then "Conditions met: n of m" where the level counts them. A tick means met, a cross means not met, a dot means still being measured. If there are more rows than fit, it says "+N more".
-- **Details** (top right of the card) swaps the rows for the raw score parts, each under a human label with its unit, plus the neuron count against the par and the spike rate of the run. **Hide details** swaps back. The part the failed verdict is about has a red outline.
+- **Details** (top right of the card) swaps the rows for the raw score parts, each with a human label and its unit, plus the neuron count against the par and the spike rate of the run. **Hide details** swaps back. The part the failed verdict is about has a red outline.
 
 ## The end card
 
-At the end of an episode a card appears. It shows a stamp with your score and "of 100" and PASSED or NOT PASSED (or "n of 5 worlds passed" after Test x5), your stars and best score, a sentence about what to do next, and buttons: **Next level** (the main button after a pass), Run again, Test x5, Results, a Hint button (when the run did not pass), Lesion lab, Analysis and Close. The energy cost lives in Results. A reference circuit shows "Reference circuit: practice only" instead of stars. On a pass of a level for the first time you also see the FIRST PASS stamp and a toast for the notebook entry.
+At the end of an episode a card appears. It shows a stamp with your score, "of 100" and PASSED or NOT PASSED (or "n of 5 worlds passed" after Test x5), your stars and best score, a sentence on what to do next, and buttons: **Next level** (the main button after a pass), Run again, Test x5, Results, a Hint button (when the run did not pass), Lesion lab, Analysis and Close. The energy cost lives in Results. A reference circuit shows "Reference circuit: practice only" instead of stars. The first pass of a level also shows the FIRST PASS stamp and a toast for the notebook entry.
 
 ![The end card after a pass, with stars and the next step](img/end-card.png)
 
 ## When the lab refuses a circuit
 
-A circuit can come from Load, Paste circuit JSON, a slot, an autosave or Import. It is checked before it reaches the bench or the engine. A refusal never changes your bench.
+A circuit from Load, Paste circuit JSON, a slot, an autosave or Import is checked before it reaches the bench or the engine. A refusal never changes your bench.
 
 **The game's checks** (shown as a banner such as "The clipboard does not hold a usable circuit: ..." or "Slot A could not be opened: ..."):
 
@@ -204,7 +204,7 @@ A circuit can come from Load, Paste circuit JSON, a slot, an autosave or Import.
 | Nesting of the file | 24 levels |
 | Numbers | finite (no NaN or infinity); a seed and a time step must be numbers, and the time step positive |
 
-The messages say the first problem in plain words, for example "population E1: n must be a whole number from 1 to 20000", "more than 20000 neurons in all", "not a circuit (the file is not JSON, or is cut short)" or "the file is empty". Damaged neuron positions are repaired by laying the groups out again, with a note.
+Each message names the first problem in plain words, for example "population E1: n must be a whole number from 1 to 20000", "more than 20000 neurons in all", "not a circuit (the file is not JSON, or is cut short)" or "the file is empty". Damaged neuron positions are repaired by laying the groups out again, with a note.
 
 **The engine's checks** (shown as "The engine rejected the circuit: ..." with the place in the file, such as `projections[3].synapse.weight`):
 
@@ -221,11 +221,11 @@ The messages say the first problem in plain words, for example "population E1: n
 | Connections in all (estimated before anything is built) | 2 million |
 | Nesting of the file | 32 levels |
 
-A message reads, for example, "weight 600.000000 is outside the allowed range |w| <= 500 nS for aeif_cond_alpha" or "a constant current of ... pA is above the allowed ... pA". The lab's own sliders stop well inside these numbers, so you meet them mostly with a hand-edited file.
+A message reads, for example, "weight 600.000000 is outside the allowed range |w| <= 500 nS for aeif_cond_alpha" or "a constant current of ... pA is above the allowed ... pA". The lab's sliders stop well inside these numbers, so you meet them mostly with a hand-edited file.
 
-**While it runs**, the engine stops a circuit instead of hanging: "the simulation is not keeping up (... s of computing for ... ms of model time): a cell is stalling, usually from a very strong input", or "a membrane potential became NaN or infinite". The lab shows "The simulation stopped: ... Fix the circuit and press Reset." A Check that has not answered after 60 seconds is stopped with "Check timed out". If the game closed or stalled during a live run, that circuit reopens paused with a note.
+**While it runs**, the engine stops a circuit rather than hang: "the simulation is not keeping up (... s of computing for ... ms of model time): a cell is stalling, usually from a very strong input", or "a membrane potential became NaN or infinite". The lab shows "The simulation stopped: ... Fix the circuit and press Reset." A Check with no answer after 60 seconds stops with "Check timed out". If the game closed or stalled during a live run, that circuit reopens paused with a note.
 
-**Damaged files.** If your saved circuit for a level cannot be opened, it is renamed `last_<level>.json.bad`, the banner names it, and the level opens on an empty bench. See [settings and performance](settings-and-performance.html#saves-backups-and-logs).
+**Damaged files.** If your saved circuit for a level cannot be opened, it is renamed `last_<level>.json.bad`, the banner names it and the level opens on an empty bench. See [settings and performance](settings-and-performance.html#saves-backups-and-logs).
 
 ## Related pages
 
