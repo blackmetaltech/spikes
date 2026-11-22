@@ -14,6 +14,12 @@ scripts/build-nest.sh --pynest
 ```
 This installs into `third_party/nest-install`. The tests find `third_party/nest-install/lib/python3*/site-packages` automatically; otherwise set `SPIKE_PYNEST` to a NEST site-packages directory (or put it on `PYTHONPATH`).
 
+## What the package does not do (yet)
+
+* **The Theory wing's inputs and populations are not supported.** A circuit with an input of kind `rate_drive` or `tuned_poisson`, or with a rate model (`lin_rate_ipn`, `tanh_rate_ipn`, `threshold_lin_rate_ipn`, ..., `siegert_neuron`) is refused by `spike.build` with a plain `CircuitError` that says so. Those circuits (the Theory levels of the game) run in the C++ engine only (`spike-run`, the game). Everything else in the format builds, with identical spikes (the parity test).
+* **Release from `modulator` outputs** is an engine feature and is not simulated here (`Network.set_modulator` sets an external level).
+* **Load limits are the engine's.** `spike.build` refuses what the engine refuses at load, with the engine's message: more than 20000 neurons in total, about 2 million connections, a delay above 1000 ms, a rate above 100000 Hz, a constant current above 100000 pA (2000 pA on NESTML cells), JSON nested deeper than 32 levels, a seed outside 1 to 4294967295. **A missing `seed` is 1**, as in the engine (NEST refuses 0); an explicit `seed=` argument to `build` is checked the same way. The constants are `MAX_*` in `python/spike/circuit.py`; a C++ test (`tasks_rules_test`) keeps the neuron limit equal to the engine's.
+
 ## Example
 
 ```python
