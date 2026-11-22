@@ -43,7 +43,7 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 ![A CHECK result card: not passed, left and right are not alternating](../assets/media/check-fail.webp "A failing verdict: the same lamprey without its crossed inhibition. It names the missing mechanism, never a number to aim for.")
 
-![An end card: passed, one star, the next star explained](../assets/media/check-pass.webp "A hand-built circuit passes and earns its first star; the card says how to earn the next one.")
+![An end card: passed, two stars, the third star explained](../assets/media/check-pass.webp "A hand-built circuit passes in all five worlds and earns two stars; the card says how to earn the third (16 neurons or fewer).")
 
 </div>
 
@@ -80,6 +80,20 @@ Everything on this page was captured from the exported game by `scripts/site-med
 ![The crab pyloric level](../assets/media/crab.webp "The crab pyloric rhythm on conductance-based STG cells.")
 
 ![The one-neuron phase plane level](../assets/media/phase.webp "Where firing starts: the phase plane above the raster and the voltage trace.")
+
+</div>
+
+## New in this build
+
+<div class="gallery">
+
+![The interactive tutorial on the first level](../assets/media/tutorial.webp "Plate 0, the tutorial: twelve steps on the first neuron, the control to press lit and the rest dimmed.")
+
+![The mushroom body level with its Kenyon cells as one ellipse](../assets/media/editor-large.webp "A large circuit: two hundred Kenyon cells drawn as one stained ellipse; the bench zooms, pans and undoes.")
+
+![The end card after a pass](../assets/media/end-card.webp "The end card: the PASSED stamp, the score out of 100, the stars and the next level.")
+
+![The campaign map on a fresh save](../assets/media/map-fresh.webp "The campaign map: the three wings, one chapter row and Continue to the next open level.")
 
 </div>
 
