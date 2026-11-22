@@ -132,7 +132,7 @@ func _build_pin() -> void:
 	else:
 		var reached := value <= goal + 1e-9 if lower_better else value >= goal - 1e-9
 		_pin_row.add_child(Kit.btn("-", func(): _nudge(-1.0), "panel", 16, Vector2(40, 0)))
-		var l := Kit.label("target %s %s" % [fmt(goal), unit], 16, Kit.GREEN if reached else Kit.CYAN); l.size_flags_vertical = Control.SIZE_SHRINK_CENTER; _pin_row.add_child(l)
+		var l := Kit.label("target %s %s" % [fmt(goal), unit], 16, Kit.GREEN if reached else Kit.TEXT); l.size_flags_vertical = Control.SIZE_SHRINK_CENTER; _pin_row.add_child(l)
 		_pin_row.add_child(Kit.btn("+", func(): _nudge(1.0), "panel", 16, Vector2(40, 0)))
 		var st := Kit.label("reached" if reached else "%s %s to go" % [fmt(absf(value - goal)), unit], 16, Kit.GREEN if reached else Kit.TEXT_SOFT); st.size_flags_vertical = Control.SIZE_SHRINK_CENTER; st.size_flags_horizontal = Control.SIZE_EXPAND_FILL; _pin_row.add_child(st)
 		_pin_row.add_child(Kit.btn("UNPIN", func(): goal = NAN; set_goal(task_id, metric, NAN); _build_pin(); _plot.queue_redraw(); goal_changed.emit(), "ghost", 16))
@@ -174,7 +174,7 @@ class _Plot extends Control:
 			var better := (mid < v) if hv.lower_better else (mid > v)   # bars worse than you are dim, bars better than you are bright
 			var br := Rect2(x0 + 1.0, pl.end.y - h, maxf(x1 - x0 - 2.0, 1.0), h)   # an engraved bar: hatched in its stain, ruled in ink
 			if h > 0.5:
-				var bc := Kit.inh() if better else Kit.exc()
+				var bc := Kit.GAMBOGE if better else Kit.exc()   # gamboge, not Prussian blue (blue is for inhibition only)
 				draw_rect(br, Color(bc, 0.10)); Gfx.hatch(self, PackedVector2Array([br.position, Vector2(br.end.x, br.position.y), br.end, Vector2(br.position.x, br.end.y)]), -PI * 0.25 if better else PI * 0.25, 3.5 if not better else 5.0, Color(bc, 0.9), 1.0)
 				draw_rect(br, Color(Kit.INK, 0.8), false, 1.0)
 		draw_line(Vector2(pl.position.x, pl.end.y), Vector2(pl.end.x, pl.end.y), Kit.INK, 1.4)
@@ -185,7 +185,7 @@ class _Plot extends Control:
 			draw_rect(Rect2(mxl, pl.position.y - 2.0, mw, float(fz) + 4.0), Color(Gfx.SHEET, 0.92))
 			draw_string(f, Vector2(mxl + 4.0, pl.position.y + float(fz) - 2.0), mt, HORIZONTAL_ALIGNMENT_LEFT, mw, fz, Kit.TEXT)
 		if not is_nan(hv.goal):
-			var gx: float = X.call(hv.goal); Gfx.dashed(self, PackedVector2Array([Vector2(gx, pl.position.y), Vector2(gx, pl.end.y)]), Kit.CYAN, 2.0, 6.0, 4.0)
+			var gx: float = X.call(hv.goal); Gfx.dashed(self, PackedVector2Array([Vector2(gx, pl.position.y), Vector2(gx, pl.end.y)]), Kit.TEXT, 2.0, 6.0, 4.0)
 		var px: float = X.call(v)
 		draw_line(Vector2(px, pl.position.y), Vector2(px, pl.end.y), Kit.INK, 2.2, true)   # you: an inked pointer
 		draw_colored_polygon(PackedVector2Array([Vector2(px - 7.0, pl.end.y + 9.0), Vector2(px + 7.0, pl.end.y + 9.0), Vector2(px, pl.end.y)]), Kit.INK)

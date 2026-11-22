@@ -446,7 +446,7 @@ static func _heading_trace(c: Control, t: Telemetry, r: Rect2) -> void:
 	if lb.size() > 1: c.draw_polyline(lb, Kit.GAMBOGE, 2.0, true)
 	var iw := Gfx.serif_italic().get_string_size("ink: heading", HORIZONTAL_ALIGNMENT_LEFT, -1, f).x
 	if lh.size() > 0: c.draw_string(Gfx.serif_italic(), Vector2(P.position.x, P.end.y - 4.0), "ink: heading", HORIZONTAL_ALIGNMENT_LEFT, 120.0, f, Kit.TEXT)
-	c.draw_string(Gfx.serif_italic(), Vector2(P.position.x + iw + 12.0, P.end.y - 4.0), "gamboge: bump", HORIZONTAL_ALIGNMENT_LEFT, 120.0, f, Color("#8A6410"))
+	c.draw_string(Gfx.serif_italic(), Vector2(P.position.x + iw + 12.0, P.end.y - 4.0), "gamboge: bump", HORIZONTAL_ALIGNMENT_LEFT, -1, f, Color("#8A6410"))   # unclipped: 120 px cut it to "bum" at phone text sizes
 
 # ================================================================ crab (s_pacemaker, s_phase, crab_pyloric, dx_crab)
 

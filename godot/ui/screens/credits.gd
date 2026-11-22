@@ -9,7 +9,7 @@ const CREDITS := [
 	["Typefaces", "Fraunces by Undercase Type (Phaedra Charles, Flavia Zimbardi), the display and caption face. Atkinson Hyperlegible by the Braille Institute of America, the body face. IBM Plex Mono by IBM / Bold Monday, the readouts. All under the SIL Open Font License 1.1; licences in godot/assets/fonts (OFL-Fraunces.txt, OFL-AtkinsonHyperlegible.txt, OFL-IBMPlexMono.txt)."],
 	["Simulation", "NEST Simulator (GPL-2.0-or-later), nest-simulator.org: every neuron and synapse model in the game is a NEST model, run by the embedded libspike engine."],
 	["Models and tasks", "Izhikevich 2003, Naud et al. 2008 (adaptive exponential model), Hodgkin and Huxley 1952, Grillner 2003 (lamprey locomotion), Suzuki et al. 2008 (C. elegans salt chemotaxis), Milo et al. 2002 (network motifs). Each task header cites its sources."],
-	["Art", "Everything on screen is drawn procedurally in code, after the Golgi-stained plates of Santiago Ramon y Cajal (Textura del sistema nervioso, 1899-1904): every cell is grown from a seed. The campaign plates of the Bestiary and Theory wings are pre-rendered images, drawn by the project's own script (tools/art/plates.py) and shipped in godot/assets/plates."],
+	["Art", "Everything on screen is drawn procedurally in code, after the Golgi-stained plates of Santiago Ramon y Cajal (Textura del sistema nervioso, 1899-1904): every cell is grown from a seed. The campaign plates of the Bestiary and Theory wings, and the specimen drawings behind the Bestiary lab views, are pre-rendered images, drawn by the project's own scripts (tools/art/plates.py, tools/art/specimens.py) and shipped in godot/assets/plates and godot/assets/specimens."],
 ]
 
 var scroll: ScrollContainer

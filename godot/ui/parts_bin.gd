@@ -154,7 +154,7 @@ class Thumb extends Control:
 	func _draw() -> void:
 		var fz := Kit.fs(14); var f := Fonts.regular
 		draw_style_box(Kit.sb(Gfx.SHEET, Color(Kit.INK, 0.5), 1, 2, 0, false), Rect2(Vector2.ZERO, size))
-		var col := (Kit.exc() if kind == "fi" else Kit.inh()); if dim: col = Color(col, 0.45)
+		var col := (Kit.exc() if kind == "fi" else Kit.TEXT); if dim: col = Color(col, 0.45)   # the voltage trace in ink: blue is for inhibition only
 		var title := "f-I" if kind == "fi" else "V_m"
 		draw_string(f, Vector2(8, float(fz) + 2.0), title, HORIZONTAL_ALIGNMENT_LEFT, size.x - 12, fz, Color(Kit.TEXT_SOFT, 0.95))
 		if xs.size() < 2:

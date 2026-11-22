@@ -8,6 +8,7 @@ var hint_panel: HintPanel = null
 var hint_open := false
 var _check_task = null             # instant check: the task handle that owns the async job
 var _check_job := 0
+var checks_done := 0                # results shown so far (the tutorial's Check step counts them: a quick check can finish within one slow frame)
 var _check_t0 := 0
 var _check_worlds := 1             # how many worlds the running check covers (5, or 1 for a challenge variant)
 var _check_snap := {}              # the bench as it was when Check was pressed: {fp, ref, n}
@@ -200,7 +201,7 @@ func check_progress(on: bool) -> void:
 		_check_toast = null; _check_lbl = null; return
 	if _check_toast == null or not is_instance_valid(_check_toast):
 		_check_toast = PanelContainer.new(); Kit.ident(_check_toast, "CheckToast"); _check_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_check_toast.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.CYAN, 2, 12, 12 if Layout.phone else 16, true))
+		_check_toast.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.TEXT, 2, 12, 12 if Layout.phone else 16, true))
 		_check_lbl = Kit.label("", 17 if not Layout.phone else 15, Kit.TEXT, true); _check_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE; _check_toast.add_child(_check_lbl)
 		lab.ov.add_child(_check_toast); _check_toast.z_index = 61
 		_check_toast.set_anchors_preset(Control.PRESET_TOP_LEFT); _check_toast.offset_left = 240.0; _check_toast.offset_top = 56.0; _check_lbl.custom_minimum_size.x = 380.0
@@ -235,6 +236,7 @@ func check_poll() -> void:
 	if worlds > 1: head = "Check: %d of %d worlds passed  %d" % [wins, worlds, val]
 	lab.celebration.toast(head, "%s  (%.1f s)" % [verdict, ms * 0.001], Kit.GREEN if (five or (worlds <= 1 and passed)) else (Kit.AMBER if passed else Kit.RED), 6.0)
 	GameAudio.event("pass" if passed else "fail")
+	checks_done += 1
 	if lab.score_card != null: lab.score_card.check_text = "check %d%s" % [val, "" if passed else " (miss)"]
 	if not passed and not was_ref: note_fail()
 	elif passed and not lab.lesion_on: _record_check(val, was_ref, five)
