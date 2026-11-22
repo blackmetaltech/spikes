@@ -41,6 +41,7 @@ jobs:
         id: key
         run: |
           pin=$(sed -n 's/.*NEST_REF:-\([0-9a-f]\{40\}\)}.*/\1/p' scripts/build-nest.sh | head -n1)
+          shopt -s nullglob
           h=$(cat scripts/build-windows.sh scripts/patches/*.patch | sha256sum | cut -c1-16)
           echo "key=nest-win-$pin-$h" >> "$GITHUB_OUTPUT"
       # the NEST tree is cached with its source (build timestamps stay valid). A failed build saves what it compiled under a run-specific key so
