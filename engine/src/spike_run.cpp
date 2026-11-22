@@ -57,6 +57,9 @@ static std::string find_circuits_dir( const std::string& given, const std::strin
   auto slash = exe.find_last_of( '/' );
   if ( slash != std::string::npos )
   {
+#ifdef __APPLE__
+    cands.push_back( exe.substr( 0, slash + 1 ) + "../Resources/circuits" );  // Spike.app: spike-run is in Contents/Frameworks, circuits in Contents/Resources
+#endif
     up = exe.substr( 0, slash + 1 );
     for ( int i = 0; i < 7; ++i, up += "../" )
     {

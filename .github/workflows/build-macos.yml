@@ -1,0 +1,68 @@
+name: build-macos
+# macOS Apple Silicon build, package and smoke test, entirely on GitHub's arm64 runners. Reusable: `uses: ./.github/workflows/build-macos.yml`
+# yields artifact spike-macos-arm64 (spike-macos-arm64.zip + .sha256). The NEST build tree is cached (OS image, NEST pin, hash of scripts/build-macos.sh).
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [w-port-macos]
+
+permissions:
+  contents: read
+
+jobs:
+  macos-arm64:
+    runs-on: macos-14
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: brew install cmake ninja gsl python@3.12 || brew install cmake ninja gsl
+
+      - name: Pins
+        id: pins
+        run: |
+          ref=$(sed -n 's/^NEST_REF="\${NEST_REF:-\([^}]*\)}".*/\1/p' scripts/build-nest.sh | head -1)
+          echo "nest=$ref" >> "$GITHUB_OUTPUT"
+          echo "os=$(sw_vers -productVersion)-$(uname -m)" >> "$GITHUB_OUTPUT"
+
+      - name: NEST cache
+        id: nest-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            third_party/nest-simulator
+            third_party/nest-build
+            third_party/nestml-venv
+          key: nest-macos-${{ steps.pins.outputs.os }}-${{ steps.pins.outputs.nest }}-${{ hashFiles('scripts/build-macos.sh') }}
+
+      - name: NEST (static)
+        run: scripts/build-macos.sh nest
+
+      - name: Save NEST cache
+        if: steps.nest-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            third_party/nest-simulator
+            third_party/nest-build
+            third_party/nestml-venv
+          key: ${{ steps.nest-cache.outputs.cache-primary-key }}
+
+      - name: NESTML models
+        run: scripts/build-macos.sh nestml
+
+      - name: Extension and spike-run
+        run: scripts/build-macos.sh gd
+
+      - name: Package and smoke test
+        run: GODOT_SETUP=1 scripts/package-macos.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spike-macos-arm64
+          path: |
+            build/spike-macos-arm64.zip
+            build/spike-macos-arm64.zip.sha256
+          if-no-files-found: error
