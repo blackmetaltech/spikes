@@ -24,27 +24,36 @@ That is 18 levels and 7 diagnosis cases. Each chapter has three levels in play o
 
 ## How the wing works
 
-**Open after chapter I.** The Bestiary opens when you pass the Invertebrates spine, because it uses ideas from there. Inside it, Sea slug waits for the Neuromodulation level of Heart, Crab waits for the Leech chapter, and Fly mushroom body waits for the Sea slug (Guided mode drops these waits). Each level card has a NEEDS row that names the ideas you have not met yet and where they are taught. Passing the Bestiary never unlocks anything in the body chapters. If you have never opened the game, read [Your first hour](first-hour.html) first, because it explains the lab itself.
+**Open after chapter I.** On the campaign map the wing selector (Body, Bestiary, Theory) switches the row of chapter tabs. The Bestiary opens when you pass the spine of chapter I (Invertebrates), because it uses ideas from there. Inside it, three chapters wait for more:
+
+| Chapter | Waits for |
+|---|---|
+| Worm, Leech, Fly compass | Nothing beyond chapter I |
+| Sea slug | The Neuromodulation level of the Heart chapter |
+| Crab | The Leech chapter (its three levels) |
+| Fly mushroom body | The Sea slug chapter (its three levels) |
+
+A chapter that is still closed shows "(locked)" on its tab, and its level cards say what to pass first. Guided mode drops the waits inside the wing but keeps the chapter I gate; the card then says that Guided mode leaves the chapter open and names the prerequisite. Each level card also has a NEEDS row that names the ideas the level uses and you have not met yet, with the level that teaches each. It only informs; it never locks anything. Passing the Bestiary never unlocks anything in the body chapters. If you have never opened the game, read [Your first hour](first-hour.html) first, because it explains the lab itself.
 
 **Inside a chapter, levels open one after another.** The second level opens when you pass the first, and the third when you pass the second. A diagnosis case opens when you pass the task it hangs off, which is the third level of its chapter (both mushroom-body cases hang off `fly_mb`).
 
-**Same loop as everywhere.** You build on the bench, run, press Check, read the verdict and the score, and earn stars. If you are not sure how that works, see [The core loop](core-loop.html), [Stars, par and the hint ladder](stars-and-hints.html) and [Modes](modes.html).
+**Same loop as everywhere.** You build on the bench, run, press Check, read the verdict and the score, and earn stars. The score stamp lists one row per pass criterion (met, not met, or still waiting); the Details button shows the numbers behind it. The Reference button on the level card opens only after you pass the level (or at once in Guided mode), and a reference circuit earns no stars. If you are not sure how that works, see [The core loop](core-loop.html), [Stars, par and the hint ladder](stars-and-hints.html) and [Modes](modes.html).
 
-**Checked by mechanism.** Every level checks the mechanism it teaches through the structure of your circuit, not only through the numbers it produces. A circuit that gets the right output by a trick (a cell wired straight to the motor, say) fails with a verdict that names the missing part and never gives a number. Hints work the same way: tier 1 names the idea, tier 2 points at the place, tier 3 gives a partial recipe.
+**Checked by mechanism.** Every level checks the mechanism it teaches through the structure of your circuit, not only through the numbers it produces. A circuit that gets the right output by a trick (a cell wired straight to the motor, say) fails with a verdict that names the missing part and never gives a number. The scoring cannot be gamed by token wiring either: a connection whose weight is too small to move its target counts as no connection, and a circuit cannot add inputs of its own that the level did not declare. An empty bench scores zero. Hints work the same way: tier 1 names the idea, tier 2 points at the place, tier 3 gives a partial recipe. The Stuck? lines below are each level's tier 1.
 
 **All lab tools are open.** The lab hides some tools (inhibitory cells, the parts bin, noise inputs, analysis, load and save) until the campaign reaches a level that needs them. The Bestiary comes after the body chapters in play order, so in this wing those tools are already on offer. Several levels need a cell with a slow internal variable (a burster, a rebounder, a conductance-based cell) or a synapse that changes with use. Choosing the right part from the [parts bin](parts-bin.html) and the [synapse editor](synapses-and-modulators.html) is part of the puzzle.
 
 **No challenge variants.** The base levels of the body chapters have optional variants (for example, half the neurons). None of the Bestiary levels has one.
 
-**Stars.** One star for a pass. Two stars when Check passes all five worlds. Three stars for the same plus the level's challenge, written on its card (by default par, a neuron budget). Par is listed for every level below. Guided stops at two stars. In Standard mode, opening the recipe caps the level at two stars. Diagnosis cases are scored differently; see [the diagnosis section](#diagnosis-cases-in-this-wing) below.
+**Stars.** One star for a pass. Two stars when Check passes all five worlds. Three stars for the same plus the level's challenge, written on its card; in this wing the challenge is the par, a neuron budget, and there is no energy clause. Par is listed for every level below. Guided mode stops at two stars. In Standard mode, opening the recipe caps the level at two stars. Researcher mode adds a seal for five worlds under noise and tight bands, kept apart from the stars. Diagnosis cases are scored differently; see [the diagnosis section](#diagnosis-cases-in-this-wing) below. The full rules are in [Stars, par and the hint ladder](stars-and-hints.html).
 
 ## What is real in this wing
 
 The Bestiary is the part of the game that looks most like real neuroscience, so it is also where honesty matters most. This is the short version. The full table is in [What is real](what-is-real.html).
 
 - **The cells are spiking model cells.** The worm and the leech are the biggest approximation. Most neurons of the worm's touch circuit have no sodium action potentials; they pass signals as smooth voltage changes. The leech heart interneurons inhibit each other partly through graded, voltage-dependent transmitter release. NEST, the simulator inside the game, has no graded synapse. So these levels use spiking cells and spike-triggered synapses everywhere. The sea slug's sensory and motor neurons do spike, so that chapter has no such problem.
-- **Time is compressed.** The leech cycle is about two seconds so that a check takes a second; the real cycle is much slower. The sea slug habituates in seconds, where a real animal needs minutes. The compass and the crab run in real time.
-- **The worm wiring is real; the signs are not.** The touch circuit in `worm_touch` is wired from published synapse counts (Cook et al. 2019). The data have no sign, so every chemical synapse is assumed excitatory, and the mutual inhibition between the forward and backward commands is added by hand.
+- **Time is compressed.** The leech cycle is a few seconds so that a check takes about a second; the real cycle is much slower. The sea slug habituates in seconds, where a real animal needs minutes. The compass and the crab run in real time.
+- **The worm wiring is real; the signs are not.** The touch circuit in `worm_touch` is drawn from published synapse counts (Cook et al. 2019). The data have no sign, so every chemical synapse is assumed excitatory, and the mutual inhibition between the forward and backward commands is added by hand.
 - **The fly circuits follow cell types, not synapses.** The compass and the mushroom body are models after the published cell types (Turner-Evans, Hulse and others), not synapse-level data. Cell counts, weights and time scales are game values.
 - **The crab cell is a re-fit, not a published model.** The `stg_cell` is written in NESTML. Its current types follow the stomatogastric literature, but the kinetic forms were written from memory of the papers and the conductances are game values. It is not validated against recordings and it is not the published parameter set.
 - **Every weight is tuned.** Weights, delays, pass bands and world timings are game values, chosen until the reference circuit passes.
@@ -62,7 +71,7 @@ Each level lists below what it simplifies. The notebook entry you earn on a firs
 |---|---|---|---|---|---|
 | Worm: holding a reversal (`w_latch`) | Puzzle | Persistence: positive feedback holds a state | Excitation, inhibition | A brief head touch makes the worm back up, and the backing continues after the touch. The backward command cells keep each other active. | Chalfie et al. 1985, J Neurosci 5:956 |
 | Worm: forward or backward (`w_switch`) | Puzzle | The command switch: two commands that silence each other | Inhibition | Forward and backward crawling run on two sets of command interneurons. The exclusion between them is a property of how they antagonise each other, not visible in a wiring diagram. | Chalfie et al. 1985, J Neurosci 5:956 |
-| Worm: touch, reverse or go (`worm_touch`) | Task | Both ideas together, in the real wiring | Persistence, command switch, excitation, inhibition | Six touch cells, five pairs of interneurons and 69 motor neurons. Head touch reverses through AVD, tail touch goes forward through PVC. | Chalfie et al. 1985; Cook et al. 2019 |
+| Worm: touch, reverse or go (`worm_touch`) | Task | Both ideas together, in the real wiring | Persistence, command switch, excitation, inhibition | The real touch circuit: touch cells, command interneurons and motor neurons. A head touch reverses, a tail touch goes forward. | Chalfie et al. 1985; Cook et al. 2019 |
 | Diagnosis: the worm that cannot back up (`dx_worm`) | Case | Finding a dead connection by watching who fires | Command switch, persistence | Chalfie's method: kill a cell, see which response goes. | Chalfie et al. 1985 |
 
 ### Worm: holding a reversal
@@ -99,12 +108,12 @@ A choice between two behaviours needs competition: each command must be able to 
 
 **The goal.** Two sensors (`touch_head`, `touch_tail`) and two motors (`reverse`, `forward`). Between them sit the command cells: a backward command and a forward command, each driven by its own touch cells, each holding its state after the touch has ended, and each silencing the other. After a head touch the right motor must be firing in the window around the touch and the wrong one nearly silent. That must also hold when both ends are touched at once (the stronger touch wins) and while the worm is still in the other state from the touch before.
 
-The real cells are named in the brief: three kinds of touch cell (ALM and AVM in the head half, PLM in the tail), the interneurons AVD, AVA (backward) and PVC, AVB (forward), and the A-type and B-type motor neurons.
+The real cells are named in the brief: three kinds of touch cell (ALM and AVM in the head half, PLM in the tail), the interneurons AVD, AVA (backward) and PVC, AVB (forward), and the A-type and B-type motor neurons. The episode is about 6 seconds.
 
 **What is simplified.**
 
-- The reference circuit is wired from Cook et al. 2019 synapse counts, read through the OpenWorm ConnectomeToolbox. Weight is count times a fixed scale.
-- The data carry no sign. Every chemical synapse is assumed excitatory. Gap junctions are modelled as excitatory links.
+- The level's circuit is drawn from Cook et al. 2019 synapse counts.
+- The data carry no sign. Every chemical synapse is assumed excitatory.
 - The mutual inhibition between the backward and forward commands is added by hand. It is not a connection in the data.
 - Strong connections in the data that are not on the classic touch pathway are left out.
 - Spiking cells stand in for cells that mostly signal with graded potentials.
@@ -160,20 +169,20 @@ A rebound needs a slow variable in the cell that the inhibition drives past its 
 
 **The idea.** A half-centre needs two things: mutual inhibition, so that the side that fires silences the other, and a slow process that wears the active side out, so that the other can take over.
 
-**The goal.** Build two heart interneurons and two heart motor neurons, and read the motors on `left` and `right`. A steady `drive` excites all cells equally, so the rhythm has to come from your circuit. The two sides must alternate: clean turns, almost never firing together, neither side winning for good. Each side must fire in bursts, and a full cycle must take a few seconds. Two plain interneurons that inhibit each other do not alternate. The one that fires first silences the other for ever. The episode is 14 seconds (a shorter 9-second run is used by Check).
+**The goal.** Build two heart interneurons and two heart motor neurons, and read the motors on `left` and `right`. A steady `drive` excites all cells equally, so the rhythm has to come from your circuit. The two sides must alternate: clean turns, almost never firing together, neither side winning for good. Each side must fire in bursts, and a full cycle must take a few seconds. Two plain interneurons that inhibit each other do not alternate. The one that fires first silences the other for ever. The episode is 14 seconds, and Check runs the same 14 seconds.
 
 **What is simplified.**
 
 - Time is compressed so that a check takes seconds; the real cycle is much slower.
 - The real inhibition is partly graded. Here it is spike-triggered.
 - Only a single segmental oscillator is built. The coordination between segments is not modelled.
-- Weights, adaptation constants and the period band are game values.
+- The period band is a game value.
 
 **Variants.** None. **Par:** 4 neurons.
 
 #### Stuck?
 
-A half-centre needs mutual inhibition, so the side that fires silences the other, and a slow process that wears the active side out so the other can take over.
+A half-centre needs two things: mutual inhibition, so that the side that fires silences the other, and a slow process that wears the active side out so that the other can take over.
 
 ## Chapter: Sea slug
 
@@ -194,7 +203,7 @@ A half-centre needs mutual inhibition, so the side that fires silences the other
 
 **The goal.** The sensor `touch` is pressed five times. The first withdrawal on `gill` must be a clear one, and the fifth clearly weaker, with nothing happening between the touches. A normal static synapse gives every touch the same answer. A depressing synapse runs out of transmitter when it is used hard and refills slowly, so each touch finds it a little emptier. Build a sensory cell, a motor neuron and that kind of synapse between them. You choose the synapse type in the inspector when you select the connection. See [Synapses and modulators](synapses-and-modulators.html). The episode is 3.2 seconds.
 
-**What is simplified.** Time is compressed (seconds instead of minutes). Depression is the generic Tsodyks-Markram form, not a fit to *Aplysia* data. The weights needed are large compared with the default; a weak synapse gives no reflex to habituate.
+**What is simplified.** Time is compressed (seconds instead of minutes). Depression is the generic Tsodyks-Markram form, not a fit to *Aplysia* data.
 
 **Variants.** None. **Par:** 2 neurons.
 
@@ -208,7 +217,7 @@ A synapse can change its strength on a time scale of seconds: a depressing synap
 
 **The goal.** `touch` drives a sensory cell, which drives the motor neuron behind `gill`. `shock` drives a facilitating interneuron whose spikes release the modulator on the `serotonin` channel. The released modulator must act on the sensory synapse: select that connection and let the modulator change it. Two touches before the shock give a modest withdrawal. Two after it must give clearly more, with nothing happening between the touches. The episode is 3.8 seconds.
 
-**What is simplified.** Serotonin is the engine's norepinephrine (NE) channel. The cAMP cascade is replaced by a direct change of the synapse. Real short-term facilitation uses cAMP and protein kinase A, and repeated, spaced shocks recruit slower phases that need gene expression; none of that is here.
+**What is simplified.** Serotonin is one of the engine's built-in modulator channels. The cAMP cascade is replaced by a direct change of the synapse. Real short-term facilitation uses cAMP and protein kinase A, and repeated, spaced shocks recruit slower phases that need gene expression; none of that is here.
 
 **Variants.** None. **Par:** 4 neurons.
 
@@ -230,7 +239,7 @@ One pathway can change how strongly another one transmits: a modulator released 
 
 The tail shock may also make the gill move by itself. The episode is 7.1 seconds.
 
-**What is simplified.** The real slug needs many more touches and minutes; this level compresses time. The synapse changes are the generic depression of the previous level and the direct facilitation of the one before.
+**What is simplified.** The real slug needs many more touches and minutes; this level compresses time. The synapse changes are the generic depression and the direct facilitation of the two puzzles before it.
 
 **Variants.** None. **Par:** 9 neurons.
 
@@ -271,13 +280,13 @@ A bump on a ring is held by two opposite things: cells that excite their neighbo
 
 **The goal.** The ring from the previous level gets two groups of shifting cells, one for each direction. Each group listens to the compass cells at the bump and to its own turn sensor, and excites the compass cells one step to its own side. The sensors `turn_left` and `turn_right` both carry a steady level, equal while the fly is still. During a turn the sensor of that side carries more and the other less. The bump must form at the landmark, stay while the fly is still, move right during a turn to the right, and move back during a turn to the left. A shifting group that listened only to the turn sensor would push everywhere on the ring; it must also need the bump. Each unit of a turn sensor is only a small current, so its weight is small next to the ring's own weights. The episode is 4.4 seconds.
 
-**What is simplified.** The turn signal is a pair of steady inputs rather than noisy spikes, so the gain does not vary from seed to seed. Tracking is good only for turns of about 90 to 170 degrees per second. A discrete ring of 16 wedges has a dead zone for slow turns.
+**What is simplified.** The turn signal is a pair of steady inputs rather than noisy spikes. A discrete ring of 16 wedges has a dead zone for slow turns: turns below about 60 degrees per second are not part of the world.
 
 **Variants.** None. **Par:** 60 neurons.
 
 #### Stuck?
 
-Two opposite pushes cancel. Give one of them a little more drive and the bump moves; the angular velocity is the difference between the two sides.
+Two opposite pushes cancel; give one of them a little more drive and the bump moves. The angular velocity is the difference between the two sides.
 
 ### Fly: the compass in the dark
 
@@ -285,7 +294,7 @@ Two opposite pushes cancel. Give one of them a little more drive and the bump mo
 
 **The goal.** A landmark sets the bump, then the lights go out and the fly turns. The bump must hold its place when the fly is still and move round the ring as fast as the fly turns. You build the ring from the previous levels (16 compass cells, global inhibition) and the two shifting groups. You are scored on the heading error in the dark: how far the bump is from the true heading, after holding still and after each turn. A ring alone cannot move, and shifters on one side cannot turn both ways. The first two levels of the chapter give you the parts.
 
-**What is simplified.** Same as the two puzzles. Heading is scored with a population vector of the ring cells.
+**What is simplified.** Same as the two puzzles. Heading is scored with a population vector of the ring cells. The full episode is 9.2 seconds, with four turns after the landmark; Check runs a 5-second version with the first two.
 
 **Variants.** None. **Par:** 60 neurons.
 
@@ -322,7 +331,7 @@ The inspector has a "wiring" option on an axon (random sparse wiring) for this.
 - The APL is a spiking group. In the locust analogue it is a nonspiking neuron.
 - It is a model after the published cell types, not synapse-level data.
 
-**Variants.** None. **Par:** 250 neurons (the reference circuit has 224 cells).
+**Variants.** None. **Par:** 250 neurons.
 
 #### Stuck?
 
@@ -334,9 +343,9 @@ Sparse codes come from two things: each cell needs several of its few random inp
 
 **The goal.** The sensors `odor_a` and `odor_b` drive two groups of Kenyon cells, one for each odour. `punish` drives the dopamine neurons. Read `avoid` from the avoidance neurons. Both odours must make the avoidance cells fire before training. Then odour A is paired with punishment twice. Afterwards the avoidance cells must answer odour A much less than before, and odour B as much as before. Use a dopamine-gated synapse from each group of Kenyon cells onto the avoidance cells, with the dopamine neurons as its source. The synapse rule also looks at the avoidance cells' own spikes, so the odours have to make them fire during the pairing. The synapse types are in the [inspector](synapses-and-modulators.html).
 
-**What is simplified.** The rule is NEST's dopamine-gated STDP with signs set so the synapse depresses. The real rule needs no postsynaptic spike. There is one compartment and one avoidance output; valence is not modelled beyond that. A pairing of 0.4 s stands for a training session.
+**What is simplified.** The engine's rule also looks at the avoidance cells' own spikes; the real rule needs no postsynaptic spike. There is one compartment and one avoidance output; valence is not modelled beyond that. A short pairing stands for a training session. The episode is 4.4 seconds.
 
-**Variants.** None. **Par:** 6 neurons.
+**Variants.** None. **Par:** 18 neurons.
 
 #### Stuck?
 
@@ -350,7 +359,7 @@ Learning here is a three-factor rule: a synapse changes only if its input was ac
 
 **What is simplified.** See the two puzzles.
 
-**Variants.** None. **Par:** 20 neurons, as the engine states it. The reference circuit has 231 cells, so par here is not simply a cell count; read the end card for how your design is judged.
+**Variants.** None. **Par:** 231 neurons. The episode is 4.4 seconds.
 
 #### Stuck?
 
@@ -367,7 +376,7 @@ In a crab's stomach a small nerve ring, the stomatogastric ganglion, drives the 
 | Crab: a pacemaker kernel (`s_pacemaker`) | Puzzle | A burster that drags its partners into its rhythm | Bursting, excitation, coupling | The AB neuron is electrically coupled to two PD neurons and they burst as one unit. | Marder and Bucher 2001; Prinz et al. 2004 |
 | Crab: phase from rebound (`s_phase`) | Puzzle | A follower's place in the cycle comes from rebound | Rebound, inhibition, bursting | LP and PY are inhibited by the kernel and fire when it lets go, after a delay set by slow currents. | Marder and Bucher 2001; Prinz et al. 2004 |
 | Crab: the pyloric rhythm (`crab_pyloric`) | Task | The triphasic rhythm and degeneracy | Pacemaker kernel, rebound, inhibition, bursting | Different animals reach the same rhythm with widely different parameters. | Prinz et al. 2004, Nat Neurosci 7:1345 |
-| Diagnosis: the follower that does not wait (`dx_crab`) | Case | A rhythm that has lost its order | Pacemaker kernel, rebound, degeneracy | A second animal, whose cells have different conductances, with one dead synapse. | Prinz et al. 2004; Marder and Bucher 2001 |
+| Diagnosis: the follower that does not wait (`dx_crab`) | Case | A rhythm that has lost its order | Pacemaker kernel, rebound | A second animal, whose cells have different conductances, with one dead synapse. | Prinz et al. 2004; Marder and Bucher 2001 |
 
 All three levels use a conductance-based cell, `stg_cell`, which is the default model for the chapter. A new `stg_cell` has only the spike currents (sodium and delayed rectifier), so it is silent. The conductances you add make it burst or rebound. In this chapter units matter: conductances are in nS, a bias is in pA, a connection's weight is a synaptic conductance in nS (negative inhibits), and the modulator's weight is a current in pA per unit of modulator.
 
@@ -408,29 +417,28 @@ Inhibition removes the follower from the pacemaker's phase; currents that wake u
 **What is simplified.**
 
 - The cell is not the published parameter set; the kinetic forms were written from memory.
-- Cell counts (one AB, two PD, one LP, two PY), conductances and synaptic strengths are game values.
-- The reference ships in two hand-picked parameter sets (found by random search; both pass), which is the degeneracy the chapter is about. The diagnosis case uses the second set.
-- In the networks tried, the cycle is moved most cleanly by AB's H current and the modulator's drive, while the calcium-activated potassium current mostly sets the burst length. The rhythm is fragile to many other single-parameter changes. That is measured in the game, not published.
+- Cell counts, conductances and synaptic strengths are game values.
+- Many parameter sets give the pattern, which is the degeneracy the chapter is about. The game asks you for one.
 
 **Variants.** None. **Par:** 6 neurons.
 
 #### Stuck?
 
-The pattern comes from a pacemaker that bursts by itself and followers that are silenced by it and rebound when it stops; a second inhibition puts the last cell after the middle one.
+The pattern comes from a pacemaker that bursts by itself and followers that are silenced by it and rebound when it stops; a second inhibition (LP onto PY) puts PY last.
 
 ## Diagnosis cases in this wing
 
-Each chapter ends with a diagnosis case, and the mushroom body has two. The patient is a working circuit with exactly one connection dead. You cannot edit the circuit. You can run it, open scopes, trace single cells, and use the lesion lab to cut other connections and see what changes. Then you pick the dead connection from a short list of candidates and submit.
+Each chapter ends with a diagnosis case, and the mushroom body has two. The patient is a working circuit with exactly one connection dead. You cannot edit the circuit. You can run it, open scopes, trace single cells, and use the lesion lab to cut other connections and see what changes. Then you pick the dead connection from a short list of candidates and submit. The order of the candidates is fixed by a hash of the case and the candidate, so it does not hint at the answer, and the answer is never listed first.
 
 The rules are the same as in the body chapters. For the full method see [Diagnosis cases](diagnosis-cases.html) and [The lesion lab and analysis tools](lesion-lab-and-analysis.html).
 
 - The case card gives the findings in plain language. The vignette and symptoms below are what you are told.
 - A wrong pick says only "not that one". The reasons come after the case is solved or revealed.
 - A connection's type is shown but never its weight. The dead connection is kept at weight 0, so you find it by watching a cell that fires into a silent target, not by looking for a missing arrow.
-- The score is 100, minus 15 for every wrong guess, minus 3 for every probe beyond the first three (a scope opened, a cut tried, a lesion re-run), never below 25.
-- Stars: one for finding the cause. Two for no wrong guess. Three for no wrong guess, a score of 85 or more and the answer given after one of the case's probes.
-- After three wrong guesses the Reveal answer button appears. Revealing the answer scores nothing.
-- Hints are available in the same ladder as for levels.
+- The score is 100, minus 15 for every wrong guess, minus 3 for every probe beyond the first three (a scope opened, a cut tried, a lesion re-run), never below 25. Each thing probed counts once, so looking at it again is free.
+- Stars: one for finding the cause. Two for no wrong guess. Three for no wrong guess, a score of 85 or more and the answer given after at least one of the probes that tell the case's top candidates apart (the card says so). Guided mode stops at two stars here too.
+- After three wrong guesses the Reveal answer button appears. Revealing the answer scores nothing and leaves the case at one star.
+- Hints are available in the same ladder as for levels; the Stuck? line under each case below is its tier 1.
 
 ### Diagnosis: the worm that cannot back up
 
@@ -438,19 +446,15 @@ The rules are the same as in the body chapters. For the full method see [Diagnos
 
 **The case.** A *C. elegans* from a mutant strain crawls and feeds normally, but does not back away when its head is touched with an eyelash. A touch on the tail makes it run forward as usual. A touch on the head makes it stop dead and nothing else: it does not back away, and it does not crawl forward either, but lies still for as long as the touch lasts. Muscle recordings show no backward movement at all.
 
-**What to probe.** Follow the chain from touch cell to command interneuron to motor neuron during a head touch, and ask which cell is active while the one after it is silent. This case does what Chalfie and colleagues did with a laser: remove one link and see which response goes.
-
 #### Stuck?
 
-A reversal needs a chain of cells: touch cell, command interneuron, motor neuron. Look for the cell that is active while the cell after it stays silent.
+A reversal needs a chain of cells: touch cell, command interneuron, motor neuron. Which cell is active while the cell after it stays silent?
 
 ### Diagnosis: the one-sided heartbeat
 
 **Opens after:** Leech: the heartbeat. **Candidates:** 4.
 
 **The case.** A medicinal leech has been dissected so the heartbeat timing network and its two heart motor neurons can be recorded. The two sides of the heart no longer take turns: the left heart tube is driven steadily and the right one is almost still. Recordings from the two motor neurons show no bursts that give way to the other side.
-
-**What to probe.** Compare the two heart interneurons: one is strong, one is held down. In a half-centre, both sides must be able to silence each other. Ask which side can no longer do so.
 
 #### Stuck?
 
@@ -462,8 +466,6 @@ In a half-centre both sides must be able to silence each other. If one side cann
 
 **The case.** A sea slug from a breeding line is tested for the two simple kinds of learning of its gill-withdrawal reflex. The reflex is normal: a siphon touch gives a clear withdrawal, repeated touches make it smaller, and after a rest it is back. A shock to the tail still makes the gill twitch by itself. But the touch after a tail shock is no stronger than the touch before it.
 
-**What to probe.** Sensitisation needs a pathway that releases a modulator when the tail is shocked. Watch the cells of that pathway during the shock.
-
 #### Stuck?
 
 Sensitisation needs a pathway that releases a modulator when the tail is shocked. Which cell must fire for that, and does it?
@@ -473,8 +475,6 @@ Sensitisation needs a pathway that releases a modulator when the tail is shocked
 **Opens after:** Fly: the compass in the dark. **Candidates:** 5.
 
 **The case.** A fruit fly from a mutant line is shown a landmark, then the lights go out and it is made to turn left and right in the dark. With the fly still, the bump holds its place, so the ring is fine. A turn to the right is followed correctly. A turn to the left is hardly registered, so after a right turn and a left turn the compass reports a heading that is off in one direction, and every further back-and-forth adds to the error.
-
-**What to probe.** Only one direction of turn fails. Ask which part of the circuit is used only for that direction, and watch it during that turn.
 
 #### Stuck?
 
@@ -486,10 +486,6 @@ Only one direction of turn fails. Which part of the circuit is used only for tha
 
 **The case.** A fruit fly from a mutant line is trained to avoid one odour. Before training it answers both odours, but far more strongly than a normal fly does. After training it no longer answers the punished odour, so the punishment pathway works and the learning happens. In the Kenyon cells, for each odour about a third of them fire, where a normal fly uses a small handful, and about a quarter of the cells that answer one odour answer the other too (a normal fly shares almost none).
 
-**What to probe.** A memory that spreads to the wrong odour means the codes of the two odours overlap. Count how many Kenyon cells fire for one odour.
-
-> **Note:** At the size of this model, the overlap between odours shows in the cell counts, not in a measurable loss of specificity in the behaviour. Do not expect the second odour to lose its answer visibly.
-
 #### Stuck?
 
 A memory that spreads to the wrong odour means the codes of the two odours overlap. What keeps a code sparse?
@@ -499,8 +495,6 @@ A memory that spreads to the wrong odour means the codes of the two odours overl
 **Opens after:** Fly: the mushroom body learns to avoid. **Candidates:** 5.
 
 **The case.** A fruit fly from a mutant line is trained to avoid one odour with the usual pairings of odour and punishment. Before training it answers both odours, and the Kenyon-cell code is sparse and different for the two. After training nothing has changed: it answers the punished odour exactly as before. It does react to the shock itself, so it feels the punishment.
-
-**What to probe.** Learning needs a teaching signal. Watch the cells that carry it while the punishment cell fires.
 
 #### Stuck?
 
@@ -512,13 +506,9 @@ Learning needs a teaching signal. Which cells carry it, and do they fire when th
 
 **The case.** A crab stomatogastric ganglion from a second animal, whose cells have different conductances from the textbook ones, is recorded. The rhythm from the motor nerves is regular, about one cycle a second, but the pattern is no longer triphasic. The last burst of the cycle begins early, at the same time as the middle one, instead of after it, and lasts about as long as the whole quiet half-cycle. It is still held off during the first burst of the cycle.
 
-**What to probe.** The network can compensate for losing some of its inhibition, so the symptom does not point at one cell directly. Watch the last follower while the middle one fires and compare with what the pacemaker's burst does to it.
-
-> **Note:** This patient is built on the second parameter set of the crab task. Do not assume the same conductances as in your own solution.
-
 #### Stuck?
 
-The last follower has several sources of inhibition, and the network can compensate for losing some of them. Which one puts it after the middle cell?
+PY has several sources of inhibition and the network can still work when some of them are lost. Which one is it that puts PY after LP?
 
 ## Where to go next
 
@@ -526,6 +516,7 @@ The last follower has several sources of inhibition, and the network can compens
 - [The Theory wing](campaign-theory.html): what a computational neuroscience course teaches, in 12 levels.
 - [Parts bin](parts-bin.html) and [Synapses and modulators](synapses-and-modulators.html): the cells and synapses these levels ask for.
 - [Inputs and outputs](inputs-and-outputs.html): the population-vector readout the compass uses and the modulator channels the sea slug and crab use.
+- [Bodies](bodies.html): the specimen views these levels draw (the worm, the heart tubes, the gill, the ganglion, the mushroom body, the compass ring).
 - [What is real](what-is-real.html): the honest account of every simplification in this wing.
 - [Glossary](glossary.html): the concept terms used here (half-centre, rebound, bursting, ring attractor, sparse coding, degeneracy and so on).
 - [The notebook](notebook.html): each first pass adds a cited entry.

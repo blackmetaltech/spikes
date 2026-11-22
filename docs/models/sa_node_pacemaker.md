@@ -41,7 +41,7 @@ C_m 32 pF, g_f 0.34 nS (E_f -30 mV), g_CaL 3.53 nS (46 mV), g_CaT 1.9 nS (45 mV)
 
 | | beats/min |
 |---|---|
-| baseline (ACh 0, NE 0: intrinsic) | 99.0 (ISI CV < 0.0005: a limit cycle) |
+| baseline (ACh 0, NE 0: intrinsic) | 99.0 (ISI CV < 0.0005: a limit cycle; re-measured with `spike-run` on a one-cell circuit over 20 s: 99.0; ACh 0.5: 67.1) |
 | ACh 0.3 / 0.5 / 1.0 / 1.5 | 74.4 / 67.1 / 58.4 / 54.4 (graded, no arrest) |
 | NE 0.3 / 1.0 | 123.8 / 135.4 |
 | I_e +3 / -3 pA | 110.5 / 86.0 |

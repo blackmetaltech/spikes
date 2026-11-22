@@ -9,9 +9,11 @@ summary: Twelve levels in four chapters that turn a computational-neuroscience c
 
 The Theory wing is the part of the campaign that asks "what does the mathematics of a neuron say?" instead of "which body does it drive?". It has four chapters of three levels each: **Dynamics**, **Rate models**, **Attractor memory** and **Tuning and decoding**. Each chapter starts with two small puzzles (one idea each) and ends with a larger scored task, the same shape as every other chapter.
 
-The wing opens when you pass the Invertebrates spine, like the [Bestiary](campaign-bestiary.html). It is not part of the unlock chain of the five body chapters, and nothing in it gates anything else. Inside a chapter the usual rule holds: a level opens when the one before it is passed. You can start with Theory, with the body chapters, or jump between them. See [the core loop](core-loop.html) for how a level is built, run and checked, and [stars, par and the hint ladder](stars-and-hints.html) for scoring.
+The wing opens when you pass the Invertebrates spine (the Touch reflex, Salt-seeking worm and Swimming lamprey levels), like the [Bestiary](campaign-bestiary.html). Before that the Theory tab is locked and says "Pass the Invertebrates spine first". Unlike the Bestiary, the four Theory chapters have no further gate between them: once the wing is open, all four chapters are open and you can start with any of them. It is not part of the unlock chain of the five body chapters, and nothing in it gates anything else. Inside a chapter the usual rule holds: a level opens when the one before it is passed. You can start with Theory, with the body chapters, or jump between them.
 
-Every level here has the usual honesty contract. The game checks the **mechanism** you built by reading the circuit's structure (which cell connects to which, with what sign), not only by looking at the numbers it produces. A shortcut that happens to hit the target numbers fails with a verdict that names the missing part. Verdicts and the first two hint tiers carry no numbers. The reference solutions are never shown on this page, and the "Stuck?" notes below go no further than the first hint tier.
+Each level card also carries **Needs** chips: the concepts the level uses that another level teaches first (for example the Wilson-Cowan levels use negative feedback, taught in the Spinal chapter), each marked met once you have passed the level that teaches it. The chips are advice only; they never lock a level. See [the core loop](core-loop.html) for how a level is built, run and checked, and [stars, par and the hint ladder](stars-and-hints.html) for scoring.
+
+Every level here has the usual honesty contract. The game checks the **mechanism** you built by reading the circuit's structure, not only by looking at the numbers it produces. A shortcut that happens to hit the target numbers fails with a verdict that names the missing part. This page does not give wiring or values for any level: the "Stuck?" notes below go no further than the first hint tier, and the goals repeat only what the level's own brief says.
 
 ## What the wing adds to the lab
 
@@ -34,7 +36,7 @@ Plain-language explanations of each follow in the chapters. The parts and wiring
 The wing is built on real simulator models, but several things are simplified for the sake of a puzzle you can finish in minutes. The full account is in [what is real](what-is-real.html). The points that matter here:
 
 - **The "Wilson-Cowan" units are not the original equations.** They are NEST's threshold-linear rate neurons with a ceiling, not the sigmoid-with-refractoriness of the 1972 paper. Rates are in arbitrary units, and the drive is added after the nonlinearity, so inhibition cannot cancel it.
-- **The mean-field network is small and well behaved.** The level shows the method, not where it breaks down.
+- **The mean-field network is well behaved by design.** The level shows the method, not where it breaks down.
 - **Tuning curves are given, not learned.** The afferents have a fixed bell-shaped rate curve, Poisson spikes and evenly spread preferred angles.
 - **Memory patterns are groups of cells**, not the plus-one and minus-one vectors of the 1982 model. Persistent firing is far faster than real delay activity.
 - **The "one neuron switch" fires much faster than a real persistent-firing cell.** The level says so.
@@ -42,7 +44,7 @@ The wing is built on real simulator models, but several things are simplified fo
 
 ## Levels at a glance
 
-None of the twelve levels has challenge variants. Par is the neuron count of the reference circuit; staying at or under it, with Check passing all five worlds, and without opening the recipe, earns the third star (these levels have no energy clause). See [stars, par and the hint ladder](stars-and-hints.html).
+None of the twelve levels has challenge variants or an energy clause. Par is a neuron count. The stars follow the usual rules: one star for a pass, two when CHECK passes all five worlds (seeds 101 to 105) in Standard or Researcher mode, and three when the level's visible challenge is also met (here: stay at or under par) and, in Standard, the recipe was not opened. Guided mode stops at two stars. A Researcher pass of all five worlds under physiological noise also earns the Researcher seal. See [stars, par and the hint ladder](stars-and-hints.html).
 
 | Chapter | Level | Kind | Par |
 |---|---|---|---|
@@ -103,7 +105,7 @@ How firing starts depends on how the resting state is lost: through a collision 
 
 **The goal.** The sensor `current` is zero, steps on for 1.2 seconds (400 to 1600 ms), and goes off again. Build a cell that is silent before the step, fires when the step comes, and is silent again well before the step ends. The size of the step is the weight you give the sensor, and it moves the nullcline as much as any parameter of the cell does.
 
-**What the pass rule asks.** No spike in the quiet window before the step; at least one spike in the 250 ms after the step starts; no spike in the late window (900 to 1600 ms) while the current is still on. The structure check asks for a two-variable cell that has a stable fixed point at the held current, so that it can settle.
+**What the pass rule asks.** No spike in the quiet window before the step; at least one spike in the 250 ms after the step starts; no spike in the late window (900 to 1600 ms) while the current is still on. The mechanism check also asks that the cell can settle at the held current.
 
 **What is simplified.** The level uses a generic two-variable cell, not an auditory neuron. The real mechanism in the brainstem involves a particular potassium current; the cell here shows only the geometry.
 
@@ -117,9 +119,9 @@ A step of current only moves the voltage nullcline. Whether the cell keeps firin
 
 **The idea.** A neuron can have two stable states at once: quiet at rest, and firing on and on. In the phase plane the resting point is a stable crossing, and the firing is a loop around it that the path can also settle into. Between the two runs a border. A brief pulse that carries the cell across the border flips the state for good. This is **bistability**: one cell, one current, two stable states, so the cell stores one bit.
 
-**The goal.** Three sensors reach the cell. `hold` is a steady current that puts the cell near the edge of firing without starting it. `set` is a short pulse that pushes the cell up, and `reset` is a short pulse that pushes it down. Both pulses take a positive weight; the sensor itself carries the sign. Build a single cell that is quiet at first, fires on and on after `set` (long after the pulse is gone), and is quiet again and stays so after `reset`. The same sequence must work a second time. What makes firing survive after a spike is where the spike resets the cell relative to the border between the states.
+**The goal.** Three sensors reach the cell. `hold` is a steady current that puts the cell near the edge of firing without starting it. `set` is a short pulse that pushes the cell up, and `reset` is a short pulse that pushes it down. Both pulses take a positive weight; the sensor itself carries the sign. Build a single cell that is quiet at first, fires on and on after `set` (long after the pulse is gone), and is quiet again and stays so after `reset`. The same sequence must work a second time. What makes firing survive after a spike is where the spike resets the cell, relative to the border between the states.
 
-**What the pass rule asks.** Quiet before the first pulse; at least six spikes in each 400 ms "on" window (four in Guided, eight in Researcher), long after the pulse; no spike in each "off" window; and the on state must stay at or below 80 spikes in 400 ms (200 Hz; 100 in Guided, 70 in Researcher). The structure check asks for a two-variable cell with a stable fixed point at the holding current and all three sensors reaching it. The behaviour decides the rest: only a real second, firing state makes the "on" windows pass.
+**What the pass rule asks.** Quiet before the first pulse; at least six spikes in each 400 ms "on" window (four in Guided, eight in Researcher), long after the pulse; no spike in each "off" window; and the on state must stay at or below 80 spikes in 400 ms (200 Hz; 100 in Guided, 70 in Researcher). The mechanism check reads the cell's own phase plane. The behaviour decides the rest: only a real second, firing state makes the "on" windows pass.
 
 **What is simplified.** Real persistent firing of single cells runs at 5 to 50 spikes per second and relies on channel-based plateau potentials, which are not modelled. The firing state of this kind of cell is a limit cycle born at a finite rate, about 135 spikes per second at the very lowest, so the 200 Hz cap is as low as the model allows. The level shows the mechanism, not the rate.
 
@@ -155,9 +157,9 @@ In the lab, rate readouts appear as scrolling traces on one shared scale. A read
 
 Two things have to be right. The excitation must be able to run away by itself (its self-connection must be strong enough compared with how fast the unit follows its input). And the loop through the inhibitory unit must be strong enough to catch it but not so strong that it holds the excitation down for good. The verdict tells you which side of that narrow band you are on: a rate that sticks near its ceiling means too little inhibition; one pinned just above the drive level means too much; a steady value in between means the excitation does not run away strongly enough.
 
-**What the pass rule asks.** `e` is quiet before the drive; after it, `e` swings by a clear amount, for at least four cycles (three in Guided) in the last stretch of the run; one cycle lasts between 40 and 400 ms; and `i` follows `e` by between 5 and 70 percent of a cycle, so the inhibition is the cause of the turn-around and not a copy. The structure check wants `e` and `i` on different units, the drive reaching `e`, `e` exciting itself and `i`, and `i` inhibiting `e`.
+**What the pass rule asks.** `e` is quiet before the drive; after it, `e` swings by a clear amount, for at least four cycles (three in Guided) in the last stretch of the run; one cycle lasts between 40 and 400 ms; and `i` follows `e` by between 5 and 70 percent of a cycle, so the inhibition is the cause of the turn-around and not a copy. The structure check also reads the circuit: `e` and `i` must be different units.
 
-**What is simplified.** The units are threshold-linear, not the original sigmoid, so the band in which oscillation exists is narrow. The inhibition does not have to be slower than the excitation; a slower inhibition only makes oscillation start more easily and lowers its frequency.
+**What is simplified.** The units are threshold-linear, not the original sigmoid, so the band in which oscillation exists is narrow.
 
 **Par:** 2 units.
 
@@ -171,7 +173,7 @@ Excitation that excites itself, plus inhibition that it drives and that inhibits
 
 **The goal.** Build two rate units, `a` and `b`. In the run, A gets a little more drive than B, then the two are equal, then B gets much more, then the two are equal again. A small difference must be amplified; the choice must be held when the inputs are equal; a much stronger input for the other side must overturn it; and the new winner must be held in turn. The memory is in the loop, so it works whichever side won last. A circuit that simply gives one input more gain than the other holds only its favourite and fails the last phase.
 
-**What the pass rule asks.** At the end of each phase the leading unit must beat the other by a clear margin: A wins phase one, A still leads in phase two with equal inputs, B leads in phase three, and B still leads in phase four. The structure check asks for self-excitation on each unit and inhibition from each onto the other, directly or through an interneuron.
+**What the pass rule asks.** At the end of each phase the leading unit must beat the other by a clear margin: A wins phase one, A still leads in phase two with equal inputs, B leads in phase three, and B still leads in phase four. The structure check also reads the circuit, so a circuit that only biases one input fails.
 
 **What is simplified.** Rates are in arbitrary units and the units are threshold-linear. The "winner-take-all" reading is the textbook one for decision and attention models.
 
@@ -189,9 +191,9 @@ Self-excitation plus mutual inhibition between two populations turns a small dif
 
 In the projection inspector, a "mean-field projection" takes J and K as two separate numbers. NEST itself only has the derived drift and diffusion factors; the game computes them for you.
 
-**What the pass rule asks.** At the highest drive both the network and the prediction fire (at least 5 Hz); the network's rate rises at each drive level; each prediction projection carries a J and a K within a factor of two of the spiking projection it stands for (a K of 1 for a 60-input connection is rejected, even if a hand-tuned J makes the rates agree); and at all three levels the two rates differ by at most 15 percent of the larger plus 1.5 Hz (25 percent in Guided, 10 percent in Researcher).
+**What the pass rule asks.** At the highest drive both the network and the prediction fire (at least 5 Hz); the network's rate rises at each drive level; each prediction projection carries the J and K of the spiking projection it stands for (matching rates with a made-up K is rejected); and at all three levels the two rates differ by at most 15 percent of the larger plus 1.5 Hz (25 percent in Guided, 10 percent in Researcher).
 
-**What is simplified.** The network is small and not very sparse (a few hundred cells, not thousands), yet the prediction still agrees within a few percent. So the level shows the method but not where the mean field fails. The recurrent weights are chosen so that the loop matters; drive levels and measurement windows are game values. Par is 255 because the reference counts all of the spiking cells and the units of the prediction.
+**What is simplified.** The level does not probe where the mean field fails: its network is large enough for the prediction to hold. Drive levels and measurement windows are game values. Par counts all the spiking cells plus the units of the prediction.
 
 **Par:** 255 cells and units.
 
@@ -223,7 +225,7 @@ Symmetry is checked on the actual list of connections between cells, one by one.
 
 **The goal.** Build a pattern of several cells that is silent by itself. `memory` reads the whole pattern; `cue` reaches only part of it, for a moment (a 200 Hz Poisson burst from 300 to 600 ms). After the cue the whole pattern must fire, including the cells the cue never touched, and keep firing. A group of cells can be built from two groups (the cued cells and the rest) that excite each other and themselves.
 
-**What the pass rule asks.** At most 2 spikes in the pattern before the cue. In the recall window (900 to 1700 ms, long after the cue) at least 80 percent of the pattern's cells fire at 5 Hz or more on average, and at least 80 percent of the cells that the cue never reached fire. The structure check wants several cells in the pattern, excitation among them in a loop, a cue that reaches some but not all, and connections that are roughly symmetric.
+**What the pass rule asks.** At most 2 spikes in the pattern before the cue. In the recall window (900 to 1700 ms, long after the cue) at least 80 percent of the pattern's cells fire at 5 Hz or more on average, and at least 80 percent of the cells that the cue never reached fire. The structure check also reads the circuit: the connections must be roughly symmetric, and the cue must reach some but not all of the pattern.
 
 **What is simplified.** The sustained rate is far above real delay activity (there is no balanced inhibition), and the pattern is a group of cells, not a plus-and-minus vector.
 
@@ -239,7 +241,7 @@ A group of cells that excite each other symmetrically has a stable state in whic
 
 **The goal.** `cue_a` calls up pattern A and `cue_b` pattern B; `a` and `b` read the cells of each. After `cue_a` only A must be lit. After `cue_b` only B, overwriting A. When both cues come at once the network must pick exactly one pattern, not both. A pattern's cells must stay lit after their cue is gone.
 
-**What the pass rule asks.** Quiet before the first cue; after `cue_a` at least 80 percent of A's cells fire and B stays silent; after `cue_b` the same for B; after both cues together exactly one pattern is lit, the other silent. The structure check looks at the edge list: the two read sets must differ, each must excite itself in a loop, the two must inhibit each other (directly or through an interneuron), the connections between the groups must be roughly symmetric, and each cue must reach its own pattern.
+**What the pass rule asks.** Quiet before the first cue; after `cue_a` at least 80 percent of A's cells fire and B stays silent; after `cue_b` the same for B; after both cues together exactly one pattern is lit, the other silent. The structure check also reads the circuit's connection list, including whether the connections are symmetric.
 
 **What is simplified.** The two patterns are disjoint groups, not overlapping vectors, and the inhibition between them is built in, not the result of an outer-product rule.
 
@@ -255,7 +257,7 @@ With symmetric excitation inside each pattern and symmetric inhibition between t
 
 **The goal.** Make the connections among a group of cells plastic and start them weak. First, `cue` reaches part of the group and recalls nothing. Then `show` drives the whole pattern for a while, so its cells fire together and the connections among them strengthen. Then the same `cue` must recall the whole pattern, and it must stay lit after the cue. The connections must really have grown, and they must start symmetric. Too strong at the start and the cue completes the pattern before it was learned; too weak or too slow and nothing is learned. The synapse has a learning rate, an asymmetry between strengthening and weakening, and a ceiling for the weight. These are in the inspector of the projection; see [synapses and modulators](synapses-and-modulators.html).
 
-**What the pass rule asks.** Before the exposure the cue completes nothing (at most 3 spikes in the cells it never reached); the mean weight of the plastic connections has grown at least 1.5 times; and after the exposure at least 80 percent of the cells fire at 5 Hz or more, including at least 80 percent of the cells the cue never reached. The structure check wants the pattern's cells to excite each other in a loop through plastic synapses, symmetric at the start, with `show` reaching every cell and `cue` only some. Whether the exposure is strong or long enough is left to the behaviour.
+**What the pass rule asks.** Before the exposure the cue completes nothing (at most 3 spikes in the cells it never reached); the mean weight of the plastic connections has grown at least 1.5 times; and after the exposure at least 80 percent of the cells fire at 5 Hz or more, including at least 80 percent of the cells the cue never reached. The structure check also reads the circuit (plastic, symmetric at the start). Whether the exposure is strong or long enough is left to the behaviour.
 
 **What is simplified.** One second of exposure stands for minutes of learning. The plastic synapse is NEST's `stdp_synapse`, which is excitatory only, so the inhibition of a bigger network cannot be learned.
 
@@ -289,7 +291,7 @@ In the lab a dial shows the stimulus, a bar per cell shows the response, and a s
 
 **The goal.** The sensor `stim` is the orientation of a bar, from 0 to 180 degrees, shown for a few hundred milliseconds in turn (eight trials of 300 ms: 0, 45, 90, 135, then the same again). Create a population of afferent cells (parrot cells, which just repeat the spikes of their input) and connect `stim` to it. Then build one more cell, `resp`, that listens to some of the afferents and not to others, so that it responds to 90 degrees much more than to 0, and more than to 45 and 135. Which afferents it listens to, and how strongly, is the whole puzzle. A cell that weighs them all alike has no preference. The afferents can be separate populations, taken in the order you create them.
 
-**What the pass rule asks.** At 90 degrees the cell fires at 12 Hz or more (8 in Guided); its rate at 90 is at least three times its rate at 0; and at least 1.4 times its rate at 45 and at 135, so that it is not just "anything near 90". The structure check wants `resp` to be a cell that is not one of the afferents and that weighs them unequally. The preference is judged by weights, not by the number of connections: graded excitation (the preferred afferents strongest) and inhibition from the flanks both count.
+**What the pass rule asks.** At 90 degrees the cell fires at 12 Hz or more (8 in Guided); its rate at 90 is at least three times its rate at 0; and at least 1.4 times its rate at 45 and at 135, so that it is not just "anything near 90". The structure check also reads the circuit: the preference is judged by weights, not by the number of connections.
 
 **What is simplified.** The tuning curves are given: a game-chosen width, peak and base, Poisson spikes, evenly spaced preferred angles. Real afferents are neither evenly spaced nor Poisson. The level shows that convergence can work, not that the cortex does it this way.
 
@@ -305,9 +307,9 @@ A cell inherits the preference of the inputs it listens to: connect it to affere
 
 **The goal.** `stim` shows an orientation from 0 to 180 degrees. Make eight afferent cells and connect `stim` to them. Make eight cells that each listen to their own afferent, using the "neuron k to k" segment wiring (neuron k of one group to neuron k of the next). `resp` reads the eight cells. The cell that prefers the orientation shown must fire well, and the cells that prefer 45 degrees away from it must fire at only a small fraction of that. Without inhibition among the cells the tuning is as broad as the afferents'. A cell that also excites itself holds its lead against the others; that is optional, and how strong each is decides how much it sharpens.
 
-**What the pass rule asks.** The cells fire at 10 Hz or more at their preferred orientation (7 in Guided), and the side rate, the cells 45 degrees away, is at most 58 percent of the peak rate (62 in Guided, 52 in Researcher). Without any loop the ratio is about 67 percent. Because a ratio of two small spike counts is noisy, the episode is long: 24 trials of 300 ms, read over 48 trial responses. The structure check wants the eight cells driven by the afferents by excitation, not themselves afferents, and inhibiting one another directly or through a cell they excite.
+**What the pass rule asks.** The cells fire at 10 Hz or more at their preferred orientation (7 in Guided), and the side rate, the cells 45 degrees away, is at most 58 percent of the peak rate (62 in Guided, 52 in Researcher). Because a ratio of two small spike counts is noisy, the episode is long: 24 trials of 300 ms, read over 48 trial responses. The structure check also reads the circuit.
 
-**What is simplified.** Whether real cortical tuning is sharpened by inhibition is debated; the level shows the mechanism working. Self-excitation is optional: the reference circuit has it and sharpens more steadily, but inhibition alone can pass.
+**What is simplified.** Whether real cortical tuning is sharpened by inhibition is debated; the level shows the mechanism working. Self-excitation is optional, as the brief says.
 
 **Par:** 16 cells.
 
@@ -321,7 +323,7 @@ Inhibition among cells with different preferences narrows the tuning of each: th
 
 **The goal.** The sensor `stim` shows a direction from 0 to 360 degrees, a different one in each of six 400 ms trials. Make twelve afferent cells and connect `stim` to them; cell k of twelve prefers 30 k degrees. Then make a population of cells that listen to the afferents, and let `heading` read it as a ring. `heading` takes the cells in the order they are listed and puts cell k of N at 360 k / N degrees, with cell 0 at the top, so the cells must be in the order of their preferred directions. The decoded direction must be near the shown one, trial after trial. If the cells are listed in the wrong order, or each listens to the wrong afferent, the arrow points somewhere else. The ring readout is described in [inputs and outputs](inputs-and-outputs.html).
 
-**What the pass rule asks.** The readout fires (at least 10 spikes per trial on average); the mean absolute error between decoded and shown direction over the six trials is at most 25 degrees (35 in Guided, 18 in Researcher); and no single trial is more than 60 degrees off (80 in Guided). The shown directions are random, a different draw for each seed, so a lucky guess does not repeat. The structure check wants `heading` to read cells that are not the afferents, that listen to them by excitation, and at least eight listed cells.
+**What the pass rule asks.** The readout fires (at least 10 spikes per trial on average); the mean absolute error between decoded and shown direction over the six trials is at most 25 degrees (35 in Guided, 18 in Researcher); and no single trial is more than 60 degrees off (80 in Guided). The shown directions are random, a different draw for each seed, so a lucky guess does not repeat. The structure check also reads the circuit.
 
 **What is simplified.** The population vector is one linear decoder, not the best one: for Poisson cells with bell-shaped tuning a maximum-likelihood readout is more accurate. The tuning curves are given.
 

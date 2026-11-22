@@ -6,7 +6,7 @@
 
 The front-end is a **Godot 4.7** game drawn as a 19th-century histology plate: India ink and Golgi stain on paper, sienna for excitation, Prussian blue for inhibition. Underneath it, the NEST kernel is linked statically into a C++ engine (no Python at runtime) that runs the circuit and a simplified body in a closed loop, 1 ms at a time.
 
-> **Alpha (0.5 in progress).** Playable on desktop Linux. Rough in places: see the [changelog](CHANGELOG.md) for known gaps. Tell us what broke or confused you in [issues](https://github.com/ixaxaar/spikes/issues).
+> **Alpha (0.5.0).** Playable on desktop Linux. Rough in places: see the [changelog](CHANGELOG.md) for known gaps. Tell us what broke or confused you in [issues](https://github.com/ixaxaar/spikes/issues).
 
 ![A lamprey swimming on a half-centre oscillator](docs/readme/lamprey.png)
 
@@ -14,16 +14,16 @@ The front-end is a **Godot 4.7** game drawn as a 19th-century histology plate: I
 
 | | |
 |---|---|
-| **Build** | An empty bench with the level's sensor and motor cards. Add neurons from a parts bin of NEST and NESTML cells (integrate-and-fire, adaptive exponential, Izhikevich, Hodgkin-Huxley, an SA-node pacemaker, a brainstem burster, a gut pacemaker), drag connections, set weights. |
+| **Build** | An empty bench with the level's sensor and motor cards. Add neurons from a parts bin of NEST and NESTML cells (integrate-and-fire, adaptive exponential, Izhikevich, Hodgkin-Huxley, an SA-node pacemaker, a brainstem burster, a gut pacemaker), drag connections, set weights. The editor has undo and redo, zoom and pan, multi-select, copy and paste, keyboard and gamepad building, three solution slots per level and an import from a level you have passed. |
 | **Run** | A live spike raster, voltage traces, gauges and the body itself: a limb, a heart with blood pressure, lungs, an eye, a gut, a swimming lamprey, a crawling worm. |
 | **Check** | Instant headless scoring over several seeds. The verdict says what your circuit did and which part of the mechanism is missing, never the answer. |
 | **Learn** | One new idea per level, a three-tier hint ladder, a recipe you can buy with a star, a lab notebook of cited findings and a glossary of concepts. |
 | **Diagnose** | A patient's circuit with a hidden lesion and a list of symptoms. Probe it with the scopes and the lesion lab, then name the broken connection. |
 | **Dissect** | A lesion lab with multi-seed re-runs, motif census, burst and HRV analysis, phase-response curves and an energy bill. |
 
-**The campaign.** Five body chapters (Invertebrates, Spinal cord, Heart, Breathing, Autonomic) climb from a single cell crossing threshold to a whole day of autonomic control: 19 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases. The **Bestiary** adds a chapter per model organism, built around the circuit neuroscience knows best: the *C. elegans* touch switch (wired from the real connectome), the leech heartbeat, *Aplysia* habituation and sensitisation, and in progress the fly compass, the fly mushroom body and the crab pyloric rhythm. The **Theory** wing covers what a computational-neuroscience course teaches, in four chapters of three levels: the phase plane (class I and II, phasic firing, a one-neuron switch), rate models and mean field (a Wilson-Cowan oscillator, winner take all, a spiking network against its siegert prediction), Hopfield attractor memory (recall from a part, two patterns without blends, a pattern written by STDP) and tuning and decoding (a tuned cell, sharpening, the population vector), plus a spike-triggered-average tab in the Analysis screen ([design](docs/DESIGN-THEORY.md)).
+**The campaign.** 79 levels in three wings, each level one idea. The **body** wing has five chapters (Invertebrates, Spinal cord, Heart, Breathing, Autonomic) that climb from a single cell crossing threshold to a whole day of autonomic control: 20 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases. The **Bestiary** has a chapter per model organism, built around the circuit neuroscience knows best: the *C. elegans* touch switch (wired from the real connectome), the leech heartbeat, *Aplysia* habituation and sensitisation, the fly compass, the fly mushroom body and the crab pyloric rhythm (18 levels and 7 diagnosis cases). The **Theory** wing covers what a computational-neuroscience course teaches, in four chapters of three levels: the phase plane (class I and II, phasic firing, a one-neuron switch), rate models and mean field (a Wilson-Cowan oscillator, winner take all, a spiking network against its siegert prediction), Hopfield attractor memory (recall from a part, two patterns without blends, a pattern written by STDP) and tuning and decoding (a tuned cell, sharpening, the population vector), plus a spike-triggered-average tab in the Analysis screen ([design](docs/DESIGN-THEORY.md)). Both wings open once you have passed the Invertebrates spine; a few Bestiary chapters wait for a level you have not met yet, and every level card lists what it needs. **Plate 0**, an interactive tutorial, walks a new player through the first circuit.
 
-**Three modes.** **Guided** (recipe in the brief, free hints), **Standard** (the recipe costs the third star) and **Researcher** (no recipe, no hints, a pass needs five seeds). Modes change tolerance and noise, never the circuit.
+**Three modes.** **Guided** (recipe in the brief, free hints, at most two stars), **Standard** (the recipe costs the third star) and **Researcher** (no recipe, no hints, a pass needs all five seeds under physiological noise, and earns a seal kept apart from the stars). One star is a pass, the second needs CHECK to pass all five worlds, the third is a per-level challenge shown on the level card. Modes change tolerance and noise, never the circuit.
 
 **Honest by design.** Every level checks the mechanism it teaches through the circuit's structure, so a cheap trick that happens to hit the numbers fails. Verdicts and early hints carry no numbers. Each level has a table of cheap circuits that must fail, in the test suite. Citations are checked against PubMed with DOIs. A **What is real** page, in the game and in [the docs](docs/WHAT-IS-REAL.md), says what is NEST, what was tuned and what is illustrative.
 
@@ -55,7 +55,7 @@ The front-end is a **Godot 4.7** game drawn as a 19th-century histology plate: I
 
 ## A circuit is data
 
-A circuit is one JSON file ([docs/CIRCUIT-FORMAT.md](docs/CIRCUIT-FORMAT.md)). The game, the C++ engine and the Python package read the same file, so a circuit built in the game runs unchanged in PyNEST, with identical spikes (a parity test checks it).
+A circuit is one JSON file ([docs/CIRCUIT-FORMAT.md](docs/CIRCUIT-FORMAT.md)). The game, the C++ engine and the Python package read the same file, so a circuit built in the game runs unchanged in PyNEST, with identical spikes (a parity test checks it). The Python package does not yet read the Theory wing's rate inputs and populations.
 
 ```python
 import spike                                  # python/
@@ -91,4 +91,4 @@ godot/    the game              code-built UI, levels in godot/circuits, parts i
 python/   spike package         the same circuit JSON in PyNEST, plus analysis
 ```
 
-Design and plans: [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN-0.5.md](docs/DESIGN-0.5.md), the visual identity in [docs/IDENTITY.md](docs/IDENTITY.md).
+Player guide: the [wiki](https://ixaxaar.github.io/spikes/wiki/) (also in `site/wiki-src/`). Design and plans: [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN-0.5.md](docs/DESIGN-0.5.md), the visual identity in [docs/IDENTITY.md](docs/IDENTITY.md).

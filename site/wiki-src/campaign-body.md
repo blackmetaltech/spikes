@@ -16,42 +16,43 @@ Nothing here gives away a solution. Each level has a goal in plain words and, un
 Levels unlock in a fixed order. The rules are short.
 
 - **The first two chapters are open from the start.** That is Invertebrates and Spinal cord.
-- **A later chapter opens when the previous chapter's spine is passed, or the spine of the chapter two before it.** The spine is the main line of levels in a chapter, in play order. So Heart opens when you pass all of Spinal cord (or all of Invertebrates). Breathing opens when you pass Heart or Spinal cord. One stuck level never blocks the whole game.
+- **A later chapter opens when the previous chapter's spine is passed, or the spine of the chapter two before it.** The spine is the main line of levels in a chapter, in play order, and ends in the chapter's boss where there is one. So Heart opens when you pass the whole Spinal cord spine (or the whole Invertebrates spine). Breathing opens when you pass the Heart or the Spinal cord spine. Autonomic opens when you pass the Breathing or the Heart spine. One stuck level never blocks the whole game.
 - **Inside a chapter, a spine level opens when the one before it is passed.** The first level opens with its chapter.
-- **A branch opens when the level it hangs off is passed.** Branches are the diagnosis cases and the challenge variants (a harder or smaller version of a level). Branches never gate anything.
-- **The Bestiary and Theory wings open when the Invertebrates spine is passed** and do not count toward the body chapters' unlock rule. Inside the Bestiary some chapters wait for an idea taught elsewhere: Sea slug needs the Neuromodulation level of Heart, Crab needs the Leech chapter, and Fly mushroom body needs the Sea slug. Every level card has a **NEEDS** row that lists the ideas the level uses and that you have not met yet, with the level that teaches each ("Neuromodulation (from Neuromodulation)"). Guided mode leaves the in-wing waits open and keeps the NEEDS row.
-- **Posture and Reach are branches, not part of the Spinal cord spine.** No novice bench solves them from the brief alone, so the spinal sprint no longer waits for them; the boss follows the spine levels before it.
+- **A branch opens when the level it hangs off is passed.** Branches are the diagnosis cases, the challenge variants (a harder or smaller version of a level) and two optional levels, Posture and Reach. Branches never gate anything. On the map the spine levels are numbered pins on a solid path and branches hang off it on dashed lines.
+- **The Bestiary and Theory wings open when the Invertebrates spine is passed** and do not count toward the body chapters' unlock rule. They are the second and third wings of the map: a **Body / Bestiary / Theory** selector sits above the chapter tabs, and a **Continue** button opens the next level you have not passed. Inside the Bestiary some chapters wait for something taught elsewhere: Sea slug waits for the Neuromodulation level of Heart, Crab waits for the Leech chapter's spine, and Fly mushroom body waits for the Sea slug chapter's spine. Every level card has a **NEEDS** row that lists the ideas the level uses and that you have not met yet, with the level that teaches each ("Neuromodulation (from Neuromodulation)"). The NEEDS row is information; only the waits above lock anything. Guided mode drops the waits inside the Bestiary and keeps the NEEDS row, but still asks for the Invertebrates spine first.
+- **Posture and Reach are branches, not part of the Spinal cord spine.** The spinal sprint boss does not wait for them: it follows the spine levels before it. They are still full levels with stars, and their cards say which level they wait for.
+- **Breathing is a deliberately short chapter:** one micro-puzzle and one task (and a diagnosis case). The Autonomic exam reuses its rhythm and its CO2 loop.
 
-A level that you pass in any mode counts as passed for unlocking. Switching [mode](modes.html) never locks you out of anything.
+A level that you pass in any mode counts as passed for unlocking, except a circuit that is a copy of the level's reference circuit, which counts for nothing. Switching [mode](modes.html) never locks you out of anything.
 
-On the map a locked level says what it waits for, for example "Pass Convergence first". The parts bin and the lab tools also open as the campaign needs them: inhibitory neurons, the parts bin and noise inputs appear at the first level whose reference circuit uses them, and Analysis and Load / Save appear from the second chapter. See [the lab](how-to-read-the-lab.html).
+On the map a locked level says what it waits for, for example "Pass Convergence first", or for a closed chapter "Pass the Spinal cord spine (or the Invertebrates spine) first". In the tables below, **Know first** lists the ideas a level uses (the USES chips on its card). The parts bin and the lab tools also open as the campaign needs them: inhibitory neurons, the parts bin and noise inputs appear at the first level whose reference circuit uses them, and Analysis and Load / Save appear from the second chapter. See [the lab](how-to-read-the-lab.html).
 
 ## The kinds of level
 
 | Kind | What it is | Size |
 |---|---|---|
 | **Micro-puzzle** | One concept in a fish tank: 1 to 12 cells, a 3 to 5 second episode, a small dashboard of readouts instead of a body. | Par of 1 to 12 neurons |
-| **Task** | The same ideas put to work on a body or a world. Many cells, a long episode (13 to 150 seconds), a body view. | Par of 7 to 56 neurons |
+| **Task** | The same ideas put to work on a body or a world. Many cells, a long episode (10 to 150 seconds), a body view. | Par of 7 to 56 neurons |
 | **Boss** | A chapter finale that combines every idea of the chapter in one circuit. | Par of 75 to 80 neurons |
 | **Diagnosis case** | A patient circuit with one dead connection. You do not build; you probe, then name the broken connection. A branch, not part of the spine. | Not applicable |
 
 "Par" is the neuron count for the third star. It is explained in [Stars, par and the hint ladder](stars-and-hints.html). "Spiking" means the cells are NEST neuron models that emit discrete spikes; see [what is real](what-is-real.html) for what is the simulator's own maths and what is tuned for the game.
 
-Every task offers "challenge variants" in its More menu: a smaller circuit ("half the neurons") and one harder world. They are listed per task below. Micro-puzzles and bosses have none. A passed variant has no stars of its own.
+Every task offers "challenge variants" in the Level group of its More menu: a smaller circuit ("half the neurons") and one harder world. They are listed per task below. Micro-puzzles and bosses have none. A passed variant has no stars of its own; its pin on the map becomes a ticked diamond. The half-neurons variant has to fit in half the par.
 
 ## The five chapters at a glance
 
 | Chapter | Body | Levels (play order) | Boss | Diagnosis cases |
 |---|---|---|---|---|
-| Invertebrates | A touch-sensitive animal, a crawling worm, a swimming lamprey | 7 micros, 3 tasks (Threshold to Lamprey swimmer) | none | none |
-| Spinal cord | A forearm with muscle spindles, tendon organs and two muscles | 5 micros, 4 tasks | Spinal sprint | the shaky arm |
+| Invertebrates | A touch-sensitive animal, a crawling worm, a swimming lamprey | 8 micros, 3 tasks (Threshold to Lamprey swimmer) | none | none |
+| Spinal cord | A forearm with muscle spindles, tendon organs and two muscles | 5 micros, 4 tasks (Posture and Reach are branches) | Spinal sprint | the shaky arm |
 | Heart | A heart with blood pressure | 4 micros, 3 tasks | none | the racing resting pulse, faint on standing |
 | Breathing | Lungs and blood CO2 | 1 micro, 1 task | none | stops breathing in sleep |
 | Autonomic | An eye and a gut, then the whole body | 2 micros, 3 tasks | Autonomic exam | the small pupil, food that will not pass |
 
 In total that is 20 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases.
 
-> **Note:** The counts of "levels in a chapter" above are spine levels in the order the game plays them, which is the order of the engine's registry. The map draws the same order.
+> **Note:** The tables list the levels of a chapter in the order the game plays them, which is the order of the engine's registry; the map draws the same order. Posture and Reach appear in the Spinal cord table where the registry puts them, but they are branches and are not needed to go on.
 
 ---
 
@@ -68,14 +69,14 @@ You start with a single cell and finish with a swimming animal. The ideas are th
 | Threshold | Micro | A cell ignores weak input and fires for strong input (rheobase). | Nothing | Lapicque measured in 1907 how much current excites a nerve; the weakest steady current that works is the rheobase. | Lapicque 1907 |
 | Excitation: weight and delay | Micro | A synapse has a weight (whether a spike gets through) and a delay (when). | Threshold | A chemical synapse delays a spike by about 0.5 to 4 ms; most of it is the time for calcium to trigger release. | Katz and Miledi 1965 |
 | Convergence | Micro | A cell adds up its inputs and can detect coincidence. | Threshold, Excitation | One spindle afferent gives a motoneuron about 0.1 mV; it needs about 10 mV to fire, so it fires only when many arrive together. | Mendell and Henneman 1971 |
-| Reflex arc | Task | Averaging many noisy inputs to tell a real touch from chatter. | Convergence | The sea slug Aplysia withdraws its gill when its siphon is touched, through many weak sensory synapses. | Castellucci and Kandel 1974 |
+| Reflex arc | Task | Averaging many noisy inputs to tell a real touch from chatter. | Threshold, Excitation, Convergence | The sea slug Aplysia withdraws its gill when its siphon is touched, through many weak sensory synapses. | Castellucci and Kandel 1974 |
 | Inhibition | Micro | An inhibitory cell silences its target; a sensor can only excite. | Threshold, Excitation | Lateral inhibition in the horseshoe crab eye sharpens contrast. | Hartline, Wagner and Ratliff 1956 |
 | Subtraction | Micro | Excitation minus inhibition on one cell gives a difference (ON minus OFF). | Inhibition, Convergence | The worm C. elegans has two salt neurons, ASEL and ASER, that respond in opposite ways. | Suzuki et al. 2008 |
-| Worm chemotaxis | Task | Using the difference signal to steer toward salt. | Subtraction (and Inhibition) | The worm steers by comparing the two salt neurons while crawling a gradient. | Suzuki et al. 2008; Thiele et al. 2009 |
+| Worm chemotaxis | Task | Using the difference signal to steer toward salt. | Excitation, Inhibition, Subtraction | The worm steers by comparing the two salt neurons while crawling a gradient. | Suzuki et al. 2008; Thiele et al. 2009 |
 | Adaptation | Micro | A cell that starts fast and then slows under a steady drive. | Threshold | Cortical pyramidal cells fire a fast burst then settle at a lower rate. | Connors and Gutnick 1990; Brette and Gerstner 2005 |
 | Tonic drive | Micro | A cell held just over threshold by a bias of its own hums at rest, so a cue can say "less". | Inhibition | Purkinje cells fire at about 50 spikes a second with no input. | Raman and Bean 1999 |
 | Half-centre | Micro | Two cells that inhibit each other and tire take turns. | Inhibition, Adaptation | Brown proposed in 1911 that stepping in the cat spinal cord comes from two half-centres. | Brown 1911; Grillner 2003 |
-| Lamprey swimmer | Task | A left-right rhythm that swims a body forward. | Half-centre | The lamprey spinal cord makes its swimming rhythm with two pools that inhibit each other. | Grillner 2003 |
+| Lamprey swimmer | Task | A left-right rhythm that swims a body forward. | Adaptation, Half-centre, Inhibition | The lamprey spinal cord makes its swimming rhythm with two pools that inhibit each other. | Grillner 2003 |
 
 ### Threshold
 
@@ -207,15 +208,17 @@ The spinal cord runs reflexes before the brain is involved. A motoneuron (a nerv
 |---|---|---|---|---|---|
 | Recruitment | Micro | Different thresholds grade force smoothly. | Threshold, Excitation | Small motoneurons fire first and big ones later: the size principle. | Henneman, Somjen and Carpenter 1965 |
 | Reciprocal inhibition | Micro | The antagonist is switched off when the agonist is driven. | Excitation, Inhibition | Sherrington saw that when flexors are excited their antagonists relax. | Sherrington 1906; Lloyd 1946 |
-| Stretch reflex | Task | A one-synapse reflex with reciprocal inhibition. | Reciprocal inhibition | The knee-jerk is monosynaptic: Ia fibres excite the same muscle's motoneurons directly. | Lloyd 1943; Eccles, Eccles and Lundberg 1957 |
+| Stretch reflex | Task | A one-synapse reflex with reciprocal inhibition. | Excitation, Inhibition, Convergence, Recruitment, Reciprocal inhibition | The knee-jerk is monosynaptic: Ia fibres excite the same muscle's motoneurons directly. | Lloyd 1943; Eccles, Eccles and Lundberg 1957 |
 | Recurrent inhibition | Micro | A Renshaw cell trims a motoneuron's own output. | Inhibition, Excitation | Renshaw found interneurons driven by the motoneurons' axon collaterals that inhibit them back. | Renshaw 1941; Eccles, Fatt and Koketsu 1954 |
-| Renshaw cell | Task | The recurrent loop calms tremor. | Recurrent inhibition | Renshaw cells release glycine and GABA onto the pool and act as a gain control. | Renshaw 1941; Hultborn, Jankowska and Lindstrom 1971 |
+| Renshaw cell | Task | The recurrent loop calms tremor. | Inhibition, Reciprocal inhibition, Recruitment, Recurrent inhibition | Renshaw cells release glycine and GABA onto the pool and act as a gain control. | Renshaw 1941; Hultborn, Jankowska and Lindstrom 1971 |
 | Negative feedback | Micro | A sensor that opposes the drive holds a value steady. | Inhibition, Excitation | Cannon's homeostasis: the body's variables are held steady by feedback. | Cannon 1929 |
-| Posture | Task | A spindle servo holds a limb up against gravity and pushes. | Negative feedback | Gamma motoneurons set the spindles' sensitivity; the reflex works as a length servo. | Merton 1953; Matthews 1972; Hulliger 1984 |
+| Posture | Task (branch) | A spindle servo holds a limb up against gravity and pushes. | Recruitment, Reciprocal inhibition, Excitation, Negative feedback | Gamma motoneurons set the spindles' sensitivity; the reflex works as a length servo. | Merton 1953; Matthews 1972; Hulliger 1984 |
 | Timed bursts | Micro | A chain of cells and delays makes a movement pattern. | Excitation, Threshold | The triphasic pattern: agonist, antagonist, agonist again. | Hallett, Shahani and Young 1975 |
-| Reach | Task | A triphasic burst moves the limb to a target. | Timed bursts | Fast accurate arm movements are made by a stereotyped triphasic burst. | Hallett et al. 1975; Berardelli et al. 1996 |
-| Spinal sprint | Boss | Hold, resist, reach and hold again in one circuit. | Everything above | The reflex does not know about your plans: it resists a voluntary movement. | Feldman 1986; Hallett et al. 1975; Hultborn 2006 |
+| Reach | Task (branch) | A triphasic burst moves the limb to a target. | Excitation, Inhibition, Reciprocal inhibition, Negative feedback, Timed bursts | Fast accurate arm movements are made by a stereotyped triphasic burst. | Hallett et al. 1975; Berardelli et al. 1996 |
+| Spinal sprint | Boss | Hold, resist, reach and hold again in one circuit. | Recruitment, Reciprocal inhibition, Recurrent inhibition, Negative feedback, Timed bursts | The reflex does not know about your plans: it resists a voluntary movement. | Feldman 1986; Hallett et al. 1975; Hultborn 2006 |
 | Diagnosis: the shaky arm | Diagnosis | Find the dead connection behind a tremor. | Recurrent inhibition, Negative feedback | Reduced recurrent inhibition has been proposed as one contributor to spasticity. | Williams and Baker 2009; Hultborn 2006 |
+
+The spine, in play order: Recruitment, Reciprocal inhibition, Stretch reflex, Recurrent inhibition, Renshaw cell, Negative feedback, Timed bursts, Spinal sprint. Posture and Reach are branches.
 
 ### Recruitment
 
@@ -245,7 +248,7 @@ Tap a tendon and the muscle twitches. The spindle fires Ia afferents that excite
 
 **Goal.** The motor reply to a tap must come within 50 ms. The reflex must cut the deflection to well below what the muscles' own stiffness would allow. The opposing muscle must be switched off. The limb must settle without ringing (too much reflex gain oscillates, which is called clonus).
 
-**Challenge variants.** Half the neurons (26 instead of 52). Heavy load: pushes of 3.5 N m instead of 2.5 N m.
+**Challenge variants.** Half the neurons (27 instead of 54). Heavy load: pushes of 3.5 N m instead of 2.5 N m.
 
 **Stuck?** A tendon tap sends one brief volley down the Ia fibres. One synapse onto the motoneurons has to be strong enough to fire several cells at once.
 
@@ -321,7 +324,7 @@ Fast movements are not steered by feedback. The nervous system fires a triphasic
 
 The spinal motor system does four jobs with the same few neurons. It holds the arm up against gravity, stands firm when pushed, reaches to a new target, and holds the new angle under more pushes. Nothing in the world is new: the arm is the one from Posture and the reach is the one from Reach. What is new is that every part must work with the others. The reflex that holds the arm against a push also resists the reach, and the burst must not set the arm ringing.
 
-**Goal.** Score how well the arm is held (root-mean-square and worst error against the displayed target), how well it reaches (time, overshoot, final error; three reaches of 0.30, 0.40 and 0.25 rad), no ringing after a push, and no creeping before go. Pushes arrive before, during and after the reaches.
+**Goal.** Score how well the arm is held (root-mean-square and worst error against the displayed target), how well it reaches (time, overshoot, final error; three reaches of 0.30, 0.40 and 0.25 rad), no ringing after a push, and no creeping before go. Pushes arrive before, during and after the reaches. The two phases are judged apart: when a run fails, the verdict opens with "Hold phase: held / not held yet. Reach phase: reached / not reached yet.", so you can tell which half to fix.
 
 **Stuck?** A ringing arm is a feedback loop with too much gain for its delays. Ask what damps a motor pool from within.
 
@@ -353,11 +356,11 @@ Here the cells are not integrate-and-fire. The sinoatrial (SA) node is a patch o
 |---|---|---|---|---|---|
 | Pacemaking | Micro | A cell that fires rhythmically with no input. | Threshold | A heart removed from the body keeps beating because SA node cells fire on their own. | DiFrancesco 1993; Jose and Collison 1970 |
 | Coupling | Micro | Two clocks of different speed lock together. | Pacemaking, Excitation | SA node cells differ in rate but the whole node beats at a single rate. | Jalife 1984 |
-| Sinoatrial pacemaker | Task | A coupled cluster agrees on one rhythm. | Pacemaking, Coupling | Coupled pacemaker cells; the intrinsic rate is about 100 per minute. | Jose and Collison 1970; Michaels, Matyas and Jalife 1987 |
+| Sinoatrial pacemaker | Task | A coupled cluster agrees on one rhythm. | Pacemaking, Coupling, Excitation, Threshold | Coupled pacemaker cells; the intrinsic rate is about 100 per minute. | Jose and Collison 1970; Michaels, Matyas and Jalife 1987 |
 | Feed-forward and feedback | Micro | Acting on a cue before the error appears. | Negative feedback, Excitation | Central command raises breathing and heart rate within seconds of starting exercise. | Krogh and Lindhard 1913 |
 | Neuromodulation | Micro | A chemical level changes how a cell behaves. | Pacemaking, Excitation | Loewi showed the vagus slows a frog heart through a released chemical. | Loewi 1921 |
-| Autonomic heart rate | Task | Two nerves, one node: follow a target heart rate. | Neuromodulation, Feed-forward | The node is slowed by vagal ACh and sped up by sympathetic NE. | Jose and Collison 1970; Levy 1971 |
-| Baroreflex | Task | Hold blood pressure through the brainstem. | Negative feedback, Neuromodulation | Baroreceptors in the carotid sinus and aortic arch fire faster when pressure rises. | Kirchheim 1976; Guyenet 2006 |
+| Autonomic heart rate | Task | Two nerves, one node: follow a target heart rate. | Neuromodulation, Feed-forward and feedback, Pacemaking, Excitation, Inhibition | The node is slowed by vagal ACh and sped up by sympathetic NE. | Jose and Collison 1970; Levy 1971 |
+| Baroreflex | Task | Hold blood pressure through the brainstem. | Negative feedback, Neuromodulation, Inhibition, Excitation | Baroreceptors in the carotid sinus and aortic arch fire faster when pressure rises. | Kirchheim 1976; Guyenet 2006 |
 | Diagnosis: the racing resting pulse | Diagnosis | Find the dead connection behind a fast resting pulse. | Neuromodulation, Negative feedback | Vagal withdrawal and resting tachycardia. | Jose and Collison 1970; Robinson et al. 1966 |
 | Diagnosis: faint on standing | Diagnosis | Find the dead connection behind low pressure on standing. | Negative feedback, Inhibition | Neurogenic orthostatic hypotension. | Freeman et al. 2011; Guyenet 2006 |
 
@@ -403,7 +406,7 @@ Feedback alone is always a little late: it reacts after the error has appeared. 
 
 **Goal.** A level (heart rate, say) has to stay at 0.5 plus or minus 0.1 while a workload pulls it down by 0.5. The effector is slow, so plain feedback lets the level sag by about 0.3. The first workload is announced by the sensor "cue" a quarter of a second ahead; the second, at 3.5 seconds, is not. Keep the level within 0.23 of the target during the announced workload and inside the band at the end of both. Too little cue leaves the dip; too much overshoots.
 
-**Stuck?** You need two routes into the effort cells: the level through an inhibitory cell (feedback), and the cue directly (feed-forward).
+**Stuck?** Feed-forward acts on a warning, before the error exists; feedback corrects the error that remains and the disturbances nobody announced. You need both.
 
 ### Neuromodulation
 
@@ -413,7 +416,7 @@ Not every nerve works through a synapse. The vagus releases acetylcholine near t
 
 **Goal.** A "vagus" signal comes on at 1.7 seconds. Build a cell the vagus drives, wire it to the "vagal" output (its spikes release ACh) and put a pacemaker cell on "beat". Make the heart slow by at least 25 percent, but not stop. The pacemaker needs no wiring from your vagus cell: it follows the ACh level by itself. You are scored on the beat interval at the end compared with the one before the vagus came on.
 
-**Stuck?** A neuromodulator changes how cells behave, slowly and over a whole region, instead of delivering one spike to one cell. Wire a cell that the vagus drives to the "vagal" output, which turns its spikes into ACh.
+**Stuck?** A neuromodulator changes how cells behave, slowly and over a whole region, instead of delivering one spike to one cell. The vagus releases acetylcholine, and the pacemaker responds to its level, not to a synapse.
 
 ### Autonomic heart rate
 
@@ -476,7 +479,7 @@ This is the shortest chapter: one micro-puzzle and one task. The key idea is tha
 | Level | Kind | What it teaches | Know first | The real biology | Citation |
 |---|---|---|---|---|---|
 | Rhythm and gating | Micro | A bursting cell makes a rhythm and a chemical signal tunes its speed. | Pacemaking, Excitation | The preBotzinger complex contains neurons that burst rhythmically by themselves. | Smith et al. 1991; Guyenet, Stornetta and Bayliss 2010 |
-| Breathing rhythm | Task | A network rhythm drives the diaphragm and CO2 closes the loop. | Rhythm and gating | Persistent-sodium bursters excite each other into a shared burst; chemoreceptors report CO2. | Smith et al. 1991; Feldman and Del Negro 2006 |
+| Breathing rhythm | Task | A network rhythm drives the diaphragm and CO2 closes the loop. | Rhythm and gating, Pacemaking, Coupling, Excitation, Negative feedback | Persistent-sodium bursters excite each other into a shared burst; chemoreceptors report CO2. | Smith et al. 1991; Feldman and Del Negro 2006 |
 | Diagnosis: stops breathing in sleep | Diagnosis | Find the dead connection behind a silent CO2 response. | Rhythm and gating, Negative feedback | Congenital central hypoventilation: breathing fails in sleep. | Amiel et al. 2003; Weese-Mayer et al. 2010 |
 
 ### Rhythm and gating
@@ -525,12 +528,12 @@ The last body chapter puts two opposing nerve systems into one body. The parasym
 
 | Level | Kind | What it teaches | Know first | The real biology | Citation |
 |---|---|---|---|---|---|
-| Pupil light reflex | Task | A two-muscle servo with a fast and a slow nerve. | Negative feedback, Inhibition | Light closes the pupil via pretectum, Edinger-Westphal nucleus and ciliary ganglion; darkness opens it by the sympathetic chain. | McDougal and Gamlin 2015; Loewenfeld 1993 |
+| Pupil light reflex | Task | A two-muscle servo with a fast and a slow nerve. | Excitation, Inhibition, Reciprocal inhibition | Light closes the pupil via pretectum, Edinger-Westphal nucleus and ciliary ganglion; darkness opens it by the sympathetic chain. | McDougal and Gamlin 2015; Loewenfeld 1993 |
 | Travelling wave | Micro | Excitation behind and inhibition ahead moves things along. | Excitation, Inhibition | The law of the intestine: the gut contracts above a bolus and relaxes below it. | Bayliss and Starling 1899 |
-| Peristalsis | Task | A chain of segments moves a bolus down a gut. | Travelling wave | The enteric nervous system runs two interneuron chains; interstitial cells of Cajal set a slow wave. | Bayliss and Starling 1899; Furness 2012 |
+| Peristalsis | Task | A chain of segments moves a bolus down a gut. | Travelling wave, Excitation, Inhibition, Timed bursts | The enteric nervous system runs two interneuron chains; interstitial cells of Cajal set a slow wave. | Bayliss and Starling 1899; Furness 2012 |
 | Divergent command | Micro | One command, many effectors, each with its own strength and sign. | Excitation, Inhibition | Cannon: fear makes the sympathetic nervous system act as a unit. | Cannon 1915 |
-| Fight or flight | Task | One threat cue reshapes heart, vessels, pupil and breathing. | Divergent command | The hypothalamus and brainstem fan out to sympathetic ganglia while the parasympathetic side is switched off. | Cannon 1915; Dampney 1994 |
-| Autonomic exam | Boss | A day in two minutes: rest, stand, exercise, fright, recovery. | Everything in the chapter | Central command resets the baroreflex during exercise. | Raven, Fadel and Ogoh 2006; Rowell and O'Leary 1990; Dampney 1994 |
+| Fight or flight | Task | One threat cue reshapes heart, vessels, pupil and breathing. | Divergent command, Neuromodulation, Reciprocal inhibition, Excitation | The hypothalamus and brainstem fan out to sympathetic ganglia while the parasympathetic side is switched off. | Cannon 1915; Dampney 1994 |
+| Autonomic exam | Boss | A day in two minutes: rest, stand, exercise, fright, recovery. | Negative feedback, Feed-forward and feedback, Neuromodulation, Divergent command, Rhythm and gating | Central command resets the baroreflex during exercise. | Raven, Fadel and Ogoh 2006; Rowell and O'Leary 1990; Dampney 1994 |
 | Diagnosis: the small pupil | Diagnosis | Find the dead connection behind a small pupil. | Negative feedback, Inhibition | Interruption of the sympathetic chain (Horner syndrome). | Kanagalingam and Miller 2015 |
 | Diagnosis: food that will not pass | Diagnosis | Find the dead connection behind slow propulsion. | Inhibition, Travelling wave | Loss of inhibitory (nitrergic) neurons in the gut wall. | Goyal and Chaudhury 2010; Pandolfino and Gawron 2015 |
 
@@ -564,7 +567,7 @@ Food moves along the gut because the gut squeezes behind a bolus (a lump of food
 
 The gut moves food by itself. When a bolus stretches the wall, sensory neurons of the enteric nervous system (the gut's own nerve network) fire, and two interneuron chains answer: an ascending one excites motoneurons just behind the bolus, which release ACh and contract, and a descending one excites inhibitory motoneurons ahead, which release nitric oxide and VIP and relax. Interstitial cells of Cajal run a slow wave of 12 per minute that decides when the muscle can contract.
 
-**Goal.** Stretch sensors dist0 to dist7 feed interneurons that drive eight excitatory motor pools ach0 to ach7. That alone gives half of the law of the intestine and is not enough. The bolus must reach the end of the tube within 25 seconds. You may also add your own slow-wave pacemakers on the icc outputs, which then replace the built-in clock.
+**Goal.** Eight stretch sensors, dist0 to dist7, report where the bolus is. The motor pools you can drive are listed on the level card. The gut has its own slow wave that decides when the muscle can contract. The bolus must reach the end of the tube within 25 seconds. You may also add your own slow-wave pacemakers on the icc outputs, which then replace the built-in clock.
 
 **Challenge variants.** Half the neurons (25 instead of 49). Fast transit: the bolus must arrive within 15 seconds.
 
@@ -576,9 +579,9 @@ The gut moves food by itself. When a bolus stretches the wall, sensory neurons o
 
 When something frightening appears the body does not decide organ by organ. One command fans out to many effectors at once, each with its own strength and sign.
 
-**Goal.** A threat cue "alarm" arrives at about 1 second for 1.2 seconds. Four effectors listen. The heart must go from silence to at least 100 spikes per second. The pupil and the sweat glands go to a gentler 15 to 80 spikes per second. All three start within 100 ms of each other. The gut, which holds a little tone of about 40 spikes per second, must fall to a third of that or less. Everything must return to rest after the cue. A sensor has one weight, so it drives every cell it touches equally; you need something in between to give each effector its own strength.
+**Goal.** A threat cue "alarm" arrives at about 1 second for 1.2 seconds. Four effectors listen. The heart must go from silence to at least 100 spikes per second. The pupil and the sweat glands go to a gentler 15 to 80 spikes per second. All three start within 100 ms of each other. The gut, which holds a little tone of about 40 spikes per second, must fall to a third of that or less. Everything must return to rest after the cue. A sensor has one weight, so it drives every cell it touches equally.
 
-**Stuck?** The effectors need different strengths and one the opposite sign. A command group with a separate weight to each target does that.
+**Stuck?** Divergence: one command fans out to many targets, so many organs act together; the sign can differ per target (excitation for some, inhibition for others).
 
 ### Fight or flight
 

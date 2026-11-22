@@ -145,6 +145,7 @@ func _process(dt: float) -> void:
 	if _banner != null:
 		_banner.modulate.a = 1.0 - clampf((_t - 2.2) / 0.6, 0.0, 1.0); _banner.k = clampf(_t / 0.25, 0.0, 1.0); _banner.queue_redraw()
 		_banner.position = (size - _banner.size) * 0.5
+		_banner.visible = not held   # the end card carries its own PASSED stamp: a second one over its buttons (a short episode, a phone) is one too many
 	if _editor != null and is_instance_valid(_editor) and _editor.trail_u >= 0.0:
 		var loop := _t / TRAIL_LOOP_S
 		_editor.trail_u = -1.0 if loop >= float(TRAIL_LOOPS) else fposmod(loop, 1.0)

@@ -48,9 +48,9 @@ Use it for a graded signal such as a stretch, a pressure or a level. Many micro-
 
 Examples:
 
-- **Spinal limb.** The sensors `ag_Ia`, `ant_Ia`, `ag_II` and `ant_II` are `dc` inputs. The task writes the receptor's firing rate in Hz of a muscle spindle, and the circuit's input weight turns each hertz into 4 pA. Receptor cells then fire regularly at about that rate. Real stretch receptors are very regular, so a smooth current is a fair stand-in. The first versions used Poisson trains, but their noise made the limb tremble.
+- **Spinal limb.** The sensors `ag_Ia`, `ant_Ia`, `ag_II` and `ant_II` are `dc` inputs. The task writes the firing rate in Hz of a muscle spindle, and the sensor's weight turns each hertz into a current. Real stretch receptors are very regular, so a smooth current is a fair stand-in. The first versions used Poisson trains, but their noise made the limb tremble.
 - **Lamprey.** The sensor `drive` is a `dc` input. The brainstem command to swim is held at 1.0, the full command, and the weight sets how many picoamps that is.
-- **Breathing.** The sensor `chemo` is a `dc` input in picoamps: the level adds the carotid-body rate and the central chemoreceptor rate and scales them. At rest it is about 13 Hz, which becomes about 51 pA. Five per cent CO2 is about three times that.
+- **Breathing.** The sensor `chemo` is a `dc` input in picoamps: the level adds the carotid-body and central chemoreceptor rates and scales them into a current that rises with blood CO2.
 
 ### Poisson input
 
@@ -65,7 +65,7 @@ Examples:
 - **Pupil.** `retina` is a Poisson rate from the eye model (5 to 100 Hz per fibre, times four fibres). `threat` is 0 normally and 250 Hz during the fright cue.
 - **Breathing.** `drive` is a constant Poisson rate of 200 Hz into whatever cells you wire.
 
-You can also add a free noise input yourself with **+ Noise** (the button opens at the first level that needs it, and is always open in the sandbox). It starts as a Poisson input at 30 Hz with a weight of half the usual first-connect weight. Use it for background drive, or to test whether a circuit survives chatter. In the inspector, a stepper switches it between **Poisson spikes** and **DC current**.
+You can also add a free noise input yourself with **+ Noise** (the button opens at the first level that needs it, and is always open in the sandbox). It starts as a Poisson input at 30 Hz with a weight of half the usual first-connect weight. In the inspector, a stepper switches it between **Poisson spikes** and **DC current**. It is meant for the sandbox, where you drive cells with it. A level scores only the sensors it declares, so on a level a wired free input (a `noise` that the level does not list) makes the run unable to pass: the score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Renshaw cell, whose own sensor is called `noise`, is the exception.
 
 ### Rate drive
 
@@ -73,7 +73,7 @@ A **rate drive** feeds rate units (population rates, no spikes). The value the l
 
 Only rate populations may be targets. Spiking inputs on rate populations are refused when the circuit loads, and rate drives on spiking cells likewise.
 
-Example: **Two populations that make a rhythm** drives its excitatory and inhibitory units with a `drive`. **Two populations, one winner** has two drives, `a_in` and `b_in`.
+Example: **Two populations that make a rhythm** has a `drive`. **Two populations, one winner** has two drives, `a_in` and `b_in`.
 
 > **Note:** The drive is added to the unit's rate directly, not through its nonlinearity. This differs from the original Wilson-Cowan equations, where the stimulus goes through the sigmoid. A rate can read above 1, and inhibition cannot cancel the drive. See [what is real](what-is-real.html).
 
@@ -85,7 +85,7 @@ A **tuned** input says: "the stimulus is at this angle", and each cell it reache
 
 The settings of the curve are fixed by the level: `rate_max` (default 50 Hz), `rate_base` (default 0), `kappa` (default 2, higher is narrower) and the period (360 degrees for a direction, 180 for an orientation). You do not edit them. The level sets the stimulus angle, in degrees.
 
-Used by the three Tuning levels. The cells it reaches are usually parrot relays, so the tuned input stays outside the cell models. See [campaign-theory](campaign-theory.html).
+Used by the three Tuning levels. See [campaign-theory](campaign-theory.html).
 
 ### Spike trains and sinusoidal Poisson
 
@@ -94,7 +94,7 @@ Two more kinds exist for circuit files, Python and `spike-run`. They are not par
 - `spike_generator` emits spikes at the exact times you list, in milliseconds. Times must sit on the resolution grid (usually 0.1 ms), be above 0 and be sorted.
 - `sinusoidal_poisson` has a rate `max(0, rate + amplitude * sin(2 pi freq t + phase))`. Use it for an oscillating drive such as a theta rhythm. The frequency must be below the Nyquist limit of the resolution.
 
-See [a circuit is data](circuit-is-data.html).
+These two are for the sandbox, the command line and Python. On a level, a circuit that carries a `spike_generator`, or any input channel the level does not drive, is not allowed to pass: its score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Free noise from **+ Noise** is a Poisson input that the lab marks as yours, and it is the way to test a circuit against chatter. See [a circuit is data](circuit-is-data.html).
 
 ## Output kinds
 
@@ -110,8 +110,8 @@ See [a circuit is data](circuit-is-data.html).
 The default motor card. The level counts the spikes of the connected neurons. Most levels use the mean rate **per neuron**, in hertz, often smoothed over a few tens of milliseconds, and then convert it into a drive for a body part. The conversions are explicit and are part of each level's design. For example:
 
 - Breathing: the phrenic motor rate, divided by a reference rate, gives the inspiratory drive from 0 to 1.
-- Pupil: the sphincter and dilator pools are divided by 40 Hz to give each muscle's drive from 0 to 1.
-- Spinal limb: the pool's **total** rate (neurons times the mean rate) divided by what 20 motor units can use at their peak gives the muscle's drive. So the pool **size** matters. One motor neuron at its top rate drives one twentieth of the muscle. Every spinal design has to decide how many cells to use.
+- Pupil: the sphincter and dilator rates, divided by a reference rate, give each muscle's drive from 0 to 1.
+- Spinal limb: the pool's **total** rate (neurons times the mean rate), divided by what a full pool can use at its peak, gives the muscle's drive. So the pool **size** matters. Every spinal design has to decide how many cells to use.
 - Reflex: spikes of the withdraw pool are counted in a 25 ms window. A burst is a window with enough spikes (at least 3, or half the pool if it has more than 6 cells).
 
 > **Note:** The engine can give the **summed** pool rate or the **per neuron** mean. A level says which it uses in its brief and in the pass rule. If a level is judged on the mean rate, adding cells does not raise it. If it is judged on a total, adding cells does.
@@ -132,15 +132,15 @@ In the lab, a motor card of such a level has a stepper with **Rate readout** and
 
 Each spike adds the gain to a pool. The pool decays with time constant tau. The inspector shows the steady-state level for 20 spikes per second. See [synapses and modulators](synapses-and-modulators.html#neuromodulation) for what the level does afterwards.
 
-Example: **Autonomic heart rate** has three motor cards. `sa_beat` is a rate readout of the pacemaker cells. `vagal` and `sympathetic` are modulator outputs of two *different* groups of release cells, because a controller needs two branches that push in opposite directions.
+Example: **Autonomic heart rate** has three motor cards. `sa_beat` is a rate readout of the pacemaker cells. `vagal` and `sympathetic` are modulator outputs.
 
 ### Ring readout (population vector)
 
-A **ring readout** reads a bump of activity on a ring of cells and turns it into an angle. The cells are laid out in order: cell k of N has the preferred angle `360 * k / N` degrees, cell 0 at the top. After every step the engine adds up one arrow per spike, each pointing at its cell's angle. The direction of the sum is the bump angle. The length of the sum, divided by the number of spikes, is the **strength** from 0 to 1. A strength of 1 means all spikes sit at one angle. A tidy bump of a half-rectified cosine shape gives about 0.79. A flat or cancelling ring gives 0. With no spikes in a step, there is no direction.
+A **ring readout** reads a bump of activity on a ring of cells and turns it into an angle. The cells are laid out in order: cell k of N has the preferred angle `360 * k / N` degrees, cell 0 at the top. After every step the engine adds up one arrow per spike, each pointing at its cell's angle. The direction of the sum is the bump angle. The length of the sum, divided by the number of spikes, is the **strength** from 0 to 1. A strength of 1 means all spikes sit at one angle. A flat or cancelling ring gives 0. With no spikes in a step, there is no direction.
 
-You must connect the **whole ring group, in order**. The order you wire the cells decides the angles. A group wired in reverse reads as a mirror image. A cell can appear only once.
+You must connect the **whole ring group, in order**. The order you wire the cells decides the angles. A group wired in reverse reads as a mirror image. A cell can appear only once (the engine refuses a ring that lists a neuron twice).
 
-Used by the fly compass levels, and by **Reading a direction from a crowd**. In the lab the **Rate readout / Ring readout** stepper appears on such a card. The world panel draws it as a dial: the ink needle is the true heading, the cyan needle is the bump (its length is how sharp the bump is), and a mark on the rim is the landmark while the lights are on.
+Used by the fly compass levels, and by **Reading a direction from a crowd**. In the lab the **Rate readout / Ring readout** stepper appears on such a card. On the compass levels the world panel draws the ring as sixteen wedges washed by their cells' firing, the bump as a needle, a tick on the rim for the true heading and another for the landmark while the lights are on.
 
 ### Rate value
 
@@ -169,16 +169,26 @@ Names from the reference circuits (the level may add more sensors than a referen
 | Stretch reflex | `ag_Ia`, `ant_Ia`, `drive` (dc) | `ag_motor`, `ant_motor` (rate) |
 | Renshaw cell | `ag_Ia`, `ant_Ia`, `drive` (dc), `noise` (Poisson) | `ag_motor`, `ant_motor` (rate) |
 | Posture | `ag_Ia`, `ant_Ia`, `ag_II`, `ant_II`, `drive` (dc) | `ag_motor`, `ant_motor`, `gamma_motor` (rate) |
-| Reach | `go`, `target`, `ag_Ia`, `ant_Ia`, `drive` (dc) | `ag_motor`, `ant_motor`, `burst0` to `burst2` (rate) |
+| Reach | `go`, `target`, `ag_Ia`, `ant_Ia`, `drive` (dc) | `ag_motor`, `ant_motor`, `burst1` to `burst3` (rate) |
+| Spinal sprint (boss) | `ag_Ia`, `ant_Ia`, `ag_II`, `ant_II`, `drive`, `go`, `target` (dc) | `ag_motor`, `ant_motor`, `gamma_motor`, `burst1` to `burst3` (rate) |
+| Tonic drive | `cue` (dc) | `spikes` (rate) |
+| Recurrent inhibition | `drive`, `kick` (dc) | `mn` (rate) |
+| Negative feedback | `tone`, `level` (dc) | `effort` (rate) |
+| Feed-forward and feedback | `tone`, `level`, `cue` (dc) | `effort` (rate) |
+| Timed bursts | `go` (dc) | `b1`, `b2`, `b3` (rate) |
 | Pacemaking, Coupling | none | `beat` or `a`, `b` (rate) |
 | Sinoatrial pacemaker | none | `sa_beat` (rate) |
 | Neuromodulation | `vagus` (dc) | `beat` (rate), `vagal` (modulator) |
 | Autonomic heart rate | `exercise_cue`, `hr_too_low`, `hr_too_high` (Poisson) | `sa_beat` (rate), `vagal`, `sympathetic` (modulator) |
 | Baroreflex | `baroreceptor` (Poisson) | `sa_beat` (rate), `vagal`, `sympathetic` (modulator) |
+| Rhythm and gating | `chemo` (dc) | `phrenic` (rate) |
 | Breathing rhythm | `drive` (Poisson), `chemo` (dc) | `phrenic` (rate) |
+| Travelling wave | `tone`, `dist1`, `dist2` (dc) | `seg0` to `seg2` (rate) |
+| Divergent command | `alarm`, `tone` (dc) | `heart`, `pupil`, `sweat`, `gut` (rate) |
 | Pupil light reflex | `retina`, `threat` (Poisson) | `sphincter`, `dilator` (rate) |
 | Peristalsis | `dist0` to `dist7` (Poisson) | `ach0` to `ach7`, `no0` to `no7`, `icc0` to `icc7` (rate) |
 | Fight or flight | `threat` (Poisson) | `sa_beat`, `sym_vascular`, `dilator`, `sphincter`, `vent` (rate), `sympathetic`, `vagal` (modulator) |
+| Autonomic exam (boss) | `baroreceptor`, `exercise_cue`, `threat`, `chemo` (Poisson) | `sa_beat`, `dilator`, `sphincter`, `vent` (rate), `vagal`, `sympathetic` (modulator) |
 | Worm chapter | `touch`, `stop`, `push_rev`, `push_fwd`, `touch_head`, `touch_tail` (Poisson) | `reverse`, `forward` (rate) |
 | Leech chapter | `drive` (dc), `inhibit` (Poisson) | `burst`, `rebound`, `left`, `right` (rate) |
 | Aplysia chapter | `touch`, `shock` (Poisson) | `gill` (rate), `serotonin` (modulator) |
@@ -190,7 +200,7 @@ Names from the reference circuits (the level may add more sensors than a referen
 | Attractor memory chapter | `cue`, `cue_a`, `cue_b`, `show` (Poisson) | `memory`, `a`, `b` (rate) |
 | Tuning chapter | `stim` (tuned Poisson) | `resp` (rate), `heading` (ring readout) |
 
-Not every sensor on this list is used by every level of its chapter: levels share a family of circuits. The brief of a level names the cards it provides.
+Not every sensor on this list is used by every level of its chapter: levels share a family of circuits. The brief of a level names the cards it provides. A diagnosis case has the cards of the level it was made from.
 
 ## Reading the cards: a few habits
 
