@@ -2,22 +2,6 @@
 
 ## [Unreleased]
 
-Fixes from a fact-check of the documentation against the code.
-
-### Fixed
-- **Parts bin:** cards for `iaf_cond_alpha` (the spinal levels, the lamprey) and for the generic `izhikevich` cell (a, b, c and d free), so a player can build what the reference circuits build. `tasks_rules_test` checks that every model a reference uses has a card that is open on that level.
-- **Group size:** the "neurons in group" stepper offers every size a reference uses (it had no 16, which the compass chapter asks for) and keeps a size loaded from a file.
-- **+ Noise** is offered in the sandbox only. On a level it added an input the level does not declare, which the honesty guard (rightly) refuses and caps at 49; undeclared stimulus is a cheat, so the button is gone from levels and the verdict now says plainly why a run with a stimulus of its own cannot pass.
-- **Stars:** the brief panel's star line and the Check tooltip describe the current rules (five worlds, the challenge, the recipe, Guided at two stars). The SA-node card says about 99 beats per minute (about 67 with ACh 0.5).
-- **Briefs** of `worm`, `peristalsis` and five micro-puzzles (`m_wave`, `m_reciprocal`, `m_timed_bursts`, `m_recurrent`, `m_feedforward`) keep the goal and the idea; the wiring is in the hint ladder and the recipe.
-- **Par** is the neuron count of the level's reference circuit plus a declared slack (`Task::par_slack`, stated on the level card). Twelve levels had a par below their reference (reflex 16 to 23, lamprey 16 to 18, stretch reflex 54 to 60, posture 54 to 56, reach 55 to 56, breathing 26 to 28, and the micro-puzzles m_reciprocal, m_recurrent, m_negative_feedback, m_feedforward, m_wave, m_divergent). The micro-puzzles' third star is now a looser challenge.
-- **Half the neurons** rounds up in the lab as it does in the engine (the lab rounded down); the lab asks the engine.
-- **Parents** of Posture and Reach (and of every diagnosis case) are declared by the engine (`Task::parent`), not guessed by the map.
-- **Neuron limit:** the game refuses more than the engine's 20000 neurons in total (it refused more than 2000, and 400 in a group); the number comes from the engine.
-- **Python package:** a missing seed is 1 (it was 0, which NEST refuses and the engine never uses), and it mirrors the engine's load limits; it says plainly that the Theory wing's inputs and populations are not supported yet.
-- Dead and stale: `Task::Challenge::no_modulators` (never set) is removed; comments in `spinal_limb.h` and `tasks_cheap_test.cpp` corrected.
-- **Visuals:** venous blood and the right heart are slate, hatched the other way (blue is for inhibition only); a small bench no longer drops an ordinary circuit to the 15% zoom floor with its cards cut off (the cards narrow first); the notebook card no longer follows the player into the next tutorial step; on a phone the chapter plates show the band that holds the pins instead of a small picture, and the view chip is one word.
-
 ## [0.5.0] - 2026-11-22 — The Bestiary, the Theory wing, and stars that mean something
 
 0.5 adds two new wings to the campaign (design: `docs/DESIGN-0.5.md`, `docs/DESIGN-THEORY.md`), turns diagnosis into a second core loop, and was followed by two enhancement waves that hardened the engine and the save files, rewrote the circuit editor, added a tutorial and made the stars mean something. The campaign now has 79 levels. The 0.6 Theory notes that were kept as "Unreleased" are folded in here: there is no separate 0.6.
@@ -59,6 +43,18 @@ Fixes from a fact-check of the documentation against the code.
 - Documentation: the SA-node cell beats at about 99 per minute with no autonomic input and about 67 with ACh 0.5 (measured with `spike-run`); `docs/models`, `docs/body/heart.md` and the wiki now agree, and the heart module's own fallback rule (105) is said to be a different thing. The gut docs now say the module defaults to 12 segments and the peristalsis level uses 8.
 - An empty bench scores 0.
 - Several tuning, diagnosis and compass fixes (`t_tuned` judged by weights, `t_sharpen` steady across seeds, mean-subtracted STA, compass overshoot called "too strong", `dx_leech` patient robust on every seed, `dx_aplysia` findings no longer name the answer).
+- **Parts bin:** cards for `iaf_cond_alpha` (the spinal levels, the lamprey) and for the generic `izhikevich` cell (a, b, c and d free), so a player can build what the reference circuits build. `tasks_rules_test` checks that every model a reference uses has a card that is open on that level.
+- **Group size:** the "neurons in group" stepper offers every size a reference uses (it had no 16, which the compass chapter asks for) and keeps a size loaded from a file.
+- **+ Noise** is offered in the sandbox only. On a level it added an input the level does not declare, which the honesty guard (rightly) refuses and caps at 49; undeclared stimulus is a cheat, so the button is gone from levels and the verdict now says plainly why a run with a stimulus of its own cannot pass.
+- **Stars:** the brief panel's star line and the Check tooltip describe the current rules (five worlds, the challenge, the recipe, Guided at two stars). The SA-node card says about 99 beats per minute (about 67 with ACh 0.5).
+- **Briefs** of `worm`, `peristalsis` and five micro-puzzles (`m_wave`, `m_reciprocal`, `m_timed_bursts`, `m_recurrent`, `m_feedforward`) keep the goal and the idea; the wiring is in the hint ladder and the recipe.
+- **Par** is the neuron count of the level's reference circuit plus a declared slack (`Task::par_slack`, stated on the level card). Twelve levels had a par below their reference (reflex 16 to 23, lamprey 16 to 18, stretch reflex 54 to 60, posture 54 to 56, reach 55 to 56, breathing 26 to 28, and the micro-puzzles m_reciprocal, m_recurrent, m_negative_feedback, m_feedforward, m_wave, m_divergent). The micro-puzzles' third star is now a looser challenge.
+- **Half the neurons** rounds up in the lab as it does in the engine (the lab rounded down); the lab asks the engine.
+- **Parents** of Posture and Reach (and of every diagnosis case) are declared by the engine (`Task::parent`), not guessed by the map.
+- **Neuron limit:** the game refuses more than the engine's 20000 neurons in total (it refused more than 2000, and 400 in a group); the number comes from the engine.
+- **Python package:** a missing seed is 1 (it was 0, which NEST refuses and the engine never uses), and it mirrors the engine's load limits; it says plainly that the Theory wing's inputs and populations are not supported yet.
+- Dead and stale: `Task::Challenge::no_modulators` (never set) is removed; comments in `spinal_limb.h` and `tasks_cheap_test.cpp` corrected.
+- **Visuals:** venous blood and the right heart are slate, hatched the other way (blue is for inhibition only); a small bench no longer drops an ordinary circuit to the 15% zoom floor with its cards cut off (the cards narrow first); the notebook card no longer follows the player into the next tutorial step; on a phone the chapter plates show the band that holds the pins instead of a small picture, and the view chip is one word.
 
 ### Known gaps
 - **`leech_heart` teaches release only.** The level now tests escape versus release with a small test current and reads which one the circuit shows, but no cell in the parts bin makes a robust escape oscillator (it needs an h-current cell), so the escape branch of the check has never run on a real circuit.
