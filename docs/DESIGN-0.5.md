@@ -8,7 +8,7 @@
 - **Real wiring:** only `worm_touch` (OpenWorm `cect`, Cook et al. 2019 counts). The fly compass and mushroom body are built from published cell types, not synapse-level data, and the crab is hand-entered. The fly connectome excerpt was never extracted (the hosts were unreachable), so the "excerpt" rows are not met.
 - **Engine:** `tsodyks2_synapse` depression, modulator gating of a synapse parameter, dopamine-gated learning (`ProjectionInfo::dopamine_source`), the `population_vector` ring output, `spike_generator` and `sinusoidal_poisson` inputs and the `stg_cell` NESTML cell all shipped. Graded transmission stayed a spike-only approximation (said on the What-is-real page).
 - **Bestiary map plates** are engraved (`tools/art/plates.py`), and the map has a wing selector (Body / Bestiary / Theory).
-- Not done: the leech heart level's escape-versus-release concept (a rework is planned), 0.6 species (locust, zebrafish, barn owl, songbird, cat, rat) and any real fly synapse data.
+- Leech heart: reworked after 0.5.0 to read escape versus release from the response to a test current (`docs/circuits/bestiary_a.md`); only the release kind has a tested reference, see What-is-real. Not done: 0.6 species (locust, zebrafish, barn owl, songbird, cat, rat) and any real fly synapse data.
 
 Research: `research/bestiary-a.md` (0.5 species), `research/bestiary-b.md` (0.6 species). Numbers tagged `[mem]`/`[M]` there are unverified and may not reach player text until checked.
 

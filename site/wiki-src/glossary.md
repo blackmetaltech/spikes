@@ -89,6 +89,8 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Episode.** One run of a level, from time zero to the level's duration.
 
+**Escape or release.** Two cells that inhibit each other can take turns in two ways. In release the active cell tires and lets go. In escape the silenced cell recovers by itself and breaks away while the other is still firing. The bursts look alike; the response of the cycle to driving one cell harder tells them apart. Taught in Leech: the heartbeat.
+
 **Excitation.** An excitatory synapse pushes the next cell toward threshold. Its weight sets how far, its delay how late. Taught in Excitation: weight and delay.
 
 **Excitatory.** Pushes other cells toward firing. Drawn in sienna.
