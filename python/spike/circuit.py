@@ -265,6 +265,97 @@ def load_circuit(circuit) -> dict:
     return spec
 
 
+_FREE_PARAMS = {"sign": "sign", "scale": "range"}   # the parameters a group may declare free (engine/src/circuit.cpp kFreeParams); a later one is one more row here
+_GROUP_KEYS = {"id", "label", "pops", "sign", "scale", "free", "ranges"}
+
+
+def apply_groups(spec: dict) -> dict:
+    """The circuit with its cell-type groups applied (docs/CIRCUIT-FORMAT.md "Locked parts and groups", 0.6): the weight of every connection of every projection whose
+    presynaptic population is in a group becomes |stored weight| x scale x sign (`weight_sd` is multiplied by scale), exactly as the C++ engine does at load. Returns a
+    new dict without "groups" (so applying it twice cannot apply the groups twice) and without the "locked" flags; a spec without groups and flags comes back unchanged
+    in content. `locked` is not enforced here: the package runs any circuit (the lock is the game's and the levels' concern: engine/src/tasks/registry.cpp)."""
+    import copy
+
+    out = copy.deepcopy(spec)
+    for p in out.get("populations", []):
+        if isinstance(p, dict) and "locked" in p:
+            if not isinstance(p["locked"], bool):
+                raise CircuitError("populations[%d].locked: must be true or false" % out["populations"].index(p))
+            del p["locked"]
+    groups = out.pop("groups", None)
+    for k, pr in enumerate(out.get("projections", [])):
+        if isinstance(pr, dict) and "locked" in pr:
+            if not isinstance(pr["locked"], bool):
+                raise CircuitError(f"projections[{k}].locked: must be true or false")
+            if pr["locked"] and "edges" not in pr:
+                raise CircuitError(f"projections[{k}]: a locked projection lists its edges (the wiring is data, not a rule that draws it)")
+            del pr["locked"]
+    if groups is None:
+        return out
+    if not isinstance(groups, list):
+        raise CircuitError("groups: must be an array")
+    pop_ids = [p["id"] for p in out.get("populations", [])]
+    of_pop: dict[str, tuple[float, int]] = {}   # population id -> (scale, sign)
+    seen: set[str] = set()
+    for i, g in enumerate(groups):
+        path = f"groups[{i}]"
+        if not isinstance(g, dict):
+            raise CircuitError(f"{path}: must be an object")
+        for key in g:
+            if key not in _GROUP_KEYS:
+                raise CircuitError(f"{path}.{key}: unknown key")
+        gid = g.get("id")
+        if not isinstance(gid, str) or not gid or gid in seen:
+            raise CircuitError(f"{path}.id: must be non-empty and unique among groups")
+        seen.add(gid)
+        pops = g.get("pops")
+        if not isinstance(pops, list) or not pops:
+            raise CircuitError(f"{path}.pops: must be a non-empty array of population ids")
+        sign = g.get("sign", 1)
+        if isinstance(sign, bool) or not isinstance(sign, (int, float)) or sign not in (1, -1):
+            raise CircuitError(f"{path}.sign: must be +1 or -1")
+        scale = g.get("scale", 1.0)
+        if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not 0.0 < scale <= 1e6:
+            raise CircuitError(f"{path}.scale: must be a positive number")
+        free = g.get("free", [])
+        ranges = g.get("ranges", {})
+        if not isinstance(free, list) or not isinstance(ranges, dict):
+            raise CircuitError(f"{path}.free: must be an array of parameter names (and ranges an object)")
+        for name in free:
+            if name not in _FREE_PARAMS:
+                raise CircuitError(f"{path}.free: unknown free parameter '{name}' (this package knows sign and scale)")
+            if _FREE_PARAMS[name] == "range":
+                rg = ranges.get(name)
+                if not (isinstance(rg, list) and len(rg) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in rg) and 0.0 < rg[0] <= rg[1]):
+                    raise CircuitError(f"{path}.ranges: a free '{name}' needs a range [lo, hi] with 0 < lo <= hi")
+        for name in ranges:
+            if name not in free:
+                raise CircuitError(f"{path}.ranges: '{name}' has a range but is not in the free list")
+        for pid in pops:
+            if pid not in pop_ids:
+                raise CircuitError(f"{path}.pops: unknown population '{pid}'")
+            if pid in of_pop:
+                raise CircuitError(f"{path}.pops: population '{pid}' is already in a group (a population is in at most one cell type)")
+            of_pop[pid] = (float(scale), 1 if sign > 0 else -1)
+    for k, pr in enumerate(out.get("projections", [])):
+        pre = str(pr.get("pre")).split(".")[0]
+        if pre not in of_pop:
+            continue
+        scale, sign = of_pop[pre]
+        factor = scale * sign
+        if "edges" in pr:
+            pr["edges"] = [[e[0], e[1], abs(float(e[2])) * factor, *e[3:]] for e in pr["edges"]]
+        else:
+            syn = pr.setdefault("synapse", {})
+            w = syn.get("weight", 1.0)
+            if isinstance(w, bool) or not isinstance(w, (int, float)):
+                raise CircuitError(f"projections[{k}].synapse.weight: a projection out of a cell-type group needs a plain number as its weight")
+            syn["weight"] = abs(float(w)) * factor
+        if isinstance(pr.get("weight_sd"), (int, float)):
+            pr["weight_sd"] = pr["weight_sd"] * scale
+    return out
+
+
 _SINE_KEYS = {"rate": "rate", "amplitude": "amplitude", "freq_hz": "frequency", "phase": "phase"}
 INPUT_KINDS = ("dc", "poisson", "spike_generator", "sinusoidal_poisson")
 
@@ -732,6 +823,7 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
     spec = load_circuit(circuit)
     if spec.get("schema_version") != 1:
         raise CircuitError("schema_version: unsupported version (expected 1)")
+    spec = apply_groups(spec)   # 0.6: cell-type groups (sign and scale) are applied to the weights at load, as in the C++ engine
     res = float(spec.get("resolution_ms", 0.1))
     check_limits(spec)
     check_supported(spec)
