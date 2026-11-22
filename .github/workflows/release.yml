@@ -1,7 +1,7 @@
 name: release
 # Push a tag v<version> (matching config/version in godot/project.godot) and this builds one zip per platform, smoke-tests each zip (every screen,
 # CHECK through the bundled spike-run) and publishes a GitHub Release with them. Linux builds in the toolchain image (scripts/package.sh); macOS on
-# GitHub's Apple Silicon runners (build-macos.yml). The release is published only if every platform passed. The website's download buttons
+# GitHub's Apple Silicon runners (build-macos.yml); Windows on a Windows runner with MSYS2 (build-windows.yml). The release is published only if every platform passed. The website's download buttons
 # (site/app.js) read the latest release and link straight to the zips. Run by hand (workflow_dispatch) it only builds and uploads the zips as artifacts.
 on:
   push:
@@ -64,8 +64,11 @@ jobs:
   macos:
     uses: ./.github/workflows/build-macos.yml
 
+  windows:
+    uses: ./.github/workflows/build-windows.yml
+
   publish:
-    needs: [linux, macos]
+    needs: [linux, macos, windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -94,6 +97,7 @@ jobs:
             echo
             echo '- **Linux x86_64** (glibc 2.39 / Ubuntu 24.04 or newer): `spike-linux-x86_64.zip`, then run `./Spike.x86_64`.'
             echo '- **macOS, Apple Silicon**: `spike-macos-arm64.zip`. The app is not notarized, so macOS blocks the first launch: open System Settings, Privacy & Security, and choose Open Anyway; or run `xattr -dr com.apple.quarantine Spike.app` once in a terminal.'
+            echo '- **Windows x86_64** (10 or newer): `spike-windows-x86_64.zip`, then run `Spike.exe`. The exe is unsigned, so SmartScreen warns: More info, Run anyway.'
             echo
             echo 'Each zip has a `.sha256` beside it (`sha256sum -c <file>.sha256`).'
             echo

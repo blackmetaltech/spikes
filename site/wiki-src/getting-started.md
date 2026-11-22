@@ -11,7 +11,7 @@ Spike is a game where you build small networks of spiking neurons and watch them
 
 It is a game and a research tool at once. The puzzles teach one idea at a time. The same circuits can be saved as plain files and run again in Python.
 
-> **Note:** Spike is in alpha. The foot of the title screen shows the version (v0.5.1), the build and the Godot version. It plays on Linux and on macOS (Apple Silicon). Some corners are rough. The [changelog](changelog.html) lists known gaps, and the [FAQ](faq.html) answers the common questions.
+> **Note:** Spike is in alpha. The foot of the title screen shows the version (v0.5.2), the build and the Godot version. It plays on Linux, macOS (Apple Silicon) and Windows. Some corners are rough. The [changelog](changelog.html) lists known gaps, and the [FAQ](faq.html) answers the common questions.
 
 ## What you do in the game
 
@@ -28,13 +28,13 @@ A neuron here is a model of a nerve cell. A spike is the short electrical pulse 
 
 ## System requirements
 
-Spike ships for 64-bit Linux and for macOS on Apple Silicon. These are the facts the repository states.
+Spike ships for 64-bit Linux, macOS on Apple Silicon and 64-bit Windows. These are the facts the repository states.
 
 | Item | Requirement |
 |---|---|
 | Operating system | Linux x86_64 with glibc 2.39 or newer (Ubuntu 24.04 or newer is the reference). |
 | macOS | Apple Silicon (M1 or newer). The app is not notarized: on first launch open System Settings, Privacy & Security, and choose Open Anyway, or run `xattr -dr com.apple.quarantine Spike.app`. Intel Macs are not built. |
-| Windows | Not available yet. The port is in progress: NEST has no official Windows build. |
+| Windows | x86_64, Windows 10 or newer. The exe is unsigned, so SmartScreen warns on first launch: More info, then Run anyway. |
 | Graphics | The game is a Godot 4.7 project. It uses the Forward+ renderer on desktop and the OpenGL compatibility renderer on mobile. A graphics driver that supports Vulkan is the safe choice on desktop. |
 | CPU | NEST runs on one thread. A modern single core is what matters. The biggest levels (the bosses, the mushroom body, the mean-field level) are the slowest. |
 

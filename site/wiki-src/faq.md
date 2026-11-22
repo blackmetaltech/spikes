@@ -19,7 +19,7 @@ No. Each level teaches one idea, and every term has a line in [the glossary](glo
 
 ### Which platforms does it run on?
 
-Linux x86_64 with glibc 2.39 or newer, and macOS on Apple Silicon (not notarized: see getting started for the first launch). Windows is being ported and not released yet. See [getting started](getting-started.html).
+Linux x86_64 with glibc 2.39 or newer, and macOS on Apple Silicon (not notarized: see getting started for the first launch). Windows x86_64 too (unsigned, so SmartScreen warns once). See [getting started](getting-started.html).
 
 ### How long does it take to finish?
 

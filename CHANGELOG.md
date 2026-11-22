@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-23 — Windows
+
+### Added
+- **Windows build (x86_64).** `spike-windows-x86_64.zip` holds `Spike.exe`, the extension DLL and `spike-run.exe`, linked statically (only Windows system DLLs are needed). NEST is built natively with MinGW-w64 (MSYS2 UCRT64) from the same pinned commit plus a small patch (`scripts/patches/0001-nest-mingw.patch`) for the places NEST assumes a 64-bit `long`. Built and smoke-tested on a GitHub Windows runner with the same checks as Linux, plus a circuit under a path with accents and spaces. The golden checksums of the engine tests match Linux. Scripts: `scripts/build-windows.sh`, `scripts/package-windows.sh`; notes in `docs/BUILD.md`.
+- The release workflow now builds Linux, macOS and Windows and publishes only if all three passed.
+
+### Known gaps
+- Windows and macOS builds were tested headless on GitHub's runners only; nobody has played them on a real desktop yet. Tell us what breaks.
+- Windows: only the three golden circuits were compared bit for bit with Linux. Random seeds of 2,147,484 and above take a patched path in NEST that no test exercises yet.
+- The Windows exe is unsigned (SmartScreen warns); the macOS app is not notarized; no Intel Mac build.
+- The gaps listed under 0.5.0 still stand.
+
 ## [0.5.1] - 2026-11-22 — macOS
 
 ### Added

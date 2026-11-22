@@ -18,8 +18,15 @@
 #include "spike/theory.h"
 #include <cerrno>
 #include <deque>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <thread>
+#include <windows.h>
+#else
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -154,6 +161,9 @@ static int run_task_mode_impl( int argc, char** argv )
   std::vector< Lesion > lesions;
   int threads = 1, jobs = 0;
   bool quick = false;
+#ifdef _WIN32
+  int worker = -1;
+#endif
   auto usage = [] {
     std::fprintf( stderr, "usage: spike-run --task <id> [--circuit file.json] [--seed n | --seeds 1,2,3] [--lesion pre>post*k]... "
                           "[--mode guided|standard|researcher] [--variant id] [--require any|all] [--circuits-dir dir] [--threads n] [--quick] [--jobs n]\n" );
@@ -197,6 +207,10 @@ static int run_task_mode_impl( int argc, char** argv )
     }
     else if ( a == "--quick" )
       quick = true;
+#ifdef _WIN32
+    else if ( a == "--spike-worker" and more )  // internal (Windows has no fork): run exactly seed index N in this process, print its JSON, exit
+      worker = std::atoi( argv[ ++i ] );
+#endif
     else if ( ( a == "--seed" or a == "--seeds" ) and more )
     {
       std::stringstream ss( argv[ ++i ] );
@@ -404,11 +418,25 @@ static int run_task_mode_impl( int argc, char** argv )
     return r;
   };
 
+#ifdef _WIN32
+  if ( worker >= 0 )
+  {
+    if ( static_cast< size_t >( worker ) >= seeds.size() )
+      return 2;
+    _setmode( _fileno( stdout ), _O_BINARY );
+    const std::string s = run_seed( static_cast< size_t >( worker ) ).dump();
+    return std::fwrite( s.data(), 1, s.size(), stdout ) == s.size() and std::fflush( stdout ) == 0 ? 0 : 1;
+  }
+#endif
   // Seeds run in parallel child processes (fork before any engine exists in this process), at most `jobs` at a time; results keep seed order.
   std::vector< json > results( seeds.size() );
   if ( jobs <= 0 )
   {
+#ifdef _WIN32
+    const unsigned nc = std::thread::hardware_concurrency();
+#else
     const long nc = sysconf( _SC_NPROCESSORS_ONLN );
+#endif
     jobs = nc > 0 ? static_cast< int >( nc ) : 1;
   }
   jobs = std::max( 1, std::min< int >( jobs, static_cast< int >( seeds.size() ) ) );
@@ -422,6 +450,104 @@ static int run_task_mode_impl( int argc, char** argv )
     }
   }
   else
+#ifdef _WIN32
+  {
+    // No fork on Windows: each seed runs in a child process, this same executable started with `--spike-worker <index>` (same command line, so the
+    // same circuit, mode and seeds), which prints that seed's JSON on stdout. Every seed gets a fresh process and a fresh NEST kernel, as with fork.
+    struct Child
+    {
+      HANDLE proc;
+      int fd;
+      size_t si;
+    };
+    std::deque< Child > active;
+    size_t next = 0;
+    bool stop = false;
+    auto drain = [ & ]() {
+      Child ch = active.front();
+      active.pop_front();
+      std::string data;
+      char buf[ 65536 ];
+      for ( int n; ( n = read( ch.fd, buf, sizeof buf ) ) > 0; )
+        data.append( buf, static_cast< size_t >( n ) );
+      close( ch.fd );
+      DWORD code = 1;
+      WaitForSingleObject( ch.proc, INFINITE );
+      GetExitCodeProcess( ch.proc, &code );
+      CloseHandle( ch.proc );
+      json r = code == 0 ? json::parse( data, nullptr, false ) : json( json::value_t::discarded );
+      results[ ch.si ] = r.is_discarded() ? json{ { "error", "seed " + std::to_string( seeds[ ch.si ] ) + ": worker process failed" } } : r;
+      if ( results[ ch.si ].contains( "error" ) )
+        stop = true;
+    };
+    std::wstring self( 32768, L'\0' );
+    self.resize( GetModuleFileNameW( nullptr, self.data(), static_cast< DWORD >( self.size() ) ) );
+    const std::wstring base_cmd = GetCommandLineW();
+    while ( not stop and ( next < seeds.size() or not active.empty() ) )
+    {
+      while ( not stop and next < seeds.size() and static_cast< int >( active.size() ) < jobs )
+      {
+        SECURITY_ATTRIBUTES sa{ sizeof sa, nullptr, TRUE };
+        HANDLE rd = nullptr, wr = nullptr, err = nullptr, in = nullptr;
+        if ( not CreatePipe( &rd, &wr, &sa, 0 ) )
+        {
+          results[ next ] = { { "error", "pipe failed" } };
+          stop = true;
+          break;
+        }
+        SetHandleInformation( rd, HANDLE_FLAG_INHERIT, 0 );
+        // inheritable copies of our own stderr / stdin for the child (ours may not be inheritable), listed explicitly with the pipe
+        for ( auto [ std_id, out_h ] : { std::pair< DWORD, HANDLE* >{ STD_ERROR_HANDLE, &err }, std::pair< DWORD, HANDLE* >{ STD_INPUT_HANDLE, &in } } )
+        {
+          HANDLE h = GetStdHandle( std_id );
+          if ( h and h != INVALID_HANDLE_VALUE )
+            DuplicateHandle( GetCurrentProcess(), h, GetCurrentProcess(), out_h, 0, TRUE, DUPLICATE_SAME_ACCESS );
+        }
+        std::vector< HANDLE > hl{ wr };
+        if ( err )
+          hl.push_back( err );
+        if ( in )
+          hl.push_back( in );
+        SIZE_T asz = 0;
+        InitializeProcThreadAttributeList( nullptr, 1, 0, &asz );
+        std::vector< char > ab( asz );
+        auto* al = reinterpret_cast< LPPROC_THREAD_ATTRIBUTE_LIST >( ab.data() );
+        STARTUPINFOEXW si{};
+        si.StartupInfo.cb = sizeof si;
+        si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+        si.StartupInfo.hStdOutput = wr;
+        si.StartupInfo.hStdError = err ? err : wr;
+        si.StartupInfo.hStdInput = in ? in : INVALID_HANDLE_VALUE;
+        si.lpAttributeList = al;
+        std::wstring cmd = base_cmd + L" --spike-worker " + std::to_wstring( next );
+        PROCESS_INFORMATION pi{};
+        const bool ok = InitializeProcThreadAttributeList( al, 1, 0, &asz )
+          and UpdateProcThreadAttribute( al, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, hl.data(), hl.size() * sizeof( HANDLE ), nullptr, nullptr )
+          and CreateProcessW( self.c_str(), cmd.data(), nullptr, nullptr, TRUE, EXTENDED_STARTUPINFO_PRESENT, nullptr, nullptr, &si.StartupInfo, &pi );
+        if ( al )
+          DeleteProcThreadAttributeList( al );
+        CloseHandle( wr );
+        if ( err )
+          CloseHandle( err );
+        if ( in )
+          CloseHandle( in );
+        if ( not ok )
+        {
+          CloseHandle( rd );
+          results[ next ] = { { "error", "could not start a worker process" } };
+          stop = true;
+          break;
+        }
+        CloseHandle( pi.hThread );
+        active.push_back( { pi.hProcess, _open_osfhandle( reinterpret_cast< intptr_t >( rd ), _O_RDONLY | _O_BINARY ), next++ } );
+      }
+      if ( not active.empty() )
+        drain();
+    }
+    while ( not active.empty() )
+      drain();
+  }
+#else
   {
     struct Child
     {
@@ -495,6 +621,7 @@ static int run_task_mode_impl( int argc, char** argv )
     while ( not active.empty() )
       drain();
   }
+#endif
   double sum = 0;
   int passes = 0;
   for ( size_t si = 0; si < seeds.size(); ++si )
