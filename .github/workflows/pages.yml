@@ -1,5 +1,5 @@
 name: pages
-# The public site (https://ixaxaar.github.io/spikes/): site/ as it is, plus the wiki built from site/wiki-src
+# The public site (https://spike.blackmetal.tech/): site/ as it is, plus the wiki built from site/wiki-src
 # by tools/site/build.py (Python standard library only). Media are committed, made by scripts/site-media.sh.
 on:
   push:

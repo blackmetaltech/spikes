@@ -127,7 +127,7 @@ Test runs and the developer hooks never write into your real save. The `save_io`
 
 ## The website and this wiki
 
-The public site is https://ixaxaar.github.io/spikes/. It is the static folder `site/` (a landing page with no framework) plus this wiki, which is built from the Markdown files in `site/wiki-src/` by `tools/site/build.py`, a script that needs only the Python standard library. `python3 tools/site/build.py --check` builds the pages, the search index and the sitemap, and fails on a broken link, anchor or image. The Pages workflow (`.github/workflows/pages.yml`) runs that check and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow itself. The clips and screenshots are committed and made from the exported game by `scripts/site-media.sh`. How to write a page is in `site/wiki-src/README.md` in the repository.
+The public site is https://spike.blackmetal.tech/. It is the static folder `site/` (a landing page with no framework) plus this wiki, which is built from the Markdown files in `site/wiki-src/` by `tools/site/build.py`, a script that needs only the Python standard library. `python3 tools/site/build.py --check` builds the pages, the search index and the sitemap, and fails on a broken link, anchor or image. The Pages workflow (`.github/workflows/pages.yml`) runs that check and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow itself. The clips and screenshots are committed and made from the exported game by `scripts/site-media.sh`. How to write a page is in `site/wiki-src/README.md` in the repository.
 
 ## Data flow of a Check
 

@@ -63,7 +63,7 @@ jobs:
             echo '2. Run `./Spike.x86_64` from the extracted folder.'
             echo '3. Optional: check the download with `sha256sum -c spike-linux-x86_64.zip.sha256`.'
             echo
-            echo "Website and wiki: https://ixaxaar.github.io/spikes/"
+            echo "Website and wiki: https://spike.blackmetal.tech/"
           } >> notes.md
 
       - uses: actions/upload-artifact@v4
