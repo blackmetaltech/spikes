@@ -112,6 +112,10 @@
   CHEAP_ROW( "leech_heart", "the m_half_centre rhythm: far too fast (adaptation time constant 100 ms)", cheap::from_ref( "leech_heart", cheap::both( cheap::set_params( "HN_L", { { "tau_w", 100.0 } } ), cheap::set_params( "HN_R", { { "tau_w", 100.0 } } ) ) ) );
   CHEAP_ROW( "leech_heart", "far too slow (adaptation time constant 20 s)", cheap::from_ref( "leech_heart", cheap::both( cheap::set_params( "HN_L", { { "tau_w", 20000.0 } } ), cheap::set_params( "HN_R", { { "tau_w", 20000.0 } } ) ) ) );
   CHEAP_ROW( "leech_heart", "no adaptation (b 0): one side wins", cheap::from_ref( "leech_heart", cheap::both( cheap::set_params( "HN_L", { { "b", 0.0 } } ), cheap::set_params( "HN_R", { { "b", 0.0 } } ) ) ) );
+  CHEAP_ROW_V( "leech_heart", "alternates in the baseline but a small extra current stops it (adaptation jump 15 pA, time constant 300 ms): a half-centre that cannot take a small difference between its cells", "stops alternating",
+    cheap::from_ref( "leech_heart", cheap::both( cheap::set_params( "HN_L", { { "b", 15.0 }, { "tau_w", 300.0 } } ), cheap::set_params( "HN_R", { { "b", 15.0 }, { "tau_w", 300.0 } } ) ) ) );
+  CHEAP_ROW( "leech_heart", "slow cycle: adaptation time constant 4 s and jump 3 pA",
+    cheap::from_ref( "leech_heart", cheap::both( cheap::set_params( "HN_L", { { "b", 3.0 }, { "tau_w", 4000.0 } } ), cheap::set_params( "HN_R", { { "b", 3.0 }, { "tau_w", 4000.0 } } ) ) ) );
   CHEAP_ROW( "leech_heart", "motor neurons not inhibited by the interneurons", cheap::from_ref( "leech_heart", cheap::both( cut_d( "HN_L", "HE_L" ), cut_d( "HN_R", "HE_R" ) ) ) );
 
   // ---- aplysia ----
