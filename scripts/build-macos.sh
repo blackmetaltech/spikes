@@ -17,7 +17,10 @@ JOBS=$(sysctl -n hw.ncpu)
 export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-12.0}
 GSL_PREFIX=$(brew --prefix gsl)
 # a stable Python for the venv (the brew default can be a pre-release with no wheels for NESTML's dependencies)
-[ -d "$(brew --prefix python@3.12 2>/dev/null)/bin" ] && export PATH="$(brew --prefix python@3.12)/bin:$PATH"
+if py=$(brew --prefix python@3.12 2>/dev/null) && [ -x "$py/bin/python3.12" ]; then
+  mkdir -p "$root/build/pybin"; ln -sf "$py/bin/python3.12" "$root/build/pybin/python3"; export PATH="$root/build/pybin:$PATH"
+fi
+export CMAKE_PREFIX_PATH="$GSL_PREFIX"   # environment, not -D: NEST rejects unknown -D options
 OSX=(-DCMAKE_OSX_ARCHITECTURES="$ARCH")   # the deployment target comes from MACOSX_DEPLOYMENT_TARGET (NEST rejects it as a -D option)
 SRC=$root/third_party/nest-simulator; BUILD=$root/third_party/nest-build
 VENV=$root/third_party/nestml-venv
@@ -37,7 +40,7 @@ do_nest() {
   git -C "$SRC" checkout -q "$NEST_REF"
   mkdir -p "$BUILD"
   ( cd "$BUILD"
-    PATH="$VENV/bin:$PATH" cmake -G Ninja "$SRC" "${OSX[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$GSL_PREFIX" \
+    PATH="$VENV/bin:$PATH" cmake -G Ninja "$SRC" "${OSX[@]}" -DCMAKE_BUILD_TYPE=Release \
       -DPython_EXECUTABLE="$VENV/bin/python" -DPython3_EXECUTABLE="$VENV/bin/python" \
       -Dwith-mpi=OFF -Dwith-openmp=OFF -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-readline=OFF -Dwith-gsl=ON
     ninja -j"$JOBS" models nestkernel nestutil )
