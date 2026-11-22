@@ -109,7 +109,7 @@ public:
   }
   std::string chapter() const override { return "breathing"; }
   std::string view() const override { return "lungs"; }
-  int par_neurons() const override { return variant_par( variant_, 26 ); }
+  int par_neurons() const override { return variant_par( variant_, 28 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

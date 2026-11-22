@@ -37,7 +37,7 @@ Spec spec()
   i.duration_ms = 2200;
   i.concepts_new = { "sparse_coding" };
   i.concepts_used = { "excitation", "inhibition", "negative_feedback" };
-  i.par_neurons = 250;   // the reference has 20 + 200 + 4 = 224 cells: the budget leaves room for a different honest build (a bigger inhibitory group, a few more projection neurons)
+  i.par_neurons = 250; i.par_slack = 26;   // the reference has 20 + 200 + 4 = 224 cells: the spare leaves room for a different honest build (a bigger inhibitory group, a few more projection neurons)
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "kc", micro::rate() } };
   for ( const auto& c : i.sensors ) i.kinds[ c ] = glomerulus_kind();

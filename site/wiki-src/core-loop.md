@@ -138,7 +138,7 @@ A circuit that equals the level's reference file, or that the **Reference** butt
 | A body chapter | You pass the previous chapter's main path, or the one two before it. Invertebrates and Spinal cord are open from the start. The order is Invertebrates, Spinal cord, Heart, Breathing, Autonomic. |
 | Branches (diagnosis cases, variants, and optional levels such as Posture and Reach) | You pass the level they hang off. They never gate anything. |
 | The Bestiary and the Theory wing | You pass the Invertebrates spine. Inside the Bestiary a chapter may also wait for something it builds on: Sea slug for Heart's Neuromodulation level, Crab for the Leech chapter, Fly mushroom body for the Sea slug chapter. Guided mode drops these in-wing waits. |
-| Inhibitory neurons, noise inputs, the parts bin | The first level whose reference needs them. |
+| Inhibitory neurons, the parts bin | The first level whose reference needs them. |
 | Analysis, Load and Save (and Copy and Paste circuit JSON, Import from a passed level) | The second chapter, Spinal cord. |
 | Lesions, Reference | After you pass the level (Reference also opens in Guided mode). |
 

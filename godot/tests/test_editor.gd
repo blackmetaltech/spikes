@@ -35,6 +35,8 @@ func _init() -> void:
 	_clipboard()
 	_reference_prints()
 	_accessors()
+	_group_sizes()
+	_small_bench()
 	print("EDITOR %s (%d checks)" % ["OK" if fails == 0 else "FAILED: %d" % fails, checks])
 	quit(0 if fails == 0 else 1)
 
@@ -249,7 +251,7 @@ func _clipboard() -> void:
 	# a paste that would break the circuit's limits is refused and leaves the bench as it was
 	var big := _skeleton(); var e3 := _editor(Vector2(800, 500)); e3.set_circuit(big, null)
 	var huge := {"kind": CircuitClip.KIND, "pops": [], "projections": [], "center": [0, 0]}
-	for k in 6: huge["pops"].append({"id": "H%d" % k, "model": "iaf_psc_alpha", "n": 400, "pos": []})
+	for k in Circuits.max_neurons() / 400 + 1: huge["pops"].append({"id": "H%d" % k, "model": "iaf_psc_alpha", "n": 400, "pos": []})   # a little over the engine limit
 	var tb := Circuits.to_json(big); var r3 := e3.paste_fragment(huge)
 	_check(r3.has("error") and Circuits.to_json(big) == tb, "a paste over the neuron limit is refused (%s)" % str(r3.get("error", "")))
 	for e in [ed, e2, e3]: e.queue_free()
@@ -309,3 +311,39 @@ func _accessors() -> void:
 	_check(is_equal_approx(float(c3["populations"][0]["pos"][0][0]), p0.x + 10.0), "a group move moves the selection")
 	e3.select_all(); e3.delete_selected(); _check(Circuits.neuron_count(c3) == 0, "delete removes every selected group")
 	for e in [ed, e2, e3]: e.queue_free()
+
+
+## The "neurons in group" stepper offers every group size a reference circuit uses (the compass chapter asks for a ring of sixteen), and keeps a size it does not list.
+func _group_sizes() -> void:
+	var dir := DirAccess.open("res://circuits"); var seen := {}
+	for fn in dir.get_files():
+		if not fn.ends_with(".json"): continue
+		var c := Circuits.parse(FileAccess.get_file_as_string("res://circuits/" + fn))
+		for p in c.get("populations", []): seen[Circuits.pop_n(p)] = fn
+	_check(not seen.is_empty(), "reference circuits were found")
+	for n in seen:
+		var offered := Circuits.group_size_steps(1).map(func(s): return int(s[0]))
+		_check(offered.has(int(n)), "the group-size stepper offers %d (used by %s)" % [n, seen[n]])
+	var odd := Circuits.group_size_steps(17).map(func(s): return int(s[0]))
+	_check(odd.has(17) and odd.find(16) < odd.find(17) and odd.find(17) < odd.find(20), "a group of 17 (from a file) keeps its size, between 16 and 20")
+	_check(Circuits.max_neurons() >= 20000, "the neuron limit is the engine's, not a smaller one of the game's")
+	var big := {"populations": [{"id": "A", "model": "iaf_psc_alpha", "n": 5000}, {"id": "B", "model": "iaf_psc_alpha", "n": 5000}]}
+	_check(Circuits.validate(big) == "", "10000 neurons are accepted (the engine takes up to %d)" % Circuits.max_neurons())
+	big["populations"][0]["n"] = Circuits.max_neurons() + 1
+	_check(Circuits.validate(big) != "", "more neurons than the engine allows are refused")
+
+## An ordinary circuit on a small bench (a 1366x768 window leaves about 800x340, Large text about 750x270) is shown at a usable zoom with its channel cards inside the
+## canvas: the lamprey used to come out at the 15% floor for 7 px of overflow, with the sensor and motor cards cut at the bench edges.
+func _small_bench() -> void:
+	for sz in [Vector2(800, 340), Vector2(750, 270)]:
+		for name in ["lamprey_cpg.json", "reflex_arc.json", "worm_chemotaxis.json"]:
+			var c := _load(name)
+			var ed := _editor(sz); ed.set_circuit(c, null)
+			var g := ed._geo(); var cut := 0
+			for it in g["items"]:
+				var r: Rect2 = it["rect"]; r.position += ed.view_off
+				if r.position.x < -0.5 or r.position.y < -0.5 or r.end.x > sz.x + 0.5 or r.end.y > sz.y + 0.5: cut += 1
+			var tag := "%s on a %dx%d bench" % [name, int(sz.x), int(sz.y)]
+			_check(ed.view_scale >= 0.2, "%s: zoom %d%% (an ordinary circuit is not shown at the floor)" % [tag, roundi(ed.view_scale * 100.0)])
+			_check(cut == 0, "%s: %d channel cards are cut at the bench edge" % [tag, cut])
+			ed.queue_free()

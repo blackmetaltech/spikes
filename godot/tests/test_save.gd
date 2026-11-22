@@ -185,11 +185,13 @@ func _circuits_hostile() -> void:
 		_check(not FileAccess.file_exists(path) and FileAccess.file_exists(path + ".bad"), "%s: autosave not renamed .bad" % n)
 	# limits
 	var big := {"populations": [], "projections": []}
-	for i in 6: (big["populations"] as Array).append({"id": "P%d" % i, "model": "iaf_psc_alpha", "n": 400})
-	_check(Circuits.validate(big) != "", "2400 neurons accepted")
+	for i in Circuits.max_neurons() / 400 + 1: (big["populations"] as Array).append({"id": "P%d" % i, "model": "iaf_psc_alpha", "n": 400})
+	_check(Circuits.validate(big) != "", "more neurons in all than the engine allows accepted")
+	(big["populations"] as Array).resize(6)
+	_check(Circuits.validate(big) == "", "2400 neurons refused (the engine allows %d)" % Circuits.max_neurons())
 	_check(Circuits.validate({"populations": [{"id": "A", "model": "m", "n": 1.5}]}) != "", "non-integer n accepted")
 	_check(Circuits.validate({"populations": [{"id": "A", "model": "m", "n": 400}]}) == "", "n = 400 rejected")
-	_check(Circuits.validate({"populations": [{"id": "A", "model": "m", "n": 401}]}) != "", "n = 401 accepted")
+	_check(Circuits.validate({"populations": [{"id": "A", "model": "m", "n": Circuits.max_neurons() + 1}]}) != "", "n above the engine limit accepted")
 	_check(Circuits.validate({"populations": [{"id": "A", "model": "m", "n": 0}]}) != "", "n = 0 accepted")
 	_check(Circuits.validate({"populations": [{"id": "A", "model": "m", "n": 2, "params": {"V_m": INF}}]}) != "", "infinite parameter accepted")
 	# non-finite positions are replaced, not fatal

@@ -82,7 +82,7 @@ A circuit is checked twice: by the game when it is loaded or pasted, and by the 
 
 What you can see when a limit is hit:
 
-- Loading a file gives "<file> could not be opened: <reason>", for example "more than 2000 neurons in all" or "population X: n must be a whole number from 1 to 400".
+- Loading a file gives "<file> could not be opened: <reason>", for example "more than 20000 neurons in all" (the engine's limit) or "population X: n must be a whole number from 1 to 20000".
 - The engine gives a red banner "The engine rejected the circuit:" with the path of the field and the allowed range, for example a weight above its ceiling.
 - A circuit that goes numerically wrong while running stops with "The simulation stopped:" and the reason. Press Reset after fixing it. A cell is never allowed to take the game down.
 - In a level, a Check that runs for 60 seconds is stopped with a "Check timed out" toast.

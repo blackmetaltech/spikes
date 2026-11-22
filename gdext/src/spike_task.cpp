@@ -194,7 +194,6 @@ Dictionary SpikeTask::challenge() const
   d[ "text" ] = S( c.text );
   d[ "max_neurons" ] = int64_t( c.max_neurons );
   d[ "max_rate_hz" ] = c.max_rate_hz;
-  d[ "no_modulators" ] = c.no_modulators;
   return d;
 }
 void SpikeTask::set_variant( const String& v )
@@ -337,6 +336,8 @@ Dictionary SpikeTask::score_headless_poll( int64_t job )
   return out;
 }
 String SpikeTask::catalog_json() { return S( spike::catalog_json() ); }
+int64_t SpikeTask::max_neurons() { return int64_t( spike::max_circuit_neurons() ); }
+String SpikeTask::parent() const { return task_ ? S( task_->parent() ) : String(); }
 PackedStringArray SpikeTask::modulator_names() { return strs( spike::modulator_names() ); }
 bool SpikeTask::set_modulator( const Ref< SpikeSim >& sim, const String& name, double conc )
 {
@@ -399,6 +400,8 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "score_headless_poll", "job" ), &SpikeTask::score_headless_poll );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_headless_runner", "path" ), &SpikeTask::set_headless_runner );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "catalog_json" ), &SpikeTask::catalog_json );
+  ClassDB::bind_static_method( "SpikeTask", D_METHOD( "max_neurons" ), &SpikeTask::max_neurons );
+  ClassDB::bind_method( D_METHOD( "parent" ), &SpikeTask::parent );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "modulator_names" ), &SpikeTask::modulator_names );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "set_modulator", "sim", "name", "conc" ), &SpikeTask::set_modulator );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "modulator", "sim", "name" ), &SpikeTask::modulator );

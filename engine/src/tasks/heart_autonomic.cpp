@@ -130,7 +130,8 @@ public:
   }
   std::string chapter() const override { return "heart"; }
   std::string view() const override { return "heart"; }
-  int par_neurons() const override { return variant_par( variant_, 45 ); }
+  int par_neurons() const override { return variant_par( variant_, 45 ); }  // the reference circuit has 37 cells
+  int par_slack() const override { return 8; }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

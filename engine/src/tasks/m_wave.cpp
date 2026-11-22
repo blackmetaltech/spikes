@@ -43,15 +43,14 @@ public:
               "Each holds a little tone (the 'tone' sensor, about 40 spikes/s). A bolus presses on segment 1 (sensor 'dist1') and later on segment 2 "
               "('dist2'). While it presses on segment 1, seg0 must contract (at least 15 spikes/s above its tone) and seg2 must relax (to a third of its tone "
               "or less); while it presses on segment 2 the wave has moved on: seg1 contracts and seg0 is no longer contracting. At the end every segment "
-              "must be back to its tone. Wire tone to all three segments, dist1 to seg0, dist2 to seg1, and give dist1 a second route to seg2 that "
-              "changes sign: through a cell set to inhibitory. Get the polarity right: contracting the segment below the bolus would squeeze it back.";
+              "must be back to its tone. Get the polarity right: contracting the segment below the bolus would squeeze it back.";
     i.chapter = "autonomic";
     i.sensors = { "tone", "dist1", "dist2" };
     i.motors = { "seg0", "seg1", "seg2" };
     i.duration_ms = kDur;
     i.concepts_new = { "travelling_wave" };
     i.concepts_used = { "excitation", "inhibition" };
-    i.par_neurons = 4;
+    i.par_neurons = 8;   // the reference circuit's neuron count (par rule: tests/tasks_rules_test.cpp)
     i.default_model = "iaf_psc_alpha";
     i.recipe = "tone onto 3 groups (seg0, seg1, seg2; the lab starts the tone sensor at 450 pA per unit; 300 is gentler). dist1 onto "
                "seg0 and onto an inhibitory group (2 cells) that projects onto seg2 at about -640 pA at the lab's 450 (-160 with the tone at 300); dist2 onto seg1.";

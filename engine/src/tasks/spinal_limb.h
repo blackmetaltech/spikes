@@ -2,7 +2,7 @@
 //
 // One hinge joint with a flexor (agonist) / extensor (antagonist) pair (body/joint.h) in a closed loop with the circuit:
 //
-//   joint --(spindle Ia / II, Golgi Ib, 8 ms afferent conduction)--> sensor channels --> circuit
+//   joint --(spindle Ia / II, Golgi Ib, 10 ms afferent conduction (Config::aff_delay_ms))--> sensor channels --> circuit
 //   circuit --> alpha motor pools (mean Hz per neuron, low-pass 15 ms, 10 ms efferent conduction) --> Muscle excitation
 //
 // Sensor channels are dc generators: the task writes the receptor's firing rate (Hz) and the circuit's input weight turns it into a

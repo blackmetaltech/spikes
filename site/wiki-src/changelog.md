@@ -29,7 +29,7 @@ The campaign now has 79 levels in three wings. There is no separate 0.6: the The
 
 **Under the hood:** the engine has safety limits and a fuzz test, the UI has an interaction graph and headless tests, CI uses a prebuilt toolchain image, and this website and wiki are built from the repository. New circuit-file input and output kinds support the Theory wing; the Python package does not read them yet. See [a circuit is data](circuit-is-data.html) and [spike-run](spike-run.html).
 
-**Gaps the project states:** the leech heartbeat level still needs a rework of its escape-versus-release concept; the spinal boss reference passes about 80 percent of held-out seeds; `stretch_reflex`'s quick CHECK misses 1 or 2 of 35 test seeds; nothing yet re-runs a circuit with the mechanism removed to prove the mechanism matters; the fly connectome excerpt is not real synapse data; the Python package lacks the Theory input and population kinds; the phone layout has rough spots; there is no Windows build. The parts-bin card for the SA-node cell says about 70 beats per minute where the model measures about 99.
+**Gaps the project states:** the leech heartbeat level still needs a rework of its escape-versus-release concept; the spinal boss reference passes about 80 percent of held-out seeds; `stretch_reflex`'s quick CHECK misses 1 or 2 of 35 test seeds; nothing yet re-runs a circuit with the mechanism removed to prove the mechanism matters; the fly connectome excerpt is not real synapse data; the Python package refuses the Theory input and population kinds with a plain message; the phone layout has rough spots; there is no Windows build.
 
 ## 0.4.0 (2026-11-18): Honest puzzles, shippable game
 

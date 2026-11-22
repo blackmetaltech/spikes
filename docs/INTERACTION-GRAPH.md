@@ -183,7 +183,7 @@ flowchart LR
   lab_task -->|BtnExcitatory| lab_insp_pop
   lab_sandbox -->|BtnExcitatory| lab_insp_pop
   lab_task -->|BtnInhibitory (from the level that first needs inhibition (always in the sandbox))| lab_insp_pop
-  lab_task -->|BtnNoise (from the level that first needs noise (always in the sandbox))| lab_insp_in
+  lab_sandbox -->|BtnNoise (sandbox only: a level is scored on its own sensors, so a free noise input there would cap the score)| lab_insp_in
   lab_task -->|BtnConnect| lab_task
   lab_task -->|BtnParts (from the level that first uses another cell type (always in the sandbox))| lab_parts_modal
   lab_parts_modal -.->|Back or Esc| lab_task
@@ -306,7 +306,7 @@ flowchart LR
 | `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?`, `BtnUndo?`, `BtnRedo?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
-| `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnNoise?`, `BtnDetails?`, `BtnOpenNotebook?` |
+| `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnDetails?`, `BtnOpenNotebook?` |
 | `lab.dx` | screen | Lab on a diagnosis case (read-only patient circuit) | `BtnCase`, `BtnHint?` |
 | `lab.insp.brief` | panel | Inspector: the brief, what to build, the pass rule and recipe | `BtnBriefMore?`, `BtnShowRecipe?` |
 | `lab.insp.pop` | panel | Inspector: a neuron group selected | `BtnTrace`, `BtnEI`, `BtnDelete`, `BtnAdvanced`, `Stepper`, `BtnResetParameters?`, `BtnAddRow?` |
