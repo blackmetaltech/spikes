@@ -188,6 +188,7 @@ static func info(id: String) -> Dictionary:
 			var k := str(t.level_kind()); d["kind"] = k if k in ["micro", "task", "boss", "diagnosis"] else "task"
 			d["spine"] = bool(t.on_spine()) and d["kind"] != "diagnosis"
 			d["concepts_new"] = Array(t.concepts_new()); d["concepts_used"] = Array(t.concepts_used())
+			if t.has_method("parent"): d["parent"] = str(t.parent())   # declared by the engine (Task::parent); "" on a spine level
 			d["variants"] = (t.variants() as Dictionary).duplicate()
 			if d["kind"] == "diagnosis": d["symptoms"] = str((t.diagnosis() as Dictionary).get("symptoms", ""))
 	elif id.begins_with("m3_") and mock03() and (_mc("DEFS03") as Dictionary).has(id):
@@ -298,11 +299,10 @@ static func _build_nodes(ch: String) -> Array:
 			"concepts_new": [], "concepts_used": [], "synthetic": false})
 	return spine + branches
 
-## The spine task a non-spine level hangs off: its declared parent, else the spine task of its chapter that shares most of its concepts, else the last spine
-## task that comes before it in the play order, else the first spine task.
-const DX_PARENT := {"dx_compass": "fly_compass", "dx_mb_apl": "fly_mb", "dx_mb_dan": "fly_mb", "dx_crab": "crab_pyloric", "dx_worm": "worm_touch", "dx_leech": "leech_heart", "dx_aplysia": "aplysia_gill", "dx_clonus": "renshaw", "dx_vagal": "heart_autonomic", "dx_orthostatic": "baroreflex", "dx_apnoea": "breathing", "dx_horner": "pupil", "dx_achalasia": "peristalsis"}   # a diagnosis case hangs off the task whose circuit it is (DxSpec.inner)
+## The spine task a non-spine level hangs off: the parent the engine declares (Task::parent: a diagnosis case hangs off the task whose circuit it is, Posture and Reach
+## off the stretch reflex; engine/tests/tasks_rules_test.cpp requires every non-spine level to declare one). The guess below (the spine task of its chapter that shares
+## most of its concepts, else the last spine task before it, else the first) is only for levels that declare none: the synthetic SP_MOCK03 ones.
 static func _parent_of(id: String, in_ch: Array) -> String:
-	if DX_PARENT.has(id) and in_ch.has(DX_PARENT[id]): return str(DX_PARENT[id])
 	var d := info(id)
 	if str(d["parent"]) != "" and in_ch.has(d["parent"]): return str(d["parent"])
 	var mine: Array = (d["concepts_used"] as Array) + (d["concepts_new"] as Array)

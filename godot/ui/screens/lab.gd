@@ -556,7 +556,7 @@ func _rate_per_neuron() -> float: return tele.spike_rate_hz() / maxf(float(Circu
 
 func _stars_now() -> int:
 	if tele == null or tele.task == null: return 0
-	var st := Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0), _has_modulator())
+	var st := Progress.stars_for(task_id, bool(tele.score.get("passed", false)), false, Circuits.neuron_count(circuit), tele.spike_rate_hz() / maxf(float(Circuits.neuron_count(circuit)), 1.0))
 	return mini(st, 2) if _recipe_used() else st
 
 ## Called every frame: record a pass the moment it happens and the final result at the end of the episode; raise the end card; report a stopped run.
@@ -589,13 +589,7 @@ func _record(passed: bool, five_seeds: bool, mean := -1.0, rate := -2.0) -> void
 		if passed and not _is_reference() and _variant_ok(): Progress.record_variant(task_id, variant)
 		return
 	if mode == "researcher" and not five_seeds: passed = false   # Researcher: a pass needs all five TEST seeds
-	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference(), "recipe_used": _recipe_used(), "has_modulator": _has_modulator()})
-
-## The circuit has a modulator output (for a challenge that asks for none).
-func _has_modulator() -> bool:
-	for o in circuit.get("outputs", []):
-		if str((o as Dictionary).get("kind", "")) == "modulator": return true
-	return false
+	Progress.record_result(task_id, v, {"passed": passed, "five_seeds": five_seeds, "neurons": Circuits.neuron_count(circuit), "rate_hz": r, "reference_derived": _is_reference(), "recipe_used": _recipe_used()})
 
 ## Diagnosis, third star: the case lists the probes that tell its top candidates apart (Task::diagnosis().probes: {kind "scope" target population id | kind "cut" target candidate id});
 ## the answer must come after one of them. A scope is the probe key "scope:<id>"; a cut is a "cut:" key of the link (or population) the candidate names, or a lesion re-run of it.
@@ -624,11 +618,11 @@ func _variant_ok() -> bool:
 	if variant != "half_neurons": return true
 	var par := Progress.budget(task_id)
 	if par <= 0: return true
-	var lim := par / 2; var n := Circuits.neuron_count(circuit)
+	var lim := Progress.variant_budget(task_id, variant); var n := Circuits.neuron_count(circuit)   # the engine's own figure (half the par, rounded up), not a second rounding here
 	if n <= lim: return true
 	if not _half_warned and celebration != null:
 		_half_warned = true
-		celebration.toast("Over the half-neuron limit", "%s; this variant allows %d (half of par %d). It does not count until the circuit is smaller." % [Progress.neurons_text(n), lim, par], Kit.AMBER, 6.0)
+		celebration.toast("Over the half-neuron limit", "%s; this variant allows %d (half of par %d, rounded up). It does not count until the circuit is smaller." % [Progress.neurons_text(n), lim, par], Kit.AMBER, 6.0)
 	return false
 
 ## A recipe is in force for the stars: Guided shows it inline (no cost), Standard costs the third star once Show recipe was pressed.
