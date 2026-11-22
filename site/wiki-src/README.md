@@ -1,6 +1,6 @@
 # Writing wiki pages
 
-The wiki at https://ixaxaar.github.io/spikes/wiki/ is built from the Markdown files in this folder by `tools/site/build.py` (Python standard library only). The Pages workflow (`.github/workflows/pages.yml`) runs `--check` and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow; locally:
+The wiki at https://spike.blackmetal.tech/wiki/ is built from the Markdown files in this folder by `tools/site/build.py` (Python standard library only). The Pages workflow (`.github/workflows/pages.yml`) runs `--check` and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow; locally:
 
 ```sh
 python3 tools/site/build.py --check     # renders site/wiki/*.html, search.json and site/sitemap.xml; fails on broken links

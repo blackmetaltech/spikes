@@ -103,7 +103,7 @@ See [python/README.md](python/README.md).
 
 ## Website
 
-The public site, https://ixaxaar.github.io/spikes/, is the static folder `site/`: a landing page (`index.html`, `base.css`, `home.css`, `app.js`, no framework, no CDN) and a wiki in `site/wiki/` built from the Markdown in `site/wiki-src/`. `.github/workflows/pages.yml` builds the wiki and deploys `site/` to GitHub Pages on every push to master that touches `site/**`, `tools/site/**` or the workflow (or by hand: Actions > pages > Run workflow).
+The public site, https://spike.blackmetal.tech/, is the static folder `site/`: a landing page (`index.html`, `base.css`, `home.css`, `app.js`, no framework, no CDN) and a wiki in `site/wiki/` built from the Markdown in `site/wiki-src/`. `.github/workflows/pages.yml` builds the wiki and deploys `site/` to GitHub Pages on every push to master that touches `site/**`, `tools/site/**` or the workflow (or by hand: Actions > pages > Run workflow).
 
 - **Build and preview locally:**
   ```

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ixaxaar.github.io/spikes/sitemap.xml
+Sitemap: https://spike.blackmetal.tech/sitemap.xml
