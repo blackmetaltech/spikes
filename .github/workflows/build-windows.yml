@@ -77,6 +77,13 @@ jobs:
             third_party/nest-simulator
             third_party/nest-build
           key: ${{ steps.key.outputs.key }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Engine diagnostics (never fails the job)
+        continue-on-error: true
+        run: |
+          python -c "import json;print(json.dumps(json.load(open('engine/tests/golden/iaf_dc.json'))['circuit']))" > "$RUNNER_TEMP/iaf_dc.json"
+          head -c 600 "$RUNNER_TEMP/iaf_dc.json"; echo
+          godot/bin/spike-run.exe "$RUNNER_TEMP/iaf_dc.json" 200 | head -n 5; echo "exit ${PIPESTATUS[0]}"
+          godot/bin/spike-run.exe --task reflex --seed 1 --require any | head -c 700; echo "exit ${PIPESTATUS[0]}"
       - name: Golden checksums (numerical parity with Linux)
         run: build/gd-release/engine/test_golden.exe
       - name: Package and smoke-test
