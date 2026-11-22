@@ -7,6 +7,11 @@ libnestutil/config.h.in (one hunk)
   or format", which became `#define NEST_EXITCODE_ABORT inappropriate file type or format` and broke kernel_manager.cpp. On Windows the header
   now carries the shell values Linux reports (128 + SIGABRT, 128 + SIGSEGV). Nothing in the engine reads them.
 
+nestkernel/kernel_manager.cpp (one hunk)
+  The exit-code constants are `unsigned int` and are stored in a Dictionary, whose value variant holds `long`. With a 64-bit `long` (Linux)
+  unsigned int -> long is a widening the variant's converting assignment accepts; Windows has a 32-bit `long` (LLP64), where it is a narrowing
+  and the assignment does not compile. They are `long` constants now (the values are 10 .. 205, so nothing changes).
+
 nestkernel/mpi_manager.h (two hunks)
   gethostname() is a Winsock function on Windows (declared in <winsock2.h>, and it fails until WSAStartup ran), so the non-MPI
   MPIManager::get_processor_name() did not compile. It only fills the "processor name" string of the kernel status, so on Windows it asks
@@ -37,6 +42,42 @@ index b5c262a..9cf988c 100644
  
  /* Name of package */
  #define PACKAGE @PROJECT_NAME@
+diff --git a/nestkernel/kernel_manager.cpp b/nestkernel/kernel_manager.cpp
+index fa3d3ef..53e942f 100644
+--- a/nestkernel/kernel_manager.cpp
++++ b/nestkernel/kernel_manager.cpp
+@@ -42,20 +42,20 @@ Dictionary
+ KernelManager::get_build_info_()
+ {
+   // Exit codes
+-  constexpr unsigned int EXITCODE_UNKNOWN_ERROR = 10;
+-  constexpr unsigned int EXITCODE_USERABORT = 15;
+-  constexpr unsigned int EXITCODE_EXCEPTION = 125;
+-  constexpr unsigned int EXITCODE_SCRIPTERROR = 126;
+-  constexpr unsigned int EXITCODE_FATAL = 127;
++  constexpr long EXITCODE_UNKNOWN_ERROR = 10;
++  constexpr long EXITCODE_USERABORT = 15;
++  constexpr long EXITCODE_EXCEPTION = 125;
++  constexpr long EXITCODE_SCRIPTERROR = 126;
++  constexpr long EXITCODE_FATAL = 127;
+ 
+   // The range 200-215 is reserved for test skipping exitcodes. Any new codes must
+   // also be added to testsuite/do_tests_sh.in.
+-  constexpr unsigned int EXITCODE_SKIPPED = 200;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_MPI = 201;
+-  constexpr unsigned int EXITCODE_SKIPPED_HAVE_MPI = 202;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_THREADING = 203;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_GSL = 204;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_MUSIC = 205;
++  constexpr long EXITCODE_SKIPPED = 200;
++  constexpr long EXITCODE_SKIPPED_NO_MPI = 201;
++  constexpr long EXITCODE_SKIPPED_HAVE_MPI = 202;
++  constexpr long EXITCODE_SKIPPED_NO_THREADING = 203;
++  constexpr long EXITCODE_SKIPPED_NO_GSL = 204;
++  constexpr long EXITCODE_SKIPPED_NO_MUSIC = 205;
+ 
+   Dictionary build_info;
+ 
 diff --git a/nestkernel/mpi_manager.h b/nestkernel/mpi_manager.h
 index 56c752b..4b0faf7 100644
 --- a/nestkernel/mpi_manager.h

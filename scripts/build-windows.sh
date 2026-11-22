@@ -40,7 +40,7 @@ else
   cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_INSTALL_PREFIX="$root/third_party/nest-install" \
     -DPython_EXECUTABLE="$(command -v python)" -DNESTKERNEL_API_CXX="$BUILD/nestkernel_api.cxx" \
     -Dwith-mpi=OFF -Dwith-openmp=OFF -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON
-  cmake --build "$BUILD" --target models nestkernel nestutil -j"$jobs"
+  cmake --build "$BUILD" --target models nestkernel nestutil -j"$jobs" -- -k 0   # -k 0: report every failing file in one run
 fi
 for l in models/libmodels.a nestkernel/libnestkernel.a libnestutil/libnestutil.a; do [ -f "$BUILD/$l" ] || { echo "missing $BUILD/$l" >&2; exit 1; }; done
 

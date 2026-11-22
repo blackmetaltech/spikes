@@ -44,6 +44,7 @@ jobs:
           shopt -s nullglob
           h=$(cat scripts/build-windows.sh scripts/patches/*.patch | sha256sum | cut -c1-16)
           echo "key=nest-win-$pin-$h" >> "$GITHUB_OUTPUT"
+          echo "pin=nest-win-$pin" >> "$GITHUB_OUTPUT"   # any earlier tree of this pin: ninja rebuilds only what the new patch or flags touch
       # the NEST tree is cached with its source (build timestamps stay valid). A failed build saves what it compiled under a run-specific key so
       # the next attempt continues; only a complete build is saved under the exact key.
       - id: nest-cache
@@ -55,6 +56,7 @@ jobs:
           key: ${{ steps.key.outputs.key }}
           restore-keys: |
             ${{ steps.key.outputs.key }}-partial-
+            ${{ steps.key.outputs.pin }}-
       - name: Build (NEST, NESTML, engine, extension)
         run: scripts/build-windows.sh
         env:
