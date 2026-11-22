@@ -22,8 +22,16 @@
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>  // _NSGetExecutablePath
+#include <crt_externs.h>  // _NSGetEnviron
+#endif
 
+#ifdef __APPLE__
+#define environ ( *_NSGetEnviron() )  // `environ` is not linkable from a dylib on macOS
+#else
 extern char** environ;
+#endif
 
 namespace spike_gd
 {
@@ -255,8 +263,16 @@ std::string dirname_of( const std::string& p )
 std::string self_exe_dir()
 {
   char buf[ 4096 ];
+#ifdef __APPLE__
+  uint32_t sz = sizeof buf;
+  if ( _NSGetExecutablePath( buf, &sz ) != 0 )
+    return std::string();
+  char real[ PATH_MAX ];
+  return dirname_of( realpath( buf, real ) ? std::string( real ) : std::string( buf ) );
+#else
   const ssize_t n = readlink( "/proc/self/exe", buf, sizeof buf - 1 );
   return n > 0 ? dirname_of( std::string( buf, size_t( n ) ) ) : std::string();
+#endif
 }
 std::string self_lib_dir()  // the directory of this shared library (the GDExtension), via dladdr on one of its own functions
 {
