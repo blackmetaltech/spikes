@@ -152,13 +152,13 @@ struct Bench
 };
 
 /// The stretch-reflex part of every spinal recipe (stretch_reflex' own recipe: the drive weight is a parameter).
-static Bench reflex_bench( double drive, double inhibition = 320 )
+static Bench reflex_bench( double drive, double inhibition = 320, double cv = 0.3, int n_in = 4 )
 {
   Bench b;
   
-  const double cv = 0.3, mn_w = 240;  // the recipe: Ia > MN 240 with a weight spread (CV) of 0.3
+  const double mn_w = 240;  // the recipe: Ia > MN 240 with a weight spread (CV) of `cv`
   const json slow = { { "tau_m", 60.0 } };
-  b.pop( "IaF", 6, slow ).pop( "IaE", 6, slow ).pop( "MNF", 20 ).pop( "MNE", 20 ).pop( "INF", 4 ).pop( "INE", 4 );
+  b.pop( "IaF", 6, slow ).pop( "IaE", 6, slow ).pop( "MNF", 20 ).pop( "MNE", 20 ).pop( "INF", n_in ).pop( "INE", n_in );
   b.in( "ag_Ia", "dc", 3, { "IaF" } ).in( "ant_Ia", "dc", 3, { "IaE" } ).in( "drive", "dc", drive, { "MNF", "MNE" } );
   b.proj( "IaF", "MNF", mn_w, 2, cv ).proj( "IaE", "MNE", mn_w, 2, cv ).proj( "IaF", "INF", 240 ).proj( "IaE", "INE", 240 ).proj( "INF", "MNE", -inhibition ).proj( "INE", "MNF", -inhibition );
   b.out( "ag_motor", { "MNF" } ).out( "ant_motor", { "MNE" } );
@@ -168,7 +168,7 @@ static Bench reflex_bench( double drive, double inhibition = 320 )
 static json novice_bench( const std::string& task )
 {
   if ( task == "stretch_reflex" )
-    return reflex_bench( 320 ).c;
+    return reflex_bench( 320, 320, 0.5, 6 ).c;   // stretch_reflex' own recipe: spread 0.5 and six interneurons per side (with 0.3 and four it passed 27 of 30 seeds in the quick check, with these 29 of 30 in standard and researcher, quick and full)
   if ( task == "renshaw" )
   {
     Bench b = reflex_bench( 150, 500 );
@@ -567,8 +567,11 @@ int main( int argc, char** argv )
     for ( auto& u : unsolved ) std::printf( "  NOT SOLVED by the novice: %s\n", u.c_str() );
     // Honest result (docs/REQ-0.4.md rule 4): with sensors wired straight onto pools (no relay groups: the briefs name none) the scripted novice cannot
     // find posture (the spindle gain onto the pools is far above what the loop tolerates and its coarse grid never lands inside the narrow tone window) or reach
-    // (three timed bursts plus a hold command need more structure than a coarse grid over the briefs' structure gives). stretch_reflex and renshaw are solved.
-    const std::set< std::string > expected_unsolved = { "posture", "reach" };  // update only with a note in the report: never hide a level here
+    // (three timed bursts plus a hold command need more structure than a coarse grid over the briefs' structure gives). renshaw is solved (stretch_reflex: see below).
+    // stretch_reflex joined the unsolved set when its resistance estimator was corrected (the open-loop copy's own drift is now taken out of the denominator, which had made weak circuits
+    // pass by luck on some seeds: dev_open ranged from 0.03 to 0.67 rad for one and the same push): the brief-only circuits of the grid (sensors straight onto the pools) have a real
+    // resistance of 0.2 to 0.4, under the pass limit; the recipe's circuit (relay cells with a slow membrane) passes on 29 of 30 seeds
+    const std::set< std::string > expected_unsolved = { "posture", "reach", "stretch_reflex" };  // update only with a note in the report: never hide a level here
     CHECK_MSG( unsolved == expected_unsolved, "the set of spinal levels the novice cannot solve changed (see the printed list)" );
   }
 

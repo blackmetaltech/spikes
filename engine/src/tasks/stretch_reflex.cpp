@@ -16,8 +16,11 @@
 //               -2.5 N m (limb pushed toward extension), then the extensor by +2.5 N m, again twice. Stretch k starts at
 //               3600 + 2400 k + U(0, 300) ms (seeded splitmix64). Episode 13 500 ms.
 //   Open-loop reference: at each stretch onset an exact copy of the limb is started with the drive frozen at its tonic level
-//            (mean of the last ~120 ms). It sees the same torque, so  resistance = 1 - dev / dev_open  is how much the circuit's
-//            reaction reduced the peak deflection (0 = no better than muscle stiffness alone, 1 = no deflection).
+//            (mean of the last 400 ms). It sees the same torque, so  resistance = 1 - dev / dev_open  is how much the circuit's
+//            reaction reduced the peak deflection (0 = no better than muscle stiffness alone, 1 = no deflection). dev_open is the push's own effect on
+//            that copy: its excursion minus that of a second copy held the same way WITHOUT the push. (A copy held at a lumpy tonic level drifts by itself:
+//            before this correction dev_open ranged from 0.03 to 0.67 rad between seeds with the real deflection steady at 0.05-0.10, so the ratio, not the
+//            circuit, decided the pass on about 1 seed in 35 of the quick check.)
 //
 // MEASURES
 //   latency_ms  : T-reflex latency. Spikes of the tapped muscle's motoneuron pool are averaged over its twelve taps in 2 ms bins (PSTH);
@@ -25,8 +28,8 @@
 //                 Latency = bin start + 10 ms efferent conduction (so it is the delay from the tendon hit to the muscle's EMG;
 //                 the spinal range is 25-50 ms for long human arm and leg nerves, Matthews 1991). Mean of the two pools.
 //   resistance  : see above (deflection = peak |theta - theta_pre| until 100 ms after the release), mean of the four stretches.
-//   recip       : antagonist suppression: 1 - (mean antagonist pool rate from 20 to 120 ms after the stretch started) / (its mean in the
-//                 150 ms before), floored at 0, mean of the stretches. Reciprocal inhibition makes it large; a circuit without it
+//   recip       : antagonist suppression: 1 - (mean antagonist pool rate from 20 to 140 ms after the stretch started) / (its mean in the
+//                 450 ms before), floored at 0, mean of the stretches. Reciprocal inhibition makes it large; a circuit without it
 //                 leaves the antagonist firing (co-contraction).
 //   osc_rad     : quiet window 1500-2200 ms after each stretch onset: if the angle swings more than 0.08 rad peak to peak with
 //                 >= 6 reversals, it is a sustained oscillation (clonus).
@@ -50,6 +53,8 @@ namespace
 constexpr int kN = 4, kTaps = 24;
 constexpr double kDuration = 13500, kTorque = 2.5, kRamp = 20, kHold = 350, kLead = 3600, kSpacing = 2400, kJitter = 300;
 constexpr double kEnd = 2 * kRamp + kHold + 100, kQuiet0 = 1500, kQuiet1 = 2200;
+constexpr double kRecBase = 450, kRecEnd = 140;   // the antagonist's baseline is its mean rate over the 450 ms before the onset (after the last tendon tap has died away), its response the mean from 20 to 140 ms after it: the pools fire in lumpy waves about 110 ms apart, and a 150 ms baseline caught a random phase of one (that estimator's spread, not the circuit, made the quick check miss 1 seed in 35)
+constexpr int kTonicWin = 400;   // ms of drive averaged for the open-loop copy's tonic level
 constexpr double kTapStart = 300, kTapSpacing = 120, kTapRate = 1000, kTapLen = 3;
 
 class StretchReflexTask : public LimbTaskBase
@@ -76,8 +81,8 @@ public:
     return "A recipe that works (iaf_psc_alpha groups; weights pA; the Ia sensors are dc inputs, so their weight is pA of current per Hz of "
            "afferent rate, and the drive weight is pA of tonic current): ag_Ia and ant_Ia at weight 3 onto relay groups IaF and IaE (6 cells, "
            "ADVANCED tau m 60 ms so they fire regularly at the afferent rate); motoneuron pools MNF and MNE of 20 cells with drive at weight 320 "
-           "onto both; IaF > MNF and IaE > MNE at 240 with a weight spread (CV) of 0.3, so the pool is recruited gradually instead of all at once; "
-           "IaF > INF and IaE > INE (4 cells, inhibitory) at 240; INF > MNE and INE > MNF at -320. A much weaker Ia > MN link (80) misses tendon taps; "
+           "onto both; IaF > MNF and IaE > MNE at 240 with a weight spread (CV) of 0.5, so the pool is recruited gradually instead of all at once; "
+           "IaF > INF and IaE > INE (6 cells, inhibitory) at 240; INF > MNE and INE > MNF at -320. A much weaker Ia > MN link (80) misses tendon taps; "
            "much stronger gains, or more drive, ring or make both pools fight.";
   }
   std::vector< std::string > sensor_channels() const override { return { "ag_Ia", "ant_Ia", "drive" }; }
@@ -178,6 +183,11 @@ public:
     base_reset( c, 0.2 );
     th_.clear();
     sh_.clear();
+    sc_.clear();
+    hist_ag_.clear();
+    hist_ant_.clear();
+    hist_gam_.clear();
+    ctrl_on_ = ctrl_fresh_ = false;
     shadow_on_ = -1;
     theta_pre_ = 0.2;
   }
@@ -269,26 +279,55 @@ protected:
         put( e, k % 2 == 0 ? "ag_Ia" : "ant_Ia", ( k % 2 == 0 ? rig_.ia_ag : rig_.ia_ant ) + kTapRate );
     }
   }
-  void after_tick( double ) override
+  void after_tick( double h ) override
   {
     // start / stop the open-loop copy
     for ( int k = 0; k < kN; ++k )
     {
       if ( shadow_on_ < 0 && t_ >= onset_[ k ] - 1 && t_ < onset_[ k ] + 5 )
       {
-        rig_.freeze_shadow();
+        // the tonic level the open-loop copy holds is the mean drive over the last kTonicWin ms: the pools fire in lumpy ~100 ms waves, so the rig's 120 ms
+        // average is a noisy estimate of the tonic level, and a copy held at a lumpy level drifts on its own (see sc_)
+        double a = 0, b = 0, g = 0;
+        const size_t n = std::min< size_t >( hist_ag_.size(), static_cast< size_t >( kTonicWin ) );
+        for ( size_t i = 0; i < n; ++i )
+        {
+          a += hist_ag_[ hist_ag_.size() - 1 - i ];
+          b += hist_ant_[ hist_ant_.size() - 1 - i ];
+          g += hist_gam_[ hist_gam_.size() - 1 - i ];
+        }
+        if ( n > 0 ) { a /= n; b /= n; g /= n; }
+        ctrl_on_ = true;
+        sh_levels_[ 0 ] = a, sh_levels_[ 1 ] = b, sh_levels_[ 2 ] = g;
+        rig_.freeze_shadow_at( a, b, g );
+        ctrl_ = rig_.shadow;   // the control: the same copy without the push
         shadow_on_ = k;
       }
       if ( shadow_on_ == k && t_ >= onset_[ k ] + 800 )
       {
         rig_.release_shadow();
+        ctrl_on_ = false;
         shadow_on_ = -1;
       }
     }
     if ( std::fabs( tq_ ) < 1e-9 )
       theta_pre_ += ( rig_.joint.theta - theta_pre_ ) / 150.0;
+    hist_ag_.push_back( rig_.exc_ag );
+    hist_ant_.push_back( rig_.exc_ant );
+    hist_gam_.push_back( rig_.gam );
+    if ( ctrl_on_ && ctrl_fresh_ )
+    {
+      body::JointInput in;
+      in.ag.excitation = sh_levels_[ 0 ];
+      in.ant.excitation = sh_levels_[ 1 ];
+      in.gamma_dyn = in.gamma_sta = sh_levels_[ 2 ];
+      in.ext_torque = 0;
+      ctrl_.step( h, in );
+    }
+    ctrl_fresh_ = ctrl_on_;   // the control is stepped from the tick after the freeze, like the copy
     th_.push_back( rig_.joint.theta );
     sh_.push_back( rig_.shadow_active() ? rig_.shadow.theta : rig_.joint.theta );
+    sc_.push_back( rig_.shadow_active() ? ctrl_.theta : rig_.joint.theta );
   }
   bool watch_inhib_now() const override { return t_ >= kLead; }   // the interneurons must fire during the imposed stretches (a steady Ia rate), not only at the 3 ms tap volleys
   double target_rad() const override { return theta_pre_; }  // the angle the reflex must hold: the one before each push
@@ -347,14 +386,14 @@ private:
       for ( long i = static_cast< long >( t0 ); i < end && i < static_cast< long >( th_.size() ); ++i )
       {
         d = std::max( d, std::fabs( th_[ i ] - th0 ) );
-        d_open = std::max( d_open, std::fabs( sh_[ i ] - th0 ) );
+        d_open = std::max( d_open, std::fabs( sh_[ i ] - sc_[ i ] ) );   // what the push alone does to the open-loop copy: its drift without the push (sc_) is taken out
       }
       dev += d;
       devo += d_open;
       res += d_open > 1e-6 ? clampd( 1.0 - d / d_open, 0, 1 ) : 0.0;
       ++nres;
-      const double abase = window_mean( A, t0 - 150, t0 ) * 1000.0 / nA;
-      const double a_mean = window_mean( A, t0 + 20, t0 + 120 ) * 1000.0 / nA;
+      const double abase = window_mean( A, t0 - kRecBase, t0 ) * 1000.0 / nA;
+      const double a_mean = window_mean( A, t0 + 20, t0 + kRecEnd ) * 1000.0 / nA;
       {
         // the muscle being stretched (flexor on even stretches) should speed up
         const std::vector< double >& S = k % 2 == 0 ? cnt_ag_ : cnt_ant_;
@@ -389,7 +428,10 @@ private:
   }
 
   double tap_[ kTaps ] = {}, onset_[ kN ] = {};
-  std::vector< double > th_, sh_;
+  std::vector< double > th_, sh_, sc_, hist_ag_, hist_ant_, hist_gam_;
+  body::Joint ctrl_;
+  bool ctrl_on_ = false, ctrl_fresh_ = false;
+  double sh_levels_[ 3 ] = { 0, 0, 0 };
   int shadow_on_ = -1;
   double theta_pre_ = 0.2;
 };

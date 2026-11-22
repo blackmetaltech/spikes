@@ -17,7 +17,7 @@ DxSpec spec()
   s.chapter = "leech";
   s.vignette = "(A laboratory animal.) A medicinal leech has been dissected so that the heartbeat timing network and its two heart motor neurons can be recorded. The usual picture is "
                "a rhythm in which the two sides take turns. You are given the circuit of this preparation: two heart interneurons that should inhibit each other, and the heart motor neuron each of them inhibits.";
-  s.symptoms = "The two sides of the heart no longer take turns: the left heart tube is driven steadily and the right one is almost still. Recordings from the two heart motor neurons show no bursts that give way to the other side.";
+  s.symptoms = "The two sides of the heart no longer take turns: the left heart tube is driven steadily and the right one is almost still. Recordings from the two heart motor neurons show no bursts that give way to the other side. A small extra current into the left side, as in the lab's test, changes nothing about this: still no turns.";
   s.candidates = { "HN_L>HN_R", "HN_R>HN_L", "HN_L>HE_L", "HN_R>HE_R" };
   s.answer = "HN_L>HN_R";
   s.labels = {

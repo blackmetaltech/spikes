@@ -124,5 +124,21 @@ int main( int argc, char** argv )
     judge( "w_latch", "self excitation " + std::to_string( static_cast< int >( w ) ), r, false );
     if ( !r.passed ) CHECK_MSG( r.verdict.find( "more strongly" ) != std::string::npos || names_silent( r.verdict ) || r.verdict.find( "never makes" ) != std::string::npos, "w_latch: a cell that already excites itself must be told 'more strongly': " + r.verdict );
   }
+  // ---- leech_heart: a novice who builds the pair from the brief with the lab's first-connect values (catalogue adaptation, 300 pA per unit of drive) and then tunes one thing at a time.
+  // Every run either passes (and the pass verdict names release or escape: it is read from the test current, not from the structure) or says something about the pair that is
+  // not a mechanism it has not shown (the verdicts of a pair that fires together or one side that wins never name release or escape).
+  for ( double dw : { 300.0, 480.0 } )
+    for ( double inh : { -20.0, -50.0, -200.0 } )
+      for ( bool tuned : { false, true } )
+      {
+        json adapt = tuned ? json{ { "a", 0.0 }, { "b", 5.0 }, { "tau_w", 1500.0 }, { "V_reset", -58.0 } } : json::object();
+        json c = circ( { pop( "HNL", 1, "aeif_cond_alpha", adapt ), pop( "HNR", 1, "aeif_cond_alpha", adapt ), pop( "HEL", 1, "aeif_cond_alpha", { { "a", 0.0 }, { "b", 0.0 } } ), pop( "HER", 1, "aeif_cond_alpha", { { "a", 0.0 }, { "b", 0.0 } } ) },
+          { proj( "HNL", "HNR", inh ), proj( "HNR", "HNL", inh ), proj( "HNL", "HEL", -300 ), proj( "HNR", "HER", -300 ) }, { inp( "drive", "dc", dw, { "HNL", "HNR", "HEL", "HER" }, 2 ) },
+          { out( "left", { "HEL" } ), out( "right", { "HER" } ) } );
+        const Res r = run( "leech_heart", c );
+        judge( "leech_heart", std::string( "drive " ) + std::to_string( static_cast< int >( dw ) ) + " inh " + std::to_string( static_cast< int >( inh ) ) + ( tuned ? " tuned" : " catalogue" ), r, false );
+        const bool names = r.verdict.find( "release" ) != std::string::npos || r.verdict.find( "escape" ) != std::string::npos;
+        CHECK_MSG( r.passed == names, "leech_heart: a verdict names release or escape exactly when the pair passes: " + r.verdict );
+      }
   return chk::finish( "tasks_novice_test" );
 }

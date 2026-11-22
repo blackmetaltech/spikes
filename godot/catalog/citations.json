@@ -4760,6 +4760,56 @@
    "used_in": [
     "engine/src/tasks/m_tonic.cpp"
    ]
+  },
+  {
+   "id": "skinner1994",
+   "authors": [
+    "Skinner FK",
+    "Kopell N",
+    "Marder E"
+   ],
+   "year": 1994,
+   "title": "Mechanisms for oscillation and frequency control in reciprocally inhibitory model neural networks",
+   "journal": "J Comput Neurosci",
+   "volume": "1",
+   "pages": "69-87",
+   "doi": "10.1007/BF00962719",
+   "pmid": "8792226",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-22 (PMID 8792226): title, authors, journal, year, volume, pages and DOI match; the abstract names four mechanisms (intrinsic release, intrinsic escape, synaptic release, synaptic escape) and which of them are sensitive to the synaptic threshold",
+   "match": "Skinner FK, Kopell|Skinner, Kopell|Skinner et al\\.? \\(?1994",
+   "note": "",
+   "used_in": [
+    "engine/src/tasks/leech_heart.cpp",
+    "godot/game/campaign.gd",
+    "docs/WHAT-IS-REAL.md",
+    "docs/circuits/bestiary_a.md"
+   ]
+  },
+  {
+   "id": "sharp1996",
+   "authors": [
+    "Sharp AA",
+    "Skinner FK",
+    "Marder E"
+   ],
+   "year": 1996,
+   "title": "Mechanisms of oscillation in dynamic clamp constructed two-cell half-center circuits",
+   "journal": "J Neurophysiol",
+   "volume": "76",
+   "pages": "867-883",
+   "doi": "10.1152/jn.1996.76.2.867",
+   "pmid": "8871205",
+   "status": "verified",
+   "verified_by": "PubMed record read 2026-11-22 (PMID 8871205): title, authors, journal, year, volume, pages and DOI match; the abstract says changes of the synaptic threshold change the half-centre period and that the mechanism of oscillation changes with it",
+   "match": "Sharp AA, Skinner|Sharp, Skinner|Sharp et al\\.? \\(?1996",
+   "note": "Pages 867-883 as in the PubMed record (citation 867-83).",
+   "used_in": [
+    "engine/src/tasks/leech_heart.cpp",
+    "godot/game/campaign.gd",
+    "docs/WHAT-IS-REAL.md",
+    "docs/circuits/bestiary_a.md"
+   ]
   }
  ]
 }

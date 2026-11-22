@@ -134,7 +134,7 @@ The medicinal leech heart is driven by a timing network in a few ganglia of the 
 |---|---|---|---|---|---|
 | Leech: a cell that bursts (`l_burst`) | Puzzle | Bursting: a slow variable ends each burst | Adaptation | The HN cells fire bursts with silent gaps, even with steady input. A slow current builds up during the burst and ends it. | Nadim et al. 1995; Hill et al. 2001 |
 | Leech: rebound after inhibition (`l_rebound`) | Puzzle | Post-inhibitory rebound | Inhibition, adaptation | A silenced HN cell fires strongly just after release, helped by a hyperpolarisation-activated current and a low-threshold calcium current. | Nadim et al. 1995; Olsen et al. 1995 |
-| Leech: the heartbeat (`leech_heart`) | Task | A half-centre with adapting cells | Half-centre, bursting, rebound, adaptation, inhibition | Two HN cells inhibit each other and each inhibits the heart motor neuron of its side, so the two sides beat in turn. | Hill et al. 2001 |
+| Leech: the heartbeat (`leech_heart`) | Task | A half-centre, and what makes it turn | Escape or release, half-centre, bursting, rebound, adaptation, inhibition | Two HN cells inhibit each other and each inhibits the heart motor neuron of its side, so the two sides beat in turn. The lab then drives one side a little harder and reads which phase moves. | Skinner et al. 1994; Sharp et al. 1996; Hill et al. 2001 |
 | Diagnosis: the one-sided heartbeat (`dx_leech`) | Case | Finding which inhibition is missing | Half-centre, inhibition | A model of the loss of one inhibitory link between the two HN cells. | Hill et al. 2001, 2002 |
 
 ### Leech: a cell that bursts
@@ -167,22 +167,23 @@ A rebound needs a slow variable in the cell that the inhibition drives past its 
 
 ### Leech: the heartbeat
 
-**The idea.** A half-centre needs two things: mutual inhibition, so that the side that fires silences the other, and a slow process that wears the active side out, so that the other can take over.
+**The idea.** A half-centre needs two things: mutual inhibition, so that the side that fires silences the other, and a slow process that gives the silenced side its turn. The slow process can wear the active side out (release), or bring the silenced side back while the other is still firing (escape). In the bursts the two look alike.
 
-**The goal.** Build two heart interneurons and two heart motor neurons, and read the motors on `left` and `right`. A steady `drive` excites all cells equally, so the rhythm has to come from your circuit. The two sides must alternate: clean turns, almost never firing together, neither side winning for good. Each side must fire in bursts, and a full cycle must take a few seconds. Two plain interneurons that inhibit each other do not alternate. The one that fires first silences the other for ever. The episode is 14 seconds, and Check runs the same 14 seconds.
+**The goal.** Build two heart interneurons and two heart motor neurons, and read the motors on `left` and `right`. A steady `drive` excites all cells equally, so the rhythm has to come from your circuit. The two sides must alternate: clean turns, almost never firing together, neither side winning for good. Each side must fire in bursts, and a full cycle must take a few seconds. Two plain interneurons that inhibit each other do not alternate. The one that fires first silences the other for ever. Then comes the experiment: after fifteen seconds the lab injects a little extra current into the cells of the left side and reads the rhythm again for another twelve. If the side that was driven harder bursts for longer, its tiring is what ends the burst; if it comes back sooner, its own recovery is what brings it back. The cells must show one of the two clearly, and the rhythm must go on alternating. The pass message says which one you built. The episode is 30 seconds, and Check runs the same 30 seconds.
 
 **What is simplified.**
 
 - Time is compressed so that a check takes seconds; the real cycle is much slower.
 - The real inhibition is partly graded. Here it is spike-triggered.
 - Only a single segmental oscillator is built. The coordination between segments is not modelled.
-- The period band is a game value.
+- The period band is a game value, and so is the size of the test current (a twentieth of the drive).
+- **Only one of the two kinds has been built and tested.** The lab reads either from the response, and would pass an escape oscillator, but the project found no circuit from the parts bin whose silenced cell comes back on its own with a steady period, so there is no tested example of that kind. The [What is real](what-is-real.html) page says what was tried.
 
 **Variants.** None. **Par:** 4 neurons.
 
 #### Stuck?
 
-A half-centre needs two things: mutual inhibition, so that the side that fires silences the other, and a slow process that wears the active side out so that the other can take over.
+A half-centre needs two things: mutual inhibition, so that the side that fires silences the other, and a slow process that gives the silenced side its turn. The slow process can wear the active side out, or bring the silenced side back.
 
 ## Chapter: Sea slug
 
