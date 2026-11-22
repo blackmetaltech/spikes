@@ -11,7 +11,7 @@ Spike is a game where you build small networks of spiking neurons and watch them
 
 It is a game and a research tool at once. The puzzles teach one idea at a time. The same circuits can be saved as plain files and run again in Python.
 
-> **Note:** Spike is in alpha. The version string in the game reads "0.5 in progress". It plays on desktop Linux. Some corners are rough. The [changelog](changelog.html) lists known gaps, and the [FAQ](faq.html) answers the common questions.
+> **Note:** Spike is in alpha. The foot of the title screen shows the version (v0.5.0), the build and the Godot version. It plays on desktop Linux. Some corners are rough. The [changelog](changelog.html) lists known gaps, and the [FAQ](faq.html) answers the common questions.
 
 ## What you do in the game
 
@@ -19,8 +19,8 @@ It is a game and a research tool at once. The puzzles teach one idea at a time. 
 |---|---|
 | Build | Start from an empty bench with the level's sensor cards on the left and motor cards on the right. Add neurons, drag connections, set weights. |
 | Run | A live spike raster, voltage traces, rate gauges and the simulated body move as the circuit runs. |
-| Check | An instant headless score. The verdict says what the circuit did and which part of the mechanism is missing. It never gives the answer. |
-| Learn | One new idea per level, a three-tier hint ladder, a recipe you can open at the cost of a star, and a lab notebook of cited findings. |
+| Check | A headless score on five random worlds, in the background. The verdict says what the circuit did and which part of the mechanism is missing. It never gives the answer. |
+| Learn | One new idea per level, a three-tier hint ladder, a recipe (printed in Guided mode, or opened at the cost of the third star in Standard), and a lab notebook of cited findings. |
 | Diagnose | A patient circuit with a hidden dead connection. You probe it and name the broken wire. |
 | Dissect | A lesion lab that cuts parts and re-runs on several seeds, plus motif, burst, heart-rate-variability, phase-response, energy and reverse-correlation tools. |
 
@@ -35,7 +35,7 @@ Spike ships for 64-bit Linux only. These are the facts the repository states.
 | Operating system | Linux x86_64 with glibc 2.39 or newer (Ubuntu 24.04 or newer is the reference). |
 | Windows, macOS | Not available. A Windows build is planned. What is missing is a cross-build of NEST and a port of the headless runner. |
 | Graphics | The game is a Godot 4.7 project. It uses the Forward+ renderer on desktop and the OpenGL compatibility renderer on mobile. A graphics driver that supports Vulkan is the safe choice on desktop. |
-| CPU | NEST runs on one thread. A modern single core is what matters. The biggest levels (the bosses, the 250-cell mushroom body) are the slowest. |
+| CPU | NEST runs on one thread. A modern single core is what matters. The biggest levels (the bosses, the mushroom body, the mean-field level) are the slowest. |
 
 The game also runs on a handheld or phone-sized window. See [settings and performance](settings-and-performance.html).
 
@@ -51,7 +51,7 @@ Keep the files from the zip together. The zip holds the game (`Spike.x86_64` and
 
 ## First launch
 
-By default the game opens fullscreen. Press Escape on the title screen to go back out of any sub-screen. Change the window mode in Settings, Display tab.
+By default the game opens fullscreen. Esc goes back one screen from any sub-screen. Change the window mode in Settings, Display tab (desktop only).
 
 The title screen is a plate in the style of a 19th-century histology atlas: ink and Golgi stain on paper, sienna for excitation and Prussian blue for inhibition. It has six entries.
 
@@ -60,25 +60,31 @@ The title screen is a plate in the style of a 19th-century histology atlas: ink 
 | I. Play | The first time, the tutorial (Plate 0). After that, the campaign map. |
 | II. Laboratory | The sandbox: a free bench with no task and every part unlocked. See [the sandbox](sandbox.html). |
 | III. What is real | A screen that says what is NEST, what was tuned and what is illustrative. See [what is real](what-is-real.html). |
-| IV. Settings | Display, Audio, Controls and Game tabs. |
+| IV. Settings | Display, Audio, Controls and Game tabs. The Game tab holds the save buttons. |
 | V. Credits | Engine, fonts, sources and licences. |
-| VI. Quit | Leaves the game. |
+| VI. Quit | Leaves the game (not shown on a phone or on the web). |
 
-Choose Play. On a fresh save the game starts **Plate 0: the first neuron**, a four-minute interactive tutorial that has you build your first circuit. Every step can be skipped (Skip tutorial, or Esc) and it can be replayed from the campaign header (Tutorial). At the end it asks how much help you want (Guided, Standard or Researcher, see [modes](modes.html)). After that, Play opens the campaign map on the first chapter that has an unfinished level. Pick the first level, read its brief on the right, and press Build. [Your first hour](first-hour.html) walks through the tutorial and the first four levels.
+Choose Play. On a fresh save the game starts **Plate 0: the first neuron**, an interactive tutorial that has you build your first circuit. Every step can be skipped (Skip tutorial, or Esc) and it can be replayed from the campaign header (Tutorial). At the end it asks how much help you want (Guided, Standard or Researcher, see [modes](modes.html)). After that, Play opens the campaign map on the first chapter that has an unfinished level, and the **Continue** button above the chapter tabs opens the next level you have not passed. Pick the first level, read its brief on the right, and press Build. [Your first hour](first-hour.html) walks through the tutorial and the first four levels.
 
 ## Where your progress lives
 
-The game saves automatically.
+The game saves automatically, to Godot's per-user data folder for "Spike" (on Linux, normally under `~/.local/share/godot/app_userdata/Spike/`). Settings, Game shows the exact folder.
 
-| What | File (inside Godot's per-user data folder for "Spike") |
+| What | File |
 |---|---|
 | Stars, best scores, difficulty mode, hints and variants done, and which tutorial steps and pointers you have seen | `progress.cfg` |
 | Display, audio and accessibility settings | `settings.cfg` |
-| The circuit you last built on each level | `circuits/last_<level>.json` |
-| A log of the game start | `logs/spike.log` |
-| Your play log (only if you turn it on) | exported on demand as JSON |
+| The targets you pinned on the Results card | `goals.cfg` |
+| The circuit you last built on each level (the sandbox is `last_free.json`) | `circuits/last_<level>.json` |
+| The solution slots A, B and C of a level | `circuits/<level>/slot_A.json` (and B, C) |
+| The benches a button replaced, newest ten per level | `circuits/<level>/history/` |
+| Lesion tables you saved | `lesions/` |
+| A log of each game start, and the notices the game raised | `logs/spike.log` (and the two before it, `spike.1.log`, `spike.2.log`) |
+| Your play log (only if you turn it on) | `playlog.json`; exported on demand as a dated JSON file |
 
-On Linux the per-user data folder is normally under `~/.local/share/godot/app_userdata/`. The game never sends anything anywhere. The optional play log stays on your device. See [settings and performance](settings-and-performance.html).
+Every file is written safely (to a temporary file first, then renamed, so a crash cannot leave half a file) and keeps up to three backups (`.bak1` to `.bak3`). If a file is damaged, the game uses the newest good backup and keeps the damaged one beside it (`.corrupt-<time>`). The Settings, Game tab can export the whole save as one zip, import one, open the log folder and reset your progress. See [settings and performance](settings-and-performance.html#saves-backups-and-logs).
+
+The game never sends anything anywhere. The optional play log stays on your device.
 
 ## Where to go next
 

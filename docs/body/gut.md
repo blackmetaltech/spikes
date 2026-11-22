@@ -1,6 +1,6 @@
 # Gut: peristalsis
 
-`spike::body::Gut` (`body/gut.h`): `n_segments` (12) smooth-muscle segments and a bolus.
+`spike::body::Gut` (`body/gut.h`): `n_segments` smooth-muscle segments and a bolus. The module's default is 12 segments (the unit tests use it); the peristalsis level sets 8 (`kSeg` in `tasks/peristalsis.cpp`), so its sensors are `dist0..7` and its motor pools `ach0..7` / `no0..7`.
 
 ## Segment
 Membrane drive `m_i = ex_i - inh_i + A * sw_i(t)`; contraction target `sigmoid((m - 0.6)/0.07)`; contraction follows with `tau = 500 ms` (rise) / 800 ms

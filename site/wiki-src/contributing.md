@@ -20,6 +20,7 @@ A useful report has:
 3. What you expected, and what you got.
 4. The verdict text, if it was a Check or a Test x5.
 5. Your platform and the game version shown on the title screen.
+6. The game log, `logs/spike.log` in the game's data folder (Settings, Game tab, Open log folder). It keeps the last three starts, and records damaged or newer save files the game noticed.
 
 If you want to help the maintainers learn where players get stuck, Settings has an opt-in play log (Game tab, "Record my play"). It is off by default and keeps data on your own device only: time per level, runs, hint tiers, quits, and edits before your first pass. You can export it as JSON and attach it to a report. Nothing is ever sent for you.
 
@@ -30,7 +31,7 @@ If you want to help the maintainers learn where players get stuck, Settings has 
 3. If your change touches the UI, update the interaction graph (below).
 4. Keep your change small, and say in the description what it changes for a player.
 
-Pushes that only touch Markdown, `docs/` or `research/` do not run CI.
+Pushes that only touch Markdown, `docs/`, `research/` or the website (`site/`, `tools/site/`) do not run CI. The website and wiki have their own workflow, which fails on a broken link, anchor or image; check a wiki change locally with `python3 tools/site/build.py --check`. See [building from source](building-from-source.html#continuous-integration).
 
 ## The honesty contract
 
@@ -38,7 +39,7 @@ These five rules came out of a harsh review of version 0.3 (`docs/REVIEW-HARSH.m
 
 ### 1. Mechanism, not just output
 
-A level checks that the circuit uses the mechanism the level teaches, through the circuit's structure, and the verdict says which part is missing. For example, the reflex level needs at least two sensory cells converging onto the motor pool, and a circuit without that fails whatever its weights. A cheap trick that happens to hit the numbers does not pass.
+A level checks that the circuit uses the mechanism the level teaches, through the circuit's structure, and the verdict says which part is missing. For example, a level that teaches convergence checks that several sensory cells really converge onto the same target, and a circuit without that fails whatever its weights. A cheap trick that happens to hit the numbers does not pass.
 
 ### 2. No numbers in verdicts or hints
 
@@ -48,11 +49,11 @@ Verdicts describe what the circuit did and which way to change it ("too weak to 
 
 ### 3. A table of circuits that must fail
 
-Every level has rows in `engine/tests/cheap_rows_*.inc`: an empty bench, a single cell, a tonic cell with all weights 0, the reference with every weight 0 or extreme, the reference with the taught mechanism cut out, and any cheap circuit a reviewer found. Each must fail on two seeds, and say something. A broken harness is caught because the reference circuit must pass the same harness. Diagnosis cases test that every wrong and unknown answer fails. See [make it yours](make-it-yours.html).
+Every level has rows in `engine/tests/cheap_rows_*.inc` (six files, `a` to `f`, each its own ctest entry): an empty bench, a single cell, a tonic cell with all weights 0, the reference with every weight 0 or extreme, the reference with the taught mechanism cut out, and any cheap circuit a reviewer found. Each must fail on seeds 1 and 2 (in the quick episode that Check uses), and say something. A broken harness is caught because the reference circuit must pass the same harness. Diagnosis cases test that every wrong and unknown answer fails. See [make it yours](make-it-yours.html).
 
 ### 4. Honest novice tests
 
-A scripted novice may use only the brief, the verdicts and the lab's own defaults. It may not use recipes, tier-3 hints or the reference. Levels it cannot solve are reported, not hidden. The playtest report for 0.5 is `research/PLAYTEST-0.5.md`; it lists bugs the project then fixed, such as round-number circuits being wrongly flagged as copies of the reference.
+A scripted novice (`tasks_novice_test`) builds the circuits a new player tries from the brief, in the order they try them, and uses only the brief, the verdicts and the lab's own defaults. It may not use recipes, tier-3 hints or the reference. Every run must either pass or say, in words, which group never fires. Levels it cannot solve are reported, not hidden. A second test, `tasks_honest_test`, checks the other direction: valid circuits that are not the reference must not be rejected, and a quick pass must hold in the full episode.
 
 ### 5. Real data, honest labels
 
@@ -87,7 +88,7 @@ python3 tools/citations/check.py --online --fill   # look up DOIs for entries th
 python3 tools/citations/check.py --write-md    # regenerate docs/CITATIONS.md
 ```
 
-Each entry has a status. **Verified** means the record was read from PubMed. **Verified-locus** means PubMed has a record at exactly that journal, year, volume, first page and first author. **Unverified** means it could not be checked (books and older papers); they are kept because the work is real and classic, but are marked. The registry at the last count held 161 entries, of which 34 are unverified. The citation file is generated; do not edit it by hand.
+Each entry has a status. **Verified** means the record was read from PubMed. **Verified-locus** means PubMed has a record at exactly that journal, year, volume, first page and first author. **Unverified** means it could not be checked (books and older papers); they are kept because the work is real and classic, but are marked. The registry at the last count held 194 entries, of which 34 are unverified. The citation file is generated; do not edit it by hand.
 
 ## The interaction-graph rule
 

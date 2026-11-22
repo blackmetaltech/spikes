@@ -1,13 +1,13 @@
 # Writing wiki pages
 
-The wiki at https://ixaxaar.github.io/spikes/wiki/ is built from the Markdown files in this folder by `tools/site/build.py` (Python standard library only). The Pages workflow runs it on every push to master that touches `site/`; locally:
+The wiki at https://ixaxaar.github.io/spikes/wiki/ is built from the Markdown files in this folder by `tools/site/build.py` (Python standard library only). The Pages workflow (`.github/workflows/pages.yml`) runs `--check` and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow; locally:
 
 ```sh
 python3 tools/site/build.py --check     # renders site/wiki/*.html, search.json and site/sitemap.xml; fails on broken links
 python3 -m http.server -d site 8000     # then open http://localhost:8000/
 ```
 
-Files in capitals (this README, `IMAGES.md`) and files starting with `_` are notes, not pages. Anything else here that is not Markdown (for example `img/*.webp`) is copied to `site/wiki/` as it is.
+Files in capitals (this README, `IMAGES.md`) and files starting with `_` are notes, not pages. Anything else here that is not Markdown (for example `img/*.webp`) is copied to `site/wiki/` as it is. `site/wiki/`, `search.json` and `site/sitemap.xml` are generated and not tracked by git.
 
 ## Front matter
 
@@ -50,4 +50,4 @@ summary: One sentence.       # under the title, on the index, in search results 
 
 ## Images
 
-`IMAGES.md` lists the captures the pages use; `scripts/site-media.sh` makes them (the `wiki` items) from the exported game into `img/`. Site-wide media (clips, screenshots) are in `../assets/media/` and the chapter plates in `../assets/plates/`; both may be used from a page with a relative path.
+`IMAGES.md` lists the captures the pages use; `scripts/site-media.sh` makes them (the `wiki` items) from the exported game into `img/` as WebP (`ONLY="wiki:first-hour-lab" scripts/site-media.sh` remakes one; it needs the exported game, `xvfb-run`, ffmpeg and ImageMagick). Site-wide media (clips, screenshots) are in `../assets/media/` and the chapter plates in `../assets/plates/`; both may be used from a page with a relative path.
