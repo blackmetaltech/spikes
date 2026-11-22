@@ -12,6 +12,14 @@ nestkernel/kernel_manager.cpp (one hunk)
   unsigned int -> long is a widening the variant's converting assignment accepts; Windows has a 32-bit `long` (LLP64), where it is a narrowing
   and the assignment does not compile. They are `long` constants now (the values are 10 .. 205, so nothing changes).
 
+nestkernel/event_delivery_manager.cpp (one hunk)
+  std::max( 2UL, static_cast< size_t >( ... ) ): `unsigned long` is 32 bits on Windows while size_t is 64, so the two arguments differ in type
+  and std::max does not deduce. The literal is a size_t now.
+
+nestkernel/mpi_manager.h and mpi_manager.cpp (one hunk each)
+  The non-MPI copy overload communicate( vector<unsigned long>&, vector<unsigned long>&, vector<int>& ) is what SPManager reaches with its
+  std::vector< size_t >, which is `unsigned long` only where long is 64 bits. On Windows an overload for `unsigned long long` is added (same body).
+
 nestkernel/mpi_manager.h (two hunks)
   gethostname() is a Winsock function on Windows (declared in <winsock2.h>, and it fails until WSAStartup ran), so the non-MPI
   MPIManager::get_processor_name() did not compile. It only fills the "processor name" string of the kernel status, so on Windows it asks
@@ -42,6 +50,19 @@ index b5c262a..9cf988c 100644
  
  /* Name of package */
  #define PACKAGE @PROJECT_NAME@
+diff --git a/nestkernel/event_delivery_manager.cpp b/nestkernel/event_delivery_manager.cpp
+index ae6ea3e..b238303 100644
+--- a/nestkernel/event_delivery_manager.cpp
++++ b/nestkernel/event_delivery_manager.cpp
+@@ -376,7 +376,7 @@ EventDeliveryManager::gather_spike_data_( std::vector< SpikeDataT >& send_buffer
+   if ( global_max_spikes_per_rank_ < send_recv_buffer_shrink_limit_ * old_buff_size_per_rank )
+   {
+     const size_t new_buff_size_per_rank =
+-      std::max( 2UL, static_cast< size_t >( ( 1 + send_recv_buffer_shrink_spare_ ) * global_max_spikes_per_rank_ ) );
++      std::max( static_cast< size_t >( 2 ), static_cast< size_t >( ( 1 + send_recv_buffer_shrink_spare_ ) * global_max_spikes_per_rank_ ) );
+     kernel().mpi_manager.set_buffer_size_spike_data(
+       kernel().mpi_manager.get_num_processes() * new_buff_size_per_rank );
+     resize_send_recv_buffers_spike_data_();
 diff --git a/nestkernel/kernel_manager.cpp b/nestkernel/kernel_manager.cpp
 index fa3d3ef..53e942f 100644
 --- a/nestkernel/kernel_manager.cpp
@@ -78,8 +99,31 @@ index fa3d3ef..53e942f 100644
  
    Dictionary build_info;
  
+diff --git a/nestkernel/mpi_manager.cpp b/nestkernel/mpi_manager.cpp
+index 92d6c0d..2371780 100644
+--- a/nestkernel/mpi_manager.cpp
++++ b/nestkernel/mpi_manager.cpp
+@@ -1064,6 +1064,18 @@ MPIManager::communicate( std::vector< unsigned long >& send_buffer,
+   recv_buffer.swap( send_buffer );
+ }
+ 
++#ifdef _WIN32
++void
++MPIManager::communicate( std::vector< unsigned long long >& send_buffer,
++  std::vector< unsigned long long >& recv_buffer,
++  std::vector< int >& displacements )
++{
++  displacements.resize( num_processes_, 0 );
++  displacements[ 0 ] = 0;
++  recv_buffer.swap( send_buffer );
++}
++#endif
++
+ void
+ MPIManager::communicate( std::vector< int >& send_buffer,
+   std::vector< int >& recv_buffer,
 diff --git a/nestkernel/mpi_manager.h b/nestkernel/mpi_manager.h
-index 56c752b..4b0faf7 100644
+index 56c752b..cd9d7ec 100644
 --- a/nestkernel/mpi_manager.h
 +++ b/nestkernel/mpi_manager.h
 @@ -28,6 +28,10 @@
@@ -93,7 +137,20 @@ index 56c752b..4b0faf7 100644
  #ifdef HAVE_MPI
  #include <mpi.h>
  #endif
-@@ -612,7 +616,12 @@ MPIManager::get_processor_name()
+@@ -143,6 +147,12 @@ public:
+   void communicate( std::vector< unsigned long >& send_buffer,
+     std::vector< unsigned long >& recv_buffer,
+     std::vector< int >& displacements );
++#ifdef _WIN32
++  // size_t is `unsigned long long` here, not `unsigned long`: the non-MPI copy overload for it (SPManager calls it with std::vector< size_t >)
++  void communicate( std::vector< unsigned long long >& send_buffer,
++    std::vector< unsigned long long >& recv_buffer,
++    std::vector< int >& displacements );
++#endif
+ 
+   void
+   communicate( std::vector< int >& send_buffer, std::vector< int >& recv_buffer, std::vector< int >& displacements );
+@@ -612,7 +622,12 @@ MPIManager::get_processor_name()
  {
    char name[ 1024 ];
    name[ 1023 ] = '\0';
