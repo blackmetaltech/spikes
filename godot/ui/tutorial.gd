@@ -392,7 +392,7 @@ func _tick_ambient() -> void:
 	if tip_task == "" and _fresh_lab:
 		_fresh_lab = false
 		var tid := lab.task_id
-		if TIPS.has(tid) and not bool(Progress.meta_get("tip_" + tid, false)) and (tid != "m_tonic" or Campaign.order().has("m_tonic")) and not lab._is_dx():
+		if TIPS.has(tid) and not bool(Progress.meta_get("tip_" + tid, false)) and (tid != "m_tonic" or Campaign.order().has("m_tonic")) and not lab._is_dx() and OS.get_environment("SP_SHOT") == "":   # (not in screenshots: a pointer card over the bench)
 			tip_task = tid; _build_tip()
 	if tip_task != "" and _tip != null:
 		var tgt := _tip_target()

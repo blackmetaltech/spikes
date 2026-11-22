@@ -90,6 +90,10 @@ still parts          1920x1080 SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1
 still notebook       1920x1080 SP_SCREEN=notebook SP_PROGRESS=m_threshold:3:97,m_excitation:3:95,m_convergence:2:90,reflex:3:96,m_inhibition:3:94,m_subtraction:2:88,worm:2:84,m_adaptation:3:93,m_half_centre:3:95,lamprey:3:97 SP_SHOT_AT=2
 still real           1920x1080 SP_SCREEN=real SP_SHOT_AT=2
 still analysis       1920x1080 SP_SCREEN=analysis SP_TASK=lamprey SP_REF=1 SP_SPEED=1 SP_SHOT_AT=7
+still tutorial       1920x1080 SP_TUTORIAL=1 SP_TUT_STEP=6 SP_SHOT_AT=30
+still editor-large   1920x1080 SP_SCREEN=lab SP_TASK=fly_mb SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=1500 SP_SHOT_AT=3
+still end-card       1920x1080 SP_SCREEN=lab SP_TASK=lamprey SP_CIRCUIT=@WORK@/lamprey-mine.json SP_SPEED=2 SP_SHOT_AT=16
+still map-fresh      1920x1080 SP_SCREEN=tasks SP_SHOT_AT=2
 clip  lamprey        1920x1080 20 200 90  -                  1280 SP_SCREEN=lab SP_TASK=lamprey SP_REF=1 SP_SPEED=1
 clip  heart          1920x1080 20 300 120 744x420+1160+76   744  SP_SCREEN=lab SP_TASK=heart_autonomic SP_REF=1 SP_SPEED=2
 clip  baroreflex     1920x1080 20 200 40  744x420+1160+76   744  SP_SCREEN=lab SP_TASK=baroreflex SP_REF=1 SP_SPEED=4
@@ -100,19 +104,19 @@ clip  phase          1920x1080 20 1160 1000 744x420+1160+76  744  SP_SCREEN=lab 
 clip  raster         1920x1080 20 140 10  744x226+1160+700  744  SP_SCREEN=lab SP_TASK=crab_pyloric SP_REF=1 SP_SPEED=1
 clip  check          1920x1080 20 200 10  -                  1280 SP_SCREEN=lab SP_TASK=lamprey SP_CIRCUIT=@WORK@/lamprey-mine.json SP_SPEED=1 SP_CHECK=1
 wiki  first-hour-lab        1920x1080 -                SP_SCREEN=lab SP_TASK=m_threshold SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=2500 SP_SHOT_AT=3
-wiki  lab-annotated         1920x1080 -                SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=5200 SP_SHOT_AT=3 @PINS=1200,40;300,92;700,330;1110,1000;1860,150;1870,385;1870,520;1870,780;1870,1030
+wiki  lab-annotated         1920x1080 -                SP_SCREEN=lab SP_TASK=reflex SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=5200 SP_SHOT_AT=3 @PINS=1200,40;300,92;700,330;1110,1000;1860,150;1500,372;1420,512;1870,780;1870,1030
 wiki  end-card              1920x1080 620x390+660+352  SP_SCREEN=lab SP_TASK=lamprey SP_CIRCUIT=@WORK@/lamprey-mine.json SP_SPEED=1 SP_SHOT_AT=14
-wiki  campaign-invertebrates 1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=invertebrates SP_PROGRESS=m_threshold:3:97,m_excitation:2:90 SP_SHOT_AT=2
-wiki  campaign-spinal       1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=spinal SP_UNLOCK_ALL=1 SP_SHOT_AT=2
-wiki  campaign-heart        1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=heart SP_UNLOCK_ALL=1 SP_SHOT_AT=2
-wiki  campaign-breathing    1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=breathing SP_UNLOCK_ALL=1 SP_SHOT_AT=2
-wiki  campaign-autonomic    1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=autonomic SP_UNLOCK_ALL=1 SP_SHOT_AT=2
-wiki  bestiary-worm         1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=worm SP_SHOT_AT=2
-wiki  bestiary-leech        1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=leech SP_SHOT_AT=2
-wiki  bestiary-aplysia      1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=aplysia SP_SHOT_AT=2
-wiki  bestiary-fly-compass  1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=fly_compass SP_SHOT_AT=2
-wiki  bestiary-fly-mb       1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=fly_mb SP_SHOT_AT=2
-wiki  bestiary-crab         1920x1080 1248x778+64+280 SP_SCREEN=tasks SP_CHAPTER=crab SP_SHOT_AT=2
+wiki  campaign-invertebrates 1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=invertebrates SP_PROGRESS=m_threshold:3:97,m_excitation:2:90 SP_SHOT_AT=2
+wiki  campaign-spinal       1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=spinal SP_UNLOCK_ALL=1 SP_SHOT_AT=2
+wiki  campaign-heart        1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=heart SP_UNLOCK_ALL=1 SP_SHOT_AT=2
+wiki  campaign-breathing    1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=breathing SP_UNLOCK_ALL=1 SP_SHOT_AT=2
+wiki  campaign-autonomic    1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=autonomic SP_UNLOCK_ALL=1 SP_SHOT_AT=2
+wiki  bestiary-worm         1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=worm SP_SHOT_AT=2
+wiki  bestiary-leech        1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=leech SP_SHOT_AT=2
+wiki  bestiary-aplysia      1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=aplysia SP_SHOT_AT=2
+wiki  bestiary-fly-compass  1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=fly_compass SP_SHOT_AT=2
+wiki  bestiary-fly-mb       1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=fly_mb SP_SHOT_AT=2
+wiki  bestiary-crab         1920x1080 1252x830+54+218 SP_SCREEN=tasks SP_CHAPTER=crab SP_SHOT_AT=2
 wiki  theory-dynamics       1920x1080 744x420+1160+76 SP_SCREEN=lab SP_TASK=d_class SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=3000 SP_SHOT_AT=3
 wiki  theory-rates          1920x1080 744x420+1160+76 SP_SCREEN=lab SP_TASK=r_oscillate SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=2000 SP_SHOT_AT=0.5
 wiki  theory-memory         1920x1080 744x420+1160+76 SP_SCREEN=lab SP_TASK=h_complete SP_REF=1 SP_SPEED=1 SP_SIM_UNTIL=1500 SP_SHOT_AT=0.5
