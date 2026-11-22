@@ -117,7 +117,7 @@ func fill_bar() -> void:
 	check_btn = null; hint_btn = null
 	if tid != "" and not dxm:
 		check_btn = Kit.btn("Check", lab.play.check_start, "green", bs); bar.add_child(check_btn)
-		check_btn.tooltip_text = "Score the circuit now, headless, on this level's own seed."
+		check_btn.tooltip_text = "Score the circuit now, headless, on the five worlds of Test x5 (seeds 101 to 105; a challenge variant runs on one world). All five passing earns the second star."
 	if tid != "" and not phone:
 		hint_btn = Kit.btn("Hint", lab.play.hint_toggle, "amber", bs); Kit.ident(hint_btn, "BtnHint"); bar.add_child(hint_btn)
 		bar.add_child(Kit.btn("Case" if dxm else "Brief", func(): show_brief(), "ghost", bs, Vector2(84, 0)))
@@ -158,7 +158,10 @@ func apply_tab() -> void:
 	sheet_sync()
 
 # ---------- the palette ----------
-## The add-neuron palette: [Parts], + Excitatory, [+ Inhibitory], [+ Noise], Connect. Bracketed ones open with the level that needs them (LabUnlocks).
+## The add-neuron palette: [Parts], + Excitatory, [+ Inhibitory], [+ Noise], Connect. Bracketed ones open with the level that needs them (LabUnlocks), except + Noise,
+## which is offered in the sandbox only: a level is scored on the sensors it declares, so an input the player adds on a level is a stimulus of the circuit's own
+## (undeclared stimulus is a cheat, the engine refuses to pass it, Guarded in engine/src/tasks/registry.cpp). The noise a level wants is its own sensor (Renshaw's
+## "noise" card) or the Researcher mode's physiological noise; the sandbox has nothing to score, so a free noise source is only a tool there.
 func fill_palette() -> void:
 	if palette_row == null: return
 	for c in palette_row.get_children(): palette_row.remove_child(c); c.queue_free()
@@ -167,7 +170,7 @@ func fill_palette() -> void:
 	if not Layout.phone and LabUnlocks.has(tid, "parts"): parts_btn = Kit.btn(part_text(), open_parts, "panel", sz); Kit.ident(parts_btn, "BtnParts"); palette_row.add_child(parts_btn)   # on a phone the parts button lives in the menu
 	palette_row.add_child(Kit.btn("+ Excitatory", func(): lab._add_neuron("E"), "amber", sz))
 	if LabUnlocks.has(tid, "inhibitory"): palette_row.add_child(Kit.btn("+ Inhibitory", func(): lab._add_neuron("I"), "panel", sz))
-	if LabUnlocks.has(tid, "noise"): palette_row.add_child(Kit.btn("+ Noise", lab._add_noise, "panel", sz))
+	if tid == "": var nb := Kit.btn("+ Noise", lab._add_noise, "panel", sz); nb.tooltip_text = "A free noise source for the sandbox. Levels are scored on their own sensors only, so a level has no + Noise."; Kit.ident(nb, "BtnNoise"); palette_row.add_child(nb)
 	connect_btn = Kit.btn("Connect", lab._toggle_connect, "panel", sz); palette_row.add_child(connect_btn)
 	connect_btn.tooltip_text = "Connect mode: click a source, then a target. You can also drag from a neuron's rim."
 	sync_connect_btn()

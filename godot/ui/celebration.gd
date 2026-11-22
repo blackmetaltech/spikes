@@ -95,6 +95,10 @@ func _show_note(title: String, text: String) -> void:
 	add_child(pn); _note_card = pn; _note_age = 0.0
 	_place_note()
 
+## Take the notebook card away now (the tutorial does, when it moves on: the card is about the step before and would cover the next one).
+func dismiss_note() -> void:
+	if _note_card != null: _note_card.queue_free(); _note_card = null
+
 func _place_note() -> void:
 	if _note_card == null: return
 	var ms := _note_card.get_combined_minimum_size(); _note_card.size = ms

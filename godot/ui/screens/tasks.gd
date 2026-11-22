@@ -256,7 +256,7 @@ func _fill_detail() -> void:
 	if done: chips.add_child(Kit.chip("PASSED" if not is_var else "DONE", Kit.success(), 15))
 	if not open: chips.add_child(Kit.chip("LOCKED", Kit.RED, 15))
 	if not bool(node["spine"]): chips.add_child(Kit.chip("OPTIONAL", Kit.TEXT_SOFT, 15))
-	if str(info["view"]) != "polyline": chips.add_child(Kit.chip(str(info["view"]).to_upper() + " VIEW", Kit.MOTOR, 15))
+	if str(info["view"]) != "polyline": chips.add_child(Kit.chip(str(info["view"]).to_upper() + ("" if Layout.phone else " VIEW"), Kit.MOTOR, 15))   # "DASHBOARD VIEW" does not fit the phone card's row beside the other two chips: it dropped to a line of its own
 	var bt := HBoxContainer.new(); bt.add_theme_constant_override("separation", 10); detail_box.add_child(bt)
 	var sid := tid; var vid := str(node["variant"]); var synth := bool(info.get("synthetic", false))
 	var go := func(ref: bool):
@@ -841,19 +841,31 @@ class MapCanvas extends Control:
 			_plate_tex[id] = load(path) as Texture2D if ResourceLoader.exists(path) else null
 		var tex: Texture2D = _plate_tex[id]
 		if tex == null: return {}
-		var k := minf(r.size.x / tex.get_width(), r.size.y / tex.get_height()); var sz := tex.get_size() * k
-		var pr := Rect2(r.get_center() - sz * 0.5, sz)
-		draw_texture_rect(tex, pr, false, Color(1, 1, 1, a))
 		var meta: Dictionary = plate_meta().get(id, {})
+		var pins: Dictionary = meta.get("pins", {})
+		# A phone's map frame is a wide, short strip (about 3.3 : 1) and the page is 1.6 : 1: shown whole it would be a small picture with empty sides (the squashed
+		# plates of the review). Then only the band of the page that holds the pins is shown, at the full width of the frame.
+		var crop := Rect2(0, 0, 1, 1)
+		var asp_f := r.size.x / maxf(r.size.y, 1.0); var asp_t := float(tex.get_width()) / float(tex.get_height())
+		if Layout.phone and asp_f > asp_t * 1.25 and not pins.is_empty():
+			var ch := clampf(asp_t / asp_f, 0.3, 1.0); var y0 := 1.0; var y1 := 0.0
+			for pid in pins: y0 = minf(y0, float(pins[pid][1])); y1 = maxf(y1, float(pins[pid][1]))
+			crop = Rect2(0.0, clampf((y0 + y1) * 0.5 - ch * 0.5, 0.0, 1.0 - ch), 1.0, ch)
+		var src := Rect2(crop.position * tex.get_size(), crop.size * tex.get_size())
+		var k := minf(r.size.x / src.size.x, r.size.y / src.size.y); var sz := src.size * k
+		var pr := Rect2(r.get_center() - sz * 0.5, sz)
+		draw_texture_rect_region(tex, pr, src, Color(1, 1, 1, a))
+		var at := func(fx: float, fy: float) -> Vector2: return pr.position + (Vector2(fx, fy) - crop.position) / crop.size * pr.size   # page fraction -> frame px
 		for kr in meta.get("keep", []):
 			var w := float(kr[4])
 			if Layout.phone and w >= 100.0: continue   # the drawing's lettering is too small to read on a phone: as on the body plates (_lab), only the anatomy counts
+			if float(kr[1]) + float(kr[3]) < crop.position.y or float(kr[1]) > crop.end.y: continue   # outside the band shown
 			# the drawn specimens and figures fill most of the page, so they count half: a label may lie over a corner of a figure rather than
 			# stray far from its pin on a long leader; the lettering (100 and up) counts in full
-			keep_rect(Rect2(pr.position + Vector2(float(kr[0]), float(kr[1])) * pr.size, Vector2(float(kr[2]), float(kr[3])) * pr.size), w if w >= 100.0 else w * 0.5)
+			var p0: Vector2 = at.call(float(kr[0]), float(kr[1])); var p1: Vector2 = at.call(float(kr[0]) + float(kr[2]), float(kr[1]) + float(kr[3]))
+			keep_rect(Rect2(p0, p1 - p0), w if w >= 100.0 else w * 0.5)
 		var out := {}
-		var pins: Dictionary = meta.get("pins", {})
-		for pid in pins: out[pid] = [pr.position + Vector2(float(pins[pid][0]), float(pins[pid][1])) * pr.size, ""]
+		for pid in pins: out[pid] = [at.call(float(pins[pid][0]), float(pins[pid][1])), ""]
 		return out
 
 	func _lab(s: String, p: Vector2, col := Kit.TEXT_SOFT, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:

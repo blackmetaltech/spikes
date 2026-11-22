@@ -4,10 +4,10 @@ extends RefCounted
 ## (Run / Pause, Reset, Check, Brief, the add-neuron button and Connect); everything else lives in the "More" menu, and some of it only once the campaign
 ## gets to the level that needs it. Unlocks are data-driven: a tool opens at the first level (in play order) whose reference circuit uses it, or at the
 ## chapter that teaches it, and stays open once the player has got that far. The sandbox and SP_UNLOCK_ALL / SP_ALLTOOLS show everything.
-##   LabUnlocks.has(task, feature)    feature: inhibitory | parts | noise | analysis | loadsave
+##   LabUnlocks.has(task, feature)    feature: inhibitory | parts | analysis | loadsave (+ Noise is the sandbox's alone, see LabLayout.fill_palette)
 ##   LabUnlocks.locked_text(task)     one line for the More menu: what opens later
 
-const FEATURE_TEXT := {"inhibitory": "inhibitory neurons", "parts": "the parts bin", "noise": "noise inputs", "analysis": "analysis", "loadsave": "load and save"}
+const FEATURE_TEXT := {"inhibitory": "inhibitory neurons", "parts": "the parts bin", "analysis": "analysis", "loadsave": "load and save"}
 static var _first := {}   # feature -> index in Campaign.order() of the first level that needs it
 
 static func all_open(task_id: String) -> bool:
@@ -40,27 +40,22 @@ static func _scan() -> void:
 	for i in o.size():
 		var id := str(o[i]); var info := Campaign.info(id)
 		var rc := Circuits.parse(Circuits.read_reference(Campaign.ref_path(id)))
-		var neg := false; var other_model := false; var extra_in := false
+		var neg := false; var other_model := false
 		for pr in rc.get("projections", []):
 			if Circuits.proj_weight(pr) < 0.0: neg = true
 		for p in rc.get("populations", []):
 			if str(p.get("model", "iaf_psc_alpha")) != "iaf_psc_alpha": other_model = true
-		var sensors: Array = info.get("sensors", [])
-		for ch in rc.get("inputs", []):
-			if not sensors.has(str(ch.get("name", ""))): extra_in = true
 		if neg and not _first.has("inhibitory"): _first["inhibitory"] = i
 		if other_model and not _first.has("parts"): _first["parts"] = i
-		if extra_in and not _first.has("noise"): _first["noise"] = i
 		if str(info.get("chapter", "")) != "invertebrates":
 			if not _first.has("analysis"): _first["analysis"] = i
 			if not _first.has("loadsave"): _first["loadsave"] = i
-	if not _first.has("noise") and _first.has("parts"): _first["noise"] = _first["parts"]
 
 ## What the More menu says about the tools that are not open yet ("" when everything is).
 static func locked_text(task_id: String) -> String:
 	if all_open(task_id): return ""
 	var later := []
-	for f in ["inhibitory", "parts", "noise", "analysis", "loadsave"]:
+	for f in ["inhibitory", "parts", "analysis", "loadsave"]:
 		if not has(task_id, f): later.append(FEATURE_TEXT[f])
 	if later.is_empty(): return ""
 	return "More tools open as the campaign needs them: " + ", ".join(later) + "."

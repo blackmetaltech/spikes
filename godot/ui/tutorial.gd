@@ -192,6 +192,7 @@ func _goto(n: int) -> void:
 	_sel_done = false
 	step = clampi(n, 1, STEP_COUNT); _t = 0.0; _idle = 0.0; _check_seen = false; _spikes_seen = false; _revisit = false
 	if lab == null: return
+	if lab.celebration != null: lab.celebration.dismiss_note()   # the notebook card of the pass that just happened must not follow the player into the next step
 	var st: Dictionary = _steps()[step - 1]
 	if bool(st.get("scopes", false)): _show_tab("scopes_only")
 	elif lab.layout.compact: _show_tab("circuit")

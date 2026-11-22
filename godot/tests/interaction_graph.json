@@ -512,7 +512,6 @@
     "BtnTestX5",
     "BtnParts",
     "BtnInhibitory",
-    "BtnNoise",
     "BtnDetails",
     "BtnOpenNotebook"
    ],
@@ -1517,14 +1516,12 @@
    "guard": "from the level that first needs inhibition (always in the sandbox)"
   },
   {
-   "id": "lab.add_noise",
-   "from": "lab.task",
+   "id": "lab.sandbox.add_noise",
+   "from": "lab.sandbox",
    "to": "lab.insp.in",
    "control": "BtnNoise",
-   "setup": {
-    "unlock_all": true
-   },
-   "guard": "from the level that first needs noise (always in the sandbox)"
+   "sandbox_only": true,
+   "guard": "sandbox only: a level is scored on its own sensors, so a free noise input there would cap the score"
   },
   {
    "id": "lab.connect",

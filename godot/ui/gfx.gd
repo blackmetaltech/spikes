@@ -301,8 +301,12 @@ static func index_card(ci: CanvasItem, r: Rect2, col: Color, kicker: String, nam
 	var ks := spaced(kicker); var ndots := 5
 	if font.get_string_size(ks, HORIZONTAL_ALIGNMENT_LEFT, -1, kz).x + 70.0 > r.size.x: ks = kicker   # a narrow card (phone): plain caps, fewer dots
 	if font.get_string_size(ks, HORIZONTAL_ALIGNMENT_LEFT, -1, kz).x + 70.0 > r.size.x: ndots = 3
+	if font.get_string_size(ks, HORIZONTAL_ALIGNMENT_LEFT, -1, kz).x > r.size.x - 18.0 - 8.0 * float(ndots): ndots = 2   # a card the editor narrowed to fit a small bench: the word first, then the dots
+	if font.get_string_size(ks, HORIZONTAL_ALIGNMENT_LEFT, -1, kz).x > r.size.x - 18.0 - 8.0 * float(ndots): ndots = 0
 	ci.draw_string(font, Vector2(r.position.x + 10.0, y1), ks, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 18.0 - 8.0 * ndots, kz, col)
-	ci.draw_string(bold, Vector2(r.position.x + 10.0, r.end.y - 8.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16.0, fz, INK)
+	var nz := fz   # the name shrinks (to the font floor) before it is cut: "right_motor" on a narrowed card
+	while nz > Kit.fs(12) and bold.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, nz).x > r.size.x - 12.0: nz -= 1
+	ci.draw_string(bold, Vector2(r.position.x + 8.0, r.end.y - 8.0), name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 12.0, nz, INK)
 	for k in ndots:
 		var lit := float(k) < act * float(ndots) - 0.01
 		var dp := Vector2(r.end.x - 11.0 - float(ndots - 1 - k) * 8.0, r.position.y + float(kz) * 0.5 + 4.0)

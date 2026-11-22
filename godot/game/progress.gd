@@ -3,7 +3,7 @@ extends RefCounted
 ## Best score, pass flag and stars per task (user://progress.cfg).
 ## Stars (save_version 2, docs/wiki stars-and-hints): 1 = pass; 2 = CHECK passes all five worlds (seeds 101-105, circuit reseeded with the world) in Standard or
 ## Researcher; 3 = star 2 plus the level's CHALLENGE, an optional goal with visible text on the level card (Task::challenge: a neuron par, plus an energy
-## ceiling where ENERGY_HZ lists one, plus "no modulator" where a task asks), and in Standard no "Show recipe". Guided earns at most 2 stars. A Researcher pass
+## ceiling where ENERGY_HZ lists one), and in Standard no "Show recipe". Guided earns at most 2 stars. A Researcher pass
 ## (all five worlds under physiological noise and tight bands) also earns the Researcher seal, kept apart from the stars (Progress.seal). Diagnosis: the third
 ## star also needs the right answer after one of the case's listed probes (Task::diagnosis().probes). The TEST records its MEAN score, not the best.
 ## A circuit that is a (possibly edited) copy of a task's reference circuit is "reference-derived": it earns no stars and does not unlock anything.
@@ -188,6 +188,20 @@ static func budget(task: String) -> int:
 	var par := int(Campaign.info(task).get("par", 0))
 	return par if par > 0 else int(BUDGET.get(task, 0))
 
+## The neuron budget of a task under a challenge variant: the engine's Task::par_neurons() with the variant set (half_neurons halves the par, rounded UP: variant_par in
+## engine/src/tasks/task_util.h), so the lab and the engine judge the same number. Without the extension: the same rule, ceil(par / 2); engine/tests/tasks_rules_test.cpp
+## pins the engine's rounding and godot/tests/test_polish.gd pins this fallback to it.
+static func variant_budget(task: String, variant: String) -> int:
+	var par := budget(task)
+	if variant == "" or par <= 0: return par
+	if Campaign.ext_ok():
+		var t = Campaign.make(task)
+		if t != null and t.has_method("set_variant"):
+			t.set_variant(variant)
+			return int(t.par_neurons())
+	return half_par(par) if variant == "half_neurons" else par
+static func half_par(par: int) -> int: return (par + 1) / 2
+
 ## The energy clause of a task's challenge in spikes per second per neuron, 0 when it has none.
 static func energy_clause(task: String) -> float: return float(ENERGY_HZ.get(task, 0.0))
 ## The rate the Analysis energy panel measures against: the clause, else the generic reference ceiling (informative only: it earns nothing).
@@ -199,46 +213,52 @@ static func energy_hz(spikes: int, neurons: int, t_ms: float) -> float:
 	if neurons <= 0 or t_ms <= 0.0: return -1.0
 	return float(spikes) / float(neurons) / (t_ms * 0.001)
 
-## The level's optional challenge (the third star): {text, max_neurons, max_rate_hz, no_modulators}. The engine's Task::challenge (the neuron par, or a rule of its own)
+## The level's optional challenge (the third star): {text, max_neurons, max_rate_hz}. The engine's Task::challenge (the neuron par, or a rule of its own)
 ## plus the energy clause of ENERGY_HZ; without the extension it is the par alone. The text is what the level card shows, so no budget is ever unstated.
 static func challenge(task: String) -> Dictionary:
-	var c := {"text": "", "max_neurons": budget(task), "max_rate_hz": energy_clause(task), "no_modulators": false}
+	var c := {"text": "", "max_neurons": budget(task), "max_rate_hz": energy_clause(task)}
 	if task != "" and Campaign.ext_ok():
 		var t = Campaign.make(task)
 		if t != null and t.has_method("challenge"):
 			var d: Dictionary = t.challenge()
-			c["text"] = str(d.get("text", "")); c["max_neurons"] = int(d.get("max_neurons", c["max_neurons"])); c["no_modulators"] = bool(d.get("no_modulators", false))
+			c["text"] = str(d.get("text", "")); c["max_neurons"] = int(d.get("max_neurons", c["max_neurons"]))
 			if float(d.get("max_rate_hz", 0.0)) > 0.0: c["max_rate_hz"] = float(d["max_rate_hz"])
 	var n := int(c["max_neurons"]); var r := float(c["max_rate_hz"])
 	if str(c["text"]) == "" and n > 0: c["text"] = "Build it with %s or fewer (par)." % neurons_text(n)
 	if r > 0.0 and not "spikes/s" in str(c["text"]): c["text"] = (str(c["text"]) + " Keep the mean rate under %.0f spikes/s per neuron." % r).strip_edges()
-	if bool(c["no_modulators"]) and not "modulator" in str(c["text"]).to_lower(): c["text"] = (str(c["text"]) + " Use no modulator.").strip_edges()
 	return c
 
-## Is the challenge met by a circuit of `neurons` cells running at `rate_hz` (negative = not measured), with or without a modulator output?
-static func challenge_met(task: String, neurons: int, rate_hz := -1.0, has_modulator := false) -> bool:
+## Is the challenge met by a circuit of `neurons` cells running at `rate_hz` (negative = not measured)?
+static func challenge_met(task: String, neurons: int, rate_hz := -1.0) -> bool:
 	var c := challenge(task)
 	if int(c["max_neurons"]) > 0 and neurons > int(c["max_neurons"]): return false
 	if float(c["max_rate_hz"]) > 0.0 and rate_hz >= 0.0 and rate_hz > float(c["max_rate_hz"]): return false
-	if bool(c["no_modulators"]) and has_modulator: return false
 	return true
 
 ## Stars earned by a result: `passed` on a run, `five_seeds` when CHECK passed all five worlds, then the challenge for the third. Guided stops at 2 (`in_mode`, "" = the current mode).
-static func stars_for(task: String, passed: bool, five_seeds: bool, neurons: int, rate_hz := -1.0, has_modulator := false, in_mode := "") -> int:
+static func stars_for(task: String, passed: bool, five_seeds: bool, neurons: int, rate_hz := -1.0, in_mode := "") -> int:
 	if not passed: return 0
 	if not five_seeds: return 1
 	var m := in_mode if in_mode in MODES else mode()
 	if m == "guided": return 2
-	return 3 if challenge_met(task, neurons, rate_hz, has_modulator) else 2
+	return 3 if challenge_met(task, neurons, rate_hz) else 2
 
 ## Why the third star was not earned, for the end card: "" when it was (or the run did not qualify).
-static func star3_gap(task: String, neurons: int, rate_hz: float, has_modulator := false) -> String:
+static func star3_gap(task: String, neurons: int, rate_hz: float) -> String:
 	var b := budget(task)
 	if b > 0 and neurons > b: return "%d neurons, par is %d" % [neurons, b]
 	var e := float(challenge(task)["max_rate_hz"])
 	if e > 0.0 and rate_hz >= 0.0 and rate_hz > e: return "%.1f spikes/s per neuron, ceiling %.0f" % [rate_hz, e]
-	if bool(challenge(task)["no_modulators"]) and has_modulator: return "the challenge asks for no modulator"
 	return ""
+
+## The star rules in one short paragraph, worded for the current mode and kept true to the header of this file (the lab's brief panel and the Check button use it).
+static func star_rules_text(task: String, in_mode := "") -> String:
+	var m := in_mode if in_mode in MODES else mode()
+	var s := "Stars: 1 for a pass. 2 when Check passes all five worlds."
+	if m == "guided": return s + " Guided mode stops at two stars; Standard and Researcher add a third for the challenge on the level card."
+	s += " 3 the same, plus the challenge on the level card"
+	s += " and no Show recipe." if m == "standard" else ". A Researcher pass of all five worlds also earns the seal."
+	return s
 
 ## The task that comes after `task` in the campaign, "" after the last one.
 static func next_task(task: String) -> String: return Campaign.next_task(task)
@@ -270,7 +290,7 @@ static func record_result(task: String, score_mean: float, flags: Dictionary) ->
 	if task == "" or bool(flags.get("reference_derived", false)): return 0
 	var passed := bool(flags.get("passed", false))
 	var m := str(flags.get("mode", "")); if not m in MODES: m = mode()
-	var st := stars_for(task, passed, bool(flags.get("five_seeds", false)), int(flags.get("neurons", 0)), float(flags.get("rate_hz", -1.0)), bool(flags.get("has_modulator", false)), m)
+	var st := stars_for(task, passed, bool(flags.get("five_seeds", false)), int(flags.get("neurons", 0)), float(flags.get("rate_hz", -1.0)), m)
 	if bool(flags.get("recipe_used", false)): st = mini(st, 2)   # the recipe was shown (Standard): no third star
 	if flags.has("max_stars"): st = mini(st, int(flags["max_stars"]))   # a diagnosis case caps its stars by what it cost (wrong guesses, probes)
 	record(task, score_mean, passed, st, m)
