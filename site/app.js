@@ -153,6 +153,8 @@
         if (a) {
           card.href = a.browser_download_url; if (main) main.href = a.browser_download_url;
           if (size) size.textContent = `${a.name} · ${(a.size / 1048576).toFixed(0)} MB`;
+          const sum = (rel.assets || []).find((x) => x.name === a.name + ".sha256"), sha = document.getElementById("dl-sha");
+          if (sum && sha) sha.href = sum.browser_download_url;
         }
       })
       .catch(() => {})

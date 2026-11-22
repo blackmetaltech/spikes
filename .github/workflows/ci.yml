@@ -14,6 +14,7 @@ on:
       - 'tools/site/**'
       - 'scripts/site-media.sh'
       - '.github/workflows/pages.yml'
+      - '.github/workflows/release.yml'   # the release build runs on tags, not here
   pull_request:
     paths-ignore: *ignore
   workflow_dispatch:
