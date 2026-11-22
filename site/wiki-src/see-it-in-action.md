@@ -7,6 +7,8 @@ summary: Every clip and screenshot of the game, captured from the released build
 
 Everything on this page was captured from the exported game by `scripts/site-media.sh`, which drives the game through its screenshot hooks and records with Godot's movie mode, so every frame is rendered and the circuit runs at its true speed (the lab's speed is shown in the top right of each full-screen clip). The clips play while they are on screen; with reduced motion turned on in your system they wait for you to press play. Select a screenshot to see it full size.
 
+> **Note:** These media were captured before several later changes: the Bestiary specimen views, the rewritten circuit editor with its Undo and Redo buttons, the score stamp with its criteria rows, and the map's wing selector. The game looks a little different now. The clips and screenshots show how the circuits behave, which has not changed. Running `scripts/site-media.sh` makes new ones.
+
 ## Bodies
 
 <div class="gallery">
@@ -27,7 +29,7 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 ![The leech heartbeat: two heart interneurons burst in turn](../assets/media/leech.webm "The leech heartbeat. Two heart interneurons inhibit each other and burst in turn; each one silences its own side's motor neuron, so the two sides beat alternately. The gauges read the period and the overlap. 1x.")
 
-![The fly compass: a bump of activity moves round the ring as the fly turns in the dark](../assets/media/compass.webm "The fly's compass. Sixteen compass cells in a ring hold a bump of activity; shifting cells move it when the fly turns. On the dial, ink is the fly's heading and blue is where the circuit thinks it is. 1x.")
+![The fly compass: a bump of activity moves round the ring as the fly turns in the dark](../assets/media/compass.webm "The fly's compass. Sixteen compass cells in a ring hold a bump of activity; shifting cells move it when the fly turns, and the bump follows the fly's true heading. 1x.")
 
 ![The crab pyloric rhythm: the raster fills in with the triphasic pattern](../assets/media/raster.webm "The pyloric rhythm. Conductance-based crab STG cells start from rest; within a second the raster settles into the pacemaker burst, then LP, then PY. 1x.")
 
@@ -39,7 +41,7 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 ![The phase plane of one neuron: the current steps past onset and the trajectory circles a loop of repeated firing](../assets/media/phase.webm "The phase plane on Where firing starts. Nullclines and fixed points come from the cell's live parameters; once the current passes onset the resting state is gone (the readout says so) and the trajectory runs round a loop of repeated firing. 0.05x, so the loop can be followed.")
 
-![CHECK on a hand-built lamprey circuit: a toast reports the pass and the gauge marks the check](../assets/media/check.webm "CHECK. The episode is scored headless over the level's seeds while the live run carries on; the verdict arrives in under a second and says what the circuit did, in words. 1x.")
+![CHECK on a hand-built lamprey circuit: a toast reports the pass and the gauge marks the check](../assets/media/check.webm "CHECK. The circuit is scored headless, in five worlds, while the live run carries on; the verdict arrives as a toast and says in words what the circuit did. 1x.")
 
 ![A CHECK result card: not passed, left and right are not alternating](../assets/media/check-fail.webp "A failing verdict: the same lamprey without its crossed inhibition. It names the missing mechanism, never a number to aim for.")
 
@@ -51,7 +53,7 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 <div class="gallery">
 
-![The campaign map on the heart chapter, with levels pinned to the drawn heart](../assets/media/map-body.webp "Plate III, the heart: levels pinned to the anatomy, stars and best scores on each label.")
+![The campaign map on the heart chapter, with levels pinned to the drawn heart](../assets/media/map-body.webp "Plate III, the heart: levels pinned to the anatomy, with the selected level and its neighbours labelled.")
 
 ![The campaign map on the leech chapter of the Bestiary](../assets/media/map-bestiary.webp "Plate VII, the leech: the engraved plate of the Bestiary wing, with its levels and a diagnosis case.")
 

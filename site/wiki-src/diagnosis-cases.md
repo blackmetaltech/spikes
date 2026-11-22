@@ -11,7 +11,7 @@ A diagnosis case turns the game around. In a normal level you build a circuit to
 
 A symptom is something the patient does wrong. A lesion is damage to a part of the circuit. Here the lesion is one connection that has been set to zero strength. The patient is invented. The circuit is a model.
 
-There are thirteen cases. Six belong to the body chapters and seven to the Bestiary. Each hangs off a level you must pass first.
+There are thirteen cases. Six belong to the body chapters and seven to the Bestiary. Each is a branch that hangs off a level, and it opens when you have passed that level. A case is never on a chapter's spine and never gates anything.
 
 | Case | Opens after you pass | Chapter |
 |---|---|---|
@@ -29,7 +29,7 @@ There are thirteen cases. Six belong to the body chapters and seven to the Besti
 | The fly that never learns | Fly: the mushroom body learns to avoid | Bestiary: fly mushroom body |
 | The follower that does not wait | Crab: the pyloric rhythm | Bestiary: crab |
 
-A case never gates anything. See [the body chapters](campaign-body.html) and [the Bestiary](campaign-bestiary.html) for what each patient shows.
+See [the body chapters](campaign-body.html) and [the Bestiary](campaign-bestiary.html) for what each patient shows.
 
 > **Note:** The cases are fictional models of a real kind of case. For example, the shaky arm is not clinical clonus. [What is real](what-is-real.html) says what each case echoes and where the model stops matching.
 
@@ -40,12 +40,14 @@ The lab opens on the patient's circuit, read-only. You cannot add or move parts.
 - **PATIENT SYMPTOMS**: a few sentences about what the patient does.
 - **Probe buttons**: **LESION LAB** (opens or leaves the lesion lab) and a reminder that the scopes are on the right.
 - **Used so far**: your probe and wrong-guess count.
-- **A list of candidate connections**, each in plain words (the name of the missing wire, such as "the link from X to Y").
+- **A list of candidate connections**, each in plain words (the name of the missing wire, such as "the link from X to Y"). The order of the list is fixed for each case and tells you nothing: it is shuffled by a rule that never puts the answer first.
 - **SUBMIT DIAGNOSIS**, and, after three wrong guesses, **REVEAL ANSWER**.
 
 You can click a group or a connection of the patient. The inspector shows read-only facts: the group's model and size, or a connection's type, direction and delay. It never shows a connection's weight. The dead connection is kept at weight zero and must be found by probing.
 
 Every candidate connection is drawn on the bench. One of them is dead.
+
+The case remembers your wrong guesses, your probes and a reveal if you leave and come back, so closing the lab does not reset the tally. Solving the case clears the tally for the next visit.
 
 ## How to probe
 
@@ -83,7 +85,7 @@ The case is scored on what it took.
 
 A wrong guess tells you only "not that one". It does not give a reason. The reasons for every candidate appear on the result card once you solve the case or reveal the answer. This stops guessing from being a strategy.
 
-If you press **REVEAL ANSWER** (after three wrong guesses), you see the answer and the reasons. You do not pass the case.
+If you press **REVEAL ANSWER** (after three wrong guesses), you see the answer and the reasons, and nothing is scored. The reveal is remembered: if you come back later and solve the case yourself it counts, but it can earn one star at most.
 
 ## Stars for a case
 
@@ -93,7 +95,7 @@ If you press **REVEAL ANSWER** (after three wrong guesses), you see the answer a
 | 2 | Name it with no wrong answer. |
 | 3 | No wrong answer, a score of 85 or more (at most 8 probes), and the right answer given **after at least one of the case's own probes**: one of the one or two probes that tell its top candidates apart (a scope on the group behind the dead link, or a cut of that link). A guess made with no probe at all never earns the third star, however lucky. Guided mode stops at two stars. |
 
-Cases have no par, no Test x5 and no challenge variants. The notebook entry for a case opens when you solve it.
+Cases have no par, no Test x5 and no challenge variants. The notebook entry for a case opens when you solve it. The campaign card lists the three conditions for a case in the same way as for any level.
 
 ## After the answer
 

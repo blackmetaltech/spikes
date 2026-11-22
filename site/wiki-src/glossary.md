@@ -15,8 +15,6 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Adaptation.** Under a steady push, a neuron fires a burst and then slows as a slow current builds up. It reports change more than level. Taught in the Adaptation micro-puzzle.
 
-**Bias current (tonic drive).** A steady current of a cell's own (the parameter I_e in its advanced parameters) that holds it near or just over threshold, so it fires or is ready to fire with no input. A cell with a bias can signal "less" as well as "more". Taught in the Tonic drive micro-puzzle; used by posture, the pupil, the autonomic heart and the fly compass.
-
 **Advanced.** A button in the inspector that shows a cell model's parameters as sliders with units, and the rows for how it responds to modulators.
 
 **Afferent.** A nerve fibre that carries signals toward the centre, for instance from the skin or a muscle. In the game, a sensor stands for a bundle of afferents.
@@ -31,19 +29,27 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Bench.** The circuit editor, where neurons and connections are drawn.
 
+**Bench history.** The newest ten benches that Reference, Empty bench, Load, a slot, Paste circuit JSON or the tutorial replaced, kept per level. More, Restore previous bench brings the newest back.
+
 **Bestiary.** The wing of the campaign with one chapter per model animal. See [the Bestiary](campaign-bestiary.html).
+
+**Bias current (tonic drive).** A steady current of a cell's own (the parameter I_e in its advanced parameters) that holds it near or just over threshold, so it fires or is ready to fire with no input. A cell with a bias can signal "less" as well as "more". Taught in the Tonic drive micro-puzzle; used by posture, the pupil, the autonomic heart and the fly compass.
 
 **Bistability.** One cell and one current with two stable states, rest and repetitive firing. A brief pulse can flip between them. Taught in A neuron that remembers a pulse.
 
-**Branch.** A level that hangs off another one: a diagnosis case or a challenge variant. A branch never gates anything.
+**Branch.** A level that hangs off another one: a diagnosis case, a challenge variant or an optional level such as Posture or Reach. A branch never gates anything.
 
 **Burst.** A group of spikes close together with silent gaps around it. See [the analysis tools](lesion-lab-and-analysis.html).
 
 **Bursting.** A cell turns steady input into bursts with silent gaps because a slow variable builds up during a burst and decays during the gap. Taught in Leech: a cell that bursts.
 
+**Bus card.** One card on the bench for a run of four or more numbered sensors or motors of one kind (cue0 to cue15 read "cue ×16"). Click it to open it into one card per channel.
+
 ## C
 
-**Check.** The button that scores your circuit headless, now, on the level's own seed.
+**Challenge.** The optional goal of a level, written on its card, that the third star asks for: by default a neuron par, on some levels also an energy ceiling or no modulator.
+
+**Check.** The button that scores your circuit headless, in the background, on five random worlds with the level's quick episode. Passing all five earns the second star.
 
 **Class I and class II (excitability class).** How a cell starts to fire as the current grows. Class I fires slowly at first and speeds up smoothly. Class II starts at a clear rate at once. Taught in Where firing starts.
 
@@ -65,6 +71,8 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Delay.** How long a spike takes to travel along a connection, in milliseconds. Synaptic delay is a few ms.
 
+**Details.** The button on the score card that swaps the criteria rows for the raw score parts, each under a human label.
+
 **Diagnosis.** Working backwards from symptoms to a lesion. See [diagnosis cases](diagnosis-cases.html).
 
 **Divergent command.** One command cell fans out to many targets, so a single cue changes the whole body at once. Taught in Divergent command.
@@ -75,7 +83,9 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **E / I.** The excitatory or inhibitory sign of a neuron group. The button flips it and every outgoing weight changes sign.
 
-**Energy budget.** The mean firing rate per neuron that the third star allows. See [stars, par and hints](stars-and-hints.html).
+**Energy budget (energy ceiling).** On some levels, the mean firing rate per neuron that the challenge allows. See [stars, par and hints](stars-and-hints.html).
+
+**Ensemble.** A neuron group of more than twelve cells, drawn as one stained ellipse with a ring of sample cells.
 
 **Episode.** One run of a level, from time zero to the level's duration.
 
@@ -95,7 +105,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Gap junction.** An electrical connection between two cells that passes current directly. The engine couples electrically only the models that are made for it.
 
-**Guided.** The easiest mode. See [modes](modes.html).
+**Guided.** The easiest mode: the recipe is printed, hints are free, and a level earns at most two stars. See [modes](modes.html).
 
 ## H
 
@@ -145,6 +155,8 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **NE (noradrenaline).** A neuromodulator. In the heart and fight-or-flight levels it carries the sympathetic nerve's speeding-up signal. In the Aplysia levels the same channel is shown as serotonin.
 
+**Needs.** The red chips on a level card that name concepts the level uses and another level teaches, when you have not passed that level. Advice, not a lock.
+
 **NESTML.** A language for writing neuron models that NEST compiles. The game's special cells are written in it.
 
 **Neuromodulation.** A modulator does not fire the next cell. It changes how that cell responds, for instance slowing a pacemaker or raising its gain. Taught in Neuromodulation.
@@ -157,7 +169,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Pacemaking.** Some cells fire with no input: a slow inward current drifts the voltage up to threshold again and again. Taught in Pacemaking.
 
-**Par.** The neuron count the third star asks for.
+**Par.** The neuron count that a level's challenge asks for by default.
 
 **Path integration.** Adding up movement to keep track of position or heading. Taught in Fly: moving the bump.
 
@@ -166,6 +178,8 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 **Phase lag.** A follower inhibited by a pacemaker and firing by rebound bursts after the pacemaker's burst in the cycle. Taught in Crab: phase from rebound.
 
 **Phase plane.** A picture of a cell with its voltage on one axis and a recovery variable on the other.
+
+**Plate 0.** The interactive first-neuron tutorial that a fresh save starts with. It can be skipped and replayed from the campaign header.
 
 **Population.** A group of neurons of the same model, drawn as one disc. In the file format it is a "population".
 
@@ -193,19 +207,25 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Reference circuit.** The level's own solution. It earns no stars.
 
-**Rheobase.** The smallest steady current that makes a cell fire. Taught in Threshold.
+**Researcher.** The hardest mode: no recipe, no hints, a pass needs all five worlds under physiological noise and tight bands. A pass earns the seal.
 
-**Researcher.** The hardest mode.
+**Rheobase.** The smallest steady current that makes a cell fire. Taught in Threshold.
 
 **Ring attractor.** Cells on a ring that excite neighbours and inhibit together hold a single bump of activity in place. Taught in Fly: a bump that stays.
 
 ## S
+
+**Score stamp.** The ring on the score card: the score from 0 to 100, and PASSED once the level passes.
+
+**Seal (Researcher seal).** A mark for passing all five worlds in Researcher mode. It is kept apart from the stars.
 
 **Seed.** A number that picks the random parts of a run. The same seed gives the same run.
 
 **Sensor.** An input card that the level drives.
 
 **Size principle.** See recruitment.
+
+**Solution slot.** One of three saved circuits per level (A, B, C), kept across restarts. More, Save to A and Load A.
 
 **Sparse coding.** Each Kenyon cell listens to a few inputs and fires only when several are active, and a giant inhibitory neuron keeps the number of active cells down. An odour becomes a small subset of cells. Taught in Fly: a sparse odour code.
 
@@ -221,7 +241,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Stable fixed point (phasic firing).** If the resting state is still stable at the new current, a kicked cell falls back and falls silent although the current stays on. It reports change. Taught in Only the change counts.
 
-**Standard.** The default mode.
+**Standard.** The default mode: the recipe is behind a button that costs the third star, and hints open after two missed runs.
 
 **Subtraction.** Excitation from one source and inhibition from another give a cell that reports the difference. Taught in Subtraction.
 
@@ -231,7 +251,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 ## T
 
-**Test x5.** The button that runs the level on five more seeds.
+**Test x5.** The button that runs the full episode on the same five worlds as Check, live. All five passing earns the second star.
 
 **Threshold.** A neuron fires when its voltage reaches threshold. Taught in Threshold.
 
@@ -245,7 +265,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 ## V
 
-**Variant.** A challenge version of a level: half the neurons, double noise, a heavier load. It gives no stars.
+**Variant.** A challenge version of a level: half the neurons, double noise, a heavier load. It gives no stars and never gates anything.
 
 **Verdict.** The sentence that says what your circuit did and which part of the mechanism is missing.
 
@@ -254,6 +274,8 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 **Weight.** The strength of a connection. In pA for current-based cells, in nS for conductance-based ones.
 
 **Wilson-Cowan pair.** A population described by one number, its rate. An excitatory population and an inhibitory one it drives can settle, switch or oscillate. Taught in Two populations that make a rhythm.
+
+**Wing.** One of the three groups of chapters on the campaign map: Body, Bestiary and Theory.
 
 ## Units used in the game
 

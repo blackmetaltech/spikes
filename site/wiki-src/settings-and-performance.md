@@ -13,14 +13,14 @@ Open Settings from the title screen (**IV. Settings**). It has four tabs: Displa
 
 | Setting | Options | Notes |
 |---|---|---|
-| Window mode | Windowed, Fullscreen, Exclusive | Desktop only. The default is **Fullscreen**. |
+| Window mode | Windowed, Fullscreen, Exclusive | Desktop only (the row is absent on a phone and the web). The default is **Fullscreen**. |
 | V-sync | Off, On, Adaptive | Default On. Keeps the picture from tearing. |
-| Frame cap | None, 30, 60, 90, 120, 144, 240 | Default None. When the window is not focused the app sleeps at 10 frames per second. |
+| Frame cap | None, 30, 60, 90, 120, 144, 240 | Default None. When the window is not focused the app sleeps at 10 frames per second, and when nothing is happening for a while it drops to 30. |
 | Layout | Auto, Desktop, Handheld, Phone | Auto picks from the device and the window shape. The row says what it picked. |
 | UI scale | Auto, 80%, 100%, 125%, 150%, 175%, 200% | Scales every control. |
-| Text size | Normal, Large, Larger, Huge | Scales text only. |
+| Text size | Normal, Large, Larger, Huge | Scales text only. UI scale and text size together are capped so the lab still fits a 1280 x 720 area; when the cap bites, the row says what the limit is. |
 | Reduced motion | On or off | No sliding or drifting. Menus fade instead. |
-| Colour-blind safe colours | On or off | Sienna and Prussian blue already stay apart for every common colour vision type. This also pulls them apart in lightness. |
+| Colour-blind safe colours | On or off | Sienna and Prussian blue already stay apart for every common colour vision type. This also pulls them apart in lightness (an Okabe-Ito pair). |
 | Credits and licences | Button | Engine, fonts and sources. |
 
 ### Layouts
@@ -46,29 +46,48 @@ Every spike is a soft click: warm for excitatory neurons, cool for inhibitory on
 
 ## Controls
 
-A read-only list of the keys. See [keyboard and controls](controls.html).
+A read-only list of the keys, grouped as Keyboard, Gamepad, and Touch and mouse. It covers the lab shortcuts (run, Check, reset, Undo, Redo, copy, paste, duplicate, select all, delete, zoom, fit, pan) and the bench-cursor keys and buttons for building without a mouse. See [keyboard and controls](controls.html).
 
 ## Game
 
 | Setting | What it does |
 |---|---|
-| Mode | Guided, Standard or Researcher. Part of your save. Switch any time. See [modes](modes.html). |
+| Mode | Guided, Standard or Researcher. Part of your save. Switch any time with no penalty; only the star labels say which mode a result was earned in. See [modes](modes.html). |
 | Record my play | Off by default. Keeps, on this device only, the time per level, runs, hint tiers, quits and edits before your first pass. Nothing is ever sent. |
-| EXPORT JSON | Writes the play log to a file and tells you where. |
-| CLEAR | Deletes the play log. |
+| EXPORT JSON | Writes the play log to a dated file (`spike-playlog-<time>.json`) in your Documents folder (the game's data folder if there is none) and tells you where. |
+| CLEAR | Asks first, then deletes the play log. Your progress is not touched. |
+| Export save | Packs your whole save into one zip, `spike-save-<time>.zip`, in your Documents folder (or the data folder), and says where. |
+| Import save | Opens a file dialog for such a zip. |
+| Open log folder | Opens the folder with `spike.log` in your file manager. |
+| Reset progress | Asks first, then starts your progress from nothing. |
 
-## Where data is saved
+## Saves, backups and logs
 
-The game writes to Godot's per-user data folder for "Spike". On Linux that is normally under `~/.local/share/godot/app_userdata/`.
+The game writes to Godot's per-user data folder for "Spike". On Linux that is normally under `~/.local/share/godot/app_userdata/Spike/`. The Game tab prints the exact folder.
 
-| File | Content |
+| File or folder | Content |
 |---|---|
-| `progress.cfg` | Best scores, stars, mode, hint tiers used, recipes used, variants done. |
-| `settings.cfg` | Everything on this page except the mode. |
-| `circuits/last_<level>.json` | Your latest circuit on each level, saved after every edit. |
-| `logs/spike.log` | The log of the last start. Include it with a bug report. |
+| `progress.cfg` | Best scores, stars, mode, hint tiers used, recipes used, variants done, diagnosis state, and which tutorial steps and pointers you have seen. |
+| `settings.cfg` | Everything on the Display and Audio tabs and the play-log switch. |
+| `goals.cfg` | The targets you pinned on the Results card. |
+| `playlog.json` | The play log, only if you turned it on. |
+| `circuits/last_<level>.json` | Your latest circuit on each level, saved after every edit (`last_free.json` is the sandbox). |
+| `circuits/<level>/slot_A.json` (also B, C) | The level's solution slots. |
+| `circuits/<level>/history/` | The newest ten benches that a button replaced (More, Restore previous bench). |
+| `lesions/` | Lesion tables saved with Save files. |
+| `logs/spike.log` | The log of the last start: version, build, operating system, graphics adapter, window and layout, and every notice the game raised. The two starts before it are `spike.1.log` and `spike.2.log`. Include `spike.log` with a bug report. |
 
-To reset your progress, delete `progress.cfg` while the game is closed. The game has no reset button.
+**How files are written.** Every file is written to a temporary file, read back, and renamed over the old one, so a crash or a power cut leaves the old file or the new one and never half of one. Three older copies (`.bak1`, `.bak2`, `.bak3`) are kept for each file; circuit autosaves keep a new backup every couple of minutes at most.
+
+**A damaged file.** If a save file will not parse, is empty or is cut short, the game moves it aside as `<name>.corrupt-<time>` (it is never deleted), uses the newest good backup, and tells you: "... was damaged (...). The last good backup (N saves ago) was used. The damaged file is kept at ...". The message shows as a banner and on the title screen. If no backup is usable either, the damaged file stays in its quarantine, saving to that file is switched off for the session so it cannot be overwritten, and the message says where the file is so you can copy it somewhere safe. A damaged circuit autosave is renamed `last_<level>.json.bad` and the level opens on an empty bench.
+
+**A newer save.** A file written by a newer version of the game is read, never written, and a notice says so, so the newer game can still use it. **A disk that will not take a write** (read-only, full) raises one notice per file naming the path.
+
+**Export and import.** Export save packs `progress.cfg`, `settings.cfg`, `goals.cfg`, the play log, every circuit autosave and every solution slot into one zip with a small manifest. Import save checks every file in the zip before it replaces anything: it must be a Spike save of this version or older, and every file must be sound, or nothing is imported and the message says why ("not a zip file", "not a Spike save (no spike-save.json)", "this save was made by a newer version of the game", "<file> is not usable (...)", "unexpected file in the save: ..."). The files it replaces keep their backups. A confirm card appears first.
+
+**Reset progress.** Every star, score and unlock goes, and the mode goes back to Standard. Your circuits stay. The old progress file is not deleted: it is renamed `progress.cfg.reset-<time>` next to the new one, so you can put it back by hand while the game is closed. The tutorial counts as unseen afterwards.
+
+**The log folder.** Open log folder opens `logs/` in your file manager. If it does not open, look in the data folder named above.
 
 ## Performance
 
@@ -84,9 +103,9 @@ The simulation is NEST, running inside the game. It steps your circuit 1 ms of m
 
 - Lower the speed if the picture stutters. At high speed the traces show fewer samples per second of model time, which is normal.
 - Set a frame cap (60) and keep V-sync on. A capped frame leaves more time for each step.
-- Use **Check** instead of watching a long episode. It runs in a separate process, and when several seeds are scored (the command line) they run in parallel. Check takes under a second on the worm and lamprey levels and about five seconds on the bosses.
+- Use **Check** instead of watching a long episode. It runs in a separate process (the bundled `spike-run`), on the level's quick episode, so it does not slow the live view. Its five worlds take longer on the big levels.
 - Close the trace strips you do not need. Each open trace reads the voltage of a cell every step.
-- Keep the circuit lean. Fewer neurons is also the par star.
+- Keep the circuit lean. Fewer neurons is also what a level's challenge usually asks for.
 
 ## Related pages
 

@@ -11,6 +11,8 @@ The `spike` Python package is the research side of the project. It builds the sa
 
 There are no tasks, bodies or scoring in Python. To score a circuit on a level, use the game or the [spike-run command line](spike-run.html).
 
+> **Note:** The Python package covers the classic part of the circuit format only: spiking populations, projections, the `dc`, `poisson`, `spike_generator` and `sinusoidal_poisson` inputs, and the neuromodulator table. It does not have the Theory wing's pieces: no `rate_drive` or `tuned_poisson` input (they raise `CircuitError: unsupported input kind`), no rate populations or mean-field links, and no `rate_value` output. It builds no outputs at all (`rate`, `modulator`, `population_vector`): by default the spikes of every cell are recorded, and you read what you need from them. A circuit that uses them will not build in Python; a Theory level that uses only spiking cells and the classic inputs builds as usual.
+
 ## Install
 
 From the source tree:
@@ -117,14 +119,14 @@ The custom NESTML cells need an extra loader library. Build it with `scripts/bui
 
 1. both use the same NEST commit (`NEST_REF` in `scripts/build-nest.sh`);
 2. both use the same OpenMP setting (`SPIKE_OPENMP`, off by default) and the same number of threads (`threads=` in Python, `--threads` for `spike-run`);
-3. the circuit uses only features in the [format](circuit-is-data.html).
+3. the circuit uses only features the package supports (see the note at the top), and gives a `seed`.
 
-The engine and the package both draw the starting voltages with the same integer hash generator, keyed by seed and cell index, so the starts match.
+The engine and the package both draw the starting voltages with the same integer hash generator, keyed by seed and cell index, so the starts match. A circuit with no `seed` is seed 1 in the engine, but the package reads a missing seed as 0, so the starts would differ: always write a `seed`, or pass `seed=` to `spike.build`.
 
 ## Limits
 
-- `spike.build` does not run the C++ loader's checks (unknown keys, a delay below the resolution). A file can build in PyNEST and still be refused by the game.
-- Rate units, mean-field links, `tuned_poisson` inputs and the `rate_drive` input of the Theory wing are not built in Python.
+- `spike.build` repeats only some of the C++ loader's checks: the synapse rules (gap junctions, plasticity, weight spread, modulation rows) and the weight ceilings of 500 nS and 10000 pA onto conductance and current cells. It does not check unknown keys, delays against the resolution, the size and connection budgets (20000 cells, about 2 million connections), the rate, current and delay ceilings, the larger weight ceiling of the custom cells, or the nesting depth. A file can build in PyNEST and still be refused by the game and by `spike-run`; see [limits and errors](circuit-is-data.html#limits-and-errors).
+- Rate units, mean-field links, `tuned_poisson` and `rate_drive` inputs and `rate_value` outputs (the Theory wing) are not built in Python.
 - A `spike-run --task` run is the way to see a level's score; Python only runs the network.
 
 ## Tests and the example notebook
@@ -134,9 +136,9 @@ pytest python                       # PyNEST tests skip if PyNEST is missing
 SPIKE_REQUIRE_NEST=1 pytest python  # fail instead of skipping
 ```
 
-`python/examples/motifs.ipynb` walks through building a circuit, running it and counting motifs. The parity tests need the built `spike-run` and `analysis_test`.
+`python/examples/motifs.ipynb` walks through building a circuit, running it and counting motifs. The parity tests need the built `spike-run` and `analysis_test` (set `SPIKE_RUN` and `SPIKE_ANALYSIS_TEST`, or let the tests find them); under ctest the whole suite is the `python_pytest` test.
 
-> **Note:** The package version in `python/pyproject.toml` is 0.4.0; the game moves faster than the package version number.
+> **Note:** The package version in `python/pyproject.toml` is 0.5.0.
 
 ## Related pages
 

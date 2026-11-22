@@ -7,7 +7,7 @@
 | `icc_slow_wave` | FitzHugh-Nagumo oscillator in gut units | one slow-wave onset | [icc_slow_wave.md](icc_slow_wave.md) |
 | `stg_cell` | crab stomatogastric neuron after Prinz et al. 2003 (kinetics from memory, game conductances) | one action potential in a burst | [stg_cell.md](stg_cell.md) |
 
-Sources are `models/nestml/*.nestml`. All three have exponential synaptic input (an `excitatory` and an `inhibitory` spike port, so a positive circuit weight excites and a negative one inhibits), a `continuous` current port (`dc` inputs) and the parameter `I_e`. `ach` and `ne` are plain parameters. In a circuit they are driven by the modulation table (`{"modulator":"NE","pop":"N","param":"ne","gain":1.0}`) or by `set_neuron_param`; PyNEST uses `SetStatus`.
+Sources are `models/nestml/*.nestml`. All four have exponential synaptic input (an `excitatory` and an `inhibitory` spike port, so a positive circuit weight excites and a negative one inhibits), a `continuous` current port (`dc` inputs) and the parameter `I_e`. `ach` and `ne` are plain parameters. In a circuit they are driven by the modulation table (`{"modulator":"NE","pop":"N","param":"ne","gain":1.0}`) or by `set_neuron_param`; PyNEST uses `SetStatus`.
 
 ## How it is built
 
