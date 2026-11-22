@@ -10,6 +10,8 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd); cd "$root"
 [ "${MSYSTEM:-}" = UCRT64 ] || { echo "run this in the MSYS2 UCRT64 shell (MSYSTEM=${MSYSTEM:-unset})" >&2; exit 2; }
+shopt -s nullglob
+unset Python_ROOT_DIR Python2_ROOT_DIR Python3_ROOT_DIR pythonLocation PKG_CONFIG_PATH   # set by actions/setup-python for the native Python: not for MSYS2 CMake
 pin() { sed -n "$2" "scripts/$1" | head -n1; }
 NEST_REF=$(pin build-nest.sh 's/.*NEST_REF:-\([0-9a-f]\{40\}\)}.*/\1/p')
 NESTML_VERSION=$(pin build-nestml.sh 's/.*NESTML_VERSION:-\([0-9.]*\)}.*/\1/p')
