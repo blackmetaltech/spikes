@@ -41,7 +41,7 @@ The game also runs on a handheld or phone-sized window. See [settings and perfor
 
 ## Download and run
 
-1. Open the [Releases page](https://github.com/ixaxaar/spikes/releases) and download `spike-linux-x86_64.zip`.
+1. Open the [Releases page](https://github.com/blackmetaltech/spikes/releases) and download `spike-linux-x86_64.zip`.
 2. Extract it to a folder you own.
 3. Run `Spike.x86_64` from that folder. If your file manager did not keep the execute bit, run `chmod +x Spike.x86_64` first.
 

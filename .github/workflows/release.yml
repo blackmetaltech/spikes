@@ -1,7 +1,8 @@
 name: release
-# Push a tag v<version> (matching config/version in godot/project.godot) and this builds the Linux zip in the toolchain image, smoke-tests the zip
-# (scripts/package.sh does: every screen, CHECK through the bundled spike-run) and publishes a GitHub Release with it. The website's download buttons
-# (site/app.js) read the latest release and link straight to the zip. Run by hand (workflow_dispatch) it only builds and uploads the zip as an artifact.
+# Push a tag v<version> (matching config/version in godot/project.godot) and this builds one zip per platform, smoke-tests each zip (every screen,
+# CHECK through the bundled spike-run) and publishes a GitHub Release with them. Linux builds in the toolchain image (scripts/package.sh); macOS on
+# GitHub's Apple Silicon runners (build-macos.yml). The release is published only if every platform passed. The website's download buttons
+# (site/app.js) read the latest release and link straight to the zips. Run by hand (workflow_dispatch) it only builds and uploads the zips as artifacts.
 on:
   push:
     tags: ['v*']
@@ -45,26 +46,12 @@ jobs:
       - name: Package (Linux zip + smoke of the exported build)
         run: docker run --rm -v "$PWD":/src -w /src -e SKIP_BUILD=1 "$SPIKE_IMAGE" scripts/package.sh
 
-      - name: Checksum and notes
+      - name: Checksum
         run: |
           # build/ was written by the container as root: collect the files in a folder the runner owns
           mkdir -p dist && cp build/spike-linux-x86_64.zip dist/ && cd dist
           sha256sum spike-linux-x86_64.zip > spike-linux-x86_64.zip.sha256
           cat spike-linux-x86_64.zip.sha256
-          v='${{ steps.ver.outputs.version }}'
-          # the changelog entry of this version: from its heading to the next "## [" heading
-          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on' ../CHANGELOG.md > notes.md
-          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
-          {
-            echo
-            echo "## Install (Linux x86_64, glibc 2.39 / Ubuntu 24.04 or newer)"
-            echo
-            echo '1. Download `spike-linux-x86_64.zip` below and extract it anywhere.'
-            echo '2. Run `./Spike.x86_64` from the extracted folder.'
-            echo '3. Optional: check the download with `sha256sum -c spike-linux-x86_64.zip.sha256`.'
-            echo
-            echo "Website and wiki: https://spike.blackmetal.tech/"
-          } >> notes.md
 
       - uses: actions/upload-artifact@v4
         with:
@@ -74,11 +61,46 @@ jobs:
             dist/spike-linux-x86_64.zip.sha256
           if-no-files-found: error
 
+  macos:
+    uses: ./.github/workflows/build-macos.yml
+
+  publish:
+    needs: [linux, macos]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: spike-*
+          merge-multiple: true
+
+      - name: Notes
+        run: |
+          v=$(sed -n 's/^config\/version="\(.*\)"/\1/p' godot/project.godot)
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          ls -la dist; (cd dist && sha256sum -c ./*.sha256)
+          # the changelog entry of this version: from its heading to the next "## [" heading
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
+          {
+            echo
+            echo "## Install"
+            echo
+            echo 'Download the zip for your system below and extract it anywhere. No installer, no account.'
+            echo
+            echo '- **Linux x86_64** (glibc 2.39 / Ubuntu 24.04 or newer): `spike-linux-x86_64.zip`, then run `./Spike.x86_64`.'
+            echo '- **macOS, Apple Silicon**: `spike-macos-arm64.zip`. The app is not notarized, so macOS blocks the first launch: open System Settings, Privacy & Security, and choose Open Anyway; or run `xattr -dr com.apple.quarantine Spike.app` once in a terminal.'
+            echo
+            echo 'Each zip has a `.sha256` beside it (`sha256sum -c <file>.sha256`).'
+            echo
+            echo "Website and wiki: https://spike.blackmetal.tech/"
+          } >> notes.md
+
       - name: Publish the release
-        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            dist/spike-linux-x86_64.zip dist/spike-linux-x86_64.zip.sha256 \
-            --title "Spike ${{ steps.ver.outputs.version }}" --notes-file dist/notes.md --verify-tag
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.sha256 --title "Spike $VERSION" --notes-file notes.md --verify-tag

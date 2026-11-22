@@ -11,7 +11,7 @@ Spike is a game that teaches by being right. That only works if the puzzles cann
 
 ## Report a bug or a confusing level
 
-Open an issue at [github.com/ixaxaar/spikes/issues](https://github.com/ixaxaar/spikes/issues). The project asks for two kinds of report: what broke, and what confused you. Confusion is a bug. If a brief left you guessing or a verdict misled you, say so.
+Open an issue at [github.com/blackmetaltech/spikes/issues](https://github.com/blackmetaltech/spikes/issues). The project asks for two kinds of report: what broke, and what confused you. Confusion is a bug. If a brief left you guessing or a verdict misled you, say so.
 
 A useful report has:
 
