@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-22 — macOS
+
+### Added
+- **macOS build (Apple Silicon).** `spike-macos-arm64.zip` holds `Spike.app` with the extension, `spike-run` and the circuits inside the bundle. Built and smoke-tested on GitHub's arm64 runners with the same checks as the Linux zip (every screen, CHECK through the bundled `spike-run`, no non-system libraries). Ad-hoc signed, not notarized: the first launch needs Open Anyway in System Settings, Privacy & Security, or `xattr -dr com.apple.quarantine Spike.app`. Scripts: `scripts/build-macos.sh`, `scripts/package-macos.sh`; notes in `docs/BUILD.md`.
+- **One release, several platforms.** `release.yml` builds each platform in its own job and publishes only if all of them passed. The site's download cards link to the zip for each system.
+
+### Changed
+- The repository moved to `github.com/blackmetaltech/spikes`; links, the toolchain image and the site follow it.
+
+### Known gaps
+- No Windows build yet (the port is in progress; NEST has no official Windows build). No Intel Mac build.
+- The macOS build passes the same tests as Linux, but its spikes have not been compared bit for bit with the Linux build.
+- The gaps listed under 0.5.0 still stand.
+
 ## [0.5.0] - 2026-11-22 — The Bestiary, the Theory wing, and stars that mean something
 
 0.5 adds two new wings to the campaign (design: `docs/DESIGN-0.5.md`, `docs/DESIGN-THEORY.md`), turns diagnosis into a second core loop, and was followed by two enhancement waves that hardened the engine and the save files, rewrote the circuit editor, added a tutorial and made the stars mean something. The campaign now has 79 levels. The 0.6 Theory notes that were kept as "Unreleased" are folded in here: there is no separate 0.6.
