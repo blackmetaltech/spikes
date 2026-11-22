@@ -84,16 +84,16 @@ mkdir "$tmp/game" "$tmp/home"; ditto -x -k "$zip_path" "$tmp/game"
 g=$tmp/game/Spike.app
 codesign --verify --deep --strict "$g" || { echo "FAIL: signature does not verify after unzip"; exit 1; }
 for f in "Contents/MacOS/$exe" Contents/Frameworks/spike-run; do [ -x "$g/$f" ] || { echo "FAIL: $f is not executable after unzip" >&2; exit 1; }; done
-tmo() { perl -e 'alarm shift; exec @ARGV' "$@"; }   # no coreutils timeout on macOS
-clean() { env -i PATH=/usr/bin:/bin HOME="$tmp/home" LANG=en_US.UTF-8 "$@"; }
+# no coreutils `timeout` on macOS: perl's alarm (T=seconds, default 900)
+clean() { perl -e 'alarm shift; exec @ARGV' "${T:-900}" env -i PATH=/usr/bin:/bin HOME="$tmp/home" LANG=en_US.UTF-8 "$@"; }
 log=$tmp/smoke.log; fail=0
 cd "$tmp/game"   # not the repo: nothing outside the zip is visible via ../
-clean SP_SMOKE=1 SP_NOAUTOSAVE=1 tmo 900 "$g/Contents/MacOS/$exe" --headless 2>&1 | tee "$log" || true
+clean SP_SMOKE=1 SP_NOAUTOSAVE=1 "$g/Contents/MacOS/$exe" --headless 2>&1 | tee "$log" || true
 for pat in "SMOKE OK" "^EXTENSION OK" "^V02 OK" "^TASKS OK" "^FONTS below 14 px: 0"; do
   grep -q "$pat" "$log" || { echo "FAIL: exported smoke: no '$pat'"; fail=1; }
 done
 grep -E "SCRIPT ERROR|Parse Error|SMOKE FAIL" "$log" && { echo "FAIL: errors in the exported smoke log"; fail=1; }
-clean SP_CHECK_EXPORT=1 SP_NOAUTOSAVE=1 tmo 300 "$g/Contents/MacOS/$exe" --headless 2>&1 | tee "$tmp/check.log" || true
+T=300 clean SP_CHECK_EXPORT=1 SP_NOAUTOSAVE=1 "$g/Contents/MacOS/$exe" --headless 2>&1 | tee "$tmp/check.log" || true
 grep -q "^CHECK EXPORT OK" "$tmp/check.log" || { echo "FAIL: CHECK from the exported build"; fail=1; }
 run=$g/Contents/Frameworks/spike-run
 tasks=$(clean "$run" --list-tasks | wc -l | tr -d ' ')
