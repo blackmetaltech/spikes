@@ -17,7 +17,7 @@ This page explains every kind of card, the units it uses, and how to wire it. Fo
 
 **Motor cards** (outputs) sit at the other edge. The level reads what your neurons do. To connect: drag from a neuron's rim onto the card, or use Connect mode in the other direction. Nothing is read until at least one neuron is wired to the card. An unwired motor reads 0, and the verdict says so.
 
-Select a card and the inspector shows what it is connected to, its kind, and its settings. **Disconnect all** removes every connection of the card. A card the level provides cannot be deleted. An input you add yourself (a noise input) can.
+Select a card and the inspector shows what it is connected to, its kind, and its settings. **Disconnect all** removes every connection of the card. A card the level provides cannot be deleted. An input you add yourself (a free noise input, in the sandbox) can.
 
 **First-connect weight.** The first time you connect a sensor to a neuron, the lab picks a weight that makes that cell type fire. Many levels set their own start weight for a sensor, so the level can be solved without hunting for a working number. You can change it afterwards in the inspector. See [synapses and modulators](synapses-and-modulators.html) for weights.
 
@@ -65,7 +65,7 @@ Examples:
 - **Pupil.** `retina` is a Poisson rate from the eye model (5 to 100 Hz per fibre, times four fibres). `threat` is 0 normally and 250 Hz during the fright cue.
 - **Breathing.** `drive` is a constant Poisson rate of 200 Hz into whatever cells you wire.
 
-You can also add a free noise input yourself with **+ Noise** (the button opens at the first level that needs it, and is always open in the sandbox). It starts as a Poisson input at 30 Hz with a weight of half the usual first-connect weight. In the inspector, a stepper switches it between **Poisson spikes** and **DC current**. It is meant for the sandbox, where you drive cells with it. A level scores only the sensors it declares, so on a level a wired free input (a `noise` that the level does not list) makes the run unable to pass: the score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Renshaw cell, whose own sensor is called `noise`, is the exception.
+In the sandbox you can add a free noise input with **+ Noise** (the button is not on a level: see below). It starts as a Poisson input at 30 Hz with a weight of half the usual first-connect weight. In the inspector, a stepper switches it between **Poisson spikes** and **DC current**. It is for the sandbox, where you drive cells with it. A level scores only the sensors it declares, and an input the player adds is a stimulus the level did not give: undeclared stimulus would be a way to cheat, so the button is not offered on a level, and a free input that arrives anyway (a circuit built in the sandbox and imported, or loaded from a file) makes the run unable to pass: the score is held below the pass mark and the verdict says the circuit brings a stimulus of its own and that this is why. The noise a level wants is its own: the Renshaw cell level declares a sensor called `noise`, and Researcher mode adds physiological noise to every level.
 
 ### Rate drive
 
@@ -94,7 +94,7 @@ Two more kinds exist for circuit files, Python and `spike-run`. They are not par
 - `spike_generator` emits spikes at the exact times you list, in milliseconds. Times must sit on the resolution grid (usually 0.1 ms), be above 0 and be sorted.
 - `sinusoidal_poisson` has a rate `max(0, rate + amplitude * sin(2 pi freq t + phase))`. Use it for an oscillating drive such as a theta rhythm. The frequency must be below the Nyquist limit of the resolution.
 
-These two are for the sandbox, the command line and Python. On a level, a circuit that carries a `spike_generator`, or any input channel the level does not drive, is not allowed to pass: its score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Free noise from **+ Noise** is a Poisson input that the lab marks as yours, and it is the way to test a circuit against chatter. See [a circuit is data](circuit-is-data.html).
+These two are for the sandbox, the command line and Python. On a level, a circuit that carries a `spike_generator`, or any input channel the level does not drive, is not allowed to pass: its score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Free noise from **+ Noise** (sandbox only) is a Poisson input that the lab marks as yours, and it is the way to test a circuit against chatter there. See [a circuit is data](circuit-is-data.html).
 
 ## Output kinds
 

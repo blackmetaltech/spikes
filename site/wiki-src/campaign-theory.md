@@ -195,7 +195,7 @@ In the projection inspector, a "mean-field projection" takes J and K as two sepa
 
 **What is simplified.** The level does not probe where the mean field fails: its network is large enough for the prediction to hold. Drive levels and measurement windows are game values. Par counts all the spiking cells plus the units of the prediction.
 
-**Par:** 255 cells and units.
+**Par:** 255 cells and units (the reference has 253; 2 spare).
 
 ### Stuck?
 

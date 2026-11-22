@@ -41,7 +41,7 @@ A chapter that is still closed shows "(locked)" on its tab, and its level cards 
 
 **Checked by mechanism.** Every level checks the mechanism it teaches through the structure of your circuit, not only through the numbers it produces. A circuit that gets the right output by a trick (a cell wired straight to the motor, say) fails with a verdict that names the missing part and never gives a number. The scoring cannot be gamed by token wiring either: a connection whose weight is too small to move its target counts as no connection, and a circuit cannot add inputs of its own that the level did not declare. An empty bench scores zero. Hints work the same way: tier 1 names the idea, tier 2 points at the place, tier 3 gives a partial recipe. The Stuck? lines below are each level's tier 1.
 
-**All lab tools are open.** The lab hides some tools (inhibitory cells, the parts bin, noise inputs, analysis, load and save) until the campaign reaches a level that needs them. The Bestiary comes after the body chapters in play order, so in this wing those tools are already on offer. Several levels need a cell with a slow internal variable (a burster, a rebounder, a conductance-based cell) or a synapse that changes with use. Choosing the right part from the [parts bin](parts-bin.html) and the [synapse editor](synapses-and-modulators.html) is part of the puzzle.
+**All lab tools are open.** The lab hides some tools (inhibitory cells, the parts bin, analysis, load and save) until the campaign reaches a level that needs them. The Bestiary comes after the body chapters in play order, so in this wing those tools are already on offer. Several levels need a cell with a slow internal variable (a burster, a rebounder, a conductance-based cell) or a synapse that changes with use. Choosing the right part from the [parts bin](parts-bin.html) and the [synapse editor](synapses-and-modulators.html) is part of the puzzle.
 
 **No challenge variants.** The base levels of the body chapters have optional variants (for example, half the neurons). None of the Bestiary levels has one.
 
@@ -268,7 +268,7 @@ A fly keeps track of the direction it faces with a ring of cells in the central 
 
 **What is simplified.** The ring is a ring-attractor model after the published cell types, not synapse-level wiring. Excitation between ring cells is a direct stand-in for what is largely indirect in the animal. The 16-wedge ring, the weights, the slow excitatory synapse and the bias are game values. Time is the real one.
 
-**Variants.** None. **Par:** 24 neurons.
+**Variants.** None. **Par:** 24 neurons (the reference has 20; 4 spare).
 
 #### Stuck?
 
@@ -282,7 +282,7 @@ A bump on a ring is held by two opposite things: cells that excite their neighbo
 
 **What is simplified.** The turn signal is a pair of steady inputs rather than noisy spikes. A discrete ring of 16 wedges has a dead zone for slow turns: turns below about 60 degrees per second are not part of the world.
 
-**Variants.** None. **Par:** 60 neurons.
+**Variants.** None. **Par:** 60 neurons (the reference has 52; 8 spare).
 
 #### Stuck?
 
@@ -296,7 +296,7 @@ Two opposite pushes cancel; give one of them a little more drive and the bump mo
 
 **What is simplified.** Same as the two puzzles. Heading is scored with a population vector of the ring cells. The full episode is 9.2 seconds, with four turns after the landmark; Check runs a 5-second version with the first two.
 
-**Variants.** None. **Par:** 60 neurons.
+**Variants.** None. **Par:** 60 neurons (the reference has 52; 8 spare).
 
 #### Stuck?
 
@@ -331,7 +331,7 @@ The inspector has a "wiring" option on an axon (random sparse wiring) for this.
 - The APL is a spiking group. In the locust analogue it is a nonspiking neuron.
 - It is a model after the published cell types, not synapse-level data.
 
-**Variants.** None. **Par:** 250 neurons.
+**Variants.** None. **Par:** 250 neurons (the reference has 224; 26 spare).
 
 #### Stuck?
 

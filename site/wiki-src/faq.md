@@ -41,7 +41,7 @@ A level opens when the one before it on its chapter's main path is passed. A cha
 
 ### Why is a tool missing, such as inhibitory neurons or Analysis?
 
-Tools open as the campaign needs them: inhibitory neurons, the parts bin and noise inputs at the first level that needs them, and Analysis, Load, Save, the JSON copy and paste and Import from a passed level at the Spinal cord chapter. The More menu lists what is still to come. The [sandbox](sandbox.html) has everything open.
+Tools open as the campaign needs them: inhibitory neurons and the parts bin at the first level that needs them, and Analysis, Load, Save, the JSON copy and paste and Import from a passed level at the Spinal cord chapter. The More menu lists what is still to come. The [sandbox](sandbox.html) has everything open.
 
 ### What is the difference between Run, Check and Test x5?
 
