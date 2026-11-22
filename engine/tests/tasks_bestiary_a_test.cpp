@@ -269,6 +269,72 @@ int main( int argc, char** argv )
     std::printf( "%-14s %-9s patient circuit: %d projections, %zu candidates ok\n", L.id, L.chapter, static_cast< int >( patient[ "projections" ].size() ), dg.candidates.size() );
   }
 
+  // ---- leech_heart: the test current and what it reads (escape or release)
+  {
+    const json ref = load_circuit( "leech_heart" );
+    auto set_hn = [ & ]( json c, const std::map< std::string, double >& kv ) {
+      for ( auto& p : c[ "populations" ] )
+        if ( p[ "id" ] == "HN_L" || p[ "id" ] == "HN_R" )
+          for ( const auto& [ k, v ] : kv ) p[ "params" ][ k ] = v;
+      return c;
+    };
+    // (1) the reference is a RELEASE oscillator in every mode and seed: the driven side's active phase lengthens clearly (by about a fifth, the pass limit is 5 to 12 percent) and
+    //     its silent phase does not: parts signature +1, tilt_active_pct well over the limit, tilt_silent_pct never the larger effect
+    double lowest_a = 1e9, highest_s = -1e9;
+    for ( const char* mode : { "guided", "standard", "researcher" } )
+      for ( uint64_t seed = 1; seed <= 8; ++seed )
+      {
+        const Result r = run_circuit( "leech_heart", ref, seed, mode, false );
+        CHECK_MSG( r.score.parts.count( "signature" ) && r.score.parts.at( "signature" ) == 1.0, std::string( "leech_heart / " ) + mode + " seed " + std::to_string( seed ) + ": the reference should read as a release oscillator: " + r.score.verdict );
+        CHECK_MSG( r.score.verdict.find( "release" ) != std::string::npos, std::string( "leech_heart: the pass verdict names the mechanism: " ) + r.score.verdict );
+        lowest_a = std::min( lowest_a, r.score.parts.at( "tilt_active_pct" ) );
+        highest_s = std::max( highest_s, r.score.parts.at( "tilt_silent_pct" ) );
+      }
+    std::printf( "leech_heart signature on the reference, 3 modes x 8 seeds: active phase +%.0f %% at the least, silent phase %+.0f %% at the most\n", lowest_a, highest_s );
+    CHECK_MSG( lowest_a >= 15.0, "leech_heart: the active phase of the driven side lengthens by at least 15 percent on every seed (the pass limit is 12 percent at the most)" );
+    CHECK_MSG( highest_s <= 0.0, "leech_heart: the silent phase of the driven side never lengthens" );
+    // (2) quick = full: the same numbers (the quick episode is the full one)
+    {
+      const Result q = run_circuit( "leech_heart", ref, 4, "standard", true ), f = run_circuit( "leech_heart", ref, 4, "standard", false );
+      CHECK_MSG( q.score.parts == f.score.parts, "leech_heart: the quick and the full episode give the same parts" );
+    }
+    // (3) other release circuits read the same way: a faster, harder-adapting pair; and the same pair read straight from the interneurons (no motor cells: the cells the test
+    //     current goes to are found in the structure, not by name)
+    for ( const char* mode : { "standard", "researcher" } )
+      for ( uint64_t seed = 1; seed <= 3; ++seed )
+      {
+        const Result a = run_circuit( "leech_heart", set_hn( ref, { { "b", 10.0 }, { "tau_w", 500.0 } } ), seed, mode, false );
+        CHECK_MSG( a.score.passed && a.score.parts.at( "signature" ) == 1.0, std::string( "leech_heart: a harder-adapting, faster pair passes as release (" ) + mode + " seed " + std::to_string( seed ) + "): " + a.score.verdict );
+        json d = ref;
+        json pops = json::array(), projs = json::array();
+        for ( auto& p : d[ "populations" ] ) if ( p[ "id" ].get< std::string >().rfind( "HN", 0 ) == 0 ) pops.push_back( p );
+        for ( auto& p : d[ "projections" ] ) if ( p[ "pre" ].get< std::string >().rfind( "HN", 0 ) == 0 && p[ "post" ].get< std::string >().rfind( "HN", 0 ) == 0 ) projs.push_back( p );
+        d[ "populations" ] = pops;
+        d[ "projections" ] = projs;
+        for ( auto& i : d[ "inputs" ] ) i[ "targets" ] = json::array( { { { "pop", "HN_L" } }, { { "pop", "HN_R" } } } );
+        d[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "HN_L" } } } );
+        d[ "outputs" ][ 1 ][ "neurons" ] = json::array( { { { "pop", "HN_R" } } } );
+        const Result b = run_circuit( "leech_heart", d, seed, mode, false );
+        CHECK_MSG( b.score.passed && b.score.parts.at( "signature" ) == 1.0, std::string( "leech_heart: interneurons read directly pass as release (" ) + mode + " seed " + std::to_string( seed ) + "): " + b.score.verdict );
+      }
+    // (4) a novice who keeps the lab's own first-connect drive (300 pA per unit instead of 480): the pair fires together; the verdict says so and says nothing about escape or release
+    {
+      json c = ref;
+      for ( auto& i : c[ "inputs" ] ) i[ "weight" ] = 300.0;
+      const Result r = run_circuit( "leech_heart", c, 1, "standard", false );
+      CHECK_MSG( !r.score.passed && r.score.verdict.find( "release" ) == std::string::npos && r.score.verdict.find( "escape" ) == std::string::npos, "leech_heart: a pair that fires together is not named as release or escape: " + r.score.verdict );
+    }
+    // (5) the test current changes the cells it should: the tilt cells are the ones that excite 'left' and inhibit 'right' (HN_R in the reference), so driving HN_R harder lengthens
+    //     'left' (the motor side that HN_R's burst frees), not 'right': checked through the sign of the part with the two sides swapped in the circuit (the outputs exchanged)
+    {
+      json sw = ref;
+      sw[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "HE_R" } } } );
+      sw[ "outputs" ][ 1 ][ "neurons" ] = json::array( { { { "pop", "HE_L" } } } );
+      const Result r = run_circuit( "leech_heart", sw, 2, "standard", false );
+      CHECK_MSG( r.score.parts.count( "signature" ) && r.score.parts.at( "signature" ) == 1.0, "leech_heart: the signature reads the same with the two sides swapped: " + r.score.verdict );
+    }
+  }
+
   // ---- no numbers in verdicts or hint tiers 1-3 (honesty contract rule 2)
   // (extra circuits so that many verdicts are produced: the empty bench and one cell of each level)
   for ( const Level& L : kLevels )
