@@ -30,6 +30,7 @@ if [ "${SKIP_NEST:-0}" = 1 ] && [ -f "$BUILD/models/libmodels.a" ] && [ -f "$BUI
   echo "NEST: reusing $BUILD"
 else
   if [ ! -d "$SRC/.git" ]; then mkdir -p "$SRC"; git -C "$SRC" init -q; git -C "$SRC" remote add origin https://github.com/nest/nest-simulator.git; fi
+  git -C "$SRC" config core.autocrlf false; git -C "$SRC" config core.eol lf   # LF sources, so the patches apply and the objects hash the same everywhere
   git -C "$SRC" cat-file -e "$NEST_REF^{commit}" 2>/dev/null || git -C "$SRC" fetch -q --depth 1 origin "$NEST_REF"
   git -C "$SRC" checkout -q -f "$NEST_REF"          # reverts a previous patch run: only the files a patch touches get a new mtime
   for p in "$root"/scripts/patches/*.patch; do
