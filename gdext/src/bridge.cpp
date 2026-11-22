@@ -37,6 +37,7 @@
 #else
 extern char** environ;
 #endif
+#endif  // _WIN32
 
 namespace spike_gd
 {
