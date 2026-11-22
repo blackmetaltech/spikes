@@ -12,6 +12,16 @@ nestkernel/kernel_manager.cpp (one hunk)
   unsigned int -> long is a widening the variant's converting assignment accepts; Windows has a 32-bit `long` (LLP64), where it is a narrowing
   and the assignment does not compile. They are `long` constants now (the values are 10 .. 205, so nothing changes).
 
+nestkernel/random_manager.cpp (one hunk)
+  `rng_seed < ( 1L << 32 )` is a shift by the full width of a 32-bit long: every seed was refused ("RNG seed must be in (0, 2^32-1)"). `long`
+  also cannot hold a seed above 2^31-1, which the Linux build accepts (up to 2^32-1). On Windows only 0 is refused and a seed that arrives as a
+  negative long is taken as the unsigned 32-bit value with the same bits (the cast to uint32_t that follows), so the whole range works and is the
+  same stream as on Linux.
+
+nestkernel/connection_manager.cpp (one hunk)
+  connect-from-arrays checks an integer-valued parameter with `*param > 1L << 31`; with a 32-bit long that is -2^31, so every integer parameter
+  (receptor_type, ...) was rejected as "got double". 1LL makes it the intended 2^31.
+
 nestkernel/event_delivery_manager.cpp (one hunk)
   std::max( 2UL, static_cast< size_t >( ... ) ): `unsigned long` is 32 bits on Windows while size_t is 64, so the two arguments differ in type
   and std::max does not deduce. The literal is a size_t now.
@@ -50,6 +60,19 @@ index b5c262a..9cf988c 100644
  
  /* Name of package */
  #define PACKAGE @PROJECT_NAME@
+diff --git a/nestkernel/connection_manager.cpp b/nestkernel/connection_manager.cpp
+index a89a1a4..c492515 100644
+--- a/nestkernel/connection_manager.cpp
++++ b/nestkernel/connection_manager.cpp
+@@ -736,7 +736,7 @@ ConnectionManager::connect_arrays( const long* sources,
+           {
+             const auto rtype_as_long = static_cast< long >( *param );
+ 
+-            if ( *param > 1L << 31 or std::abs( *param - rtype_as_long ) > 0 )  // To avoid rounding errors
++            if ( *param > 1LL << 31 or std::abs( *param - rtype_as_long ) > 0 )  // To avoid rounding errors
+             {
+               const std::string msg =
+                 String::compose( "Expected integer value for %1, but got double.", param_pointer_pair.first );
 diff --git a/nestkernel/event_delivery_manager.cpp b/nestkernel/event_delivery_manager.cpp
 index ae6ea3e..b238303 100644
 --- a/nestkernel/event_delivery_manager.cpp
@@ -163,3 +186,20 @@ index 56c752b..cd9d7ec 100644
    return name;
  }
  
+diff --git a/nestkernel/random_manager.cpp b/nestkernel/random_manager.cpp
+index d5549e6..cccd6e1 100644
+--- a/nestkernel/random_manager.cpp
++++ b/nestkernel/random_manager.cpp
+@@ -150,7 +150,12 @@ RandomManager::set_status( const Dictionary& d )
+ 
+   if ( rng_seed_updated )
+   {
++#ifdef _WIN32
++    // `long` is 32 bits: a seed in [2^31, 2^32) arrives as a negative long (the engine casts its unsigned seed) and the uint32 cast below restores it
++    if ( rng_seed == 0 )
++#else
+     if ( not( 0 < rng_seed and rng_seed < ( 1L << 32 ) ) )
++#endif
+     {
+       throw BadProperty( "RNG seed must be in (0, 2^32-1)." );
+     }
