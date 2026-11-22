@@ -18,6 +18,7 @@ NESTML_VERSION=$(pin build-nestml.sh 's/.*NESTML_VERSION:-\([0-9.]*\)}.*/\1/p')
 GODOT_CPP_TAG=$(pin build-gd.sh 's/.*GODOT_CPP_TAG:-\([^}]*\)}.*/\1/p')
 [ -n "$NEST_REF" ] && [ -n "$NESTML_VERSION" ] && [ -n "$GODOT_CPP_TAG" ] || { echo "could not read the pins out of scripts/build-{nest,nestml,gd}.sh" >&2; exit 1; }
 echo "pins: NEST $NEST_REF  NESTML $NESTML_VERSION  godot-cpp $GODOT_CPP_TAG"
+export CC=gcc CXX=g++   # NEST rejects -DCMAKE_C_COMPILER (its unknown-option check)
 jobs=$(nproc)
 step() { echo; echo "=== $*"; }
 
@@ -34,7 +35,7 @@ else
     echo "patch: $(basename "$p")"; git -C "$SRC" apply --whitespace=nowarn "$p"
   done
   mkdir -p "$BUILD"; : > "$BUILD/nestkernel_api.cxx"   # PyNEST is not built: a placeholder keeps the configure from needing Cython
-  cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_INSTALL_PREFIX="$root/third_party/nest-install" \
+  cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_INSTALL_PREFIX="$root/third_party/nest-install" \
     -DPython_EXECUTABLE="$(command -v python)" -DNESTKERNEL_API_CXX="$BUILD/nestkernel_api.cxx" \
     -Dwith-mpi=OFF -Dwith-openmp=OFF -Dwith-boost=OFF -Dwith-ltdl=OFF -Dwith-gsl=ON
   cmake --build "$BUILD" --target models nestkernel nestutil -j"$jobs"
@@ -61,7 +62,7 @@ if [ ! -f third_party/godot-cpp/CMakeLists.txt ]; then
 fi
 step "engine, spike-run.exe, spike_gd.dll"
 bdir=build/gd-release
-cmake -S . -B "$bdir" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DSPIKE_BUILD_TESTS=ON -DSPIKE_BUILD_GDEXT=ON -DGODOTCPP_TARGET=template_release
+cmake -S . -B "$bdir" -G Ninja -DCMAKE_BUILD_TYPE=Release -DSPIKE_BUILD_TESTS=ON -DSPIKE_BUILD_GDEXT=ON -DGODOTCPP_TARGET=template_release
 cmake --build "$bdir" -j"$jobs" --target spike_gd spike-run test_golden
 mkdir -p godot/bin
 cp -f "$bdir/gd-out/spike_gd.dll" godot/bin/spike_gd_release.dll
