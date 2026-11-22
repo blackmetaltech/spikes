@@ -21,6 +21,7 @@ if py=$(brew --prefix python@3.12 2>/dev/null) && [ -x "$py/bin/python3.12" ]; t
   mkdir -p "$root/build/pybin"; ln -sf "$py/bin/python3.12" "$root/build/pybin/python3"; export PATH="$root/build/pybin:$PATH"
 fi
 export CMAKE_PREFIX_PATH="$GSL_PREFIX"   # environment, not -D: NEST rejects unknown -D options
+export CPATH="$GSL_PREFIX/include${CPATH:+:$CPATH}"   # the engine includes <gsl/...>; Homebrew is not on the default include path
 OSX=(-DCMAKE_OSX_ARCHITECTURES="$ARCH")   # the deployment target comes from MACOSX_DEPLOYMENT_TARGET (NEST rejects it as a -D option)
 SRC=$root/third_party/nest-simulator; BUILD=$root/third_party/nest-build
 VENV=$root/third_party/nestml-venv
