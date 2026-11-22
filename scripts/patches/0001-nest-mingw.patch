@@ -1,6 +1,12 @@
 Fixes that NEST (pinned in scripts/build-nest.sh) needs to compile as static libraries with MinGW-w64 (MSYS2 UCRT64). Applied only by
 scripts/build-windows.sh, with `git apply` onto a clean checkout of the pin; the Linux build never sees it. Each hunk is explained here.
 
+libnestutil/config.h.in (one hunk)
+  CMake derives NEST_EXITCODE_ABORT / NEST_EXITCODE_SEGFAULT (the "exitcodes" entries of the kernel status) by running a test program through
+  cmake/CheckFiles/check_return_val.sh. On Windows that probe cannot see a signal-style exit code and leaves the text "inappropriate file type
+  or format", which became `#define NEST_EXITCODE_ABORT inappropriate file type or format` and broke kernel_manager.cpp. On Windows the header
+  now carries the shell values Linux reports (128 + SIGABRT, 128 + SIGSEGV). Nothing in the engine reads them.
+
 nestkernel/mpi_manager.h (two hunks)
   gethostname() is a Winsock function on Windows (declared in <winsock2.h>, and it fails until WSAStartup ran), so the non-MPI
   MPIManager::get_processor_name() did not compile. It only fills the "processor name" string of the kernel status, so on Windows it asks
@@ -10,6 +16,27 @@ nestkernel/mpi_manager.h (two hunks)
 Not a patch, but part of the same port (scripts/build-windows.sh, engine/CMakeLists.txt): MinGW lays out bit-fields like MSVC by default, which breaks
 NEST's compile-time size checks (SpikeData == 8 bytes, TargetData == 12); everything that includes NEST headers is built with -mno-ms-bitfields.
 
+diff --git a/libnestutil/config.h.in b/libnestutil/config.h.in
+index b5c262a..9cf988c 100644
+--- a/libnestutil/config.h.in
++++ b/libnestutil/config.h.in
+@@ -51,8 +51,16 @@
+ #define MPIEXEC_PREFLAGS "@MPIEXEC_PREFLAGS@"
+ #define MPIEXEC_POSTFLAGS "@MPIEXEC_POSTFLAGS@"
+ 
++#ifdef _WIN32
++#define NEST_EXITCODE_ABORT 134
++#else
+ #define NEST_EXITCODE_ABORT @NEST_EXITCODE_ABORT@
++#endif
++#ifdef _WIN32
++#define NEST_EXITCODE_SEGFAULT 139
++#else
+ #define NEST_EXITCODE_SEGFAULT @NEST_EXITCODE_SEGFAULT@
++#endif
+ 
+ /* Name of package */
+ #define PACKAGE @PROJECT_NAME@
 diff --git a/nestkernel/mpi_manager.h b/nestkernel/mpi_manager.h
 index 56c752b..4b0faf7 100644
 --- a/nestkernel/mpi_manager.h
