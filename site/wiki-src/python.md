@@ -126,7 +126,8 @@ The engine and the package both draw the starting voltages with the same integer
 ## Limits
 
 - `spike.build` repeats only some of the C++ loader's checks: the synapse rules (gap junctions, plasticity, weight spread, modulation rows) and the weight ceilings of 500 nS and 10000 pA onto conductance and current cells. It does not check unknown keys, delays against the resolution, the size and connection budgets (20000 cells, about 2 million connections), the rate, current and delay ceilings, the larger weight ceiling of the custom cells, or the nesting depth. A file can build in PyNEST and still be refused by the game and by `spike-run`; see [limits and errors](circuit-is-data.html#limits-and-errors).
-- Rate units, mean-field links, `tuned_poisson` and `rate_drive` inputs and `rate_value` outputs (the Theory wing) are not built in Python.
+- Rate units, mean-field links, `tuned_poisson` and `rate_drive` inputs and `rate_value` outputs (the Theory wing) are not built in Python yet. `spike.build` refuses such a circuit with a plain message that says so.
+- `spike.build` mirrors the engine's size and range limits (20000 neurons in all, about 2 million connections, delays up to 1000 ms, rates and constant currents up to 100000, JSON nested at most 32 levels) and its seed rule: an integer from 1 to 4294967295, and a missing seed is 1, as in the engine.
 - A `spike-run --task` run is the way to see a level's score; Python only runs the network.
 
 ## Tests and the example notebook

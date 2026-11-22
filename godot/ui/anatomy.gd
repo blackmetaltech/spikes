@@ -6,7 +6,7 @@ extends RefCounted
 ## pixel positions of its landmarks (SA node, preBötC, dorsal horn ...) so the map can pin tasks to them.
 
 const OXY := Color("#B23A2E")        # oxygenated blood
-const DEOXY := Color("#3D5E9E")      # deoxygenated blood
+const DEOXY := Color("#68757F")      # deoxygenated blood: slate, hatched the other way in the chambers. Blue means inhibition only (identity), so veins and the right heart are never Prussian blue
 const WALL := Color("#A2493F")       # myocardium
 const BONE := Color("#5E4E3E")
 const TISSUE := Color("#EEDFCB")
@@ -143,8 +143,8 @@ static func heart(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 	pipe(ci, ao, hw_ao, Color("#EDC9C0", al), vox, 1.8)
 	pipe(ci, smooth(H_CAROTID, o, s), s * 0.019, Color("#EDC9C0", al), vox, 1.4)
 	pipe(ci, smooth(H_PV1, o, s), s * 0.021, Color("#EDC9C0", al), vox, 1.4); pipe(ci, smooth(H_PV2, o, s), s * 0.021, Color("#EDC9C0", al), vox, 1.4)
-	pipe(ci, smooth(H_SVC, o, s), s * 0.031, Color("#CDD5E6", al), vde, 1.8)
-	pipe(ci, smooth(H_IVC, o, s), s * 0.031, Color("#CDD5E6", al), vde, 1.8)
+	pipe(ci, smooth(H_SVC, o, s), s * 0.031, Color("#D6DADD", al), vde, 1.8)
+	pipe(ci, smooth(H_IVC, o, s), s * 0.031, Color("#D6DADD", al), vde, 1.8)
 	# chambers: myocardial wall first (a wide stroke), then the blood pool
 	var chambers := [["RA", H_RA, a, false, 0.022], ["LA", H_LA, a, true, 0.022], ["RV", H_RV, v, false, 0.040], ["LV", H_LV, v, true, 0.055]]
 	var polys := []
@@ -156,9 +156,9 @@ static func heart(ci: CanvasItem, r: Rect2, st: Dictionary) -> Dictionary:
 		ci.draw_polyline(cl, Color(wcol, al), s * (float(ch[4]) + 0.012 * float(ch[2])) * 2.0, true)
 	for i in chambers.size():
 		var ch: Array = chambers[i]; var ox: bool = ch[3]; var act := float(ch[2]); var p: PackedVector2Array = polys[i]
-		var base_col := Color("#F2D6CE") if ox else Color("#D8DEEC"); var hot := Color("#D9786A") if ox else Color("#8FA4D2")
+		var base_col := Color("#F2D6CE") if ox else Color("#DCDFE0"); var hot := Color("#D9786A") if ox else Color("#9CA6AD")
 		ci.draw_colored_polygon(p, Color(base_col.lerp(hot, 0.55 * act), al))
-		Gfx.hatch(ci, p, PI * 0.25, maxf(s * 0.02, 5.0), Color(Kit.INK, 0.09 * al), 1.0)
+		Gfx.hatch(ci, p, PI * 0.25 if ox else PI * 0.75, maxf(s * 0.02, 5.0), Color(Kit.INK, (0.09 if ox else 0.16) * al), 1.0)   # venous blood is hatched the other way
 		var cl2 := p.duplicate(); cl2.append(p[0])
 		ci.draw_polyline(cl2, Color(OXY if ox else DEOXY, (0.55 + 0.4 * act) * al), 1.6, true)
 		var cc := centroid(p)

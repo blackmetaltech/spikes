@@ -57,7 +57,7 @@ public:
     i.duration_ms = kDur;
     i.concepts_new = { "divergent_command" };
     i.concepts_used = { "excitation", "inhibition" };
-    i.par_neurons = 5;
+    i.par_neurons = 8;   // the reference circuit's neuron count (par rule: tests/tasks_rules_test.cpp)
     i.default_model = "iaf_psc_alpha";
     i.recipe = "alarm onto a command group of 2 cells. The command group onto heart at about 600 pA, onto pupil and onto sweat "
                "at about 280 pA (1 cell each); these weights scale inversely with the size of the command group: about 1200 pA "

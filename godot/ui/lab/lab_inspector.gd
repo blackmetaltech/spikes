@@ -127,7 +127,7 @@ func inspect_brief(small: int) -> void:
 			var rb := Kit.btn("Show recipe", func(): lab._recipe_open = true; Progress.record_recipe(tid); build(), "amber", 18); rb.size_flags_vertical = Control.SIZE_SHRINK_CENTER; rr.add_child(rb)
 			var rl := Kit.label("The recipe gives the numbers. Using it costs the third star.", small, Kit.TEXT_SOFT, true); rl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; rr.add_child(rl)
 	if not lab._brief_full and tid != "": return   # the star rule and the legend sit behind the expander with the rest of the brief
-	if tid != "" and Progress.budget(tid) > 0: add(Kit.label("Stars: 1 pass.  2 pass on 5 seeds (“Test x5”).  3 the same with %s or fewer." % Progress.neurons_text(Progress.budget(tid)), small, Kit.TEXT_SOFT, true))
+	if tid != "" and str(Progress.challenge(tid)["text"]) != "": add(Kit.label(Progress.star_rules_text(tid), small, Kit.TEXT_SOFT, true))
 	var leg := HBoxContainer.new(); leg.add_theme_constant_override("separation", 8)
 	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.SENSOR, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
 	add(leg)
@@ -186,7 +186,7 @@ func inspect_pop(id: String, small: int) -> void:
 	row.add_child(Kit.btn("E / I", func(): flip_kind(id), "panel", 18))
 	row.add_child(Kit.btn("Delete", func(): lab.editor.delete_selected(), "danger", 18))
 	var nrow := HBoxContainer.new(); nrow.add_theme_constant_override("separation", 10)
-	nrow.add_child(Kit.label("neurons in group", small, Kit.TEXT_SOFT)); nrow.add_child(Kit.stepper([[1, "1"], [2, "2"], [3, "3"], [4, "4"], [6, "6"], [8, "8"], [10, "10"], [12, "12"], [20, "20"]], str(Circuits.pop_n(p)), func(v): Circuits.set_n(circuit, id, int(v)); lab._on_structure(), 70.0, 18, 40.0))
+	nrow.add_child(Kit.label("neurons in group", small, Kit.TEXT_SOFT)); nrow.add_child(Kit.stepper(Circuits.group_size_steps(Circuits.pop_n(p)), str(Circuits.pop_n(p)), func(v): Circuits.set_n(circuit, id, int(v)); lab._on_structure(), 70.0, 18, 40.0))
 	add(nrow)
 	var info: String = str(presets[cur][2]) if cur >= 0 else "Custom parameters."
 	add(Kit.label(info + "  Drag the disc to move it, drag from its rim to connect.", small, Kit.TEXT_SOFT, true))

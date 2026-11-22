@@ -283,7 +283,10 @@ func _bbox(ns: Array) -> Rect2:
 func _card_size() -> Vector2:
 	var k := clampf(Kit.f(), 0.85, 1.0)
 	var w := clampf(size.x * 0.135, 112.0, 150.0 * k) if size.x > 0.0 else 150.0 * k   # narrower on a small bench
-	return Vector2(w, maxf(52.0 * k, float(Kit.fs(14)) * 2.0 + 18.0))
+	return Vector2(w * _card_k, maxf(52.0 * k, float(Kit.fs(14)) * 2.0 + 18.0))
+
+## Card width factor: 1, or less when nothing fits at full width on a small bench (1366x768, Large text): _do_fit narrows the cards before it gives up zoom.
+var _card_k := 1.0
 
 ## Channel cards stack in one column down each side; many cards go in several columns so none run off the bench.
 func _card_cols(count: int) -> int:
@@ -321,7 +324,7 @@ func to_model(s: Vector2) -> Vector2: return (s - view_off) / view_scale
 func _geo() -> Dictionary:
 	if circuit.is_empty(): return {}
 	if _fit_pending: _do_fit()
-	var key := [_rev, view_scale, size, inset_bottom, Kit.f(), _sig()]
+	var key := [_rev, view_scale, size, inset_bottom, Kit.f(), _sig(), _card_k]
 	_stale = false
 	if key != _gkey or _g.is_empty():
 		var only_zoom: bool = not _g.is_empty() and _gkey.size() == key.size() and key[0] == _gkey[0] and key[2] == _gkey[2] and key[3] == _gkey[3] and key[5] == _gkey[5]
@@ -342,7 +345,7 @@ func _sig() -> Array:
 ## Fit: the largest zoom (up to 2x) at which the populations as drawn (labels, ensembles and gaps do not shrink with the zoom) and the card columns fit the
 ## canvas, found by bisection; when even ZOOM_MIN does not fit (hundreds of groups in a small window) the block is centred at ZOOM_MIN and can be panned.
 func _do_fit() -> void:
-	_fit_pending = false
+	_fit_pending = false; _card_k = 1.0
 	var ns := _neurons()
 	var bb := _bbox(ns).grow(46.0)
 	var avail := _fit_avail()
@@ -358,15 +361,26 @@ func _do_fit() -> void:
 			if r.size.x <= room.size.x and r.size.y <= room.size.y: good = mid; lo = mid
 			else: hi = mid
 		if good > 0.0: ub = fits.call(good)
-		else:   # nothing fits (a small window, many groups and channels): the zoom whose layout overflows least, centred (pan for the rest)
-			var best := ZOOM_MIN; var bo := INF   # first a zoom at which the neuron block (with its labels) fits, then the least overflow of block and cards
-			for k in 9:
-				var sc := lerpf(ZOOM_MIN, maxf(s0, ZOOM_MIN), float(k) / 8.0); view_scale = sc; var gk := _build(true)
-				var r: Rect2 = gk.get("bb", room); var rb: Rect2 = gk.get("bbp", r)
-				var ob := maxf(rb.size.x / room.size.x, rb.size.y / room.size.y)
-				var over := maxf(r.size.x / room.size.x, r.size.y / room.size.y) if ob <= 1.0 else 100.0 + ob
-				if over < bo - 0.01: bo = over; best = sc
-			view_scale = best; var gb := _build(true); ub = gb.get("bb", ub); var bp: Rect2 = gb.get("bbp", ub)
+		else:   # nothing fits (a small window, many groups and channels): narrower cards and the zoom whose layout overflows least, centred (pan for the rest)
+			# Candidates: card width factors x nine zooms. If one fits (overflow <= 1) the largest zoom among them wins; else the least overflow, but a zoom is not thrown away for
+			# a sliver (7 px of overflow at 15% zoom is no choice): the largest zoom within 3% of the least overflow wins. A block whose labels do not fit at all is never chosen
+			# while another candidate fits them. Huge circuits (hundreds of groups) keep the full cards: they are a rounding error there and every candidate is a rebuild.
+			var cks := [1.0, 0.9, 0.8] if (circuit.get("populations", []) as Array).size() <= 24 else [1.0]
+			var cand := []; var bo := INF
+			for ck in cks:
+				_card_k = ck
+				for k in 9:
+					var sc := lerpf(ZOOM_MIN, maxf(s0, ZOOM_MIN), float(k) / 8.0); view_scale = sc; var gk := _build(true)
+					var r: Rect2 = gk.get("bb", room); var rb: Rect2 = gk.get("bbp", r)
+					var ob := maxf(rb.size.x / room.size.x, rb.size.y / room.size.y)
+					var over := maxf(r.size.x / room.size.x, r.size.y / room.size.y) if ob <= 1.0 else 100.0 + ob
+					cand.append([over, sc, ck]); bo = minf(bo, over)
+			var lim := 1.0 if bo <= 1.0 else bo + 0.03
+			var best := ZOOM_MIN; var best_ck := 1.0; var picked := false
+			for c in cand:
+				if float(c[0]) > lim + 1e-6: continue
+				if not picked or float(c[1]) > best + 1e-6 or (absf(float(c[1]) - best) < 1e-6 and float(c[2]) > best_ck): best = float(c[1]); best_ck = float(c[2]); picked = true
+			_card_k = best_ck; view_scale = best; var gb := _build(true); ub = gb.get("bb", ub); var bp: Rect2 = gb.get("bbp", ub)
 			var off := room.get_center() - ub.get_center()   # centred, then moved so the neuron block and its labels stay in view (cards may be a pan away)
 			for ax in 2:
 				if bp.size[ax] >= room.size[ax]: off[ax] = room.get_center()[ax] - bp.get_center()[ax]

@@ -25,20 +25,20 @@ Levels unlock in a fixed order. The rules are short.
 
 A level that you pass in any mode counts as passed for unlocking, except a circuit that is a copy of the level's reference circuit, which counts for nothing. Switching [mode](modes.html) never locks you out of anything.
 
-On the map a locked level says what it waits for, for example "Pass Convergence first", or for a closed chapter "Pass the Spinal cord spine (or the Invertebrates spine) first". In the tables below, **Know first** lists the ideas a level uses (the USES chips on its card). The parts bin and the lab tools also open as the campaign needs them: inhibitory neurons, the parts bin and noise inputs appear at the first level whose reference circuit uses them, and Analysis and Load / Save appear from the second chapter. See [the lab](how-to-read-the-lab.html).
+On the map a locked level says what it waits for, for example "Pass Convergence first", or for a closed chapter "Pass the Spinal cord spine (or the Invertebrates spine) first". In the tables below, **Know first** lists the ideas a level uses (the USES chips on its card). The parts bin and the lab tools also open as the campaign needs them: inhibitory neurons and the parts bin appear at the first level whose reference circuit uses them, and Analysis and Load / Save appear from the second chapter. See [the lab](how-to-read-the-lab.html).
 
 ## The kinds of level
 
 | Kind | What it is | Size |
 |---|---|---|
 | **Micro-puzzle** | One concept in a fish tank: 1 to 12 cells, a 3 to 5 second episode, a small dashboard of readouts instead of a body. | Par of 1 to 12 neurons |
-| **Task** | The same ideas put to work on a body or a world. Many cells, a long episode (10 to 150 seconds), a body view. | Par of 7 to 56 neurons |
+| **Task** | The same ideas put to work on a body or a world. Many cells, a long episode (10 to 150 seconds), a body view. | Par of 7 to 60 neurons |
 | **Boss** | A chapter finale that combines every idea of the chapter in one circuit. | Par of 75 to 80 neurons |
 | **Diagnosis case** | A patient circuit with one dead connection. You do not build; you probe, then name the broken connection. A branch, not part of the spine. | Not applicable |
 
 "Par" is the neuron count for the third star. It is explained in [Stars, par and the hint ladder](stars-and-hints.html). "Spiking" means the cells are NEST neuron models that emit discrete spikes; see [what is real](what-is-real.html) for what is the simulator's own maths and what is tuned for the game.
 
-Every task offers "challenge variants" in the Level group of its More menu: a smaller circuit ("half the neurons") and one harder world. They are listed per task below. Micro-puzzles and bosses have none. A passed variant has no stars of its own; its pin on the map becomes a ticked diamond. The half-neurons variant has to fit in half the par.
+Every task offers "challenge variants" in the Level group of its More menu: a smaller circuit ("half the neurons") and one harder world. They are listed per task below. Micro-puzzles and bosses have none. A passed variant has no stars of its own; its pin on the map becomes a ticked diamond. The half-neurons variant has to fit in half the par, rounded up.
 
 ## The five chapters at a glance
 
@@ -110,7 +110,7 @@ A neuron adds up what converges on it and fires only when the sum is big enough.
 
 ### Reflex arc
 
-*Task. Par 16 neurons. Episode 20 seconds.*
+*Task. Par 23 neurons. Episode 20 seconds.*
 
 A touch receptor chatters in the background at about 150 spikes per second and fires a little faster, about 400, while something pokes the skin. A poke is therefore hard to tell from a noisy stretch of chatter.
 
@@ -142,7 +142,7 @@ Many sensory circuits compute a difference, ON minus OFF. Excitation from one so
 
 ### Worm chemotaxis
 
-*Task. Par 28 neurons. Episode 120 seconds.*
+*Task. Par 28 neurons (the reference has 24; 4 spare). Episode 120 seconds.*
 
 A worm crawls at constant speed over a plate with a hill of salt it loves, and starts out facing away from it. Chemotaxis means moving along a chemical gradient. Two sensor cells sit in its head: ASEL fires when the salt level is rising (things are getting better) and ASER fires when it is falling (worse). Two motor pools steer it: the turning speed is turn_left rate minus turn_right rate. Turning one way is enough, so you may leave the other channel unconnected.
 
@@ -184,7 +184,7 @@ Swimming, walking and breathing are rhythms, and the simplest rhythm generator i
 
 ### Lamprey swimmer
 
-*Task. Par 16 neurons. Episode 10 seconds.*
+*Task. Par 18 neurons. Episode 10 seconds.*
 
 A lamprey swims by alternating left and right muscle bursts. A steady descending drive from the brain switches swimming on. The body makes a travelling wave and a simple reactive-thrust model pushes it along.
 
@@ -232,7 +232,7 @@ A muscle is made of motor units. A small motoneuron drives a few weak fibres and
 
 ### Reciprocal inhibition
 
-*Micro. Par 3 neurons.*
+*Micro. Par 6 neurons.*
 
 Muscles come in antagonist pairs. When the flexor contracts, the extensor has to let go, or the joint just stiffens. The spindle afferent of the stretched muscle excites its own motoneurons and, through an inhibitory interneuron, silences its antagonist's.
 
@@ -242,7 +242,7 @@ Muscles come in antagonist pairs. When the flexor contracts, the extensor has to
 
 ### Stretch reflex
 
-*Task. Par 54 neurons. Episode 13.5 seconds.*
+*Task. Par 60 neurons. Episode 13.5 seconds.*
 
 Tap a tendon and the muscle twitches. The spindle fires Ia afferents that excite the same muscle's alpha motoneurons through a single synapse. The same fibre also feeds an inhibitory interneuron that silences the opposing muscle. First the tendons are tapped, one muscle at a time, to time the reflex. Then the forearm is pushed by four sudden loads, alternately toward extension and flexion.
 
@@ -254,7 +254,7 @@ Tap a tendon and the muscle twitches. The spindle fires Ia afferents that excite
 
 ### Recurrent inhibition
 
-*Micro. Par 5 neurons.*
+*Micro. Par 6 neurons.*
 
 A motoneuron that is pushed harder should not simply fire faster and faster. Its axon sends a collateral to a small inhibitory interneuron, the Renshaw cell, which inhibits the motoneurons back. The harder they fire, the harder they are held in: negative feedback in one synapse pair.
 
@@ -264,7 +264,7 @@ A motoneuron that is pushed harder should not simply fire faster and faster. Its
 
 ### Renshaw cell
 
-*Task. Par 56 neurons. Episode 16.45 seconds.*
+*Task. Par 56 neurons (the reference has 54; 2 spare). Episode 16.45 seconds.*
 
 Add Renshaw cells to your stretch reflex. The cord is bathed in background synaptic noise that reaches both pools through shared fibres, which makes the pools fire in waves and the muscle force wobble. That wobble is tremor.
 
@@ -276,7 +276,7 @@ Add Renshaw cells to your stretch reflex. The cord is bathed in background synap
 
 ### Negative feedback
 
-*Micro. Par 4 neurons.*
+*Micro. Par 5 neurons.*
 
 To hold a value steady, measure it and push against any change. The sign matters: a signal that adds to the effort when the level is high makes things worse.
 
@@ -286,7 +286,7 @@ To hold a value steady, measure it and push against any change. The sign matters
 
 ### Posture
 
-*Task. Par 54 neurons. Episode 13.5 seconds.*
+*Task. Par 56 neurons. Episode 13.5 seconds.*
 
 Holding an arm up is a servo (a system that measures and corrects its own error). Gravity and bumps stretch the muscles, the spindles report it and the reflex pulls back. The loop only works if the spindles are tuned: gamma motoneurons set their sensitivity, and a tonic descending drive sets how hard the antigravity muscle works.
 
@@ -308,7 +308,7 @@ A fast reach is not steered while it happens. The brain fires a stereotyped sequ
 
 ### Reach
 
-*Task. Par 55 neurons. Episode 13.3 seconds.*
+*Task. Par 56 neurons. Episode 13.3 seconds.*
 
 Fast movements are not steered by feedback. The nervous system fires a triphasic burst: agonist, then antagonist, then agonist again. The first burst accelerates the limb, the antagonist burst brakes it, and a small final burst clamps it on target. Bigger reaches get bigger bursts.
 
@@ -400,7 +400,7 @@ A slow inward "funny" current depolarises each cell until calcium channels open 
 
 ### Feed-forward and feedback
 
-*Micro. Par 4 neurons.*
+*Micro. Par 5 neurons.*
 
 Feedback alone is always a little late: it reacts after the error has appeared. A body that is warned can act first. That is feed-forward.
 
@@ -420,7 +420,7 @@ Not every nerve works through a synapse. The vagus releases acetylcholine near t
 
 ### Autonomic heart rate
 
-*Task. Par 45 neurons. Episode 85 seconds. Runs the heart body.*
+*Task. Par 45 neurons (the reference has 37; 8 spare). Episode 85 seconds. Runs the heart body.*
 
 The SA node has its own rate of about 100 per minute with no autonomic input. Vagal neurons slow it; sympathetic neurons speed it up. Each branch is a two-neuron chain: a preganglionic cell in the brainstem or spinal cord drives a postganglionic ganglion cell that releases the transmitter.
 
@@ -432,7 +432,7 @@ The SA node has its own rate of about 100 per minute with no autonomic input. Va
 
 ### Baroreflex
 
-*Task. Par 48 neurons. Episode 140 seconds. Dashboard view with blood pressure.*
+*Task. Par 48 neurons (the reference has 47; 1 spare). Episode 140 seconds. Dashboard view with blood pressure.*
 
 Standing up pools blood in the legs and pressure falls; a haemorrhage (blood loss) lowers it further. Baroreceptors fire faster the more their wall is stretched, and the brainstem turns that into a counter-move within seconds. The afferents excite the nucleus of the solitary tract (NTS). The NTS drives two limbs: vagal slowing of the heart, and, through an inhibitory relay, withdrawal of the tonic drive to the sympathetic neurons. High pressure must reduce sympathetic output and raise vagal output; low pressure the reverse.
 
@@ -494,7 +494,7 @@ Breathing is a rhythm made by a cell that bursts on its own, and the body's chem
 
 ### Breathing rhythm
 
-*Task. Par 26 neurons. Episode 150 seconds. Runs the lungs body.*
+*Task. Par 28 neurons. Episode 150 seconds. Runs the lungs body.*
 
 A network of cells that burst on their own and excite each other makes a shared burst every few seconds. The bursts excite phrenic motoneurons, the phrenic nerve drives the diaphragm and the lungs fill. Blood CO2 closes the loop.
 
@@ -553,7 +553,7 @@ The pupil is a two-muscle servo. Light on the retina fires ganglion cells that e
 
 ### Travelling wave
 
-*Micro. Par 4 neurons.*
+*Micro. Par 8 neurons.*
 
 Food moves along the gut because the gut squeezes behind a bolus (a lump of food) and relaxes in front of it. Excitation runs up the tube, inhibition runs down, so the push always points the same way.
 
@@ -575,7 +575,7 @@ The gut moves food by itself. When a bolus stretches the wall, sensory neurons o
 
 ### Divergent command
 
-*Micro. Par 5 neurons.*
+*Micro. Par 8 neurons.*
 
 When something frightening appears the body does not decide organ by organ. One command fans out to many effectors at once, each with its own strength and sign.
 

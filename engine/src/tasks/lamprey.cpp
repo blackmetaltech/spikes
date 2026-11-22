@@ -86,7 +86,7 @@ public:
     return { { "drive", in_kind( "dc", 1, 600 ) } };
   }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return variant_par( variant_, 16 ); }  // L and R: 8 cells each, as in the recipe
+  int par_neurons() const override { return variant_par( variant_, 18 ); }  // the reference circuit: L and R of 9 cells each (par rule: tests/tasks_rules_test.cpp)
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

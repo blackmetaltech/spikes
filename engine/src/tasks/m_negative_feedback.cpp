@@ -52,7 +52,7 @@ public:
     i.duration_ms = kDur;
     i.concepts_new = { "negative_feedback" };
     i.concepts_used = { "inhibition", "excitation" };
-    i.par_neurons = 4;
+    i.par_neurons = 5;   // the reference circuit's neuron count (par rule: tests/tasks_rules_test.cpp)
     i.kinds = { { "tone", dc( kTone ) }, { "level", dc( 1.5 ) }, { "effort", rate() } };
     i.bands = { { "level", "", 0.4, 0.6 } };
     i.timeline = { { 1100, 1000, "push down" }, { 2500, 1000, "push up" } };

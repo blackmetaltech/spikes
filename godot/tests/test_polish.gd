@@ -70,5 +70,24 @@ func _init() -> void:
 	var tx := Surprise.oscillation_text({"period_ms": 250.0, "pop": "AVA"})
 	var re := RegEx.new(); re.compile("[0-9]")
 	_check(re.search(str(tx["text"]) + str(tx["title"])) == null, "the rhythm toast quotes digits: %s" % tx["text"])
+	# the half-neurons budget: half the par rounded UP, as the engine does (variant_par, pinned by engine/tests/tasks_rules_test.cpp); the lab no longer rounds down
+	_check(Progress.half_par(7) == 4 and Progress.half_par(16) == 8 and Progress.half_par(1) == 1 and Progress.half_par(23) == 12, "half_par rounds up (7 -> %d, 23 -> %d)" % [Progress.half_par(7), Progress.half_par(23)])
+	_check(Progress.variant_budget("heart_pacemaker", "") == Progress.budget("heart_pacemaker"), "no variant, no change of budget")
+	# the star rules text is true to the rules in progress.gd's header, in each mode
+	for m in ["guided", "standard", "researcher"]:
+		var t := Progress.star_rules_text("reflex", m)
+		_check(t.contains("five worlds") and t.contains("1 for a pass"), "the star text names the five worlds (%s): %s" % [m, t])
+		_check(not t.contains("seeds") and not t.contains("Test x5"), "the star text no longer describes the old rule (%s): %s" % [m, t])
+	_check(Progress.star_rules_text("reflex", "guided").contains("stops at two"), "Guided stops at two stars, and the text says so")
+	_check(Progress.star_rules_text("reflex", "standard").contains("Show recipe"), "Standard: the recipe costs the third star, and the text says so")
+	_check(Progress.star_rules_text("reflex", "researcher").contains("seal"), "Researcher: the seal")
+	# the notebook card goes when asked (the tutorial moves on), and the tutorial asks
+	var cel := Celebration.new(); root.add_child(cel); cel.size = Vector2(800, 600)
+	cel._show_note("Rheobase", "In 1907 Louis Lapicque measured it. More text.")
+	_check(cel._note_card != null, "the notebook card appears")
+	cel.dismiss_note()
+	_check(cel._note_card == null, "dismiss_note takes the notebook card away")
+	_check(FileAccess.get_file_as_string("res://ui/tutorial.gd").contains("celebration.dismiss_note()"), "the tutorial dismisses the notebook card when it moves to the next step")
+	cel.queue_free()
 	print("POLISH OK" if fails == 0 else "POLISH FAILED: %d" % fails)
 	quit(1 if fails > 0 else 0)

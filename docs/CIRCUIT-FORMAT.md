@@ -170,7 +170,7 @@ Both connect to `targets` with `weight` (and `delay`, default the resolution) li
 
 **sinusoidal_poisson.** The rate is `max(0, rate + amplitude * sin(2 pi freq_hz t + phase))` in Hz, with `t` the absolute model time; each target gets its own independent train (`individual_spike_trains`, like `poisson`). `freq_hz` must be below the Nyquist limit of the resolution (`500 / resolution_ms` Hz). Between steps a task can change the parameters: `Engine::set_input(channel, value)` sets the mean `rate`, and `Engine::set_input_param(channel, key, value)` sets `rate`, `amplitude`, `freq_hz` or `phase` (degrees) (GDScript `SpikeSim.set_input_param`). NEST's sinusoidal generator derives its oscillator state from amplitude, frequency and phase when a run is prepared, and only `rate` is read live, so the engine re-prepares NEST before the next step when `amplitude`, `freq_hz` or `phase` changed (the same mechanism the Poisson rate uses). The phase follows the absolute clock, so a change of `freq_hz` keeps `phase` as the phase at t = 0, not at the moment of the change.
 
-`python/spike/circuit.py` builds both kinds (`spike_generator`, `sinusoidal_poisson_generator`) and `Network.set_input(name, value)` sets the mean rate; for `spike_generator` it raises (use `Network.queue_spikes`).
+`python/spike/circuit.py` builds both kinds (`spike_generator`, `sinusoidal_poisson_generator`; the Theory wing's `rate_drive` and `tuned_poisson` inputs and its rate populations are not supported by the package yet and are refused with a plain error) and `Network.set_input(name, value)` sets the mean rate; for `spike_generator` it raises (use `Network.queue_spikes`).
 
 ## Population-vector output (0.5)
 

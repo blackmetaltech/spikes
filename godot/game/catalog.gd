@@ -12,7 +12,7 @@ extends RefCounted
 ## Unlock chapter per card id (or model name). Unknown cards belong to the first chapter.
 const UNLOCK := {"iaf_psc_alpha": "invertebrates", "aeif_cond_alpha": "invertebrates", "izhikevich": "invertebrates", "hh_psc_alpha": "invertebrates", "parrot_neuron": "invertebrates",
 	"izhikevich_RS": "invertebrates", "izhikevich_FS": "invertebrates", "izhikevich_IB": "invertebrates", "izhikevich_CH": "invertebrates", "izhikevich_LTS": "spinal", "izhikevich_TC": "breathing", "izhikevich_RZ": "breathing",
-	"iaf_cond_exp": "spinal", "iaf_cond_exp_sfa_rr": "spinal", "aeif_cond_exp": "spinal", "hh_cond_exp_traub": "spinal", "mat2_psc_exp": "spinal", "gif_cond_exp": "spinal", "spindle_afferent": "spinal",
+	"iaf_cond_alpha": "invertebrates", "iaf_cond_exp": "spinal", "iaf_cond_exp_sfa_rr": "spinal", "aeif_cond_exp": "spinal", "hh_cond_exp_traub": "spinal", "mat2_psc_exp": "spinal", "gif_cond_exp": "spinal", "spindle_afferent": "spinal",
 	"sa_node_pacemaker": "heart", "sa_node": "heart", "pp_psc_delta": "heart", "hh_psc_alpha_gap": "heart", "hh_cond_beta_gap_traub": "heart",
 	"ht_neuron": "breathing", "butera_burster": "breathing", "pbc_burster": "breathing", "icc_slow_wave": "autonomic", "stg_cell": "crab",
 	"iaf_psc_delta": "rates", "threshold_lin_rate_ipn": "rates", "tanh_rate_ipn": "rates", "siegert_neuron": "rates"}

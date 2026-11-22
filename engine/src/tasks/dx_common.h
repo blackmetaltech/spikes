@@ -134,6 +134,7 @@ public:
   std::vector< std::string > concepts_new() const override { return s_.concepts_new; }
   std::vector< std::string > concepts_used() const override { return s_.concepts_used; }
   bool on_spine() const override { return false; }
+  std::string parent() const override { return s_.inner; }   // a case hangs off the task whose circuit it is
   // no challenge variants: the variant slot carries the submitted answer (see the header comment)
   std::map< std::string, std::string > variants() const override { return {}; }
   void set_variant( const std::string& v ) override

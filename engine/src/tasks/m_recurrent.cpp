@@ -44,17 +44,14 @@ public:
               "negative feedback loop in one synapse pair. Here a steady 'drive' makes the motoneurons fire at about 50 spikes/s. At 1 s an extra "
               "volley 'kick' adds to their input, and 1 s later it doubles. Without a brake the rate would climb by about 60 and 105 spikes/s. "
               "Keep the extra rate the kicks add under 27 spikes/s for the first and under 42 for the second, while still firing at "
-              "least 15 spikes/s at the base drive. Wire drive and kick onto the motoneuron group (a small group of cells) and read it out "
-              "on 'mn'. Then let the motoneurons excite a few cells set to inhibitory (the Renshaw cells) that inhibit the motoneurons back. "
-              "The Renshaw cells only fire if the loop is strong: the default weights are far too weak, and how strong depends on how many "
-              "cells sum onto each other.";
+              "least 15 spikes/s at the base drive. The motoneuron group is read out on 'mn'.";
     i.chapter = "spinal";
     i.sensors = { "drive", "kick" };
     i.motors = { "mn" };
     i.duration_ms = kDur;
     i.concepts_new = { "recurrent_inhibition" };
     i.concepts_used = { "inhibition", "excitation" };
-    i.par_neurons = 5;
+    i.par_neurons = 6;   // the reference circuit's neuron count (par rule: tests/tasks_rules_test.cpp)
     i.default_model = "iaf_psc_alpha";
     i.recipe = "A group of 4 motoneurons (drive and kick onto it at the first-connection weight, 300 pA per unit) and 2 Renshaw "
                "cells set to inhibitory. The loop weights of about 600 pA both ways (motoneurons onto Renshaw, Renshaw back at "

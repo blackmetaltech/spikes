@@ -90,7 +90,8 @@ public:
     return { { "ag_Ia", in_kind( "dc", 40, 3 ) }, { "ant_Ia", in_kind( "dc", 40, 3 ) }, { "drive", in_kind( "dc", 1, 150 ) }, { "noise", in_kind( "poisson", 400, 100 ) } };
   }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return variant_par( variant_, 56 ); }
+  int par_neurons() const override { return variant_par( variant_, 56 ); }  // the reference circuit has 54 cells
+  int par_slack() const override { return 2; }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

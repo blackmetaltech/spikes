@@ -154,8 +154,16 @@ static func parse(json: String) -> Dictionary:
 	return v if v is Dictionary else {}
 
 # ---------- validation (a circuit file is untrusted: Load, an autosave a crash left damaged, SP_CIRCUIT) ----------
-const MAX_POP_N := 400
-const MAX_NEURONS := 2000
+## The neuron limit is the engine's (engine/src/circuit.cpp kMaxNeurons, handed over by SpikeTask.max_neurons()): one limit, so the game never refuses a circuit
+## the engine accepts or the other way round. FALLBACK_MAX_NEURONS is used only where the extension is not loaded (the headless tests of the save layer); a test
+## in engine/tests/tasks_rules_test.cpp keeps it equal to the engine's.
+const FALLBACK_MAX_NEURONS := 20000
+static var _max_neurons := 0
+static func max_neurons() -> int:
+	if _max_neurons <= 0:   # asked once: validate() calls this for every population
+		_max_neurons = FALLBACK_MAX_NEURONS
+		if ClassDB.class_exists("SpikeTask") and ClassDB.class_has_method("SpikeTask", "max_neurons"): _max_neurons = int(ClassDB.instantiate("SpikeTask").call("max_neurons"))
+	return _max_neurons
 const MAX_PROJECTIONS := 20000
 const MAX_EDGES := 200000
 const MAX_CHANNELS := 500
@@ -164,8 +172,8 @@ const MAX_DEPTH := 24
 static func _is_num(v: Variant) -> bool: return (v is float or v is int) and is_finite(float(v))
 static func _is_int_val(v: Variant) -> bool: return _is_num(v) and absf(float(v)) < 1e9 and is_equal_approx(float(v), roundf(float(v)))
 
-## "" when the circuit is safe to hand to the editor and the engine, else the first problem in plain words. Field types, n an integer 1..MAX_POP_N, finite numbers,
-## totals capped at MAX_NEURONS neurons and MAX_PROJECTIONS projections. (Whether the models and parameters mean anything is the engine's job: its banner.)
+## "" when the circuit is safe to hand to the editor and the engine, else the first problem in plain words. Field types, n an integer 1..max_neurons(), finite numbers,
+## totals capped at max_neurons() neurons and MAX_PROJECTIONS projections. (Whether the models and parameters mean anything is the engine's job: its banner.)
 static func validate(c: Variant) -> String:
 	if not c is Dictionary: return "not a circuit (the file is not a JSON object)"
 	var d: Dictionary = c
@@ -188,9 +196,9 @@ static func validate(c: Variant) -> String:
 		if ids.has(id): return "two populations are called \"%s\"" % id
 		ids[id] = true
 		if not pd.get("model", null) is String: return "population %s: \"model\" must be text" % id
-		if pd.has("n") and (not _is_int_val(pd["n"]) or int(pd["n"]) < 1 or int(pd["n"]) > MAX_POP_N): return "population %s: \"n\" must be a whole number from 1 to %d" % [id, MAX_POP_N]
+		if pd.has("n") and (not _is_int_val(pd["n"]) or int(pd["n"]) < 1 or int(pd["n"]) > max_neurons()): return "population %s: \"n\" must be a whole number from 1 to %d" % [id, max_neurons()]
 		total += pop_n(pd)
-		if total > MAX_NEURONS: return "more than %d neurons in all" % MAX_NEURONS
+		if total > max_neurons(): return "more than %d neurons in all" % max_neurons()
 		if pd.has("params"):
 			if not pd["params"] is Dictionary: return "population %s: \"params\" must be an object" % id
 			for k in pd["params"]:
@@ -346,6 +354,18 @@ static func history_pop(task: String) -> void:
 
 # ---------- neurons ----------
 static func pop_n(p: Dictionary) -> int: return maxi(1, int(p.get("n", 1)))
+
+## The sizes the "neurons in group" stepper offers. Every group size a reference circuit uses is in it (a ring of sixteen, the 200 Kenyon cells), so a player can build
+## what the level asks for; godot/tests/test_editor.gd checks that against godot/circuits. A group whose size is not in the list (loaded from a file, pasted) keeps its size
+## and the stepper shows it between its neighbours (see group_size_steps).
+const GROUP_SIZES := [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400]
+## [[value, label], ...] for Kit.stepper: GROUP_SIZES (up to the engine's neuron limit) plus the group's own size when it is not one of them.
+static func group_size_steps(current: int) -> Array:
+	var sizes := []
+	for s in GROUP_SIZES:
+		if int(s) <= max_neurons(): sizes.append(int(s))
+	if current >= 1 and current <= max_neurons() and not sizes.has(current): sizes.append(current); sizes.sort()
+	return sizes.map(func(s): return [s, str(s)])
 
 ## Flat list of circuit neurons in file order: {pop, k (index in pop), pi (population index), pos (editor coordinates)}.
 static func neurons(c: Dictionary) -> Array:
