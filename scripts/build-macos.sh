@@ -16,7 +16,9 @@ echo "pins: NEST $NEST_REF, NESTML $NESTML_VERSION, godot-cpp $GODOT_CPP_TAG, ar
 JOBS=$(sysctl -n hw.ncpu)
 export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-12.0}
 GSL_PREFIX=$(brew --prefix gsl)
-OSX=(-DCMAKE_OSX_ARCHITECTURES="$ARCH" -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET")
+# a stable Python for the venv (the brew default can be a pre-release with no wheels for NESTML's dependencies)
+[ -d "$(brew --prefix python@3.12 2>/dev/null)/bin" ] && export PATH="$(brew --prefix python@3.12)/bin:$PATH"
+OSX=(-DCMAKE_OSX_ARCHITECTURES="$ARCH")   # the deployment target comes from MACOSX_DEPLOYMENT_TARGET (NEST rejects it as a -D option)
 SRC=$root/third_party/nest-simulator; BUILD=$root/third_party/nest-build
 VENV=$root/third_party/nestml-venv
 
