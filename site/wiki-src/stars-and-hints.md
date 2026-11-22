@@ -29,7 +29,7 @@ A **spread** on a connection (a percentage of weight variation across the synaps
 
 ## Par
 
-Par is a neuron count that each level sets, and the default challenge asks for it. The level decides the number; it is not necessarily the size of the level's reference circuit. The campaign card and the brief state it ("Pass with 16 neurons or fewer").
+Par is a neuron count that each level sets, and the default challenge asks for it. **The rule:** par is the number of neurons in the level's reference circuit, plus a declared slack. Most levels have no slack, so par is exactly the size of the reference. A level with slack says so on its card ("The reference circuit has 20; the 4 spare leave room for another honest build"): the ring and compass levels, the sparse odour code and the mean-field network, where a different honest build needs a few more cells, and a handful of tasks. The slack is never hidden in the number. The card states the par ("Build it with no more than 16 neurons (par)").
 
 Par counts the neurons of your circuit, with the cells of each group added up. A group of ten counts as ten. Sensors and motor outputs are not neurons and do not count.
 
@@ -38,9 +38,9 @@ Par counts the neurons of your circuit, with the cells of each group added up. A
 | Threshold | 1 neuron |
 | Excitation: weight and delay | 2 |
 | Convergence | 1 |
-| Reflex arc | 16 |
+| Reflex arc | 23 |
 | Worm chemotaxis | 28 |
-| Stretch reflex | 54 |
+| Stretch reflex | 60 |
 | Spinal sprint (boss) | 80 |
 | Autonomic exam (boss) | 75 |
 
@@ -106,7 +106,7 @@ After a failed run a part of the bench glows red. This is not a hint. It is free
 ## What does not give stars
 
 - A copy of the reference circuit.
-- A challenge variant (it has a DONE chip and gives no stars). The half-neurons variant also has to fit in half the par.
+- A challenge variant (it has a DONE chip and gives no stars). The half-neurons variant also has to fit in half the par, rounded up (a par of 7 gives 4); the lab and the engine use the same number.
 - A diagnosis case: it has its own star rules (its third star needs a probe). See [diagnosis cases](diagnosis-cases.html).
 
 ## Scoring that cannot be gamed

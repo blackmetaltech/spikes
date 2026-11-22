@@ -109,7 +109,7 @@ Your first task. A touch receptor chatters at about 150 spikes per second all th
 
 What is new:
 
-- **Groups of neurons.** Select a neuron and change **neurons in group** (1, 2, 3, 4, 6, 8, 10, 12 or 20). A group is drawn as one disc. A sensor wired to a group of ten gives ten receptor cells.
+- **Groups of neurons.** Select a neuron and change **neurons in group** (1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20 and larger sizes). A group is drawn as one disc. A sensor wired to a group of ten gives ten receptor cells.
 - **Noise rejection.** One cell listening to one afferent cannot pass at any weight. The brief says why: noise spikes bunch up by chance. Averaging many independent inputs separates a real poke from the chatter.
 - **Five worlds.** Check already runs five random worlds, and passing all five earns the second star. After a pass, the bar also gains a **Test x5** button, which does the same on the full episode and shows its progress. See [stars, par and hints](stars-and-hints.html).
 - **Challenge.** The third star asks for the same result and the level's challenge, written on its card. For the reflex that is few enough neurons (the par) and a ceiling on the firing rate. Guided mode stops at two stars, so the third needs Standard or Researcher.
@@ -125,6 +125,6 @@ You have used every basic control. Now:
 3. After a pass, open **More** and try **Lesions**. Cut a connection and see what the circuit loses. See [the lesion lab](lesion-lab-and-analysis.html).
 4. Read [how to read the lab](how-to-read-the-lab.html) for every panel, and [the core loop](core-loop.html) for the cycle you will repeat for the rest of the game.
 
-> **Note:** Some tools stay hidden at first on purpose. Inhibitory neurons, noise inputs, the parts bin, analysis and load/save appear when the campaign reaches a level that needs them. The More menu says what is still to come. The [sandbox](sandbox.html) has everything unlocked.
+> **Note:** Some tools stay hidden at first on purpose. Inhibitory neurons, the parts bin, analysis and load/save appear when the campaign reaches a level that needs them. The More menu says what is still to come. The [sandbox](sandbox.html) has everything unlocked.
 
 ![The lab on the Threshold level, with the circuit, scopes, and the brief](img/first-hour-lab.png)

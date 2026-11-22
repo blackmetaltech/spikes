@@ -11,7 +11,7 @@ The parts bin is the shelf of cell types. Every neuron you add to the bench is o
 
 Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a custom cell written in NESTML (a language for describing neuron models) and compiled into the engine. The names and units are NEST's own: mV, ms, pA, nS, pF, Hz. See [what is real](what-is-real.html) for which parts are NEST's own maths and which are re-fits.
 
-> **Note:** There are 29 cards. A card is one model with one set of preset parameters. The seven Izhikevich cards share one model and differ only in their presets.
+> **Note:** There are 31 cards. A card is one model with one set of preset parameters. The eight Izhikevich cards share one model and differ only in their presets (the generic one has none: a, b, c and d are yours).
 
 ## How the parts bin works
 
@@ -33,11 +33,13 @@ Every model here is a real [NEST](https://www.nest-simulator.org/) model, or a c
 |---|---|---|---|---|
 | Leaky integrate-and-fire (current synapses) | `iaf_psc_alpha` | Integrate-and-fire | Invertebrates | pA |
 | Integrate-and-fire, conductance synapses | `iaf_cond_exp` | Integrate-and-fire | Spinal cord | nS |
+| Integrate-and-fire, alpha conductance synapses | `iaf_cond_alpha` | Integrate-and-fire | Invertebrates | nS |
 | Adapting integrate-and-fire | `iaf_cond_exp_sfa_rr` | Integrate-and-fire | Spinal cord | nS |
 | Multi-timescale adaptive threshold | `mat2_psc_exp` | Integrate-and-fire | Spinal cord | pA |
 | Integrate-and-fire, delta synapses | `iaf_psc_delta` | Integrate-and-fire | Rate models | mV |
 | Adaptive exponential I&F, alpha | `aeif_cond_alpha` | Adaptive exponential | Invertebrates | nS |
 | Adaptive exponential I&F, exponential | `aeif_cond_exp` | Adaptive exponential | Spinal cord | nS |
+| Izhikevich (set a, b, c, d yourself) | `izhikevich` | Phenomenological | Invertebrates | mV |
 | Izhikevich RS, IB, CH, FS | `izhikevich` | Phenomenological | Invertebrates | mV |
 | Izhikevich LTS | `izhikevich` | Phenomenological | Spinal cord | mV |
 | Izhikevich TC, RZ | `izhikevich` | Phenomenological | Breathing | mV |
@@ -113,6 +115,28 @@ Like the plain cell, but synapses open ion channels. An input then depends on th
 | `I_e` | pA | 0 | Constant input current |
 
 Default input weight: 20 nS. Use it when shunting inhibition matters, or to build a model like a cortical cell in a busy network. No reference circuit uses it; it is there for the sandbox and your own designs.
+
+### Integrate-and-fire with alpha conductance synapses (`iaf_cond_alpha`)
+
+The cell of the card above, but each input opens a channel whose conductance rises and falls smoothly (an alpha function) instead of jumping up, so the effect of a spike starts a little later and peaks at the synaptic time constant. The spinal reference circuits and the lamprey use it for their interneurons and motor neurons, so it is in the bin: you can build what the reference builds.
+
+| Parameter | Unit | Default | Meaning |
+|---|---|---|---|
+| `g_L` | nS | 16.67 | Leak conductance (`tau_m` = `C_m` / `g_L`) |
+| `C_m` | pF | 250 | Membrane capacitance |
+| `E_L` | mV | -70 | Resting (leak reversal) potential |
+| `V_th` | mV | -55 | Spike threshold |
+| `V_reset` | mV | -60 | Reset voltage |
+| `t_ref` | ms | 2 | Refractory period |
+| `E_ex` | mV | 0 | Excitatory reversal potential |
+| `E_in` | mV | -85 | Inhibitory reversal potential |
+| `tau_syn_ex` | ms | 0.2 | Excitatory conductance rise and decay |
+| `tau_syn_in` | ms | 2 | Inhibitory conductance rise and decay |
+| `I_e` | pA | 0 | Constant input current |
+
+Default input weight: 20 nS. Opens with the Invertebrates chapter, because the lamprey needs it.
+
+Used by: the lamprey swimmer, the spinal-cord reference circuits (stretch reflex, Renshaw, posture, reach, spinal sprint) and the shaky-arm diagnosis case.
 
 ### Adapting integrate-and-fire (`iaf_cond_exp_sfa_rr`)
 
@@ -191,7 +215,7 @@ Used by: **Adaptation**, **Half-centre**, **Rebound after inhibition** and **The
 
 ## Izhikevich cells
 
-### Izhikevich (`izhikevich`, seven cards)
+### Izhikevich (`izhikevich`, eight cards)
 
 A two-equation cell with many firing patterns. Four numbers (a, b, c, d) pick the pattern. It is cheap and very flexible. Its voltage and recovery variable are drawn on the phase plane in the Theory wing's first chapter.
 
@@ -406,7 +430,7 @@ A reduced model of the heart's pacemaker cell. It fires on its own, with no inpu
 Default input weight: 0.2 nS (about a 2 mV step; the reference coupling between node cells is 2 nS). The cell follows the circuit-wide ACh and NE levels with no extra setup (see [synapses and modulators](synapses-and-modulators.html#neuromodulation)).
 Used by: **Pacemaking**, **Coupling**, **Neuromodulation**, the heart tasks, the baroreflex, fight or flight and the autonomic boss.
 
-> **Note:** The card text says the cell "fires on its own at about 70 beats per minute". The model document (`docs/models/sa_node_pacemaker.md`) says about 100 beats per minute with no autonomic input, and 60 to 70 with resting vagal tone (ACh about 0.5). The levels that use the cell hold resting vagal tone, which is why they show the lower rate.
+> **Note:** The card says the cell fires on its own at about 99 beats per minute with no autonomic input, and at about 67 with ACh at 0.5 (the resting vagal tone). The levels that use the cell hold resting vagal tone, which is why they show the lower rate.
 
 ### Bursting pacemaker (`butera_burster`)
 
@@ -483,7 +507,7 @@ Used by: **Peristalsis**.
 ## Notes on what the levels use
 
 - Most reference circuits use `iaf_psc_alpha`. Rhythm, spinal and Bestiary circuits add `aeif_cond_alpha`, and some spinal circuits and the lamprey use `iaf_cond_alpha`.
-- `iaf_cond_alpha` (integrate-and-fire with alpha-shaped conductance synapses) is used by seven reference circuits (stretch reflex, Renshaw, posture, reach, spinal sprint, lamprey and the shaky-arm diagnosis case) but has **no card in the parts bin**. In those levels you can inspect it, but you cannot add more of it from the bin. Use `iaf_cond_exp` or `aeif_cond_alpha` for similar cells.
+- Every model a reference circuit uses has a card in the bin that is open on that level (a test checks it): `iaf_cond_alpha` for the spinal levels and the lamprey, and the generic `izhikevich` card for the levels that set a, b, c and d themselves. A reference sets some parameters the card's sliders do not offer (a resting potential on `iaf_psc_alpha` or `aeif_cond_alpha`, for example); those you can set in the circuit file or paste in.
 - Weights have limits: the circuit format refuses `|weight|` above 500 nS onto a conductance-based cell (`_cond_` in the model name), above 10000 pA onto a current-based cell (`_psc_`), and above 2000 nS onto a custom NESTML cell. Other limits (neuron count, connections, delay, input rates and currents) are listed under [synapses and modulators](synapses-and-modulators.html). A refused circuit shows "The engine rejected the circuit" with the reason. See [a circuit is data](circuit-is-data.html).
 - The f-I plots and voltage traces are measured by the engine with the `spike-catalog` tool and shipped as `catalog/thumbs.json`. If the file is missing, the cards show their text only. See [spike-run and tools](spike-run.html).
 

@@ -18,7 +18,7 @@ On a desktop window the lab has two columns under a bar.
 | Area | Where | What it is |
 |---|---|---|
 | Top bar | Top | Back, the level title, Run or Pause, Reset, Check, Hint, Brief, Test x5, Undo, Redo, a read-out, and More. Hint shows once hints are open, Test x5 once the level is passed (always in Researcher mode). |
-| Palette | Above the bench | Buttons that add parts: the parts bin, + Excitatory, + Inhibitory, + Noise, Connect. |
+| Palette | Above the bench | Buttons that add parts: the parts bin, + Excitatory, + Inhibitory, Connect, and + Noise in the sandbox only. |
 | Bench (circuit editor) | Left, large | Your neurons and connections, with sensor cards on the left edge and motor cards on the right edge. |
 | Inspector | Left, below the bench | Details of whatever you selected: the brief, a neuron group, a connection, a sensor or a motor. |
 | World | Right, top | The body or world the circuit drives, a timeline of events, and the score card. |
@@ -65,7 +65,7 @@ The brief's legend chips (EXCITATORY, INHIBITORY, SENSOR, MOTOR) explain the col
 
 On a big circuit the bench opens fitted to show every group and its name. If the window is too small for the circuit and its cards, the groups are kept in view and the cards may be a pan away.
 
-On a level, the sensor and motor cards of the task cannot be deleted. Cards you add yourself (a noise input) can. On a diagnosis case the bench is read-only.
+On a level, the sensor and motor cards of the task cannot be deleted. Cards you add yourself can. (+ Noise exists in the sandbox only: a level is scored on its own sensors, so a free input added on a level would keep the circuit from passing.) On a diagnosis case the bench is read-only.
 
 ## The inspector
 
@@ -85,7 +85,7 @@ What each star needs is on the level's card on the campaign map (see [stars, par
 | **Trace** | Opens (or closes) a voltage trace for this group's first cell. At most four traces are open at once. |
 | **E / I** | Flips the group between excitatory and inhibitory. All its outgoing weights change sign. |
 | **Delete** | Removes the group. |
-| neurons in group | 1, 2, 3, 4, 6, 8, 10, 12 or 20 cells of this model, drawn as one disc. |
+| neurons in group | 1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20 and on up to 400 cells of this model (every size a reference circuit uses, such as the compass ring of sixteen), drawn as one disc. A group loaded from a file keeps its own size. |
 | **Advanced** | Shows the model's parameters as sliders with units, plus rows for how the group responds to neuromodulators. See [synapses and modulators](synapses-and-modulators.html). |
 | Reset parameters | Returns to the preset. |
 
@@ -140,7 +140,7 @@ The bar across the top has these buttons.
 | Tools | Copy circuit as JSON, Paste circuit JSON | Put the whole circuit on the clipboard, or replace the bench with a circuit from the clipboard (it asks first, keeps your bench in the history, and refuses a circuit that fails the checks below). |
 | Tools | Import from a passed level | Lists your own saved bench and slots of every level you have passed (benches built from a reference are left out, and the list says how many). The pick is pasted as one selected group, with its links to sensors and motors that this level also has; links to ones it does not have are dropped, and a note names them. Esc closes the list. |
 
-On a level the More menu ends with a line about what opens later ("More tools open as the campaign needs them: ..."). Load, Save, the JSON copy and paste, Import and Analysis open at the Spinal cord chapter; inhibitory neurons, noise inputs and the parts bin open at the first level whose reference needs them. The [sandbox](sandbox.html) has everything.
+On a level the More menu ends with a line about what opens later ("More tools open as the campaign needs them: ..."). Load, Save, the JSON copy and paste, Import and Analysis open at the Spinal cord chapter; inhibitory neurons and the parts bin open at the first level whose reference needs them. The [sandbox](sandbox.html) has everything.
 
 > **Note:** A circuit that is a copy of a level's reference circuit earns no stars and does not unlock anything. The end card says so. Press Empty bench and build your own.
 
@@ -204,7 +204,7 @@ A circuit can come from Load, Paste circuit JSON, a slot, an autosave or Import.
 | Nesting of the file | 24 levels |
 | Numbers | finite (no NaN or infinity); a seed and a time step must be numbers, and the time step positive |
 
-The messages say the first problem in plain words, for example "population E1: n must be a whole number from 1 to 400", "more than 2000 neurons in all", "not a circuit (the file is not JSON, or is cut short)" or "the file is empty". Damaged neuron positions are repaired by laying the groups out again, with a note.
+The messages say the first problem in plain words, for example "population E1: n must be a whole number from 1 to 20000", "more than 20000 neurons in all", "not a circuit (the file is not JSON, or is cut short)" or "the file is empty". Damaged neuron positions are repaired by laying the groups out again, with a note.
 
 **The engine's checks** (shown as "The engine rejected the circuit: ..." with the place in the file, such as `projections[3].synapse.weight`):
 

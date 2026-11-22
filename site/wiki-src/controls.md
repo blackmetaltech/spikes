@@ -124,7 +124,7 @@ Play, Laboratory, What is real, Settings, Credits and Quit (Quit is hidden on ph
 
 ### The lab
 
-See [how to read the lab](how-to-read-the-lab.html) for each control. In short: Back, Run or Pause, Reset, Check, Hint, Brief or Case, Test x5, Undo and Redo, More; the palette (Parts, + Excitatory, + Inhibitory, + Noise, Connect); the inspector's Trace, E / I, Delete, neurons in group, Advanced, Reset parameters. More holds Speed, Skip, Fit, Mode, Variant, Test x5, Results, Reference, Empty bench, Restore previous bench, the solution slots (Save to A, B, C and Load A, B, C), Lesions, Analysis, Load, Save, Copy circuit as JSON, Paste circuit JSON and Import from a passed level. Several of these appear only once the level or the campaign has reached them.
+See [how to read the lab](how-to-read-the-lab.html) for each control. In short: Back, Run or Pause, Reset, Check, Hint, Brief or Case, Test x5, Undo and Redo, More; the palette (Parts, + Excitatory, + Inhibitory, Connect, and + Noise in the sandbox); the inspector's Trace, E / I, Delete, neurons in group, Advanced, Reset parameters. More holds Speed, Skip, Fit, Mode, Variant, Test x5, Results, Reference, Empty bench, Restore previous bench, the solution slots (Save to A, B, C and Load A, B, C), Lesions, Analysis, Load, Save, Copy circuit as JSON, Paste circuit JSON and Import from a passed level. Several of these appear only once the level or the campaign has reached them.
 
 ### Lesion lab
 
