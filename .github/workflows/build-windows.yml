@@ -84,6 +84,11 @@ jobs:
           head -c 600 "$RUNNER_TEMP/iaf_dc.json"; echo
           godot/bin/spike-run.exe "$RUNNER_TEMP/iaf_dc.json" 200 | head -n 5; echo "exit ${PIPESTATUS[0]}"
           godot/bin/spike-run.exe --task reflex --seed 1 --require any | head -c 700; echo "exit ${PIPESTATUS[0]}"
+      - name: Where the step throws (gdb, never fails the job)
+        continue-on-error: true
+        run: |
+          pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gdb >/dev/null
+          gdb -batch -ex "catch throw" -ex run -ex "bt 25" --args build/gd-release/engine/spike-run.exe "$RUNNER_TEMP/iaf_dc.json" 200 2>&1 | tail -n 45
       - name: Golden checksums (numerical parity with Linux)
         run: build/gd-release/engine/test_golden.exe
       - name: Package and smoke-test
