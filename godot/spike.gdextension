@@ -6,6 +6,8 @@ reloadable = false
 [libraries]
 linux.x86_64.debug = "res://bin/libspike_gd_debug.so"
 linux.x86_64.release = "res://bin/libspike_gd_release.so"
+macos.release = "res://bin/libspike_gd_release.dylib"
+macos.debug = "res://bin/libspike_gd_release.dylib"
 ; Windows x86_64: planned (MinGW cross-build or a Windows CI runner, see README "Windows"); the DLLs are not produced by scripts/ yet.
 windows.x86_64.debug = "res://bin/spike_gd_debug.dll"
 windows.x86_64.release = "res://bin/spike_gd_release.dll"
@@ -14,3 +16,4 @@ windows.x86_64.release = "res://bin/spike_gd_release.dll"
 ; exported next to the library: the headless runner behind CHECK (the game looks beside the extension first)
 linux.x86_64 = { "res://bin/spike-run": "" }
 windows.x86_64 = { "res://bin/spike-run.exe": "" }
+macos = { "res://bin/spike-run": "" }

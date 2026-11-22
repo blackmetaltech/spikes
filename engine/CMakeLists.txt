@@ -28,8 +28,15 @@ add_library(spike::nest ALIAS spike_nest)
 target_include_directories(spike_nest SYSTEM INTERFACE
   ${NEST_SRC}/thirdparty ${NEST_SRC}/libnestutil ${NEST_BLD}/libnestutil
   ${NEST_SRC}/models ${NEST_SRC}/nestkernel ${NEST_SRC}/nestkernel/spatial ${NEST_BLD}/nestkernel)
+# GNU ld needs the static archives grouped; Apple's linker resolves archives in any order and rejects --start-group
+set(SPIKE_LD_GROUP_BEGIN "-Wl,--start-group")
+set(SPIKE_LD_GROUP_END "-Wl,--end-group")
+if(APPLE)
+  set(SPIKE_LD_GROUP_BEGIN "")
+  set(SPIKE_LD_GROUP_END "")
+endif()
 target_link_libraries(spike_nest INTERFACE
-  -Wl,--start-group ${NEST_LIBS} -Wl,--end-group ${GSL_LIB} ${GSLCBLAS_LIB} Threads::Threads)
+  ${SPIKE_LD_GROUP_BEGIN} ${NEST_LIBS} ${SPIKE_LD_GROUP_END} ${GSL_LIB} ${GSLCBLAS_LIB} Threads::Threads)
 
 file(GLOB TASK_SRC CONFIGURE_DEPENDS src/tasks/*.cpp)
 # Self-registering tasks: reference each task's anchor so the static library keeps its object file.
