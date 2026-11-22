@@ -29,7 +29,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120   # build ~19 min, ctest ~35 min, then smoke and package on a 4-core runner: 60 cut the run off mid-smoke
     steps:
       - uses: actions/checkout@v4
 
