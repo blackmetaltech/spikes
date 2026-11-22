@@ -31,7 +31,7 @@ GODOT=${GODOT:-godot}
 "$GODOT" --version
 
 for f in godot/bin/libspike_gd_release.dylib godot/bin/spike-run; do [ -f "$f" ] || { echo "missing $f (scripts/build-macos.sh)" >&2; exit 1; }; done
-lipo -archs godot/bin/spike-run godot/bin/libspike_gd_release.dylib
+for f in godot/bin/spike-run godot/bin/libspike_gd_release.dylib; do [ "$(lipo -archs "$f")" = "$arch" ] || { echo "FAIL: $f is not $arch only: $(lipo -archs "$f")" >&2; exit 1; }; done
 
 # only system libraries (GSL is static; no Homebrew path): shared by the build tree check and the smoke test
 check_libs() {  # check_libs file...
