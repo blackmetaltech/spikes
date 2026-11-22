@@ -78,14 +78,17 @@ clean() {
   env -i SYSTEMROOT="$winsys" WINDIR="$winsys" PATH="$winsys\\System32;$winsys" TEMP="$(cygpath -w "$tmp/tmp")" TMP="$(cygpath -w "$tmp/tmp")" \
     USERPROFILE="$(cygpath -w "$tmp/home")" APPDATA="$(cygpath -w "$tmp/home")" LOCALAPPDATA="$(cygpath -w "$tmp/home")" "$@"
 }
+# same with a time limit (timeout is an MSYS tool: it must be found before the PATH is scrubbed)
+cleant() { local t=$1; shift; timeout "$t" env -i SYSTEMROOT="$winsys" WINDIR="$winsys" PATH="$winsys\\System32;$winsys" TEMP="$(cygpath -w "$tmp/tmp")" TMP="$(cygpath -w "$tmp/tmp")" \
+  USERPROFILE="$(cygpath -w "$tmp/home")" APPDATA="$(cygpath -w "$tmp/home")" LOCALAPPDATA="$(cygpath -w "$tmp/home")" "$@"; }
 log=$tmp/smoke.log; fail=0
 cd "$tmp/game"   # not the repo: nothing outside the zip is visible via ../
-clean SP_SMOKE=1 SP_NOAUTOSAVE=1 timeout 900 ./Spike.console.exe --headless 2>&1 | tee "$log" || true
+cleant 900 SP_SMOKE=1 SP_NOAUTOSAVE=1 ./Spike.console.exe --headless 2>&1 | tee "$log" || true
 for pat in "SMOKE OK" "^EXTENSION OK" "^V02 OK" "^TASKS OK" "^FONTS below 14 px: 0"; do
   grep -q "$pat" "$log" || { echo "FAIL: exported smoke: no '$pat'"; fail=1; }
 done
 grep -E "SCRIPT ERROR|Parse Error|SMOKE FAIL" "$log" && { echo "FAIL: errors in the exported smoke log"; fail=1; }
-clean SP_CHECK_EXPORT=1 SP_NOAUTOSAVE=1 timeout 300 ./Spike.console.exe --headless 2>&1 | tee "$tmp/check.log" || true
+cleant 300 SP_CHECK_EXPORT=1 SP_NOAUTOSAVE=1 ./Spike.console.exe --headless 2>&1 | tee "$tmp/check.log" || true
 grep -q "^CHECK EXPORT OK" "$tmp/check.log" || { echo "FAIL: CHECK from the exported build"; fail=1; }
 tasks=$(clean ./spike-run.exe --list-tasks | wc -l)
 [ "$tasks" -ge 30 ] || { echo "FAIL: bundled spike-run lists only $tasks tasks"; fail=1; }
@@ -96,6 +99,6 @@ accents="$tmp/tmp/$(printf 'Jos\xc3\xa9 \xc3\x85ngstr\xc3\xb6m')"; mkdir "$accen
 clean ./spike-run.exe --task reflex --circuit "$(cygpath -w "$accents/c.json")" --seed 1 --require any >/dev/null || { echo "FAIL: spike-run cannot read a circuit under a path with non-ASCII characters"; fail=1; }
 clean ./spike-run.exe --task reflex --seeds 1,2,3 --jobs 3 > "$tmp/par.json" || { echo "FAIL: parallel seeds"; fail=1; }
 clean ./spike-run.exe --task reflex --seeds 1,2,3 --jobs 1 > "$tmp/seq.json" || { echo "FAIL: sequential seeds"; fail=1; }
-cmp -s "$tmp/par.json" "$tmp/seq.json" || { echo "FAIL: worker-process seeds differ from the in-process run"; fail=1; }
+[ "$(sha256sum < "$tmp/par.json")" = "$(sha256sum < "$tmp/seq.json")" ] || { echo "FAIL: worker-process seeds differ from the in-process run"; fail=1; }
 [ "$fail" = 0 ] || exit 1
 echo "package-windows.sh: OK  $zip_path ($(du -h "$zip_path" | cut -f1)); unpacked $(du -sh "$tmp/game" | cut -f1)"
