@@ -1,0 +1,40 @@
+Fixes that NEST (pinned in scripts/build-nest.sh) needs to compile as static libraries with MinGW-w64 (MSYS2 UCRT64). Applied only by
+scripts/build-windows.sh, with `git apply` onto a clean checkout of the pin; the Linux build never sees it. Each hunk is explained here.
+
+nestkernel/mpi_manager.h (two hunks)
+  gethostname() is a Winsock function on Windows (declared in <winsock2.h>, and it fails until WSAStartup ran), so the non-MPI
+  MPIManager::get_processor_name() did not compile. It only fills the "processor name" string of the kernel status, so on Windows it asks
+  for the computer name with GetComputerNameA (kernel32), declared by hand: <windows.h> would otherwise be pulled into every NEST file
+  through this header and its macros (min, max, ERROR, ...) collide with NEST's names.
+
+Not a patch, but part of the same port (scripts/build-windows.sh, engine/CMakeLists.txt): MinGW lays out bit-fields like MSVC by default, which breaks
+NEST's compile-time size checks (SpikeData == 8 bytes, TargetData == 12); everything that includes NEST headers is built with -mno-ms-bitfields.
+
+diff --git a/nestkernel/mpi_manager.h b/nestkernel/mpi_manager.h
+index 56c752b..4b0faf7 100644
+--- a/nestkernel/mpi_manager.h
++++ b/nestkernel/mpi_manager.h
+@@ -28,6 +28,10 @@
+ 
+ // C includes:
+ #include <unistd.h>
++#ifdef _WIN32
++// gethostname() lives in Winsock (needs WSAStartup); the computer name is all we want. Declared by hand so that <windows.h> does not enter every NEST file.
++extern "C" __declspec( dllimport ) int __stdcall GetComputerNameA( char*, unsigned long* );
++#endif
+ #ifdef HAVE_MPI
+ #include <mpi.h>
+ #endif
+@@ -612,7 +616,12 @@ MPIManager::get_processor_name()
+ {
+   char name[ 1024 ];
+   name[ 1023 ] = '\0';
++#ifdef _WIN32
++  unsigned long len = 1023;
++  GetComputerNameA( name, &len );
++#else
+   gethostname( name, 1023 );
++#endif
+   return name;
+ }
+ 

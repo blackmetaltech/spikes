@@ -18,6 +18,7 @@ NESTML_VERSION=$(pin build-nestml.sh 's/.*NESTML_VERSION:-\([0-9.]*\)}.*/\1/p')
 GODOT_CPP_TAG=$(pin build-gd.sh 's/.*GODOT_CPP_TAG:-\([^}]*\)}.*/\1/p')
 [ -n "$NEST_REF" ] && [ -n "$NESTML_VERSION" ] && [ -n "$GODOT_CPP_TAG" ] || { echo "could not read the pins out of scripts/build-{nest,nestml,gd}.sh" >&2; exit 1; }
 echo "pins: NEST $NEST_REF  NESTML $NESTML_VERSION  godot-cpp $GODOT_CPP_TAG"
+export CXXFLAGS="${CXXFLAGS:-} -mno-ms-bitfields"   # MinGW lays out bit-fields like MSVC; NEST's SpikeData / TargetData size checks need the GCC layout (the engine gets it from engine/CMakeLists.txt)
 export CC=gcc CXX=g++   # NEST rejects -DCMAKE_C_COMPILER (its unknown-option check)
 jobs=$(nproc)
 step() { echo; echo "=== $*"; }
