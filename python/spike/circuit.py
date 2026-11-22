@@ -119,13 +119,150 @@ class Network:
         return self.mod_levels[name]
 
 
+# Load-time budgets (mirror the engine, engine/src/circuit.h: kMaxNeurons, kMaxConnections, kMaxDelayMs, kMaxRateHz, kMaxDcPa, kMaxJsonDepth, kMaxSeed, ...). A circuit over
+# one is refused with the engine's message before anything is built; engine/tests/tasks_rules_test.cpp keeps MAX_NEURONS equal to the engine's.
+MAX_NEURONS = 20000
+MAX_CONNECTIONS = 2.0e6
+MAX_DELAY_MS = 1000.0
+MAX_RATE_HZ = 1.0e5
+MAX_DC_PA = 1.0e5
+MAX_NESTML_DC_PA = 2000.0        # I_e of a NESTML cell
+MAX_NESTML_INPUT_PA = 1000.0     # a dc input's weight x value onto a NESTML cell
+MAX_JSON_DEPTH = 32
+MAX_SEED = 4294967295            # NEST's RNG seed range is [1, 2^32 - 1]; a missing seed is 1, as in the engine (NEST refuses 0)
+_LIMIT_NESTML = ("butera_burster", "stg_cell", "sa_node_pacemaker", "icc_slow_wave")
+
+
+def _depth_ok(v, depth=1) -> bool:
+    if isinstance(v, (dict, list)):
+        if depth > MAX_JSON_DEPTH:
+            return False
+        return all(_depth_ok(x, depth + 1) for x in (v.values() if isinstance(v, dict) else v))
+    return True
+
+
+def _is_int(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) or (isinstance(v, float) and v.is_integer())
+
+
+def check_seed(seed, path: str = "seed") -> int:
+    """The seed as an int: 1 .. 2**32 - 1 like the engine (it reads a missing seed as 1, never 0: NEST refuses 0)."""
+    if isinstance(seed, bool) or not _is_int(seed) or not 1 <= seed <= MAX_SEED:
+        raise CircuitError(f"{path}: must be an integer from 1 to {MAX_SEED}")
+    return int(seed)
+
+
+def check_limits(spec: dict) -> None:
+    """Raise CircuitError for a circuit the engine would refuse at load for size or range (engine/src/circuit.cpp): the neuron total, an estimated connection
+    count, delays, rates, constant currents, the resolution and the seed. Structure (unknown models, weights, plasticity ...) is checked where the circuit is built."""
+    res = spec.get("resolution_ms", 0.1)
+    if isinstance(res, bool) or not isinstance(res, (int, float)) or not 0.001 <= res <= 10.0:
+        raise CircuitError("resolution_ms: must be between 0.001 and 10 ms")
+    if "seed" in spec:
+        check_seed(spec["seed"])
+    pops = spec.get("populations")
+    if not isinstance(pops, list) or not pops:
+        raise CircuitError("populations: must be a non-empty array")
+    sizes: dict[str, int] = {}
+    model_of: dict[str, str] = {}
+    total = 0
+    for i, p in enumerate(pops):
+        path = f"populations[{i}]"
+        n = p.get("n")
+        if isinstance(n, bool) or not _is_int(n) or n < 1:
+            raise CircuitError(f"{path}.n: must be an integer >= 1")
+        if n > MAX_NEURONS or total + n > MAX_NEURONS:
+            raise CircuitError(f"{path}.n: this circuit has more than {MAX_NEURONS} neurons in total (the limit that keeps the simulation responsive)")
+        total += int(n)
+        sizes[p["id"]] = int(n)
+        model_of[p["id"]] = p["model"]
+        ie = (p.get("params") or {}).get("I_e")
+        cap = MAX_NESTML_DC_PA if p["model"] in _LIMIT_NESTML else MAX_DC_PA
+        if isinstance(ie, (int, float)) and not abs(ie) <= cap:
+            raise CircuitError(f"{path}.params.I_e: a constant current of {ie:f} pA is above the allowed {int(cap)} pA")
+    conns = 0.0
+    for k, pr in enumerate(spec.get("projections", [])):
+        path = f"projections[{k}]"
+        syn = pr.get("synapse") or {}
+        d = syn.get("delay")
+        if isinstance(d, (int, float)) and not d <= MAX_DELAY_MS:
+            raise CircuitError(f"{path}.synapse.delay: delay {d:f} ms is above the allowed {int(MAX_DELAY_MS)} ms")
+        npre, npost = sizes.get(str(pr.get("pre")).split(".")[0], 0), sizes.get(str(pr.get("post")).split(".")[0], 0)
+        est = float(npre * npost)
+        if "edges" in pr:
+            est = float(len(pr["edges"]))
+            for j, e in enumerate(pr["edges"]):
+                if isinstance(e, (list, tuple)) and len(e) == 4 and isinstance(e[3], (int, float)) and not e[3] <= MAX_DELAY_MS:
+                    raise CircuitError(f"{path}.edges[{j}]: delay {e[3]:f} ms is above the allowed {int(MAX_DELAY_MS)} ms")
+        else:
+            rule = pr.get("rule")
+            r = rule.get("rule") if isinstance(rule, dict) else rule
+            num = lambda key: max(0.0, float(rule.get(key, 0.0))) if isinstance(rule, dict) and isinstance(rule.get(key, 0.0), (int, float)) else 0.0
+            if r == "one_to_one":
+                est = float(min(npre, npost))
+            elif r == "fixed_indegree":
+                est = num("indegree") * npost
+            elif r == "fixed_outdegree":
+                est = num("outdegree") * npre
+            elif r == "fixed_total_number":
+                est = num("N")
+            elif r == "pairwise_bernoulli":
+                p_ = float(rule.get("p", 1.0)) if isinstance(rule, dict) and isinstance(rule.get("p", 1.0), (int, float)) else 1.0
+                est = min(est, max(0.0, p_) * npre * npost)
+        if syn.get("synapse_model") == "gap_junction":
+            est *= 2
+        conns += est
+        if not est <= MAX_CONNECTIONS or not conns <= MAX_CONNECTIONS:
+            raise CircuitError(f"{path}: this circuit would make about {int(min(conns, 1e18))} connections; the limit is {int(MAX_CONNECTIONS)}")
+    for i, inp in enumerate(spec.get("inputs", [])):
+        path = f"inputs[{i}]"
+        d = inp.get("delay")
+        if isinstance(d, (int, float)) and d > MAX_DELAY_MS:
+            raise CircuitError(f"{path}.delay: delay {d:f} ms is above the allowed {int(MAX_DELAY_MS)} ms")
+        kind = inp.get("kind")
+        val = inp.get("value", 0.0)
+        if kind == "poisson" and isinstance(val, (int, float)) and val > MAX_RATE_HZ:
+            raise CircuitError(f"{path}.value: rate {val:f} Hz is above the allowed {int(MAX_RATE_HZ)} Hz")
+        if kind == "sinusoidal_poisson":
+            for key in ("rate", "amplitude"):
+                if isinstance(inp.get(key), (int, float)) and inp[key] > MAX_RATE_HZ:
+                    raise CircuitError(f"{path}.{key}: rate above the allowed {int(MAX_RATE_HZ)} Hz")
+        if kind == "dc" and isinstance(val, (int, float)):
+            w = inp.get("weight", 1.0)
+            for t in inp.get("targets", []):
+                tid = t if isinstance(t, str) else t.get("pop")
+                cap = MAX_NESTML_INPUT_PA if model_of.get(tid) in _LIMIT_NESTML else MAX_DC_PA
+                if isinstance(w, (int, float)) and abs(w * val) > cap:
+                    raise CircuitError(f"{path}.value: a constant current of {w * val:f} pA onto '{tid}' is above the allowed {int(cap)} pA")
+
+
+def _is_rate_model(model: str) -> bool:
+    """Same test as the engine's is_rate_model: NEST rate models (lin_rate_ipn, tanh_rate_ipn, ...) and siegert_neuron."""
+    return model == "siegert_neuron" or "rate" in model
+
+
+def check_supported(spec: dict) -> None:
+    """The Theory wing's rate inputs and populations (input kinds `rate_drive` and `tuned_poisson`, rate models and `siegert_neuron`, their projections) are not
+    supported by this package yet. Say so plainly, instead of failing inside NEST: such a circuit runs in the C++ engine (spike-run, the game)."""
+    for i, inp in enumerate(spec.get("inputs", [])):
+        if inp.get("kind") in ("rate_drive", "tuned_poisson"):
+            raise CircuitError(f"inputs[{i}].kind: '{inp['kind']}' (a Theory-wing input) is not supported by the Python package yet; run this circuit with the C++ engine (spike-run or the game)")
+    for i, p in enumerate(spec.get("populations", [])):
+        if _is_rate_model(str(p.get("model", ""))):
+            raise CircuitError(f"populations[{i}].model: the rate model '{p['model']}' (a Theory-wing population) is not supported by the Python package yet; run this circuit with the C++ engine (spike-run or the game)")
+
+
 def load_circuit(circuit) -> dict:
-    """Accept a JSON string, a dict, or a path to a .json file."""
+    """Accept a JSON string, a dict, or a path to a .json file. Text and files are refused when nested deeper than the engine allows (32 levels)."""
     if isinstance(circuit, dict):
         return circuit
     if isinstance(circuit, os.PathLike) or (isinstance(circuit, str) and not circuit.lstrip().startswith("{") and os.path.exists(circuit)):
-        return json.loads(Path(circuit).read_text())
-    return json.loads(circuit)
+        spec = json.loads(Path(circuit).read_text())
+    else:
+        spec = json.loads(circuit)
+    if not _depth_ok(spec):
+        raise CircuitError(f"$: JSON is nested deeper than {MAX_JSON_DEPTH} levels")
+    return spec
 
 
 _SINE_KEYS = {"rate": "rate", "amplitude": "amplitude", "freq_hz": "frequency", "phase": "phase"}
@@ -596,7 +733,9 @@ def build(circuit, threads: int = 1, seed: int | None = None, verbose: bool = Fa
     if spec.get("schema_version") != 1:
         raise CircuitError("schema_version: unsupported version (expected 1)")
     res = float(spec.get("resolution_ms", 0.1))
-    sd = int(spec.get("seed", 0)) if seed is None else int(seed)
+    check_limits(spec)
+    check_supported(spec)
+    sd = check_seed(spec["seed"] if "seed" in spec else 1) if seed is None else check_seed(seed, "seed")   # a missing seed is 1, as in the engine
 
     nest.ResetKernel()
     nest.verbosity = nest.VerbosityLevel.INFO if verbose else nest.VerbosityLevel.ERROR
