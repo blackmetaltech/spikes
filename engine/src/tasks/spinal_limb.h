@@ -138,6 +138,15 @@ public:
     sh_gam_ = slow_gam_;
     frozen_ = true;
   }
+  /// As freeze_shadow(), with the tonic excitation levels (0..1) the caller measured (a task that averages the drive over a longer window than the rig's 120 ms).
+  void freeze_shadow_at( double ag, double ant, double gamma )
+  {
+    shadow = joint;
+    sh_exc_ag_ = ag;
+    sh_exc_ant_ = ant;
+    sh_gam_ = gamma;
+    frozen_ = true;
+  }
   void release_shadow() { frozen_ = false; }
   bool shadow_active() const { return frozen_; }
 
