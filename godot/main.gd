@@ -267,7 +267,8 @@ func _smoke() -> void:
 	print("FONTS below %d px: %d" % [Kit.MIN_FONT, small]); _check(small == 0, "text smaller than the readable minimum")
 	cur = ""; show_screen("title", false, true); await _frames(4)
 	var orphans1 := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
-	print("ORPHANS %d -> %d" % [orphans0, orphans1]); _check(orphans1 <= orphans0, "orphan nodes leaked by the screens (%d -> %d)" % [orphans0, orphans1])
+	print("ORPHANS %d -> %d" % [orphans0, orphans1]); if orphans1 > orphans0: Node.print_orphan_nodes()
+	_check(orphans1 <= orphans0, "orphan nodes leaked by the screens (%d -> %d)" % [orphans0, orphans1])
 	if _fails > 0: printerr("SMOKE FAILED: %d problem(s)" % _fails); get_tree().quit(1); return
 	print("SMOKE OK screens=%d settings_tabs=%d layouts=%d renderer=%s" % [opened, tabs, layouts.size(), RenderingServer.get_current_rendering_method()])
 	get_tree().quit()

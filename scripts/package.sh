@@ -41,7 +41,10 @@ strip --strip-unneeded "$out/libspike_gd_release.so" "$out/spike-run"
 cp -rL godot/circuits godot/catalog "$out/"
 cp -f README.md "$out/README.md"
 
-rm -f "$zip_path"; (cd "$out" && zip -qr "$zip_path" .)
+# modes: the Godot export copies the binary without the exec bit; set them here, where the zip is assembled (zip stores the Unix mode of each file as it is on disk)
+chmod 755 "$out/Spike.x86_64" "$out/spike-run" "$out/libspike_gd_release.so"
+chmod 644 "$out/Spike.pck"
+rm -f "$zip_path"; (cd "$out" && zip -qr -X "$zip_path" .)
 echo "zip: $(du -h "$zip_path" | cut -f1)  $zip_path"
 
 # ---------------- smoke test of the zip ----------------
