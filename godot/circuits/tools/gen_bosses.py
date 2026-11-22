@@ -17,15 +17,15 @@ def sprint(P=None):
     the triphasic burst generator of the reach (GO, TGT, B1-B3). Motoneurons carry the posture bias current I_e (just under rheobase)."""
     d = dict(
         nIa=4, nII=3, nTONIC=6, nGAM=4, nMN=14, nIN=2, nRC=3, nTGT=3, nGO=3, nB=4,
-        w_Ia_MN=2.4, w_II_MN=1.6, w_Ia_IN=3.0, w_IN_MN=-8.0,
-        w_T_F=18.5, w_T_E=5.0, w_T_G=6.0, tonic_w=200.0, I_e=650.0, I_e_G=650.0, spread=0.6,
-        w_MN_RC=3.0, w_RC_MN=-3.0, w_RC_IN=-3.0, w_RC_RC=-3.0,
+        w_Ia_MN=2.457, w_II_MN=1.563, w_Ia_IN=2.714, w_IN_MN=-8.17,
+        w_T_F=17.927, w_T_E=5.0, w_T_G=5.483, tonic_w=200.0, I_e=650.0, I_e_G=650.0, spread=0.6,
+        w_MN_RC=2.185, w_RC_MN=-3.52, w_RC_IN=-3.0, w_RC_RC=-3.0,
         # hold command and burst generator (as in reach)
-        w_T_MNF=16.1, w_T_MNE=-16.0,
-        w_T_B1=2.15, w_T_B2=1.5, w_T_B3=0.0, w_G_B1=28.0,
-        w_B1_MNF=2.85, w_B1_MNE=-1.86, w_B1_B2=6.0, d_B1_B2=212.4,
-        w_B2_MNE=6.0, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
-        w_B3_MNF=1.92, w_B3_B2=-10.74,
+        w_T_MNF=21.703, w_T_MNE=-21.703,
+        w_T_B1=2.164, w_T_B2=1.926, w_T_B3=0.0, w_G_B1=31.655,
+        w_B1_MNF=1.93, w_B1_MNE=-1.86, w_B1_B2=6.0, d_B1_B2=207.134,
+        w_B2_MNE=5.686, w_B2_MNF=-5.13, w_B2_B1=-11.11, w_B2_B3=6.23, d_B2_B3=103.16,
+        w_B3_MNF=1.81, w_B3_B2=-10.74,
     )
     d.update(P or {})
     mn = dict(G.MN, I_e=d["I_e"], **d.get("MN", {}))
