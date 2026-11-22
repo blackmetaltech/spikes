@@ -12,6 +12,13 @@ nestkernel/kernel_manager.cpp (one hunk)
   unsigned int -> long is a widening the variant's converting assignment accepts; Windows has a 32-bit `long` (LLP64), where it is a narrowing
   and the assignment does not compile. They are `long` constants now (the values are 10 .. 205, so nothing changes).
 
+nestkernel/nest_time.cpp (one hunk)
+  Time::compute_max() decides the largest representable time by comparing LONG_MAX with static_cast< long >( max tics / tics per step ), about 9e16.
+  With a 32-bit long that cast is undefined (x86-64 gives INT_MIN), the comparison picks the wrong branch and LIM_MAX.steps comes out negative:
+  every Time built from steps or ms then saturated to "infinity", so with no connection min_delay + max_delay was ~4e9 and the kernel's
+  init_moduli() threw std::length_error (this is what made every simulation fail with "vector::_M_default_append"). The cast is long long now,
+  which selects the "step size is the limit" branch NEST already has for 32-bit longs (maximum time about 7 hours at 0.1 ms).
+
 nestkernel/random_manager.cpp (one hunk)
   `rng_seed < ( 1L << 32 )` is a shift by the full width of a 32-bit long: every seed was refused ("RNG seed must be in (0, 2^32-1)"). `long`
   also cannot hold a seed above 2^31-1, which the Linux build accepts (up to 2^32-1). On Windows only 0 is refused and a seed that arrives as a
@@ -186,6 +193,19 @@ index 56c752b..cd9d7ec 100644
    return name;
  }
  
+diff --git a/nestkernel/nest_time.cpp b/nestkernel/nest_time.cpp
+index 06a0cd8..81b4d5c 100644
+--- a/nestkernel/nest_time.cpp
++++ b/nestkernel/nest_time.cpp
+@@ -59,7 +59,7 @@ Time::compute_max()
+ 
+   tic_t tics;
+   if ( lmax
+-    < static_cast< long >( static_cast< double >( tmax ) * Range::TICS_PER_STEP_INV ) )  // step size is limiting factor
++    < static_cast< long long >( static_cast< double >( tmax ) * Range::TICS_PER_STEP_INV ) )  // step size is limiting factor
+   {
+     tics = Range::TICS_PER_STEP * ( lmax / Range::INF_MARGIN );
+   }
 diff --git a/nestkernel/random_manager.cpp b/nestkernel/random_manager.cpp
 index d5549e6..cccd6e1 100644
 --- a/nestkernel/random_manager.cpp
