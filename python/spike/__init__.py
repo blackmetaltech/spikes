@@ -14,4 +14,4 @@ from . import bursts, hrv, motifs, prc, stats
 from .circuit import Network, Spikes, build, load_circuit, run
 
 __all__ = ["bursts", "hrv", "motifs", "prc", "stats", "build", "run", "load_circuit", "Network", "Spikes"]
-__version__ = "0.5.0"
+__version__ = "0.5.1"
