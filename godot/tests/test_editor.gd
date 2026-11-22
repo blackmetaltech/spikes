@@ -191,6 +191,9 @@ func _layouts() -> void:
 				ed._zoom_ms = -100000
 				var t1 := Time.get_ticks_usec(); ed._geo(); var zb := (Time.get_ticks_usec() - t1) / 1000.0
 				_check(not is_same(ed._g, g0), "the geometry is rebuilt once the zoom rests")
+				# the cost of the rebuild itself, not of whatever else the machine is doing (ctest runs this beside the task tests): the fastest of five
+				for k in 4:
+					var tb := Time.get_ticks_usec(); ed._build(); zb = minf(zb, (Time.get_ticks_usec() - tb) / 1000.0)
 				var t2 := Time.get_ticks_usec()
 				for k in 200: ed._hit(Vector2(fmod(k * 37.0, sz.x), fmod(k * 53.0, sz.y)))
 				var hb := (Time.get_ticks_usec() - t2) / 1000.0 / 200.0
