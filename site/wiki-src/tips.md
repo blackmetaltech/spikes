@@ -17,21 +17,23 @@ This page collects what trips players up, from the structure of the verdicts and
 
 **Change one thing at a time.** Change one weight, press Reset, Run. If you change three things you will not know which helped.
 
-**Type numbers.** The weight sliders are square-law: steps are fine near zero and coarse near the top. Click the number next to the slider and type a value for a precise change. The slider range comes from the level's reference circuit, with room above it.
+**Type numbers.** The weight sliders are square-law: steps are fine near zero and coarse near the top. Click the number next to the slider and type a value for a precise change (it is clamped to the slider's range). The slider range is generous: it reaches well past what the level needs.
 
 **Use the speed and Skip.** More, then a speed of 5x or 10x, shortens a long episode. **Skip** jumps to just before the next scripted event.
 
-**Use Check for fast tries, Run for understanding.** Check scores in a few seconds without waiting for the episode. Run shows you why.
+**Use Check for fast tries, Run for understanding.** Check scores five worlds in the background without waiting for the episode. Run shows you why.
 
 **Look at the glow.** After a failed run, the red part of the bench is what the verdict is about. Start there.
 
-**Pass first, then trim.** Get a working circuit with a few extra neurons. Then remove neurons one at a time for the par star. The lesion lab shows which neurons you can lose.
+**Pass first, then trim.** Get a working circuit with a few extra neurons. Then remove neurons one at a time to meet the level's challenge for the third star (its card says what it is). The lesion lab shows which neurons you can lose.
+
+**Keep a copy before you experiment.** Save the working circuit to a solution slot (More, Save to A) before you try something drastic. Undo goes back through your edits, and More, Restore previous bench brings back a bench that a button replaced. A mode switch does not change the circuit, so you can try Guided, pass, and rebuild in Standard.
 
 ## The five most common mistakes
 
 ### 1. Testing on one seed only
 
-A circuit that passes on the level's own seed can fail on others if a weight sits right at an edge. Press **Test x5** early, not only at the end. The end card says "It passes the fixed world but not every seed: make it less fragile." If it fails, move the weight toward the middle of the range that works. A **spread** of a few percent on the connection (inspector) shows fragility at once.
+A circuit that passes on one world can fail on others if a weight sits right at an edge. **Check** runs five worlds, so use it early, not only at the end, and read "Check: n of 5 worlds passed". The end card says "It passes the fixed world but not every seed: make it less fragile" after a Test x5 that failed. If it fails, move the weight toward the middle of the range that works. A **spread** of a few percent on the connection (inspector) shows fragility at once.
 
 ### 2. Building a single cell where a group is needed
 
@@ -54,11 +56,14 @@ Some levels read a **modulator** (acetylcholine or noradrenaline) instead of a r
 | What you see | What is going on |
 |---|---|
 | The cell fires at 250 to 400 Hz and nothing is hurt | A model cell with no adaptation can fire near its refractory limit. Real persistent firing is 10 to 50 Hz. The Theory wing says so on its page. |
-| The verdict asks for "more strength" but the slider is at its top | The slider range is twice the largest reference weight. If the verdict still asks, the mechanism, not the weight, is missing. A verdict that asks for more strength is not shown at the slider's cap. |
+| The verdict asks for "more strength" but the slider is at its top | If a weight is already at the end of its slider, the game replaces such a verdict with: "A weight is already at the end of its slider, so more strength is not the answer: try more cells in a group, another cell type, or a different route." The mechanism, not the weight, is missing. |
 | A tool is missing (inhibitory neurons, parts, analysis) | It opens at the first level that needs it. More says what opens later. The [sandbox](sandbox.html) has everything. |
 | "You built a rhythm by accident!" | A toast that appears when a loop in your circuit starts to oscillate and the task has no periodic stimulus. It is a celebration, not an error. |
 | Hint button reads "Hint after 2 missed runs" | Standard mode. Two different failed circuits open it. |
-| A level passes on Check but the end card says not passed | Check ran the quick episode. The live run runs the full one. Run a full episode and Test x5. |
+| A level passes on Check but the end card says not passed | Check ran the quick episode. The live run runs the full one. Run a full episode and Test x5 (the full episode on the same five worlds). |
+| The score never rises above 49 and the verdict says the circuit brings a stimulus of its own | An input the level does not drive (a spike train, an extra generator, a free noise input) is wired in. Delete it and wire the sensors the brief names. |
+| A wire seems to do nothing | A connection or sensor weight below a small floor counts as no wiring, and the verdict may say a sensor or motor is not connected. Use a weight that really moves the cell. |
+| A banner says the engine rejected the circuit | A weight, current, rate or delay is outside what the engine allows, or the circuit is too big. The banner names the place and the limit; see [how to read the lab](how-to-read-the-lab.html#when-the-lab-refuses-a-circuit). |
 | The numbers in the game differ from the animal's | Time is compressed in the leech and Aplysia levels, and spiking cells stand in for graded ones. See [what is real](what-is-real.html). |
 
 ## Steeper levels
@@ -71,19 +76,20 @@ The playtest of the 0.5 build (a scripted novice using only the briefs and the l
 | Half-centre | Two cells that inhibit each other need a drive and a slow variable (adaptation) to take turns. |
 | Rebound after inhibition | The rebound needs a steady background drive that the brief names. |
 | The gill-withdrawal reflex | The synapse changes with use. The effect of a weight depends on what came before. |
-| Reach | It is a branch (a challenge), not on the main path. About 30% of generated variants pass. |
+| Reach | It is a branch (a challenge), not on the main path. |
 | The two bosses | They combine several earlier ideas in one long episode. Pass the parts first. |
 
 ## Diagnosis tips
 
 - Spend the three free probes on looking, not cutting.
-- A wrong guess costs more than several probes (15 points against 3).
+- A wrong guess costs more than several probes (15 points against 3 each beyond the first three).
+- The third star needs the right answer on the first try after a probe that tells the candidates apart (a scope opened on a group, or a cut), so probe before you answer.
 - The symptom text says what the patient cannot do. Ask which part of the circuit does that.
 - See [diagnosis cases](diagnosis-cases.html).
 
 ## Learning tips
 
-- If a level is too hard in Standard, switch it to Guided, pass it and read the recipe afterwards. Then switch back and rebuild it from memory.
+- If a level is too hard in Standard, switch it to Guided, pass it and read the recipe afterwards (Guided earns at most two stars). Then switch back and rebuild it from memory.
 - After each pass, read the notebook entry. It is the biology behind what you just built.
 - Use the lesion lab to ask "which of my neurons does nothing?" Delete those. See [the lesion lab](lesion-lab-and-analysis.html).
 - Use the sandbox to try a new part before a level needs it. See [the parts bin](parts-bin.html).

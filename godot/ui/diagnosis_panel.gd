@@ -82,7 +82,7 @@ func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: b
 	if str(note.get("text", "")) != "":
 		rv.add_child(Kit.label(str(note.get("title", "")), fs, Kit.TEXT))
 		rv.add_child(Kit.label(str(note["text"]), fs, Kit.TEXT_SOFT, true))
-		if str(note.get("citation", "")) != "": rv.add_child(Kit.label(str(note["citation"]), fs - 1, Kit.CYAN, true))
+		if str(note.get("citation", "")) != "": rv.add_child(Kit.label(str(note["citation"]), fs - 1, Kit.TEXT_SOFT, true))
 	return self
 
 ## The candidates in the order the engine gives them (the task now makes that order answer-neutral). Should one still arrive with the answer on top (the

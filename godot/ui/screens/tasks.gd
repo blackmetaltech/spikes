@@ -550,6 +550,7 @@ class MapCanvas extends Control:
 	var cards: Array = []
 	var overlay: MapOverlay
 	var _t := 0.35
+	var _cap_rect := Rect2()   # the plate caption at the foot ("Atlas I. Invertebrates. 0 of 33 stars")
 	var labelled := {}   # pin ids that carry a label plate: the selected one, its spine neighbours, its branches
 	func _ready() -> void: clip_contents = true
 	func update_labels(sel_id: String) -> void:
@@ -714,6 +715,9 @@ class MapCanvas extends Control:
 		# lettering as it can, and stays on the page; a leader line joins a plate that had to move away from its pin
 		keep.append([Rect2(0, size.y - float(Kit.fs(15)) - 26.0 - (0.0 if Layout.phone else float(Kit.fs(14)) + 16.0), minf(size.x * 0.62, 760.0), float(Kit.fs(15)) + 26.0 + (0.0 if Layout.phone else float(Kit.fs(14)) + 16.0)), 400.0])   # the plate caption and the key
 		if not Campaign.chapter_open(chapter): keep.append([Rect2(0, 0, minf(size.x * 0.7, 640.0), 44.0), 400.0])   # the lock notice
+		var cd0 := Campaign.chapter_def(chapter); var st0 := Campaign.star_total(chapter); var pz0 := Kit.fs(15)   # the caption's own box: no label plate may sit on it (a phone's small plate has room for little else, and the soft keep above lost)
+		var cap0 := ("%s.  %d of %d stars" % [str(cd0["title"]), st0.x, st0.y]) if st0.y > 0 else str(cd0["title"]) + "."
+		_cap_rect = Rect2(10, size.y - float(pz0) - 18.0, Fonts.bold.get_string_size("Atlas XV.", HORIZONTAL_ALIGNMENT_LEFT, -1, pz0).x + Gfx.serif_italic().get_string_size(cap0, HORIZONTAL_ALIGNMENT_LEFT, -1, pz0).x + 26.0, float(pz0) + 10.0)
 		var plates := []; _leaders = []
 		for c in sp + cards.filter(func(c): return not bool(c.node["spine"]) and c.visible):   # spine levels first, then the diagnosis cases and micro-puzzles off them
 			var nc := c as NodeCard
@@ -802,6 +806,7 @@ class MapCanvas extends Control:
 							if (pl as Rect2).has_point(lp): cost += 300.0
 						for pr in pins:
 							if (pr as Rect2).grow(2.0).has_point(lp) and not (pr as Rect2).has_point(ctr): cost += 300.0
+				if _cap_rect.grow(4.0).intersects(rc): cost += 5e4
 				cost += _keep_cost(rc) + di * 0.6 - 25.0 * maxf(d.dot(wdir), 0.0)
 				if cost < bc: bc = cost; best = rc
 		return best
