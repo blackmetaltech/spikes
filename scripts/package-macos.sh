@@ -57,6 +57,11 @@ app=$out/Spike.app
 [ -d "$app/Contents/MacOS" ] || { echo "FAIL: no Spike.app in the export" >&2; ls -la "$out" >&2; exit 1; }
 echo "exported bundle:"; (cd "$app" && find . -type f | sort | head -60)
 exe=$(ls "$app/Contents/MacOS" | head -1)
+# the official template is universal (arm64 + x86_64); the extension and runner are arm64 only, so ship an arm64-only game binary
+lipo -archs "$app/Contents/MacOS/$exe"
+if [ "$(lipo -archs "$app/Contents/MacOS/$exe")" != "$arch" ]; then
+  lipo "$app/Contents/MacOS/$exe" -thin "$arch" -output "$app/Contents/MacOS/$exe.thin" && mv -f "$app/Contents/MacOS/$exe.thin" "$app/Contents/MacOS/$exe"
+fi
 
 # the extension and the runner: stripped copies of the release builds, in Frameworks (where Godot loads GDExtensions from in an exported app)
 fw=$app/Contents/Frameworks; res=$app/Contents/Resources
