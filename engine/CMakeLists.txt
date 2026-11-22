@@ -31,6 +31,11 @@ target_include_directories(spike_nest SYSTEM INTERFACE
 target_link_libraries(spike_nest INTERFACE
   -Wl,--start-group ${NEST_LIBS} -Wl,--end-group ${GSL_LIB} ${GSLCBLAS_LIB} Threads::Threads)
 
+if(WIN32)
+  # MinGW lays out bit-fields like MSVC by default; NEST (built with the same flag) and its headers need the GCC layout (SpikeData is exactly 8 bytes)
+  target_compile_options(spike_nest INTERFACE -mno-ms-bitfields)
+endif()
+
 file(GLOB TASK_SRC CONFIGURE_DEPENDS src/tasks/*.cpp)
 # Self-registering tasks: reference each task's anchor so the static library keeps its object file.
 set(_anchors "")
