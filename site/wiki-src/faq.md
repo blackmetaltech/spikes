@@ -135,7 +135,7 @@ NEST runs on one thread. See the performance section of [settings and performanc
 
 ### I found a bug or a wrong fact.
 
-Report it in [the issue tracker](https://github.com/ixaxaar/spikes/issues). Include `logs/spike.log` and the level. See [contributing](contributing.html).
+Report it in [the issue tracker](https://github.com/blackmetaltech/spikes/issues). Include `logs/spike.log` and the level. See [contributing](contributing.html).
 
 ## Related pages
 

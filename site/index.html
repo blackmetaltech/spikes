@@ -23,7 +23,7 @@
 <meta name="twitter:description" content="Spiking circuits from real NEST models, simulated live, running a body. Free, Linux, alpha.">
 <meta name="twitter:image" content="https://spike.blackmetal.tech/assets/og.jpg">
 <meta name="theme-color" content="#EFE6D4">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Spike","description":"Wire small spiking neural circuits from real NEST neuron models, simulated live, and watch them run a body.","url":"https://spike.blackmetal.tech/","image":"https://spike.blackmetal.tech/assets/og.jpg","gamePlatform":"Linux","operatingSystem":"Linux x86_64","applicationCategory":"Game","genre":["Puzzle","Simulation","Educational"],"author":{"@type":"Person","name":"ixaxaar"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/ixaxaar/spikes"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Spike","description":"Wire small spiking neural circuits from real NEST neuron models, simulated live, and watch them run a body.","url":"https://spike.blackmetal.tech/","image":"https://spike.blackmetal.tech/assets/og.jpg","gamePlatform":"Linux","operatingSystem":"Linux x86_64","applicationCategory":"Game","genre":["Puzzle","Simulation","Educational"],"author":{"@type":"Person","name":"ixaxaar"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/blackmetaltech/spikes"}</script>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preload" href="assets/fonts/Fraunces.woff2" as="font" type="font/woff2" crossorigin>
@@ -46,7 +46,7 @@
       <a href="#run">See it run</a>
       <a href="#honest">Honest</a>
       <a href="wiki/">Wiki</a>
-      <a href="https://github.com/ixaxaar/spikes">GitHub</a>
+      <a href="https://github.com/blackmetaltech/spikes">GitHub</a>
     </nav>
     <a class="btn ink mini" href="#download">Download</a>
   </div>
@@ -65,10 +65,10 @@
       <p class="lede">Wire small spiking neural circuits and watch them run a body. Sensory cells to interneurons to motor pools, and a leg kicks, a lamprey swims, a heart answers a stand-up, a leech heart beats in turn.</p>
       <p class="lede2">Every neuron is a real <a href="https://www.nest-simulator.org/">NEST</a> model, simulated live inside the game in NEST's own names and units: mV, ms, pA, nS, Hz.</p>
       <div class="cta">
-        <a class="btn ink" id="dl-main" href="https://github.com/ixaxaar/spikes/releases/latest">Download for Linux <i>free</i></a>
+        <a class="btn ink" id="dl-main" href="https://github.com/blackmetaltech/spikes/releases/latest">Download for Linux <i>free</i></a>
         <a class="btn" href="#run">See it run</a>
       </div>
-      <p class="alpha"><b>Alpha</b> Playable on desktop Linux, rough in places. <a href="https://github.com/ixaxaar/spikes/issues">Tell us what broke or confused you.</a></p>
+      <p class="alpha"><b>Alpha</b> Playable on desktop Linux, rough in places. <a href="https://github.com/blackmetaltech/spikes/issues">Tell us what broke or confused you.</a></p>
     </div>
     <figure class="hero-fig">
       <div class="frame clip" data-clip>
@@ -352,28 +352,36 @@
     <div>
       <p class="kicker">Download</p>
       <h2>Free, no account</h2>
-      <p class="sub" id="ver">The latest build is on <a href="https://github.com/ixaxaar/spikes/releases/latest">GitHub Releases</a>.</p>
-      <a class="dlcard plate" id="dl-linux" href="https://github.com/ixaxaar/spikes/releases/latest">
-        <span class="os">Linux</span>
-        <span class="det">x86_64 &middot; zip &middot; glibc 2.39 (Ubuntu 24.04 or newer)</span>
-        <span class="sz" id="dl-size">Extract, then run <code>Spike.x86_64</code></span>
-      </a>
+      <p class="sub" id="ver">The latest build is on <a href="https://github.com/blackmetaltech/spikes/releases/latest">GitHub Releases</a>.</p>
+      <div class="dlcards">
+        <a class="dlcard plate" data-os="linux" href="https://github.com/blackmetaltech/spikes/releases/latest">
+          <span class="os">Linux</span>
+          <span class="det">x86_64 &middot; glibc 2.39 (Ubuntu 24.04 or newer)</span>
+          <span class="sz">spike-linux-x86_64.zip</span>
+        </a>
+        <a class="dlcard plate" data-os="macos" href="https://github.com/blackmetaltech/spikes/releases/latest">
+          <span class="os">macOS</span>
+          <span class="det">Apple Silicon (M1 or newer)</span>
+          <span class="sz">spike-macos-arm64.zip</span>
+        </a>
+      </div>
       <ol class="fine steps">
-        <li>Download the zip and extract it anywhere.</li>
-        <li>Run <code>./Spike.x86_64</code> from the extracted folder. No installer, no account.</li>
-        <li>Optional: verify it with the <a id="dl-sha" href="https://github.com/ixaxaar/spikes/releases/latest">SHA-256 checksum</a> (<code>sha256sum -c spike-linux-x86_64.zip.sha256</code>).</li>
+        <li>Download the zip for your system and extract it anywhere. No installer, no account.</li>
+        <li><b>Linux:</b> run <code>./Spike.x86_64</code>.</li>
+        <li><b>macOS:</b> the app is not notarized, so the first launch is blocked. Open System Settings, Privacy &amp; Security, and choose Open Anyway; or run <code>xattr -dr com.apple.quarantine Spike.app</code> once.</li>
+        <li>Optional: each zip has a <a href="https://github.com/blackmetaltech/spikes/releases/latest">SHA-256 checksum</a> beside it.</li>
       </ol>
-      <p class="fine">Every release is built and smoke-tested by GitHub Actions from the tagged source. Windows is planned: the missing piece is cross-building NEST. Each release lists its files on GitHub; the game reads and writes only its own folder under <code>~/.local/share</code>.</p>
+      <p class="fine">Every zip is built and smoke-tested by GitHub Actions from the tagged source. The game reads and writes only its own save folder.</p>
     </div>
     <div>
       <p class="kicker">Run from source</p>
       <h2>Build it yourself</h2>
       <p class="sub">Needs a C++20 compiler, CMake 3.24+, static GSL, Python 3 and Godot 4.7.</p>
-<pre class="code"><code>git clone https://github.com/ixaxaar/spikes
+<pre class="code"><code>git clone https://github.com/blackmetaltech/spikes
 cd spikes
 scripts/build-all.sh --tests   # NEST (pinned), NESTML cells, engine, extension, tests
 godot --path godot</code></pre>
-      <p class="fine">Or in Docker: <code>docker build -t spike-build . &amp;&amp; docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests</code>. Packaging, tests and custom cells: <a href="https://github.com/ixaxaar/spikes/blob/master/docs/BUILD.md">docs/BUILD.md</a>.</p>
+      <p class="fine">Or in Docker: <code>docker build -t spike-build . &amp;&amp; docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests</code>. Packaging, tests and custom cells: <a href="https://github.com/blackmetaltech/spikes/blob/master/docs/BUILD.md">docs/BUILD.md</a>.</p>
       <h3 class="h3">A circuit is data</h3>
       <p>One JSON file that the game, the C++ engine and the Python package all read, so a circuit built in the game runs unchanged in PyNEST, with identical spikes.</p>
 <pre class="code"><code>import spike                           # python/
@@ -396,9 +404,9 @@ spikes = spike.run(net, 1000.0)</code></pre>
       <li><a href="wiki/">Start here</a><i>the wiki's index</i></li>
       <li><a href="wiki/see-it-in-action.html">See it in action</a><i>every clip and screenshot</i></li>
       <li><a href="wiki/what-is-real.html">What is real</a><i>NEST, re-fitted, tuned, illustrative</i></li>
-      <li><a href="https://github.com/ixaxaar/spikes/blob/master/CHANGELOG.md">Changelog</a><i>what landed, what is known broken</i></li>
-      <li><a href="https://github.com/ixaxaar/spikes">Source on GitHub</a><i>engine, game, Python package</i></li>
-      <li><a href="https://github.com/ixaxaar/spikes/issues">Issues</a><i>bugs, confusions, ideas</i></li>
+      <li><a href="https://github.com/blackmetaltech/spikes/blob/master/CHANGELOG.md">Changelog</a><i>what landed, what is known broken</i></li>
+      <li><a href="https://github.com/blackmetaltech/spikes">Source on GitHub</a><i>engine, game, Python package</i></li>
+      <li><a href="https://github.com/blackmetaltech/spikes/issues">Issues</a><i>bugs, confusions, ideas</i></li>
     </ol>
   </div>
 </section>
@@ -415,11 +423,11 @@ spikes = spike.run(net, 1000.0)</code></pre>
       </div>
       <div>
         <h2>Play</h2>
-        <ul><li><a href="#download">Download</a></li><li><a href="https://github.com/ixaxaar/spikes/releases">All releases</a></li><li><a href="wiki/">Wiki</a></li><li><a href="wiki/see-it-in-action.html">See it in action</a></li></ul>
+        <ul><li><a href="#download">Download</a></li><li><a href="https://github.com/blackmetaltech/spikes/releases">All releases</a></li><li><a href="wiki/">Wiki</a></li><li><a href="wiki/see-it-in-action.html">See it in action</a></li></ul>
       </div>
       <div>
         <h2>Project</h2>
-        <ul><li><a href="https://github.com/ixaxaar/spikes">Source</a></li><li><a href="https://github.com/ixaxaar/spikes/blob/master/CHANGELOG.md">Changelog</a></li><li><a href="https://github.com/ixaxaar/spikes/issues">Issues</a></li><li><a href="https://github.com/ixaxaar/spikes/blob/master/docs/WHAT-IS-REAL.md">What is real</a></li></ul>
+        <ul><li><a href="https://github.com/blackmetaltech/spikes">Source</a></li><li><a href="https://github.com/blackmetaltech/spikes/blob/master/CHANGELOG.md">Changelog</a></li><li><a href="https://github.com/blackmetaltech/spikes/issues">Issues</a></li><li><a href="https://github.com/blackmetaltech/spikes/blob/master/docs/WHAT-IS-REAL.md">What is real</a></li></ul>
       </div>
       <div>
         <h2>Type</h2>

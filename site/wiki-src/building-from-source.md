@@ -41,7 +41,7 @@ docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests
 docker run --rm -v "$PWD":/src spike-build scripts/package.sh
 ```
 
-The image holds the toolchain: Godot, the pinned NEST (static and PyNEST), the NESTML venv and godot-cpp. A cold build takes about 1.5 hours, then it is cached. The second command builds the release extension, `spike-run`, the engine and the tests. The third writes `build/spike-linux-x86_64.zip`. CI publishes the same image to `ghcr.io/ixaxaar/spike-build`, so you can pull it instead of building it (see below).
+The image holds the toolchain: Godot, the pinned NEST (static and PyNEST), the NESTML venv and godot-cpp. A cold build takes about 1.5 hours, then it is cached. The second command builds the release extension, `spike-run`, the engine and the tests. The third writes `build/spike-linux-x86_64.zip`. CI publishes the same image to `ghcr.io/blackmetaltech/spike-build`, so you can pull it instead of building it (see below).
 
 ## Without Docker
 
@@ -116,7 +116,7 @@ The ctest time limit per test is 1500 s by default (3000 s for `tasks_quick_full
 
 Three GitHub Actions workflows in `.github/workflows/`:
 
-- **`toolchain.yml`** builds the Docker image and pushes it to `ghcr.io/ixaxaar/spike-build:<tag>`. The tag is a hash of `Dockerfile`, `scripts/prebuilt.sh`, `build-nest.sh`, `build-nestml.sh` and `build-gd.sh` (`scripts/toolchain-tag.sh`). It runs when those files change on master, or by hand, and does nothing if the tag already exists.
+- **`toolchain.yml`** builds the Docker image and pushes it to `ghcr.io/blackmetaltech/spike-build:<tag>`. The tag is a hash of `Dockerfile`, `scripts/prebuilt.sh`, `build-nest.sh`, `build-nestml.sh` and `build-gd.sh` (`scripts/toolchain-tag.sh`). It runs when those files change on master, or by hand, and does nothing if the tag already exists.
 - **`ci.yml`** pulls that image and runs the project steps inside it: `build-all.sh --tests --debug --pynest` (engine, release and debug extension, tests, PyNEST), `ctest`, `pytest`, the headless smoke test, and packaging with a smoke test of the zip, then uploads the zip as an artifact. The run takes about 15 to 25 minutes, because NEST is already in the image. If the image for the current pins has not been published, the job fails at once with instructions to run the toolchain workflow and re-run.
 - **`pages.yml`** builds and deploys the website and this wiki to GitHub Pages: it runs `python3 tools/site/build.py --check` (which fails on a broken link, anchor or image) and publishes `site/`. It runs on pushes to master that touch `site/`, `tools/site/` or the workflow. See [architecture](architecture.html#the-website-and-this-wiki).
 

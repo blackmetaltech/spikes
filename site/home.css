@@ -115,7 +115,8 @@
 
 /* ---- VIII. download ---- */
 .dl { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; }
-.dlcard { display: grid; gap: .3rem; padding: 1.4rem 1.6rem; text-decoration: none; max-width: 30rem; margin: .4rem 0 1.4rem; transition: transform .1s ease, box-shadow .1s ease; }
+.dlcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; margin: .4rem 0 1.4rem; }
+.dlcard { display: grid; gap: .3rem; padding: 1.2rem 1.4rem; text-decoration: none; transition: transform .1s ease, box-shadow .1s ease; }
 .dlcard:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); color: var(--ink); }
 .dlcard .os { font: 700 2rem/1 var(--display); }
 .dlcard .os::after { content: " \2192"; color: var(--sienna); }

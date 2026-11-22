@@ -1,5 +1,5 @@
 name: ci
-# Runs inside the prebuilt toolchain image ghcr.io/ixaxaar/spike-build:<tag> (built by toolchain.yml; NEST static + PyNEST, NESTML venv, godot-cpp, Godot
+# Runs inside the prebuilt toolchain image ghcr.io/blackmetaltech/spike-build:<tag> (built by toolchain.yml; NEST static + PyNEST, NESTML venv, godot-cpp, Godot
 # are already in it), so a run only compiles the engine, extension and tests: ~15-25 min. If the image for the current pins does not exist yet, the job
 # fails at once with instructions (run the toolchain workflow, then re-run) rather than silently spending ~1.5 h building it.
 # Budget: docs-only and website-only pushes do not run; one run per ref (newer pushes cancel older ones); push runs on master only, other branches run via their pull request.
