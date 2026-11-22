@@ -47,12 +47,14 @@ jobs:
 
       - name: Checksum and notes
         run: |
-          cd build
+          # build/ was written by the container as root: collect the files in a folder the runner owns
+          mkdir -p dist && cp build/spike-linux-x86_64.zip dist/ && cd dist
           sha256sum spike-linux-x86_64.zip > spike-linux-x86_64.zip.sha256
           cat spike-linux-x86_64.zip.sha256
           v='${{ steps.ver.outputs.version }}'
           # the changelog entry of this version: from its heading to the next "## [" heading
           awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on' ../CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
           {
             echo
             echo "## Install (Linux x86_64, glibc 2.39 / Ubuntu 24.04 or newer)"
@@ -68,8 +70,8 @@ jobs:
         with:
           name: spike-linux-x86_64
           path: |
-            build/spike-linux-x86_64.zip
-            build/spike-linux-x86_64.zip.sha256
+            dist/spike-linux-x86_64.zip
+            dist/spike-linux-x86_64.zip.sha256
           if-no-files-found: error
 
       - name: Publish the release
@@ -78,5 +80,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            build/spike-linux-x86_64.zip build/spike-linux-x86_64.zip.sha256 \
-            --title "Spike ${{ steps.ver.outputs.version }}" --notes-file build/notes.md --verify-tag
+            dist/spike-linux-x86_64.zip dist/spike-linux-x86_64.zip.sha256 \
+            --title "Spike ${{ steps.ver.outputs.version }}" --notes-file dist/notes.md --verify-tag
