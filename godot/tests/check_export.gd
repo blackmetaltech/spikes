@@ -19,7 +19,8 @@ static func run(app: Node) -> void:
 	print("runner: ", runner)
 	if runner == "": _fail(app, "no spike-run found"); return
 	var exe_dir := OS.get_executable_path().get_base_dir()
-	if OS.has_feature("template") and not runner.begins_with(exe_dir): _fail(app, "runner %s is not next to the executable %s" % [runner, exe_dir]); return
+	var win := OS.has_feature("windows")   # Windows: paths compare with / and without case
+	if OS.has_feature("template") and not (runner.replace("\\", "/").to_lower() if win else runner).begins_with(exe_dir.replace("\\", "/").to_lower() if win else exe_dir): _fail(app, "runner %s is not next to the executable %s" % [runner, exe_dir]); return
 	var job: int = t.score_headless_async(txt, PackedInt64Array([1]), "standard", "")
 	if job == 0: _fail(app, "score_headless_async refused the job"); return
 	var t0 := Time.get_ticks_msec()

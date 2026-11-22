@@ -1,0 +1,87 @@
+# Build, package and smoke-test Spike for Windows x86_64 on a GitHub Windows runner (MSYS2 UCRT64, MinGW-w64). Produces the artifact spike-windows-x86_64
+# (spike-windows-x86_64.zip + .sha256). Reusable (workflow_call) and runnable from the branch (push). See docs/BUILD.md "Windows".
+name: build-windows
+on:
+  workflow_call:
+  push:
+    branches: [w-port-windows]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      MSYSTEM: UCRT64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            git patch zip unzip make
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-pip
+      # NESTML runs on a native CPython (its wheels, no MSYS2 python packages): the generated C++ does not depend on the platform
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: NESTML (native Python)
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path scripts/build-nestml.sh -Pattern 'NESTML_VERSION:-([0-9.]+)\}' | Select-Object -First 1).Matches[0].Groups[1].Value
+          python -m pip install "nestml==$v"
+          "NESTML_PYTHON=$((Get-Command python).Source)" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+      - name: Cache key
+        id: key
+        run: |
+          pin=$(sed -n 's/.*NEST_REF:-\([0-9a-f]\{40\}\)}.*/\1/p' scripts/build-nest.sh | head -n1)
+          h=$(cat scripts/build-windows.sh scripts/patches/*.patch | sha256sum | cut -c1-16)
+          echo "key=nest-win-$pin-$h" >> "$GITHUB_OUTPUT"
+      # the NEST tree is cached with its source (build timestamps stay valid). A failed build saves what it compiled under a run-specific key so
+      # the next attempt continues; only a complete build is saved under the exact key.
+      - id: nest-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            third_party/nest-simulator
+            third_party/nest-build
+          key: ${{ steps.key.outputs.key }}
+          restore-keys: |
+            ${{ steps.key.outputs.key }}-partial-
+      - name: Build (NEST, NESTML, engine, extension)
+        run: scripts/build-windows.sh
+        env:
+          SKIP_NEST: ${{ steps.nest-cache.outputs.cache-hit == 'true' && '1' || '0' }}
+      - name: Save the NEST build
+        if: steps.nest-cache.outputs.cache-hit != 'true' && hashFiles('third_party/nest-build/nestkernel/libnestkernel.a') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            third_party/nest-simulator
+            third_party/nest-build
+          key: ${{ steps.key.outputs.key }}
+      - name: Save the partial NEST build
+        if: failure() && steps.nest-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            third_party/nest-simulator
+            third_party/nest-build
+          key: ${{ steps.key.outputs.key }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Golden checksums (numerical parity with Linux)
+        run: build/gd-release/engine/test_golden.exe
+      - name: Package and smoke-test
+        run: scripts/package-windows.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spike-windows-x86_64
+          path: |
+            build/spike-windows-x86_64.zip
+            build/spike-windows-x86_64.zip.sha256
+          if-no-files-found: error
