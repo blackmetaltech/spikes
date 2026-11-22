@@ -62,3 +62,13 @@ Tests: `engine/tests/test_structure.cpp` (new channel kinds: `test_spike_inputs.
   std::vector<Connection> Engine::connections(double min_abs_weight) const;   // the edge list without the weak connections
   ```
   `min_weight <= 0` gives exactly the existing calls. The floor is in the units of the weights (pA onto current-based cells, nS onto conductance-based cells and NESTML cells, mV for `diffusion_connection`), so a task picks it per model, e.g. a fraction of the reference circuit's weight. Cheat circuits (`engine/tests/test_hardening.cpp`, `test_weight_floor`) show the intended use.
+
+## Additions in 0.6, the Atlas (add-only): locked parts and groups
+`PopulationInfo::locked`, `ProjectionInfo::locked` (the file's `"locked": true`), `PopulationInfo::group` (the id of the cell-type group of a population, empty if none) and `Structure::groups`, a list of `GroupInfo { id, pops, sign, scale, free, free_sign, free_scale, scale_min, scale_max, scale_in_range }` (the values as stored in the file; the projection weights in `structure()` are already the effective ones, `|w| x scale x sign`). `Structure::group(id)` and `Structure::group_of(pop_id)` look a group up (null if none). A mechanism check reads the group of a cell type the level lets the player set:
+
+```cpp
+const auto st = e.structure();
+if ( const GroupInfo* g = st.group_of( "I" ); g and g->free_sign and g->sign > 0 ) verdict = "The interneuron type still excites its targets.";
+```
+
+`Engine::locked_digest()` and `circuit_locked_digest( json, digest, error )` give the `LockedDigest` of a loaded / parsed circuit; `Task::given()` carries the digest a locked level was given; `make_task()` rejects a run that differs (docs/CIRCUIT-FORMAT.md "Locked parts and groups"). Tests: `engine/tests/tasks_atlas_test.cpp`.

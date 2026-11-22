@@ -45,6 +45,8 @@ struct PopulationInfo
   int32_t first_index = 0;                    // circuit-level index of the population's first neuron
   int sign = 0;                               // +1 / -1 from the sign of the summed outgoing weights (sum of w over every outgoing connection); 0 if no outgoing connection or the sum is 0
   std::map< std::string, double > params;     // the numeric entries of the population's "params"
+  bool locked = false;                        // 0.6 (Atlas), add-only: "locked": true in the file: cannot be deleted, resized or have its model changed
+  std::string group;                          // 0.6 (Atlas), add-only: id of the cell-type group (Structure::groups) the population belongs to, empty if none
 };
 
 struct ProjectionInfo
@@ -64,6 +66,7 @@ struct ProjectionInfo
   int32_t n_self_edges = 0;                   // 0.5, add-only: connections of a cell onto itself (pre = post neuron)
   double self_w_max = 0, ring_w_max = 0;      // 0.5, add-only: strongest self connection (absolute), strongest ring-neighbour connection (signed; 0 when there is none)
   double w_abs_max = 0;                       // 0.7, add-only: the largest |weight| over the connections (0 when n_edges == 0): "does any connection of this projection matter"
+  bool locked = false;                        // 0.6 (Atlas), add-only: "locked": true in the file: endpoints, edges, delays and synapse model are data, not editable
   int32_t n_ring_edges = 0;                   // 0.5, add-only: connections between two different cells: inside one population only those at ring distance 1 (cell k to cell k+-1 of its N, wrapping), between two populations all of them
 };
 
@@ -85,16 +88,50 @@ struct ModulationInfo
   bool scale = false;                         // true: scale_per_unit (multiplicative)
 };
 
+/// 0.6 (Atlas), add-only: a cell-type group (docs/CIRCUIT-FORMAT.md "Groups"). Its sign and scale were applied at load to the weight of every projection whose
+/// presynaptic population is in the group (effective weight = stored magnitude x scale x sign). `free` names the parameters a player may change (the level
+/// judges them); today "sign" and "scale", and a later parameter (a time constant) is one more name in this list.
+struct GroupInfo
+{
+  std::string id;
+  std::vector< std::string > pops;            // population ids
+  int sign = 1;                               // +1 / -1 as stored in the file (the sign the weights were given)
+  double scale = 1.0;                         // > 0
+  std::vector< std::string > free;            // the free parameters, in file order
+  bool free_sign = false, free_scale = false; // "sign" / "scale" are in `free`
+  double scale_min = 0, scale_max = 0;        // the allowed range of scale when free_scale (0, 0 otherwise)
+  bool scale_in_range = true;                 // false when free_scale and scale lies outside [scale_min, scale_max]
+};
+
 struct Structure
 {
   std::vector< PopulationInfo > populations;  // file order
   std::vector< ProjectionInfo > projections;  // file order
   std::vector< ChannelStructure > inputs, outputs;
   std::vector< ModulationInfo > modulation;   // 0.5, add-only: the modulation table (file order; the implicit rows of ne/ach cells are included)
+  std::vector< GroupInfo > groups;            // 0.6 (Atlas), add-only: the circuit's cell-type groups (file order; empty when the file has none)
+  const GroupInfo* group( const std::string& id ) const;           // null if unknown
+  const GroupInfo* group_of( const std::string& pop_id ) const;    // the group a population belongs to, null if none
   /// Position of a population id in `populations`, -1 if unknown.
   int population_index( const std::string& id ) const;
   const PopulationInfo* population( const std::string& id ) const;
 };
+
+/// 0.6 (Atlas), add-only: what a circuit file fixes when it locks parts of itself, as four digests (SHA-256, first 32 hex digits) of canonical text, so a level can
+/// hold a circuit to the circuit it gave the player without carrying the circuit. `pops`: every population in file order (a locked one with its model, size and
+/// parameters, an unlocked one by id only) and the resolution; `wiring`: every projection in file order (a locked one with all its data, an unlocked one as a
+/// placeholder) and the modulation table; `types`: the groups (id, populations, and every value that is not free, the free list and ranges, but not the free values
+/// themselves); `channels`: inputs and outputs (all keys except an input's initial `value`). Editor positions, names, notes and the seed are not part of it.
+/// Always computed (a circuit with nothing locked has a digest too); empty() is the "no digest" value of a task that gives no circuit.
+struct LockedDigest
+{
+  std::string pops, wiring, types, channels;
+  bool empty() const { return pops.empty() and wiring.empty() and types.empty() and channels.empty(); }
+  bool operator==( const LockedDigest& o ) const { return pops == o.pops and wiring == o.wiring and types == o.types and channels == o.channels; }
+};
+
+/// Parse `circuit_json` (no NEST needed) and compute its LockedDigest (an authoring aid: `spike-run --locked-digest file`). False and `error` set when the circuit is invalid.
+bool circuit_locked_digest( const std::string& circuit_json, LockedDigest& out, std::string& error );
 
 class Engine
 {
@@ -215,6 +252,9 @@ public:
   std::vector< Connection > connections() const;
   /// 0.7, add-only: connections() without the ones whose |weight| is below `min_abs_weight` (the functional edge view).
   std::vector< Connection > connections( double min_abs_weight ) const;
+
+  /// 0.6 (Atlas), add-only: the LockedDigest of the loaded circuit (always computed, also for a circuit with no lock: then it is the digest of an all-unlocked file).
+  LockedDigest locked_digest() const;
 
   RunStats stats() const;
   /// End the run (cleanup()). load() and destruction also do this.

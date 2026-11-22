@@ -1654,6 +1654,22 @@ const PopulationInfo* Structure::population( const std::string& id ) const
   return i < 0 ? nullptr : &populations[ i ];
 }
 
+const GroupInfo* Structure::group( const std::string& id ) const
+{
+  for ( const auto& g : groups )
+    if ( g.id == id )
+      return &g;
+  return nullptr;
+}
+
+const GroupInfo* Structure::group_of( const std::string& pop_id ) const
+{
+  const PopulationInfo* p = population( pop_id );
+  return p == nullptr or p->group.empty() ? nullptr : group( p->group );
+}
+
+LockedDigest Engine::locked_digest() const { return impl_->loaded ? impl_->spec.digest : LockedDigest(); }
+
 Structure Engine::structure() const { return impl_->structure_of(); }
 
 std::vector< Engine::Connection > Engine::connections() const { return connections( 0.0 ); }
@@ -1707,6 +1723,9 @@ const Structure& Engine::Impl::structure_of()
     pi.model = p.model;
     pi.n = p.n;
     pi.first_index = p.first;
+    pi.locked = p.locked;
+    if ( p.group >= 0 )
+      pi.group = sp.groups[ p.group ].id;
     if ( p.params.is_object() )
       for ( auto it = p.params.begin(); it != p.params.end(); ++it )
         if ( it.value().is_number() )
@@ -1724,6 +1743,7 @@ const Structure& Engine::Impl::structure_of()
     pi.post_pop = ps.post;
     pi.pre_index = ps.pre_pop;
     pi.post_index = ps.post_pop;
+    pi.locked = ps.locked;
     pi.rule = ps.has_edges ? std::string( "edges" ) : ps.rule.value( "rule", std::string( "all_to_all" ) );
     pi.synapse_model = m.projs[ k ].base;
     if ( ps.dopamine && ps.dopamine_pop >= 0 )
@@ -1801,6 +1821,21 @@ const Structure& Engine::Impl::structure_of()
         }
     return v;
   };
+  for ( const auto& g : sp.groups )
+  {
+    GroupInfo gi;
+    gi.id = g.id;
+    gi.pops = g.pops;
+    gi.sign = g.sign;
+    gi.scale = g.scale;
+    gi.free = g.free;
+    gi.free_sign = g.free_sign;
+    gi.free_scale = g.free_scale;
+    gi.scale_min = g.scale_min;
+    gi.scale_max = g.scale_max;
+    gi.scale_in_range = not g.free_scale or ( g.scale >= g.scale_min * ( 1 - 1e-9 ) and g.scale <= g.scale_max * ( 1 + 1e-9 ) );
+    s.groups.push_back( std::move( gi ) );
+  }
   for ( const auto& in : sp.inputs )
     s.inputs.push_back( { in.name, in.kind, pops_of( in.targets ), in.targets, std::string() } );
   for ( const auto& o : sp.outputs )

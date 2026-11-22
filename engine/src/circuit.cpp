@@ -419,6 +419,255 @@ void validate_synapse( const CircuitSpec& c, ProjSpec& pr, const std::string& pa
 }
 } // namespace
 
+// ---- locked parts and groups (0.6, the Atlas) --------------------------------------------------------------------------------------------------
+
+namespace
+{
+/// The parameters a group may declare free. A later one (a synaptic or membrane time constant) is one more name here plus the code that applies it; the `free` list and the
+/// `ranges` object of the file need no change. "kind" says how the loader reads the stored value: 1 = sign (+1 / -1), 2 = positive number with a range.
+struct FreeParam
+{
+  const char* name;
+  int kind;
+};
+const FreeParam kFreeParams[] = { { "sign", 1 }, { "scale", 2 } };
+
+std::string sha256_hex( const std::string& msg )
+{
+  static const uint32_t K[ 64 ] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
+    0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354,
+    0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08,
+    0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+    0xc67178f2 };
+  uint32_t h[ 8 ] = { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
+  std::string m = msg;
+  const uint64_t bits = static_cast< uint64_t >( msg.size() ) * 8;
+  m.push_back( static_cast< char >( 0x80 ) );
+  while ( m.size() % 64 != 56 )
+    m.push_back( 0 );
+  for ( int i = 7; i >= 0; --i )
+    m.push_back( static_cast< char >( ( bits >> ( 8 * i ) ) & 0xff ) );
+  auto rotr = []( uint32_t x, int n ) { return ( x >> n ) | ( x << ( 32 - n ) ); };
+  for ( size_t off = 0; off < m.size(); off += 64 )
+  {
+    uint32_t w[ 64 ];
+    for ( int i = 0; i < 16; ++i )
+      w[ i ] = ( uint32_t( uint8_t( m[ off + 4 * i ] ) ) << 24 ) | ( uint32_t( uint8_t( m[ off + 4 * i + 1 ] ) ) << 16 ) | ( uint32_t( uint8_t( m[ off + 4 * i + 2 ] ) ) << 8 ) |
+               uint32_t( uint8_t( m[ off + 4 * i + 3 ] ) );
+    for ( int i = 16; i < 64; ++i )
+    {
+      const uint32_t s0 = rotr( w[ i - 15 ], 7 ) ^ rotr( w[ i - 15 ], 18 ) ^ ( w[ i - 15 ] >> 3 );
+      const uint32_t s1 = rotr( w[ i - 2 ], 17 ) ^ rotr( w[ i - 2 ], 19 ) ^ ( w[ i - 2 ] >> 10 );
+      w[ i ] = w[ i - 16 ] + s0 + w[ i - 7 ] + s1;
+    }
+    uint32_t a = h[ 0 ], b = h[ 1 ], c = h[ 2 ], d = h[ 3 ], e = h[ 4 ], f = h[ 5 ], g = h[ 6 ], hh = h[ 7 ];
+    for ( int i = 0; i < 64; ++i )
+    {
+      const uint32_t S1 = rotr( e, 6 ) ^ rotr( e, 11 ) ^ rotr( e, 25 );
+      const uint32_t ch = ( e & f ) ^ ( ~e & g );
+      const uint32_t t1 = hh + S1 + ch + K[ i ] + w[ i ];
+      const uint32_t S0 = rotr( a, 2 ) ^ rotr( a, 13 ) ^ rotr( a, 22 );
+      const uint32_t mj = ( a & b ) ^ ( a & c ) ^ ( b & c );
+      const uint32_t t2 = S0 + mj;
+      hh = g; g = f; f = e; e = d + t1; d = c; c = b; b = a; a = t1 + t2;
+    }
+    h[ 0 ] += a; h[ 1 ] += b; h[ 2 ] += c; h[ 3 ] += d; h[ 4 ] += e; h[ 5 ] += f; h[ 6 ] += g; h[ 7 ] += hh;
+  }
+  static const char* hex = "0123456789abcdef";
+  std::string out;
+  for ( int i = 0; i < 8; ++i )
+    for ( int sh = 28; sh >= 0; sh -= 4 )
+      out.push_back( hex[ ( h[ i ] >> sh ) & 0xf ] );
+  return out;
+}
+
+/// A whole-valued float (5.0) becomes the integer 5 everywhere, so a file that went through an editor that writes 5.0 for 5 has the same digest.
+void canon_numbers( json& v )
+{
+  if ( v.is_number_float() )
+  {
+    const double d = v.get< double >();
+    if ( std::isfinite( d ) and d == std::floor( d ) and std::fabs( d ) < 1e15 )
+      v = static_cast< long long >( d );
+  }
+  else if ( v.is_array() or v.is_object() )
+    for ( auto& x : v )
+      canon_numbers( x );
+}
+
+std::string digest_of( json v )
+{
+  canon_numbers( v );
+  return sha256_hex( v.dump() ).substr( 0, 32 );
+}
+
+LockedDigest compute_digest( const json& j )
+{
+  LockedDigest d;
+  const auto flag = []( const json& o ) { return o.is_object() and o.value( "locked", false ); };
+  json pops = json::array();
+  pops.push_back( json{ { "resolution_ms", j.value( "resolution_ms", 0.1 ) } } );
+  if ( j.contains( "populations" ) and j[ "populations" ].is_array() )
+    for ( const auto& p : j[ "populations" ] )
+    {
+      if ( flag( p ) )
+        pops.push_back( json{ { "id", p.value( "id", "" ) }, { "model", p.value( "model", "" ) }, { "n", p.contains( "n" ) ? p[ "n" ] : json( 0 ) },
+                              { "params", p.contains( "params" ) ? p[ "params" ] : json::object() }, { "locked", true } } );
+      else
+        pops.push_back( json{ { "id", p.value( "id", "" ) } } );
+    }
+  d.pops = digest_of( pops );
+  json wiring = json::array();
+  if ( j.contains( "projections" ) and j[ "projections" ].is_array() )
+    for ( const auto& p : j[ "projections" ] )
+      wiring.push_back( flag( p ) ? p : json{ { "free", true } } );
+  wiring.push_back( j.contains( "modulation" ) ? j[ "modulation" ] : json::array() );
+  d.wiring = digest_of( wiring );
+  json types = json::array();
+  if ( j.contains( "groups" ) and j[ "groups" ].is_array() )
+    for ( const auto& g : j[ "groups" ] )
+    {
+      json x = g;  // every value except the free ones: what a player may not change
+      if ( g.is_object() and g.contains( "free" ) and g[ "free" ].is_array() )
+        for ( const auto& f : g[ "free" ] )
+          if ( f.is_string() )
+            x.erase( f.get< std::string >() );
+      types.push_back( x );
+    }
+  d.types = digest_of( types );
+  json ch = json::array();
+  for ( const char* key : { "inputs", "outputs" } )
+  {
+    json list = json::array();
+    if ( j.contains( key ) and j[ key ].is_array() )
+      for ( const auto& c : j[ key ] )
+      {
+        json x = c;
+        if ( std::string( key ) == "inputs" and x.is_object() )
+          x.erase( "value" );
+        list.push_back( x );
+      }
+    ch.push_back( list );
+  }
+  d.channels = digest_of( ch );
+  return d;
+}
+
+/// Parse "groups" (docs/CIRCUIT-FORMAT.md "Groups") into c.groups and mark each population's group. Every value is validated here; whether a free value lies inside its range is a
+/// question for the level (it is reported through Structure::groups), because the sandbox may still load such a circuit.
+void parse_groups( const json& j, CircuitSpec& c )
+{
+  auto it = j.find( "groups" );
+  if ( it == j.end() )
+    return;
+  if ( not it->is_array() )
+    fail( "groups", "must be an array" );
+  std::set< std::string > ids;
+  for ( size_t i = 0; i < it->size(); ++i )
+  {
+    const json& g = ( *it )[ i ];
+    const std::string path = at( "groups", i );
+    require_object( g, path );
+    check_keys( g, { "id", "label", "pops", "sign", "scale", "free", "ranges" }, path );
+    GroupSpec gs;
+    gs.id = get_string( g, "id", path, true );
+    if ( gs.id.empty() or not ids.insert( gs.id ).second )
+      fail( sub( path, "id" ), "must be non-empty and unique among groups" );
+    const json& pp = need( g, "pops", path );
+    if ( not pp.is_array() or pp.empty() )
+      fail( sub( path, "pops" ), "must be a non-empty array of population ids" );
+    for ( size_t k = 0; k < pp.size(); ++k )
+    {
+      if ( not pp[ k ].is_string() )
+        fail( at( sub( path, "pops" ), k ), "must be a population id" );
+      const std::string pid = pp[ k ].get< std::string >();
+      const int pi = find_pop( c, pid );
+      if ( pi < 0 )
+        fail( at( sub( path, "pops" ), k ), "unknown population '" + pid + "'" );
+      if ( c.pops[ pi ].group >= 0 or std::find( gs.pop_idx.begin(), gs.pop_idx.end(), pi ) != gs.pop_idx.end() )
+        fail( at( sub( path, "pops" ), k ), "population '" + pid + "' is already in a group (a population is in at most one cell type)" );
+      gs.pops.push_back( pid );
+      gs.pop_idx.push_back( pi );
+    }
+    if ( g.contains( "sign" ) )
+    {
+      const json& sg = g[ "sign" ];
+      if ( not sg.is_number() or not( sg.get< double >() == 1.0 or sg.get< double >() == -1.0 ) )
+        fail( sub( path, "sign" ), "must be +1 or -1" );
+      gs.sign = sg.get< double >() > 0 ? 1 : -1;
+    }
+    if ( g.contains( "scale" ) )
+    {
+      const json& sc = g[ "scale" ];
+      if ( not sc.is_number() or not( sc.get< double >() > 0.0 ) or not( sc.get< double >() <= 1e6 ) )
+        fail( sub( path, "scale" ), "must be a positive number" );
+      gs.scale = sc.get< double >();
+    }
+    json ranges = json::object();
+    if ( auto r = g.find( "ranges" ); r != g.end() )
+    {
+      require_object( *r, sub( path, "ranges" ) );
+      ranges = *r;
+    }
+    if ( auto f = g.find( "free" ); f != g.end() )
+    {
+      if ( not f->is_array() )
+        fail( sub( path, "free" ), "must be an array of parameter names" );
+      for ( size_t k = 0; k < f->size(); ++k )
+      {
+        const std::string fp = path + ".free[" + std::to_string( k ) + "]";
+        if ( not ( *f )[ k ].is_string() )
+          fail( fp, "must be a parameter name" );
+        const std::string name = ( *f )[ k ].get< std::string >();
+        int kind = 0;
+        for ( const auto& d : kFreeParams )
+          if ( name == d.name )
+            kind = d.kind;
+        if ( kind == 0 )
+          fail( fp, "unknown free parameter '" + name + "' (this engine knows sign and scale)" );
+        if ( std::find( gs.free.begin(), gs.free.end(), name ) != gs.free.end() )
+          fail( fp, "'" + name + "' is listed twice" );
+        gs.free.push_back( name );
+        if ( kind == 2 )
+        {
+          auto rg = ranges.find( name );
+          if ( rg == ranges.end() or not rg->is_array() or rg->size() != 2 or not ( *rg )[ 0 ].is_number() or not ( *rg )[ 1 ].is_number() )
+            fail( sub( path, "ranges" ), "a free '" + name + "' needs a range [lo, hi]" );
+          const double lo = ( *rg )[ 0 ].get< double >(), hi = ( *rg )[ 1 ].get< double >();
+          if ( not( lo > 0.0 and hi >= lo ) )
+            fail( sub( path, "ranges" ), "the range of '" + name + "' must satisfy 0 < lo <= hi" );
+          if ( name == "scale" )
+          {
+            gs.free_scale = true;
+            gs.scale_min = lo;
+            gs.scale_max = hi;
+          }
+        }
+        if ( name == "sign" )
+          gs.free_sign = true;
+      }
+    }
+    for ( auto r = ranges.begin(); r != ranges.end(); ++r )
+      if ( std::find( gs.free.begin(), gs.free.end(), r.key() ) == gs.free.end() )
+        fail( sub( path, "ranges" ), "'" + r.key() + "' has a range but is not in the free list" );
+    for ( int pi : gs.pop_idx )
+      c.pops[ pi ].group = static_cast< int >( c.groups.size() );
+    c.groups.push_back( std::move( gs ) );
+  }
+}
+}  // namespace
+
+bool circuit_locked_digest( const std::string& circuit_json, LockedDigest& out, std::string& error )
+{
+  CircuitSpec c;
+  if ( not parse_circuit( circuit_json, c, error ) )
+    return false;
+  out = c.digest;
+  return true;
+}
+
+
 bool vm_init_range( const std::string& model, double e_l, double v_th, double& lo, double& hi )
 {
   if ( model == "sa_node_pacemaker" )
@@ -456,7 +705,7 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
     }
     c = CircuitSpec();
     require_object( j, "$" );
-    check_keys( j, { "schema_version", "name", "resolution_ms", "seed", "populations", "projections", "inputs", "outputs", "modulation", "record", "meta" }, "$" );
+    check_keys( j, { "schema_version", "name", "resolution_ms", "seed", "populations", "projections", "inputs", "outputs", "modulation", "groups", "record", "meta" }, "$" );
 
     const json& sv = need( j, "schema_version", "$" );
     if ( not sv.is_number_integer() or sv.get< long >() != 1 )
@@ -482,7 +731,7 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
       const json& p = pops[ i ];
       std::string path = at( "populations", i );
       require_object( p, path );
-      check_keys( p, { "id", "model", "n", "params", "pos", "role" }, path );
+      check_keys( p, { "id", "model", "n", "params", "pos", "role", "locked" }, path );
       PopSpec ps;
       ps.id = get_string( p, "id", path, true );
       if ( ps.id.empty() )
@@ -497,6 +746,12 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
         fail( sub( path, "n" ), "this circuit has more than " + std::to_string( kMaxNeurons ) + " neurons in total (the limit that keeps the simulation responsive)" );
       ps.n = n.get< int32_t >();
       ps.role = get_string( p, "role", path, false );
+      if ( auto lk = p.find( "locked" ); lk != p.end() )
+      {
+        if ( not lk->is_boolean() )
+          fail( sub( path, "locked" ), "must be true or false" );
+        ps.locked = lk->get< bool >();
+      }
       if ( auto it = p.find( "params" ); it != p.end() )
       {
         require_object( *it, sub( path, "params" ) );
@@ -521,6 +776,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
       c.pops.push_back( std::move( ps ) );
     }
 
+    parse_groups( j, c );
+
     // projections
     if ( auto it = j.find( "projections" ); it != j.end() )
     {
@@ -540,6 +797,13 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           fail( sub( path, "pre" ), "unknown population '" + pr.pre + "'" );
         if ( pr.post_pop < 0 )
           fail( sub( path, "post" ), "unknown population '" + pr.post + "'" );
+        pr.group = c.pops[ pr.pre_pop ].group;
+        if ( auto lk = p.find( "locked" ); lk != p.end() )
+        {
+          if ( not lk->is_boolean() )
+            fail( sub( path, "locked" ), "must be true or false" );
+          pr.locked = lk->get< bool >();
+        }
         if ( auto ds = p.find( "dopamine_source" ); ds != p.end() )
         {
           if ( not ds->is_string() )
@@ -557,6 +821,8 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
           require_object( *s, sub( path, "synapse" ) );
           pr.synapse = *s;
         }
+        if ( pr.locked and not pr.has_edges )
+          fail( path, "a locked projection lists its edges (the wiring is data, not a rule that draws it)" );
         if ( not pr.synapse.contains( "synapse_model" ) )
           pr.synapse[ "synapse_model" ] = "static_synapse";
         else if ( not pr.synapse[ "synapse_model" ].is_string() )
@@ -567,12 +833,24 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             fail( sub( path, "rule" ), "must be a string (NEST connection rule name)" );
           for ( auto e = p.begin(); e != p.end(); ++e )
             if ( e.key() != "pre" and e.key() != "post" and e.key() != "synapse" and e.key() != "dopamine_source" and e.key() != "weight_sd" and
-                 e.key() != "weight_cv" )
+                 e.key() != "weight_cv" and e.key() != "locked" )
               pr.rule[ e.key() ] = e.value();
           // weight spread on a rule projection: drawn per connection after the connect (engine.cpp), ordered by (pre, post, port)
           const bool has_sd = p.contains( "weight_sd" ), has_cv = p.contains( "weight_cv" );
           if ( has_sd and has_cv )
             fail( path, "give weight_sd or weight_cv, not both" );
+          // a group applies its scale and sign to the stored weight (|w| x scale x sign); a missing weight is NEST's default 1
+          double group_scale = 1.0;
+          if ( pr.group >= 0 )
+          {
+            const GroupSpec& g = c.groups[ pr.group ];
+            group_scale = g.scale;
+            auto wt = pr.synapse.find( "weight" );
+            if ( wt != pr.synapse.end() and not wt->is_number() )
+              fail( sub( sub( path, "synapse" ), "weight" ), "a projection out of a cell-type group needs a plain number as its weight" );
+            const double w0 = wt == pr.synapse.end() ? 1.0 : wt->get< double >();
+            pr.synapse[ "weight" ] = std::fabs( w0 ) * g.scale * g.sign;
+          }
           if ( has_sd or has_cv )
           {
             const std::string key = has_sd ? "weight_sd" : "weight_cv";
@@ -582,12 +860,12 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             if ( sm == "gap_junction" or sm.rfind( "stdp", 0 ) == 0 )
               fail( sub( path, key.c_str() ), "weight spread on a rule projection is not supported for " + sm + " (use an 'edges' projection)" );
             pr.spread = has_sd ? 1 : 2;
-            pr.spread_amount = p[ key ].get< double >();
+            pr.spread_amount = p[ key ].get< double >() * ( has_sd ? group_scale : 1.0 );
           }
         }
         else
         {
-          check_keys( p, { "pre", "post", "edges", "synapse", "dopamine_source", "weight_sd", "weight_cv" }, path );
+          check_keys( p, { "pre", "post", "edges", "synapse", "dopamine_source", "weight_sd", "weight_cv", "locked" }, path );
           const json& ed = p[ "edges" ];
           if ( not ed.is_array() )
             fail( sub( path, "edges" ), "must be an array of [pre_idx, post_idx, weight, delay]" );
@@ -613,6 +891,15 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             pr.edges.emplace_back( e[ 0 ].get< int32_t >(), e[ 1 ].get< int32_t >() );
             pr.edge_wd.push_back( { e[ 2 ].get< double >(), d } );
           }
+          // a group applies its scale and sign to the stored weight of every edge: |w| x scale x sign (and scales weight_sd with it)
+          double group_scale = 1.0;
+          if ( pr.group >= 0 )
+          {
+            const GroupSpec& g = c.groups[ pr.group ];
+            group_scale = g.scale;
+            for ( auto& wd : pr.edge_wd )
+              wd[ 0 ] = std::fabs( wd[ 0 ] ) * g.scale * g.sign;
+          }
           // weight spread (docs/CIRCUIT-FORMAT.md): w' = w + sd * z (weight_sd) or w * (1 + cv * z) (weight_cv), z ~ N(0,1) seeded per (circuit seed, projection, edge)
           const bool has_sd = p.contains( "weight_sd" ), has_cv = p.contains( "weight_cv" );
           if ( has_sd and has_cv )
@@ -622,7 +909,7 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
             const std::string key = has_sd ? "weight_sd" : "weight_cv";
             if ( not p[ key ].is_number() or not( p[ key ].get< double >() >= 0.0 ) )
               fail( sub( path, key.c_str() ), "must be a number >= 0" );
-            const double amount = p[ key ].get< double >();
+            const double amount = p[ key ].get< double >() * ( has_sd ? group_scale : 1.0 );
             const size_t proj_index = c.projs.size();
             for ( size_t k = 0; k < pr.edge_wd.size(); ++k )
               pr.edge_wd[ k ][ 0 ] = spread_weight( pr.edge_wd[ k ][ 0 ], has_sd ? 1 : 2, amount, c.seed, proj_index, k );
@@ -948,6 +1235,7 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
     }
     if ( auto it = j.find( "meta" ); it != j.end() )
       require_object( *it, "meta" );
+    c.digest = compute_digest( j );
     return true;
   }
   catch ( const CircuitError& e )

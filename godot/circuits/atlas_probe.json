@@ -1,0 +1,276 @@
+{
+ "schema_version": 1,
+ "name": "Atlas probe: reference",
+ "resolution_ms": 0.1,
+ "seed": 7,
+ "populations": [
+  {
+   "id": "P",
+   "model": "iaf_psc_alpha",
+   "n": 3,
+   "params": {},
+   "role": "neuron",
+   "locked": true,
+   "pos": [
+    [
+     120,
+     110
+    ],
+    [
+     120,
+     170
+    ],
+    [
+     120,
+     230
+    ]
+   ]
+  },
+  {
+   "id": "N",
+   "model": "iaf_psc_alpha",
+   "n": 3,
+   "params": {},
+   "role": "neuron",
+   "locked": true,
+   "pos": [
+    [
+     120,
+     330
+    ],
+    [
+     120,
+     390
+    ],
+    [
+     120,
+     450
+    ]
+   ]
+  },
+  {
+   "id": "I",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "role": "neuron",
+   "locked": true,
+   "pos": [
+    [
+     320,
+     360
+    ],
+    [
+     320,
+     420
+    ]
+   ]
+  },
+  {
+   "id": "M",
+   "model": "iaf_psc_alpha",
+   "n": 2,
+   "params": {},
+   "role": "neuron",
+   "locked": true,
+   "pos": [
+    [
+     520,
+     200
+    ],
+    [
+     520,
+     260
+    ]
+   ]
+  }
+ ],
+ "groups": [
+  {
+   "id": "P",
+   "label": "Plus relay",
+   "pops": [
+    "P"
+   ],
+   "sign": 1,
+   "scale": 1.0,
+   "free": []
+  },
+  {
+   "id": "N",
+   "label": "Minus relay",
+   "pops": [
+    "N"
+   ],
+   "sign": 1,
+   "scale": 1.0,
+   "free": []
+  },
+  {
+   "id": "I",
+   "label": "Interneuron",
+   "pops": [
+    "I"
+   ],
+   "sign": -1,
+   "scale": 0.98,
+   "free": [
+    "sign",
+    "scale"
+   ],
+   "ranges": {
+    "scale": [
+     0.25,
+     2.0
+    ]
+   }
+  }
+ ],
+ "projections": [
+  {
+   "pre": "P",
+   "post": "M",
+   "locked": true,
+   "synapse": {
+    "synapse_model": "static_synapse"
+   },
+   "edges": [
+    [
+     0,
+     0,
+     330.0,
+     2.0
+    ],
+    [
+     1,
+     0,
+     330.0,
+     2.0
+    ],
+    [
+     1,
+     1,
+     330.0,
+     2.0
+    ],
+    [
+     2,
+     1,
+     330.0,
+     2.0
+    ]
+   ]
+  },
+  {
+   "pre": "N",
+   "post": "I",
+   "locked": true,
+   "synapse": {
+    "synapse_model": "static_synapse"
+   },
+   "edges": [
+    [
+     0,
+     0,
+     600.0,
+     2.0
+    ],
+    [
+     1,
+     0,
+     600.0,
+     2.0
+    ],
+    [
+     1,
+     1,
+     600.0,
+     2.0
+    ],
+    [
+     2,
+     1,
+     600.0,
+     2.0
+    ]
+   ]
+  },
+  {
+   "pre": "I",
+   "post": "M",
+   "locked": true,
+   "synapse": {
+    "synapse_model": "static_synapse"
+   },
+   "edges": [
+    [
+     0,
+     0,
+     150.0,
+     2.0
+    ],
+    [
+     0,
+     1,
+     150.0,
+     2.0
+    ],
+    [
+     1,
+     0,
+     150.0,
+     2.0
+    ],
+    [
+     1,
+     1,
+     150.0,
+     2.0
+    ]
+   ]
+  }
+ ],
+ "inputs": [
+  {
+   "name": "plus",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "P"
+    }
+   ],
+   "weight": 300.0,
+   "value": 0.0
+  },
+  {
+   "name": "minus",
+   "kind": "dc",
+   "targets": [
+    {
+     "pop": "N"
+    }
+   ],
+   "weight": 300.0,
+   "value": 0.0
+  }
+ ],
+ "outputs": [
+  {
+   "name": "diff",
+   "kind": "rate",
+   "neurons": [
+    {
+     "pop": "M"
+    }
+   ]
+  }
+ ],
+ "record": {
+  "spikes": "all"
+ },
+ "meta": {
+  "author": "spike",
+  "task": "atlas_probe",
+  "notes": "development-only: the Atlas locked-wiring probe"
+ }
+}

@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include "nlohmann/json.hpp"
+#include "spike/engine.h"
 
 namespace spike
 {
@@ -23,6 +24,8 @@ struct PopSpec
   int32_t n = 0;
   int32_t first = 0;  // circuit-level index of the population's first neuron
   nlohmann::json params = nlohmann::json::object();
+  bool locked = false;  // 0.6 (Atlas): "locked": true
+  int group = -1;       // 0.6 (Atlas): index into CircuitSpec::groups, -1 if none
 };
 
 struct ProjSpec
@@ -30,6 +33,8 @@ struct ProjSpec
   std::string pre, post;
   int pre_pop = -1, post_pop = -1;
   bool has_edges = false;
+  bool locked = false;               // 0.6 (Atlas): "locked": true (edges only)
+  int group = -1;                    // 0.6 (Atlas): group of the presynaptic population whose sign and scale were applied to the weights, -1 if none
   nlohmann::json rule = nlohmann::json::object();     // rule + rule parameters
   nlohmann::json synapse = nlohmann::json::object();  // syn_spec
   std::vector< std::array< double, 2 > > edge_wd;     // weight, delay per edge
@@ -121,6 +126,20 @@ bool is_rate_model( const std::string& model );
 /// Modulator names the engine knows (Engine::set_modulator).
 bool is_modulator_name( const std::string& s );
 
+/// 0.6 (Atlas): a cell-type group (docs/CIRCUIT-FORMAT.md "Groups"). `sign` and `scale` are applied at load to the weights of every projection out of its populations.
+/// `free` lists what the player may change; kFreeParams is the table of names the loader knows, so a later free parameter is one more row there.
+struct GroupSpec
+{
+  std::string id;
+  std::vector< std::string > pops;
+  std::vector< int > pop_idx;
+  int sign = 1;
+  double scale = 1.0;
+  std::vector< std::string > free;
+  bool free_sign = false, free_scale = false;
+  double scale_min = 0.0, scale_max = 0.0;
+};
+
 struct CircuitSpec
 {
   std::string name;
@@ -131,6 +150,8 @@ struct CircuitSpec
   std::vector< InputSpec > inputs;
   std::vector< OutputSpec > outputs;
   std::vector< ModulationSpec > modulation;
+  std::vector< GroupSpec > groups;  // 0.6 (Atlas)
+  LockedDigest digest;              // 0.6 (Atlas): see LockedDigest in spike/engine.h
   bool record_all = true;
   std::vector< int32_t > record_neurons;  // when !record_all
   std::vector< int32_t > record_voltage;

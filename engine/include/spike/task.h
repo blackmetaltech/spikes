@@ -162,6 +162,14 @@ public:
 };
   virtual Diagnosis diagnosis() const { return {}; }
 
+  /// 0.6 (Atlas), add-only: a locked-wiring level (level_kind "atlas") gives the player a circuit and holds every submission to it. `circuit` is the given circuit's path
+  /// relative to circuits/ (the bench the player starts from); `digest` is its LockedDigest (spike-run --locked-digest prints it), which the engine compares with the digest of
+  /// the circuit that is actually run: the populations marked locked (model, size, parameters), every projection (a locked one with its edges, delays, weights and synapse model),
+  /// the groups' values that are not free, the free lists and ranges, and the declared inputs and outputs. Anything else differs = the run is rejected (see make_task in
+  /// registry.cpp), so a hand-edited file fails in spike-run exactly as in the game. A free value outside its range is rejected the same way. `digest.empty()` = not a locked level.
+  struct Given { std::string circuit; LockedDigest digest; };
+  virtual Given given() const { return {}; }
+
   /// Lab-notebook entry unlocked on first pass: a short true fact with its citation.
   struct Note { std::string title; std::string text; std::string citation; };
   virtual Note notebook() const { return {}; }
