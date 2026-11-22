@@ -52,12 +52,16 @@ rm -rf "$out"; mkdir -p "$out" build
 # the build id the title shows (res://build_id.txt, packed by the export; gitignored)
 { git rev-parse --short HEAD 2>/dev/null || echo dev; } | tr -d '\n' > godot/build_id.txt
 if ! git diff --quiet HEAD -- 2>/dev/null; then printf -- '-dirty' >> godot/build_id.txt; fi
+# The Godot editor is a debug build and looks for the .debug library of spike.gdextension; without an extension its scripts (SpikeSim, SpikeTask) do not
+# parse and the export fails. Only the editor uses this copy of the release DLL (the exported game takes the release entry and the release DLL, below).
+cp -f godot/bin/spike_gd_release.dll godot/bin/spike_gd_debug.dll
 "$godot" --headless --path godot --import >/dev/null 2>&1 || true
 "$godot" --headless --path godot --export-release "Windows x86_64" "$(cygpath -m "$root/$out/Spike.exe")" 2>&1 | tee build/export.log | grep -E "ERROR|error" || true
 [ -f "$out/Spike.exe" ] && [ -f "$out/Spike.pck" ] || { echo "FAIL: export produced no exe/pck (build/export.log)" >&2; exit 1; }
 [ -f "$out/Spike.console.exe" ] || { echo "FAIL: export produced no Spike.console.exe (build/export.log)" >&2; exit 1; }
 
 # the exporter copies the extension and its [dependencies] (spike-run.exe) next to the exe; replace them with the stripped release builds
+rm -f "$out/spike_gd_debug.dll"
 cp -f godot/bin/spike_gd_release.dll godot/bin/spike-run.exe "$out/"
 cp -rL godot/circuits godot/catalog "$out/"
 cp -f README.md "$out/README.md"
