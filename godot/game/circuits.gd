@@ -316,7 +316,11 @@ static func history_push(task: String, c: Dictionary) -> bool:
 	if not SaveIO.enabled() or neuron_count(c) == 0: return false
 	var text := to_json(c); var list := history_list(task)
 	if not list.is_empty() and FileAccess.get_file_as_string(history_dir(task).path_join(str(list[0]))) == text: return false
-	var name := "bench-%s-%03d.json" % [Time.get_datetime_string_from_system().replace(":", "").replace("-", ""), Time.get_ticks_msec() % 1000]
+	# order by a sequence number, not by the clock alone: max(unix ms, newest + 1) so two pushes in one millisecond (or a clock step back) still sort in push order.
+	# "bench-s<13 digits>.json" sorts after the older "bench-<date>T<time>-<ms>.json" names ('s' > digits), so existing histories keep their order.
+	var seq := int(Time.get_unix_time_from_system() * 1000.0)
+	if not list.is_empty() and str(list[0]).begins_with("bench-s"): seq = maxi(seq, int(str(list[0]).substr(7, 13)) + 1)
+	var name := "bench-s%013d.json" % seq
 	if not SaveIO.write_text(history_dir(task).path_join(name), text, -1.0): return false
 	list = history_list(task)
 	for i in range(HISTORY_KEEP, list.size()): DirAccess.remove_absolute(SaveIO.g(history_dir(task).path_join(str(list[i]))))

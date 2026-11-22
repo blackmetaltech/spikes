@@ -89,8 +89,9 @@ func _tabs(f: float, phone: bool) -> Control:
 		var wid: String = w[0]
 		var b := Kit.btn(str(w[1]), func(): _show_wing(wid), "amber" if wid == wing else "panel", int(22 * f) if not phone else 16, Vector2(0, 0)); Kit.ident(b, "Wing_" + wid)
 		b.tooltip_text = ROW_SUB[wid]; _wing_btns[wid] = b; top.add_child(b)
-	var sub := Kit.italic(ROW_SUB.get(wing, ""), int(16 * f) if not phone else 15, Kit.TEXT_SOFT); sub.name = "WingSub"; sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	if not phone: top.add_child(sub)
+	if not phone:   # the phone layout has no room for it: do not create a label nobody adds (it would leak as an orphan node)
+		var sub := Kit.italic(ROW_SUB.get(wing, ""), int(16 * f), Kit.TEXT_SOFT); sub.name = "WingSub"; sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top.add_child(sub)
 	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sp.mouse_filter = Control.MOUSE_FILTER_IGNORE; top.add_child(sp)
 	var nx := _continue_target()
 	if nx != "":
