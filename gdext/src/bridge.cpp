@@ -295,7 +295,11 @@ std::string module_dir( HMODULE m )
 {
   std::wstring buf( 32768, L'\0' );
   const DWORD n = GetModuleFileNameW( m, buf.data(), DWORD( buf.size() ) );
-  return n > 0 && n < buf.size() ? dirname_of( narrow( buf.substr( 0, n ) ) ) : std::string();
+  if ( n == 0 || n >= buf.size() )
+    return std::string();
+  std::string d = dirname_of( narrow( buf.substr( 0, n ) ) );
+  std::replace( d.begin(), d.end(), '\\', '/' );  // forward slashes, as Godot reports paths
+  return d;
 }
 std::string self_exe_dir() { return module_dir( nullptr ); }
 std::string self_lib_dir()  // the directory of this DLL (the GDExtension), from the address of one of its own functions
