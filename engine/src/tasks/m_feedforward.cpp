@@ -44,17 +44,15 @@ public:
               "the exercise starts) can act first: feed-forward. Here a level (heart rate, say) has to stay at 0.5 +- 0.1 while a workload "
               "pulls it down by 0.5. The effector is slow, so plain feedback lets the level sag by about 0.3. The first workload is announced by "
               "the sensor 'cue', a quarter of a second ahead; the second, at 3.5 s, is not. Keep the level within 0.23 of the target during the "
-              "announced workload and inside the band at the end of both. Wire 'tone' onto the effort cells and read them on 'effort'. Feedback: "
-              "'level' through a group set to inhibitory onto the effort cells (more level, less effort). "
-              "Feed-forward: 'cue' onto the effort cells so that effort rises before the "
-              "workload arrives. Too little cue leaves the dip; too much overshoots.";
+              "announced workload and inside the band at the end of both. The effort cells are read on 'effort'. "
+              "You have two sensors that carry information, 'level' (the error, late) and 'cue' (the warning, early).";
     i.chapter = "heart";
     i.sensors = { "tone", "level", "cue" };
     i.motors = { "effort" };
     i.duration_ms = kDur;
     i.concepts_new = { "feedforward_feedback" };
     i.concepts_used = { "negative_feedback", "excitation" };
-    i.par_neurons = 4;
+    i.par_neurons = 5;   // the reference circuit's neuron count (par rule: tests/tasks_rules_test.cpp)
     i.default_model = "iaf_psc_alpha";
     i.recipe = "tone onto 2 effort cells. level onto 3 inhibitory cells that project onto the effort cells at about -300 pA (the "
                "sensor gives 900 pA per unit of level). cue onto the effort cells (the first connection's weight of 300 pA per "

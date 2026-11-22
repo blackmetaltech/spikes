@@ -69,7 +69,7 @@ Spec spec()
   i.duration_ms = kFullEnd;
   i.concepts_new = {};
   i.concepts_used = { "ring_attractor", "path_integration", "inhibition", "persistence" };
-  i.par_neurons = 60;   // the reference has 52 cells; the budget leaves room for a larger inhibitory group
+  i.par_neurons = 60; i.par_slack = 8;   // the reference has 52 cells; the spare leaves room for a larger inhibitory group
   i.default_model = "iaf_psc_alpha";
   i.kinds = { { "heading", ring_kind() }, { "turn_left", in_kind( "dc", kShiftBase, 3 ) }, { "turn_right", in_kind( "dc", kShiftBase, 3 ) } };
   for ( int k = 0; k < kWedges; ++k ) i.kinds[ "cue" + std::to_string( k ) ] = in_kind( "poisson", 300, 400 );

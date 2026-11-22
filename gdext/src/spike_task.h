@@ -50,7 +50,7 @@ public:
   void set_mode( const String& mode );       // before reset(): "guided" | "standard" | "researcher"
   String mode() const;
   Dictionary variants() const;               // {id: description}
-  Dictionary challenge() const;              // add-only: {text, max_neurons, max_rate_hz, no_modulators} (the optional third star)
+  Dictionary challenge() const;              // add-only: {text, max_neurons, max_rate_hz} (the optional third star)
   void set_variant( const String& v );       // "" = base task; before reset()
   String variant() const;
   Array hints() const;                       // [{tier:int, text:String, target:String}]
@@ -73,6 +73,8 @@ public:
   Dictionary score_headless_poll( int64_t job );
   // v0.2 engine bridges (static, add-only): the parts-bin card list, and the neuromodulator channels of a SpikeSim (engine.h set_modulator / modulator)
   static String catalog_json();
+  static int64_t max_neurons();             // the engine's total neuron limit (engine.h max_circuit_neurons)
+  String parent() const;                    // the spine level a non-spine level hangs off (Task::parent; "" = none declared)
   static PackedStringArray modulator_names();
   static bool set_modulator( const Ref< SpikeSim >& sim, const String& name, double conc );
   static double modulator( const Ref< SpikeSim >& sim, const String& name );

@@ -77,7 +77,7 @@ public:
   double duration_ms() const override { return kDuration; }
   /// Quick check: the first two reaches (0.4 and 0.7 rad), each shown for its whole display; the same rules as the full episode (a full run judges all three).
   double quick_duration_ms() const override { return kLead + kSpacing + kJitter + kShow; }
-  int par_neurons() const override { return variant_par( variant_, 55 ); }
+  int par_neurons() const override { return variant_par( variant_, 56 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }
@@ -86,6 +86,7 @@ public:
   /// Off the spine until a novice bench passes it (lead decision, docs/CRITIQUE-0.3.md): the best recipe from an empty bench passes Standard on
   /// about half the seeds (docs/circuits/reach.md), the reference circuit on all.
   bool on_spine() const override { return false; }
+  std::string parent() const override { return "stretch_reflex"; }   // builds on the stretch reflex (declared: the map no longer guesses)
   /// Pass limits (reach time / overshoot / final error / creep before the cue) scale by x1.4 (guided: 980 ms, 0.42, 0.21 rad, 0.14 rad),
   /// 1 (standard: 700 ms, 0.30, 0.15 rad, 0.10 rad) and x0.85 (researcher: 595 ms, 0.255, 0.1275 rad, 0.085 rad). The quick_reach variant asks 550 ms. (researcher factor x0.95: 665 ms, 0.285, 0.1425 rad, 0.095 rad)
   std::map< std::string, std::string > variants() const override

@@ -30,7 +30,7 @@ static void test_static_data()
   const auto& cat = catalog();
   CHECK( cat.size() >= 24 );
   std::set< std::string > ids;
-  std::set< std::string > want = { "iaf_psc_alpha", "iaf_cond_exp", "iaf_cond_exp_sfa_rr", "aeif_cond_alpha", "aeif_cond_exp", "hh_psc_alpha", "hh_cond_exp_traub",
+  std::set< std::string > want = { "iaf_psc_alpha", "iaf_cond_exp", "iaf_cond_alpha", "izhikevich", "iaf_cond_exp_sfa_rr", "aeif_cond_alpha", "aeif_cond_exp", "hh_psc_alpha", "hh_cond_exp_traub",
     "ht_neuron", "gif_cond_exp", "mat2_psc_exp", "pp_psc_delta", "parrot_neuron", "sa_node_pacemaker", "butera_burster", "icc_slow_wave" };
   for ( const char* p : { "RS", "IB", "CH", "FS", "LTS", "TC", "RZ" } )
     want.insert( std::string( "izhikevich_" ) + p );

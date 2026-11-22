@@ -84,7 +84,7 @@ public:
     return { { "touch", in_kind( "poisson", 150, 280 ) } };
   }
   double duration_ms() const override { return kDuration; }
-  int par_neurons() const override { return variant_par( variant_, 16 ); }  // SN 10 + MN 6 of the recipe
+  int par_neurons() const override { return variant_par( variant_, 23 ); }  // the reference circuit: SN 16 + IN 4 + MN 3 (par rule: tests/tasks_rules_test.cpp)
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

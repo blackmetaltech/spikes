@@ -714,7 +714,9 @@ int main( int argc, char** argv )
       } );
   }
   {
-    reads( "worm", { "ASER to excite turn_left", "ASEL to inhibit it", "inhibition" } );
+    // the brief keeps the goal and the idea (the difference ASER minus ASEL); the wiring the novice builds from is in the recipe (Guided shows it inline) and the hint ladder
+    reads( "worm", { "ASER minus ASEL", "turn" } );
+    for ( const char* w : { "ASER", "ASEL", "turn_left", "inhibitory" } ) CHECK_MSG( says( make_task( "worm" )->recipe(), w ), std::string( "worm: the recipe no longer says '" ) + w + "'" );
     State s;
     s.knob( "w", lab_w( "worm" ) );
     novice[ "worm" ] = play( "worm", s,

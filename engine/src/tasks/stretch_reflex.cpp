@@ -90,7 +90,7 @@ public:
   /// Quick check: the taps and the first two stretches (one per muscle, the second with its ringing window): the same rules as the full episode on
   /// a shorter run. A full run judges all four stretches.
   double quick_duration_ms() const override { return kLead + kSpacing + kJitter + kQuiet1; }
-  int par_neurons() const override { return variant_par( variant_, 54 ); }
+  int par_neurons() const override { return variant_par( variant_, 60 ); }
 
   // ---- v0.3 ----
   std::string level_kind() const override { return "task"; }

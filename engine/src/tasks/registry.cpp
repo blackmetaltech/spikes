@@ -102,6 +102,9 @@ public:
   std::string chapter() const override { return t_->chapter(); }
   std::string view() const override { return t_->view(); }
   int par_neurons() const override { return t_->par_neurons(); }
+  int par_slack() const override { return t_->par_slack(); }
+  std::string parent() const override { return t_->parent(); }
+  Challenge challenge() const override { return t_->challenge(); }
   std::vector< Event > timeline() const override { return t_->timeline(); }
   std::vector< Band > bands() const override { return t_->bands(); }
   std::vector< std::string > modulators() const override { return t_->modulators(); }
@@ -140,8 +143,9 @@ private:
     for ( const auto& in : e.inputs() )
       if ( in.kind == "spike_generator" || std::find( own.begin(), own.end(), in.name ) == own.end() )
       {
-        reject_ = "The circuit brings a stimulus of its own: an input channel that this level does not drive (a recorded spike train, an extra generator). A level is passed with the level's own "
-                  "sensors only; delete that input and wire the sensors the brief names.";
+        reject_ = "The circuit brings a stimulus of its own: it has an input that this level does not drive (a recorded spike train, an extra generator, a noise source added on the "
+                  "sandbox bench). That is why this run cannot pass and its score is held below the pass mark, whatever the circuit does. A level is scored with its own sensors only: "
+                  "delete that input and wire the sensors the brief names.";
         return;
       }
   }

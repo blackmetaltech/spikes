@@ -231,4 +231,8 @@ const std::vector< std::string >& modulator_names();
 /// Kernel threads (OpenMP builds only). Call before load().
 void set_threads( int n );
 
+/// The most neurons a circuit may have in total: the parse-time limit of Engine::load (engine/src/circuit.h kMaxNeurons). The game and the Python package take
+/// their neuron limit from here (the game asks the extension, the package has a mirrored constant that tests/tasks_rules_test.cpp keeps equal).
+long max_circuit_neurons();
+
 } // namespace spike

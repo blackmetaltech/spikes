@@ -191,6 +191,7 @@ public:
     std::vector< std::string > sensors, motors, concepts_new, concepts_used;
     double duration_ms = 4000;
     int par_neurons = 1;
+    int par_slack = 0;                             // spare cells in the par over the reference circuit (Task::par_slack)
     std::map< std::string, ChannelKind > kinds;
     std::vector< Band > bands;
     std::vector< Event > timeline;
@@ -211,6 +212,7 @@ public:
   std::string chapter() const override { return info_.chapter; }
   std::string view() const override { return info_.view; }
   int par_neurons() const override { return info_.par_neurons; }
+  int par_slack() const override { return info_.par_slack; }
   std::vector< Event > timeline() const override { return info_.timeline; }
   std::vector< Band > bands() const override { return info_.bands; }
   std::vector< std::string > modulators() const override { return info_.modulators; }
