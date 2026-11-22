@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Spike: wire neurons, run a body</title>
-<meta name="description" content="Spike is a free game and research tool: wire small spiking neural circuits from real NEST neuron models, simulated live, and watch them run a body. A lamprey swims, a heart answers a stand-up, a leech heart beats. Linux, alpha.">
+<meta name="description" content="Spike is a free game and research tool. Wire spiking neural circuits from real NEST neuron models and watch them run a body: a lamprey swims, a heart holds its pressure, a leech heart beats. Linux, macOS and Windows. Alpha.">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta name="author" content="ixaxaar">
 <link rel="canonical" href="https://spike.blackmetal.tech/">
 <meta property="og:site_name" content="Spike">
 <meta property="og:title" content="Spike: wire neurons, run a body">
-<meta property="og:description" content="Build spiking neural circuits from real NEST models and watch them swim a lamprey, steady a heart and beat a leech heart. Honest puzzles, a Bestiary of model organisms and a Theory wing.">
+<meta property="og:description" content="Wire spiking circuits from real NEST models. Swim a lamprey, steady a heart, beat a leech heart. Puzzles that cannot be faked, a Bestiary of model organisms, a Theory wing.">
 <meta property="og:url" content="https://spike.blackmetal.tech/">
 <meta property="og:image" content="https://spike.blackmetal.tech/assets/og.jpg">
 <meta property="og:image:width" content="1200">
@@ -20,10 +20,10 @@
 <meta property="og:locale" content="en_GB">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Spike: wire neurons, run a body">
-<meta name="twitter:description" content="Spiking circuits from real NEST models, simulated live, running a body. Free, Linux, alpha.">
+<meta name="twitter:description" content="Spiking circuits from real NEST models, run live, driving a body. Free. Linux, macOS, Windows. Alpha.">
 <meta name="twitter:image" content="https://spike.blackmetal.tech/assets/og.jpg">
 <meta name="theme-color" content="#EFE6D4">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Spike","description":"Wire small spiking neural circuits from real NEST neuron models, simulated live, and watch them run a body.","url":"https://spike.blackmetal.tech/","image":"https://spike.blackmetal.tech/assets/og.jpg","gamePlatform":"Linux","operatingSystem":"Linux x86_64","applicationCategory":"Game","genre":["Puzzle","Simulation","Educational"],"author":{"@type":"Person","name":"ixaxaar"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/blackmetaltech/spikes"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Spike","description":"Wire spiking neural circuits from real NEST neuron models and watch them run a body.","url":"https://spike.blackmetal.tech/","image":"https://spike.blackmetal.tech/assets/og.jpg","gamePlatform":["Linux","macOS","Windows"],"operatingSystem":"Linux x86_64, macOS arm64, Windows x86_64","applicationCategory":"Game","genre":["Puzzle","Simulation","Educational"],"author":{"@type":"Person","name":"ixaxaar"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/blackmetaltech/spikes"}</script>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preload" href="assets/fonts/Fraunces.woff2" as="font" type="font/woff2" crossorigin>
@@ -59,16 +59,16 @@
   <canvas class="cells" id="cells" aria-hidden="true"></canvas>
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <p class="runhead">Plate I <span aria-hidden="true">·</span> Histology of the nervous system of play</p>
+      <p class="runhead">Plate I <span aria-hidden="true">·</span> A game about neural circuits</p>
       <h1 class="wordmark">Spike<span>.</span></h1>
       <p class="tagline">grow a nervous system</p>
-      <p class="lede">Wire small spiking neural circuits and watch them run a body. Sensory cells to interneurons to motor pools, and a leg kicks, a lamprey swims, a heart answers a stand-up, a leech heart beats in turn.</p>
-      <p class="lede2">Every neuron is a real <a href="https://www.nest-simulator.org/">NEST</a> model, simulated live inside the game in NEST's own names and units: mV, ms, pA, nS, Hz.</p>
+      <p class="lede">Wire neurons. Run a body. Connect sensors to interneurons to motor pools and a leg kicks, a lamprey swims, a heart holds its pressure when you stand up.</p>
+      <p class="lede2">Every neuron is a real <a href="https://www.nest-simulator.org/">NEST</a> model, simulated live, in NEST's own units: mV, ms, pA, nS, Hz.</p>
       <div class="cta">
         <a class="btn ink" id="dl-main" href="https://github.com/blackmetaltech/spikes/releases/latest">Download for Linux <i>free</i></a>
         <a class="btn" href="#run">See it run</a>
       </div>
-      <p class="alpha"><b>Alpha</b> Playable on Linux, macOS and Windows, rough in places. <a href="https://github.com/blackmetaltech/spikes/issues">Tell us what broke or confused you.</a></p>
+      <p class="alpha"><b>Alpha</b> Runs on Linux, macOS and Windows. Rough in places. <a href="https://github.com/blackmetaltech/spikes/issues">Tell us what broke.</a></p>
     </div>
     <figure class="hero-fig">
       <div class="frame clip" data-clip>
@@ -84,10 +84,10 @@
   </div>
   <div class="wrap">
     <dl class="facts" aria-label="At a glance">
-      <div><dt>15</dt><dd>chapters in three wings: the body, a Bestiary, Theory</dd></div>
-      <div><dt>29</dt><dd>cell types from NEST and NESTML, integrate-and-fire to Hodgkin-Huxley</dd></div>
-      <div><dt>1 ms</dt><dd>closed loop: circuit and body step together</dd></div>
-      <div><dt>0</dt><dd>numbers in a verdict: it says what is missing, never the answer</dd></div>
+      <div><dt>15</dt><dd>chapters in three wings: Body, Bestiary, Theory</dd></div>
+      <div><dt>29</dt><dd>cell types, from integrate-and-fire to Hodgkin-Huxley</dd></div>
+      <div><dt>1 ms</dt><dd>per step. Circuit and body move together.</dd></div>
+      <div><dt>0</dt><dd>numbers in a verdict. It names what is missing, not the answer.</dd></div>
     </dl>
   </div>
 </section>
@@ -97,7 +97,7 @@
   <div class="wrap">
     <p class="kicker">What it is</p>
     <h2>A bench, a body and the scopes between them</h2>
-    <p class="sub">Each level gives you sensor and motor cards and an empty bench. You add neurons, drag connections and set weights; the circuit runs against a simplified body, one millisecond at a time, and you read what happened from the same instruments a physiologist would.</p>
+    <p class="sub">Each level hands you sensors, motors and an empty bench. Add neurons, drag connections, set weights. The circuit drives a simplified body, one millisecond at a time. You read the result off a physiologist's instruments.</p>
     <figure class="annot">
       <div class="frame">
         <div class="annot-img">
@@ -117,13 +117,13 @@
       <figcaption><b>Fig. 2.</b> The lab on the lamprey level, with the reference circuit running.</figcaption>
     </figure>
     <ol class="legend" type="A">
-      <li><b>The bench.</b> Neurons are stained somata on engineering graph paper: sienna excites (an arrowhead), Prussian blue inhibits (a bar, &#8867;). A firing cell spreads a wash of stain.</li>
-      <li><b>Parts and wiring.</b> Pick a cell type from the parts bin, add excitatory or inhibitory groups, noise, connections; undo and redo sit on the bar above.</li>
-      <li><b>The body.</b> Here a toy lamprey whose muscles the motor pools drive. Elsewhere a limb with spindles, a heart with blood pressure, lungs, an eye, a gut, a fly's heading.</li>
-      <li><b>The score stamp and the verdict.</b> A running score, the stars earned so far and a sentence about what the circuit is doing, in words.</li>
+      <li><b>The bench.</b> Neurons are stained cell bodies on graph paper. Sienna excites (arrowhead). Prussian blue inhibits (bar, &#8867;). A firing cell bleeds stain.</li>
+      <li><b>Parts and wiring.</b> Pick a cell type, then add excitatory or inhibitory groups, noise and connections. Undo and redo are on the bar above.</li>
+      <li><b>The body.</b> Here, a toy lamprey driven by the motor pools. Elsewhere: a limb, a heart, lungs, an eye, a gut, a fly's heading.</li>
+      <li><b>Score and verdict.</b> A running score, your stars, and one sentence on what the circuit is doing.</li>
       <li><b>The spike raster.</b> Every spike of every cell, grouped by population.</li>
-      <li><b>The scopes.</b> Membrane potential traces, in mV, and the rates on each motor channel.</li>
-      <li><b>The brief.</b> One new idea per level, what to build and what passes. The numbers are in a recipe that costs a star.</li>
+      <li><b>The scopes.</b> Membrane potential in mV, and the rate on each motor channel.</li>
+      <li><b>The brief.</b> One new idea per level: what to build, what passes. The numbers are in a recipe, and the recipe costs a star.</li>
     </ol>
   </div>
 </section>
@@ -131,32 +131,32 @@
 <!-- III. WHAT YOU DO -->
 <section class="s alt" id="do">
   <div class="wrap">
-    <p class="kicker">What you actually do</p>
-    <h2>Six verbs, one circuit at a time</h2>
+    <p class="kicker">What you do</p>
+    <h2>Six verbs</h2>
     <div class="verbs">
       <article class="verb plate">
         <img src="assets/media/tutorial-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The interactive tutorial on the first level: the lab dimmed except the sensor card, and a banner asking you to raise the weight until the cell spikes">
-        <div><h3><i>I.</i> Build</h3><p>An empty bench with the level's sensor and motor cards. Add cells from a parts bin of NEST and NESTML models (integrate-and-fire, adaptive exponential, Izhikevich, Hodgkin-Huxley, an SA-node pacemaker, a brainstem burster, a crab STG cell), drag connections, set weights. A short interactive tutorial walks the first neuron with you; the bench has undo and redo, zoom and pan, and draws a big population as one stained ellipse.</p></div>
+        <div><h3><i>I.</i> Build</h3><p>Start with an empty bench and the level's sensors and motors. Add cells from a parts bin of NEST and NESTML models: integrate-and-fire, adaptive exponential, Izhikevich, Hodgkin-Huxley, an SA-node pacemaker, a brainstem burster, a crab STG cell. Drag connections. Set weights. A tutorial walks you through the first neuron.</p></div>
       </article>
       <article class="verb plate">
         <img src="assets/media/heart-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The autonomic heart level running: a drawn heart with heart rate, pressure and stroke volume readouts, an ECG strip, and the circuit of sympathetic and vagal pools">
-        <div><h3><i>II.</i> Run</h3><p>A live spike raster, voltage traces, gauges and the body itself: a limb, a heart with blood pressure, lungs, an eye, a gut, a swimming lamprey, a crawling worm, a fly's compass.</p></div>
+        <div><h3><i>II.</i> Run</h3><p>Watch it live: spike raster, voltage traces, gauges, and the body. A limb, a heart with blood pressure, lungs, an eye, a gut, a swimming lamprey, a crawling worm, a fly's compass.</p></div>
       </article>
       <article class="verb plate">
         <img src="assets/media/check-fail-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="A CHECK result card reading Not passed: left and right are not alternating, the bursts of the two sides overlap too much">
-        <div><h3><i>III.</i> Check</h3><p>Instant headless scoring in five slightly different worlds (seeds); all five passing is the second star. The verdict says what your circuit did and which part of the mechanism is missing, never the answer.</p></div>
+        <div><h3><i>III.</i> Check</h3><p>Instant scoring in five slightly different worlds (seeds). Pass all five for the second star. The verdict says what your circuit did and what is missing. It never gives the answer.</p></div>
       </article>
       <article class="verb plate">
         <img src="assets/media/notebook-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The lab notebook: cards on rheobase, synaptic delay, coincidence detection and the reflex arc, each with its citations">
-        <div><h3><i>IV.</i> Learn</h3><p>One new idea per level, a three-tier hint ladder, a recipe you can buy with a star, a lab notebook of cited findings and a glossary of concepts.</p></div>
+        <div><h3><i>IV.</i> Learn</h3><p>One new idea per level. Three tiers of hints. A recipe you can buy with a star. A notebook of cited findings, and a glossary.</p></div>
       </article>
       <article class="verb plate">
         <img src="assets/media/diagnosis-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="A diagnosis case on the crab pyloric circuit: patient symptoms, a probe counter, the lesion lab button and five candidate lesions to choose from">
-        <div><h3><i>V.</i> Diagnose</h3><p>A patient's circuit with a hidden lesion and a list of symptoms. Probe it with the scopes and the lesion lab, then name the broken connection. Fewer probes, better score.</p></div>
+        <div><h3><i>V.</i> Diagnose</h3><p>A patient's circuit has a hidden lesion and a list of symptoms. Probe it with the scopes and the lesion lab, then name the broken connection. Fewer probes, better score.</p></div>
       </article>
       <article class="verb plate">
         <img src="assets/media/lesion-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="The lesion lab on the leech heartbeat: a table of single lesions swept over several seeds, with the score of each">
-        <div><h3><i>VI.</i> Dissect</h3><p>A lesion lab with multi-seed re-runs, a motif census, burst and heart-rate-variability analysis, phase-response curves, a spike-triggered average and an energy bill.</p></div>
+        <div><h3><i>VI.</i> Dissect</h3><p>Cut any connection and re-run it across seeds. Count motifs. Analyse bursts and heart-rate variability. Plot a phase-response curve and a spike-triggered average. Read the energy bill.</p></div>
       </article>
     </div>
   </div>
@@ -166,14 +166,14 @@
 <section class="s" id="wings">
   <div class="wrap">
     <p class="kicker">The campaign</p>
-    <h2>Three wings of an atlas</h2>
-    <p class="sub">Every chapter is a hand-inked plate with its levels pinned to the anatomy: micro-puzzles that teach one idea each, a scored task, and diagnosis cases. Three modes change tolerance and noise, never the circuit: <b>Guided</b>, <b>Standard</b> and <b>Researcher</b>.</p>
+    <h2>Three wings</h2>
+    <p class="sub">Each chapter is a hand-inked plate with its levels pinned to the anatomy: micro-puzzles that teach one idea each, a scored task, and diagnosis cases. Three modes, <b>Guided</b>, <b>Standard</b> and <b>Researcher</b>, change tolerance and noise. They never change the circuit.</p>
 
     <div class="wing">
       <header class="winghead">
         <p class="runhead">Plates I–V</p>
         <h3>The body</h3>
-        <p>Five chapters climb from a single cell crossing threshold to a whole day of autonomic control: 19 micro-puzzles, 14 tasks, 2 bosses and 6 diagnosis cases.</p>
+        <p>Five chapters, from one cell crossing threshold to a whole day of autonomic control. 19 micro-puzzles, 14 tasks, 2 bosses, 6 diagnosis cases.</p>
         <ol class="chapters">
           <li><span>Invertebrates</span><i>reflexes, a swimming rhythm, a nose for salt</i></li>
           <li><span>Spinal cord</span><i>stretch, hold and reach</i></li>
@@ -194,7 +194,7 @@
       <header class="winghead">
         <p class="runhead">Plates VI–XI</p>
         <h3>The Bestiary</h3>
-        <p>A chapter per model organism, built around the circuit neuroscience knows best. Open from the start. Each has micro-puzzles, the animal's behaviour as a scored task, and diagnosis cases on its circuit.</p>
+        <p>One chapter per model organism, built on the circuit neuroscience knows best. Open from the start. Each has micro-puzzles, the animal's behaviour as a scored task, and diagnosis cases.</p>
       </header>
       <div class="plates">
         <figure><button class="zoom" type="button" data-zoom="assets/plates/worm.webp" data-cap="Plate VI. Caenorhabditis elegans: the touch switch, wired from the real connectome."><img src="assets/plates/worm-640.webp" srcset="assets/plates/worm-640.webp 640w, assets/plates/worm.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Engraved plate of C. elegans with its touch neurons and a circuit inset"></button>
@@ -216,7 +216,7 @@
       <header class="winghead">
         <p class="runhead">Plates XII–XV</p>
         <h3>Theory</h3>
-        <p>What a computational-neuroscience course teaches, in four chapters of three levels, with lab views of their own: a live phase plane, rate strips, a pattern grid and a tuning ring. Plus a spike-triggered average in the Analysis screen.</p>
+        <p>A computational-neuroscience course in four chapters of three levels. Each has its own lab view: a live phase plane, rate strips, a pattern grid, a tuning ring. Plus a spike-triggered average in the Analysis screen.</p>
       </header>
       <div class="plates">
         <figure><button class="zoom" type="button" data-zoom="assets/plates/dynamics.webp" data-cap="Plate XII. Dynamics: the phase plane, a stable focus below the bifurcation and a limit cycle above it."><img src="assets/plates/dynamics-640.webp" srcset="assets/plates/dynamics-640.webp 640w, assets/plates/dynamics.webp 1200w" sizes="(max-width: 700px) 92vw, (max-width: 1100px) 46vw, 380px" width="1200" height="750" loading="lazy" decoding="async" alt="Plate of two phase-plane diagrams computed from the FitzHugh-Nagumo model: a stable focus, and a limit cycle around an unstable fixed point"></button>
@@ -237,7 +237,7 @@
   <div class="wrap">
     <p class="kicker">See it run</p>
     <h2>Real circuits, running bodies</h2>
-    <p class="sub">Captured from the released game, at the speed shown in the corner of each lab. Clips play while they are on screen; with reduced motion turned on they wait for you.</p>
+    <p class="sub">Captured from the released game, at the speed shown in each lab's corner. Clips play while on screen. With reduced motion on, they wait for you.</p>
     <div class="clips">
       <figure>
         <div class="frame clip" data-clip><video width="1280" height="720" muted loop playsinline controls preload="none" poster="assets/media/heart-poster.webp" aria-label="The heart level: the drawn heart beats, the ECG scrolls, and heart rate and blood pressure climb as exercise starts">
@@ -289,12 +289,12 @@
   <div class="wrap honest">
     <div>
       <p class="kicker">Honest by design</p>
-      <h2>A cheap trick that hits the numbers fails</h2>
+      <h2>Cheap tricks fail</h2>
       <ul class="tenets">
-        <li><b>The mechanism is checked, not the output.</b> Every level checks the mechanism it teaches through the circuit's structure: a swim without crossed inhibition does not pass, however well it wiggles.</li>
-        <li><b>A table of cheap circuits must fail.</b> Each level has one, in the test suite, and the reference circuit must pass on several seeds.</li>
-        <li><b>Verdicts carry no numbers.</b> Neither do the first three hint tiers. The verdict says what the circuit did and what is missing.</li>
-        <li><b>Sources are checked.</b> Citations are verified against PubMed with DOIs, and generated histograms are labelled as generated, not as other players.</li>
+        <li><b>The mechanism is checked, not the output.</b> Every level reads your circuit's structure for the mechanism it teaches. A swim without crossed inhibition does not pass, however well it wiggles.</li>
+        <li><b>Cheap circuits must fail.</b> Every level has a table of them in the test suite. The reference circuit must pass on several seeds.</li>
+        <li><b>Verdicts carry no numbers.</b> Nor do the first three hint tiers. You get what the circuit did and what is missing.</li>
+        <li><b>Sources are checked.</b> Citations are verified against PubMed, with DOIs. Generated histograms are labelled generated, not passed off as other players.</li>
       </ul>
       <figure class="honest-fig">
         <button class="frame zoom" type="button" data-zoom="assets/media/check-fail.webp" data-cap="A failing CHECK: the verdict names the missing mechanism, not a number to aim for.">
@@ -306,7 +306,7 @@
     <div class="real plate">
       <p class="runhead">Plate VI of the game <span aria-hidden="true">·</span> Sources and simplifications</p>
       <h3>What is real here</h3>
-      <p>Spike is built on real neuron models; the bodies and the circuits around them are simplified. A page in the game and in the docs says, layer by layer and level by level, which of five labels applies.</p>
+      <p>The neuron models are real. The bodies and circuits around them are simplified. A page in the game and in the docs says which of five labels applies, layer by layer and level by level.</p>
       <dl class="labels">
         <div><dt class="tag t-nest">NEST</dt><dd>The equations are NEST's own, unmodified. Checked by golden checksums and PyNEST parity.</dd></div>
         <div><dt class="tag t-refit">NESTML re-fit</dt><dd>A cell written in NESTML for the game, structure from a paper, numbers adjusted by hand. Not validated against recordings.</dd></div>
@@ -389,7 +389,7 @@ scripts/build-all.sh --tests   # NEST (pinned), NESTML cells, engine, extension,
 godot --path godot</code></pre>
       <p class="fine">Or in Docker: <code>docker build -t spike-build . &amp;&amp; docker run --rm -v "$PWD":/src spike-build scripts/build-all.sh --tests</code>. Packaging, tests and custom cells: <a href="https://github.com/blackmetaltech/spikes/blob/master/docs/BUILD.md">docs/BUILD.md</a>.</p>
       <h3 class="h3">A circuit is data</h3>
-      <p>One JSON file that the game, the C++ engine and the Python package all read, so a circuit built in the game runs unchanged in PyNEST, with identical spikes.</p>
+      <p>One JSON file, read by the game, the C++ engine and the Python package. A circuit built in the game runs unchanged in PyNEST, with identical spikes.</p>
 <pre class="code"><code>import spike                           # python/
 net = spike.build("my_circuit.json")   # the file you saved in the game
 spikes = spike.run(net, 1000.0)</code></pre>
@@ -403,7 +403,7 @@ spikes = spike.run(net, 1000.0)</code></pre>
     <div>
       <p class="kicker">Read more</p>
       <h2>The wiki</h2>
-      <p class="sub">How to play, what each wing teaches, the cells in the parts bin, and how the simulation works underneath.</p>
+      <p class="sub">How to play. What each wing teaches. Every cell in the parts bin. How the simulation works.</p>
       <a class="btn ink" href="wiki/">Open the wiki</a>
     </div>
     <ol class="toc">
