@@ -80,6 +80,13 @@ target_compile_options(spike_engine PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
 add_executable(spike-run src/spike_run.cpp)
 target_link_libraries(spike-run PRIVATE spike::engine)
+if(WIN32)
+  # scripts/build-windows.sh builds with MinGW (UCRT64): one self-contained exe that needs only Windows system DLLs.
+  target_link_options(spike-run PRIVATE -static -static-libgcc -static-libstdc++)
+  # UTF-8 as the ANSI code page (Windows 10 1903+): argv, getenv and the std::ifstream paths of a user name with accents work as on Linux
+  enable_language(RC)
+  target_sources(spike-run PRIVATE windows/spike-run.rc)
+endif()
 # spike-run ships next to the extension: find sibling libraries, and carry its own C++ runtime
 set_target_properties(spike-run PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
 if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
