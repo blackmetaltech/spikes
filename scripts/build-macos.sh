@@ -54,9 +54,9 @@ do_gd() {
   if [ ! -f third_party/godot-cpp/CMakeLists.txt ]; then
     git clone --depth 1 --branch "$GODOT_CPP_TAG" https://github.com/godotengine/godot-cpp third_party/godot-cpp
   fi
-  local b=build/gd-release-macos
-  cmake -S . -B "$b" -G Ninja "${OSX[@]}" -DCMAKE_BUILD_TYPE=Release -DSPIKE_BUILD_TESTS=OFF -DSPIKE_BUILD_GDEXT=ON \
-    -DGODOTCPP_TARGET=template_release -DCMAKE_PREFIX_PATH="$GSL_PREFIX" -DGODOTCPP_ARCH="$ARCH"
+  local b=build/gd-release-macos   # tests ON as in build-gd.sh (python/CMakeLists.txt needs the test targets); only two targets are built
+  cmake -S . -B "$b" -G Ninja "${OSX[@]}" -DCMAKE_BUILD_TYPE=Release -DSPIKE_BUILD_TESTS=ON -DSPIKE_BUILD_GDEXT=ON \
+    -DGODOTCPP_TARGET=template_release -DCMAKE_PREFIX_PATH="$GSL_PREFIX"
   cmake --build "$b" -j"$JOBS" --target spike_gd spike-run
   mkdir -p godot/bin
   cp -f "$b/gd-out/libspike_gd.dylib" godot/bin/libspike_gd_release.dylib
