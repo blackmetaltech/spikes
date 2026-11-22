@@ -1,0 +1,225 @@
+Fixes that NEST (pinned in scripts/build-nest.sh) needs to compile as static libraries with MinGW-w64 (MSYS2 UCRT64). Applied only by
+scripts/build-windows.sh, with `git apply` onto a clean checkout of the pin; the Linux build never sees it. Each hunk is explained here.
+
+libnestutil/config.h.in (one hunk)
+  CMake derives NEST_EXITCODE_ABORT / NEST_EXITCODE_SEGFAULT (the "exitcodes" entries of the kernel status) by running a test program through
+  cmake/CheckFiles/check_return_val.sh. On Windows that probe cannot see a signal-style exit code and leaves the text "inappropriate file type
+  or format", which became `#define NEST_EXITCODE_ABORT inappropriate file type or format` and broke kernel_manager.cpp. On Windows the header
+  now carries the shell values Linux reports (128 + SIGABRT, 128 + SIGSEGV). Nothing in the engine reads them.
+
+nestkernel/kernel_manager.cpp (one hunk)
+  The exit-code constants are `unsigned int` and are stored in a Dictionary, whose value variant holds `long`. With a 64-bit `long` (Linux)
+  unsigned int -> long is a widening the variant's converting assignment accepts; Windows has a 32-bit `long` (LLP64), where it is a narrowing
+  and the assignment does not compile. They are `long` constants now (the values are 10 .. 205, so nothing changes).
+
+nestkernel/nest_time.cpp (one hunk)
+  Time::compute_max() decides the largest representable time by comparing LONG_MAX with static_cast< long >( max tics / tics per step ), about 9e16.
+  With a 32-bit long that cast is undefined (x86-64 gives INT_MIN), the comparison picks the wrong branch and LIM_MAX.steps comes out negative:
+  every Time built from steps or ms then saturated to "infinity", so with no connection min_delay + max_delay was ~4e9 and the kernel's
+  init_moduli() threw std::length_error (this is what made every simulation fail with "vector::_M_default_append"). The cast is long long now,
+  which selects the "step size is the limit" branch NEST already has for 32-bit longs (maximum time about 7 hours at 0.1 ms).
+
+nestkernel/random_manager.cpp (one hunk)
+  `rng_seed < ( 1L << 32 )` is a shift by the full width of a 32-bit long: every seed was refused ("RNG seed must be in (0, 2^32-1)"). `long`
+  also cannot hold a seed above 2^31-1, which the Linux build accepts (up to 2^32-1). On Windows only 0 is refused and a seed that arrives as a
+  negative long is taken as the unsigned 32-bit value with the same bits (the cast to uint32_t that follows), so the whole range works and is the
+  same stream as on Linux.
+
+nestkernel/connection_manager.cpp (one hunk)
+  connect-from-arrays checks an integer-valued parameter with `*param > 1L << 31`; with a 32-bit long that is -2^31, so every integer parameter
+  (receptor_type, ...) was rejected as "got double". 1LL makes it the intended 2^31.
+
+nestkernel/event_delivery_manager.cpp (one hunk)
+  std::max( 2UL, static_cast< size_t >( ... ) ): `unsigned long` is 32 bits on Windows while size_t is 64, so the two arguments differ in type
+  and std::max does not deduce. The literal is a size_t now.
+
+nestkernel/mpi_manager.h and mpi_manager.cpp (one hunk each)
+  The non-MPI copy overload communicate( vector<unsigned long>&, vector<unsigned long>&, vector<int>& ) is what SPManager reaches with its
+  std::vector< size_t >, which is `unsigned long` only where long is 64 bits. On Windows an overload for `unsigned long long` is added (same body).
+
+nestkernel/mpi_manager.h (two hunks)
+  gethostname() is a Winsock function on Windows (declared in <winsock2.h>, and it fails until WSAStartup ran), so the non-MPI
+  MPIManager::get_processor_name() did not compile. It only fills the "processor name" string of the kernel status, so on Windows it asks
+  for the computer name with GetComputerNameA (kernel32), declared by hand: <windows.h> would otherwise be pulled into every NEST file
+  through this header and its macros (min, max, ERROR, ...) collide with NEST's names.
+
+Not a patch, but part of the same port (scripts/build-windows.sh, engine/CMakeLists.txt): MinGW lays out bit-fields like MSVC by default, which breaks
+NEST's compile-time size checks (SpikeData == 8 bytes, TargetData == 12); everything that includes NEST headers is built with -mno-ms-bitfields.
+
+diff --git a/libnestutil/config.h.in b/libnestutil/config.h.in
+index b5c262a..9cf988c 100644
+--- a/libnestutil/config.h.in
++++ b/libnestutil/config.h.in
+@@ -51,8 +51,16 @@
+ #define MPIEXEC_PREFLAGS "@MPIEXEC_PREFLAGS@"
+ #define MPIEXEC_POSTFLAGS "@MPIEXEC_POSTFLAGS@"
+ 
++#ifdef _WIN32
++#define NEST_EXITCODE_ABORT 134
++#else
+ #define NEST_EXITCODE_ABORT @NEST_EXITCODE_ABORT@
++#endif
++#ifdef _WIN32
++#define NEST_EXITCODE_SEGFAULT 139
++#else
+ #define NEST_EXITCODE_SEGFAULT @NEST_EXITCODE_SEGFAULT@
++#endif
+ 
+ /* Name of package */
+ #define PACKAGE @PROJECT_NAME@
+diff --git a/nestkernel/connection_manager.cpp b/nestkernel/connection_manager.cpp
+index a89a1a4..c492515 100644
+--- a/nestkernel/connection_manager.cpp
++++ b/nestkernel/connection_manager.cpp
+@@ -736,7 +736,7 @@ ConnectionManager::connect_arrays( const long* sources,
+           {
+             const auto rtype_as_long = static_cast< long >( *param );
+ 
+-            if ( *param > 1L << 31 or std::abs( *param - rtype_as_long ) > 0 )  // To avoid rounding errors
++            if ( *param > 1LL << 31 or std::abs( *param - rtype_as_long ) > 0 )  // To avoid rounding errors
+             {
+               const std::string msg =
+                 String::compose( "Expected integer value for %1, but got double.", param_pointer_pair.first );
+diff --git a/nestkernel/event_delivery_manager.cpp b/nestkernel/event_delivery_manager.cpp
+index ae6ea3e..b238303 100644
+--- a/nestkernel/event_delivery_manager.cpp
++++ b/nestkernel/event_delivery_manager.cpp
+@@ -376,7 +376,7 @@ EventDeliveryManager::gather_spike_data_( std::vector< SpikeDataT >& send_buffer
+   if ( global_max_spikes_per_rank_ < send_recv_buffer_shrink_limit_ * old_buff_size_per_rank )
+   {
+     const size_t new_buff_size_per_rank =
+-      std::max( 2UL, static_cast< size_t >( ( 1 + send_recv_buffer_shrink_spare_ ) * global_max_spikes_per_rank_ ) );
++      std::max( static_cast< size_t >( 2 ), static_cast< size_t >( ( 1 + send_recv_buffer_shrink_spare_ ) * global_max_spikes_per_rank_ ) );
+     kernel().mpi_manager.set_buffer_size_spike_data(
+       kernel().mpi_manager.get_num_processes() * new_buff_size_per_rank );
+     resize_send_recv_buffers_spike_data_();
+diff --git a/nestkernel/kernel_manager.cpp b/nestkernel/kernel_manager.cpp
+index fa3d3ef..53e942f 100644
+--- a/nestkernel/kernel_manager.cpp
++++ b/nestkernel/kernel_manager.cpp
+@@ -42,20 +42,20 @@ Dictionary
+ KernelManager::get_build_info_()
+ {
+   // Exit codes
+-  constexpr unsigned int EXITCODE_UNKNOWN_ERROR = 10;
+-  constexpr unsigned int EXITCODE_USERABORT = 15;
+-  constexpr unsigned int EXITCODE_EXCEPTION = 125;
+-  constexpr unsigned int EXITCODE_SCRIPTERROR = 126;
+-  constexpr unsigned int EXITCODE_FATAL = 127;
++  constexpr long EXITCODE_UNKNOWN_ERROR = 10;
++  constexpr long EXITCODE_USERABORT = 15;
++  constexpr long EXITCODE_EXCEPTION = 125;
++  constexpr long EXITCODE_SCRIPTERROR = 126;
++  constexpr long EXITCODE_FATAL = 127;
+ 
+   // The range 200-215 is reserved for test skipping exitcodes. Any new codes must
+   // also be added to testsuite/do_tests_sh.in.
+-  constexpr unsigned int EXITCODE_SKIPPED = 200;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_MPI = 201;
+-  constexpr unsigned int EXITCODE_SKIPPED_HAVE_MPI = 202;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_THREADING = 203;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_GSL = 204;
+-  constexpr unsigned int EXITCODE_SKIPPED_NO_MUSIC = 205;
++  constexpr long EXITCODE_SKIPPED = 200;
++  constexpr long EXITCODE_SKIPPED_NO_MPI = 201;
++  constexpr long EXITCODE_SKIPPED_HAVE_MPI = 202;
++  constexpr long EXITCODE_SKIPPED_NO_THREADING = 203;
++  constexpr long EXITCODE_SKIPPED_NO_GSL = 204;
++  constexpr long EXITCODE_SKIPPED_NO_MUSIC = 205;
+ 
+   Dictionary build_info;
+ 
+diff --git a/nestkernel/mpi_manager.cpp b/nestkernel/mpi_manager.cpp
+index 92d6c0d..2371780 100644
+--- a/nestkernel/mpi_manager.cpp
++++ b/nestkernel/mpi_manager.cpp
+@@ -1064,6 +1064,18 @@ MPIManager::communicate( std::vector< unsigned long >& send_buffer,
+   recv_buffer.swap( send_buffer );
+ }
+ 
++#ifdef _WIN32
++void
++MPIManager::communicate( std::vector< unsigned long long >& send_buffer,
++  std::vector< unsigned long long >& recv_buffer,
++  std::vector< int >& displacements )
++{
++  displacements.resize( num_processes_, 0 );
++  displacements[ 0 ] = 0;
++  recv_buffer.swap( send_buffer );
++}
++#endif
++
+ void
+ MPIManager::communicate( std::vector< int >& send_buffer,
+   std::vector< int >& recv_buffer,
+diff --git a/nestkernel/mpi_manager.h b/nestkernel/mpi_manager.h
+index 56c752b..cd9d7ec 100644
+--- a/nestkernel/mpi_manager.h
++++ b/nestkernel/mpi_manager.h
+@@ -28,6 +28,10 @@
+ 
+ // C includes:
+ #include <unistd.h>
++#ifdef _WIN32
++// gethostname() lives in Winsock (needs WSAStartup); the computer name is all we want. Declared by hand so that <windows.h> does not enter every NEST file.
++extern "C" __declspec( dllimport ) int __stdcall GetComputerNameA( char*, unsigned long* );
++#endif
+ #ifdef HAVE_MPI
+ #include <mpi.h>
+ #endif
+@@ -143,6 +147,12 @@ public:
+   void communicate( std::vector< unsigned long >& send_buffer,
+     std::vector< unsigned long >& recv_buffer,
+     std::vector< int >& displacements );
++#ifdef _WIN32
++  // size_t is `unsigned long long` here, not `unsigned long`: the non-MPI copy overload for it (SPManager calls it with std::vector< size_t >)
++  void communicate( std::vector< unsigned long long >& send_buffer,
++    std::vector< unsigned long long >& recv_buffer,
++    std::vector< int >& displacements );
++#endif
+ 
+   void
+   communicate( std::vector< int >& send_buffer, std::vector< int >& recv_buffer, std::vector< int >& displacements );
+@@ -612,7 +622,12 @@ MPIManager::get_processor_name()
+ {
+   char name[ 1024 ];
+   name[ 1023 ] = '\0';
++#ifdef _WIN32
++  unsigned long len = 1023;
++  GetComputerNameA( name, &len );
++#else
+   gethostname( name, 1023 );
++#endif
+   return name;
+ }
+ 
+diff --git a/nestkernel/nest_time.cpp b/nestkernel/nest_time.cpp
+index 06a0cd8..81b4d5c 100644
+--- a/nestkernel/nest_time.cpp
++++ b/nestkernel/nest_time.cpp
+@@ -59,7 +59,7 @@ Time::compute_max()
+ 
+   tic_t tics;
+   if ( lmax
+-    < static_cast< long >( static_cast< double >( tmax ) * Range::TICS_PER_STEP_INV ) )  // step size is limiting factor
++    < static_cast< long long >( static_cast< double >( tmax ) * Range::TICS_PER_STEP_INV ) )  // step size is limiting factor
+   {
+     tics = Range::TICS_PER_STEP * ( lmax / Range::INF_MARGIN );
+   }
+diff --git a/nestkernel/random_manager.cpp b/nestkernel/random_manager.cpp
+index d5549e6..cccd6e1 100644
+--- a/nestkernel/random_manager.cpp
++++ b/nestkernel/random_manager.cpp
+@@ -150,7 +150,12 @@ RandomManager::set_status( const Dictionary& d )
+ 
+   if ( rng_seed_updated )
+   {
++#ifdef _WIN32
++    // `long` is 32 bits: a seed in [2^31, 2^32) arrives as a negative long (the engine casts its unsigned seed) and the uint32 cast below restores it
++    if ( rng_seed == 0 )
++#else
+     if ( not( 0 < rng_seed and rng_seed < ( 1L << 32 ) ) )
++#endif
+     {
+       throw BadProperty( "RNG seed must be in (0, 2^32-1)." );
+     }

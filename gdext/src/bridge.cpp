@@ -17,6 +17,11 @@
 #include <climits>
 #include <csignal>
 #include <cstring>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+#else
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <spawn.h>
@@ -243,7 +248,12 @@ struct Job
   std::atomic< bool > done{ false };
   std::atomic< bool > cancelled{ false };
   std::mutex mu;  // guards pid
+#ifdef _WIN32
+  int pid = 0;  // process id while the child runs, 0 once reaped
+  HANDLE proc = nullptr, jobobj = nullptr;  // the child, and the Win32 job object that holds its whole process tree (guarded by mu)
+#else
   pid_t pid = 0;
+#endif
   bool ok = false;
   std::string error, out;
   double ms = 0;
@@ -254,6 +264,59 @@ long g_next = 1;
 std::string g_runner;
 std::vector< std::string > g_dirs;  // extra search directories (e.g. the project's res://bin, globalized)
 
+#ifdef _WIN32
+// Win32: paths are UTF-8 inside this file (Godot hands them over that way) and wide for the system calls.
+std::wstring wide( const std::string& s )
+{
+  if ( s.empty() )
+    return std::wstring();
+  const int n = MultiByteToWideChar( CP_UTF8, 0, s.data(), int( s.size() ), nullptr, 0 );
+  std::wstring w( size_t( n > 0 ? n : 0 ), L'\0' );
+  if ( n > 0 )
+    MultiByteToWideChar( CP_UTF8, 0, s.data(), int( s.size() ), w.data(), n );
+  return w;
+}
+std::string narrow( const std::wstring& w )
+{
+  if ( w.empty() )
+    return std::string();
+  const int n = WideCharToMultiByte( CP_UTF8, 0, w.data(), int( w.size() ), nullptr, 0, nullptr, nullptr );
+  std::string s( size_t( n > 0 ? n : 0 ), '\0' );
+  if ( n > 0 )
+    WideCharToMultiByte( CP_UTF8, 0, w.data(), int( w.size() ), s.data(), n, nullptr, nullptr );
+  return s;
+}
+bool exists( const std::string& p )  // a file that is not a directory (there is no execute bit to test)
+{
+  if ( p.empty() )
+    return false;
+  const DWORD a = GetFileAttributesW( wide( p ).c_str() );
+  return a != INVALID_FILE_ATTRIBUTES && !( a & FILE_ATTRIBUTE_DIRECTORY );
+}
+std::string dirname_of( const std::string& p )
+{
+  const auto i = p.find_last_of( "/\\" );
+  return i == std::string::npos ? std::string( "." ) : ( i == 0 ? std::string( "/" ) : p.substr( 0, i ) );
+}
+std::string module_dir( HMODULE m )
+{
+  std::wstring buf( 32768, L'\0' );
+  const DWORD n = GetModuleFileNameW( m, buf.data(), DWORD( buf.size() ) );
+  if ( n == 0 || n >= buf.size() )
+    return std::string();
+  std::string d = dirname_of( narrow( buf.substr( 0, n ) ) );
+  std::replace( d.begin(), d.end(), '\\', '/' );  // forward slashes, as Godot reports paths
+  return d;
+}
+std::string self_exe_dir() { return module_dir( nullptr ); }
+std::string self_lib_dir()  // the directory of this DLL (the GDExtension), from the address of one of its own functions
+{
+  HMODULE m = nullptr;
+  if ( GetModuleHandleExW( GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast< LPCWSTR >( &headless_set_runner ), &m ) )
+    return module_dir( m );
+  return std::string();
+}
+#else
 bool exists( const std::string& p ) { return !p.empty() && access( p.c_str(), X_OK ) == 0; }
 std::string dirname_of( const std::string& p )
 {
@@ -286,6 +349,7 @@ std::string self_lib_dir()  // the directory of this shared library (the GDExten
   }
   return std::string();
 }
+#endif
 // Resolution order: explicit set_headless_runner path, $SPIKE_RUN, next to the GDExtension library, next to the executable, added search dirs
 // (the project's res://bin), a development tree (./, ../build/...), then PATH. Returns "" if nothing executable was found.
 std::string find_runner( std::string* tried = nullptr )
@@ -313,10 +377,19 @@ std::string find_runner( std::string* tried = nullptr )
   if ( const char* path = std::getenv( "PATH" ) )
   {
     std::stringstream ss( path );
+#ifdef _WIN32
+    for ( std::string d; std::getline( ss, d, ';' ); )
+#else
     for ( std::string d; std::getline( ss, d, ':' ); )
+#endif
       if ( !d.empty() )
         cands.push_back( d + "/spike-run" );
   }
+#ifdef _WIN32
+  for ( auto& c : cands )  // the runner is spike-run.exe here (an explicit path or $SPIKE_RUN may already end in .exe)
+    if ( c.size() < 4 || _stricmp( c.c_str() + c.size() - 4, ".exe" ) != 0 )
+      c += ".exe";
+#endif
   for ( const auto& c : cands )
   {
     if ( tried )
@@ -334,6 +407,34 @@ bool word( const std::string& s )
   return true;
 }
 // mkstemp in $TMPDIR (default /tmp): unique, mode 0600, created exclusively. Returns the open fd (or -1) and the path.
+#ifdef _WIN32
+// GetTempFileNameW in the user's temp dir (%TMP%/%TEMP%): unique, created exclusively; opened for writing here. Returns the fd (or -1) and the UTF-8 path.
+int make_temp( const char* tag, std::string& path )
+{
+  wchar_t dir[ MAX_PATH + 1 ];
+  const DWORD n = GetTempPathW( MAX_PATH, dir );
+  if ( n == 0 || n > MAX_PATH )
+    return -1;
+  wchar_t file[ MAX_PATH + 1 ];
+  const std::wstring prefix = L"sp" + wide( tag ).substr( 0, 1 );
+  if ( GetTempFileNameW( dir, prefix.c_str(), 0, file ) == 0 )
+    return -1;
+  const int fd = _wopen( file, _O_WRONLY | _O_BINARY );
+  if ( fd >= 0 )
+    path = narrow( file );
+  else
+    DeleteFileW( file );
+  return fd;
+}
+void kill_job( Job& j )
+{
+  std::lock_guard< std::mutex > l( j.mu );
+  if ( j.pid > 0 && j.jobobj )
+    TerminateJobObject( j.jobobj, 1 );  // the whole tree: the child and anything it started
+  else if ( j.pid > 0 && j.proc )
+    TerminateProcess( j.proc, 1 );
+}
+#else
 int make_temp( const char* tag, std::string& path )
 {
   const char* t = std::getenv( "TMPDIR" );
@@ -354,6 +455,7 @@ void kill_job( Job& j )
     kill( j.pid, SIGKILL );
   }
 }
+#endif
 struct Cleanup
 {
   ~Cleanup()
@@ -475,6 +577,110 @@ long headless_start( const std::string& task_id, const std::string& circuit_json
   }
   if ( quick )
     args.push_back( "--quick" );
+#ifdef _WIN32
+  // Win32: stdout is an anonymous pipe, stderr the temp file, stdin NUL; only those three handles are inherited (a handle list), so concurrent jobs
+  // never leak pipe ends into each other's children. The child runs in a job object (kill-on-close) so cancel takes the whole tree down, like the
+  // process group on POSIX, and without a console window (this process is the GUI game).
+  int pfd[ 2 ] = { -1, -1 };
+  int pid = 0;
+  HANDLE hproc = nullptr, hjob = nullptr;
+  {
+    auto quote = []( const std::string& a ) {  // CommandLineToArgvW rules
+      if ( !a.empty() && a.find_first_of( " \t\n\v\"" ) == std::string::npos )
+        return a;
+      std::string q = "\"";
+      for ( size_t i = 0;; ++i )
+      {
+        size_t bs = 0;
+        for ( ; i < a.size() && a[ i ] == '\\'; ++i )
+          ++bs;
+        if ( i == a.size() )
+        {
+          q.append( bs * 2, '\\' );
+          break;
+        }
+        if ( a[ i ] == '"' )
+          q.append( bs * 2 + 1, '\\' ).push_back( '"' );
+        else
+          q.append( bs, '\\' ).push_back( a[ i ] );
+      }
+      return q + "\"";
+    };
+    std::string cmd;
+    for ( const auto& a : args )
+      cmd += ( cmd.empty() ? "" : " " ) + quote( a );
+    std::wstring wcmd = wide( cmd );
+    wcmd.push_back( L'\0' );
+    SECURITY_ATTRIBUTES sa{ sizeof sa, nullptr, TRUE };
+    HANDLE rd = nullptr, wr = nullptr, he = nullptr, nul = INVALID_HANDLE_VALUE;
+    bool ok = CreatePipe( &rd, &wr, &sa, 0 ) != 0;
+    if ( ok )
+      SetHandleInformation( rd, HANDLE_FLAG_INHERIT, 0 );
+    ok = ok && DuplicateHandle( GetCurrentProcess(), reinterpret_cast< HANDLE >( _get_osfhandle( efd ) ), GetCurrentProcess(), &he, 0, TRUE, DUPLICATE_SAME_ACCESS );
+    nul = CreateFileW( L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING, 0, nullptr );
+    ok = ok && nul != INVALID_HANDLE_VALUE;
+    DWORD lerr = 0;
+    PROCESS_INFORMATION pi{};
+    if ( ok )
+    {
+      SIZE_T asz = 0;
+      InitializeProcThreadAttributeList( nullptr, 1, 0, &asz );
+      std::vector< char > ab( asz );
+      auto* al = reinterpret_cast< LPPROC_THREAD_ATTRIBUTE_LIST >( ab.data() );
+      HANDLE hl[ 3 ] = { nul, wr, he };
+      STARTUPINFOEXW si{};
+      si.StartupInfo.cb = sizeof si;
+      si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+      si.StartupInfo.hStdInput = nul;
+      si.StartupInfo.hStdOutput = wr;
+      si.StartupInfo.hStdError = he;
+      si.lpAttributeList = al;
+      ok = InitializeProcThreadAttributeList( al, 1, 0, &asz ) && UpdateProcThreadAttribute( al, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, hl, sizeof hl, nullptr, nullptr )
+        && CreateProcessW( wide( runner ).c_str(), wcmd.data(), nullptr, nullptr, TRUE, EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr,
+             &si.StartupInfo, &pi );
+      if ( !ok )
+        lerr = GetLastError();
+      DeleteProcThreadAttributeList( al );
+    }
+    else
+      lerr = GetLastError();
+    if ( wr )
+      CloseHandle( wr );
+    if ( he )
+      CloseHandle( he );
+    if ( nul != INVALID_HANDLE_VALUE )
+      CloseHandle( nul );
+    close( efd );
+    if ( ok )
+    {
+      hjob = CreateJobObjectW( nullptr, nullptr );
+      if ( hjob )
+      {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION li{};
+        li.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if ( !SetInformationJobObject( hjob, JobObjectExtendedLimitInformation, &li, sizeof li ) || !AssignProcessToJobObject( hjob, pi.hProcess ) )
+        {
+          CloseHandle( hjob );  // cancel then falls back to TerminateProcess on the child alone
+          hjob = nullptr;
+        }
+      }
+      ResumeThread( pi.hThread );
+      CloseHandle( pi.hThread );
+      hproc = pi.hProcess;
+      pid = int( pi.dwProcessId );
+      pfd[ 0 ] = _open_osfhandle( reinterpret_cast< intptr_t >( rd ), _O_RDONLY | _O_BINARY );
+    }
+    else
+    {
+      if ( rd )
+        CloseHandle( rd );
+      unlink( cfile.c_str() );
+      unlink( efile.c_str() );
+      err = "cannot start " + runner + ": Windows error " + std::to_string( lerr );
+      return 0;
+    }
+  }
+#else
   int pfd[ 2 ];
   if ( pipe( pfd ) != 0 )
   {
@@ -513,9 +719,14 @@ long headless_start( const std::string& task_id, const std::string& circuit_json
     err = "cannot start " + runner + ": " + std::strerror( rc );
     return 0;
   }
+#endif
   auto job = std::make_unique< Job >();
   Job* jp = job.get();
   jp->pid = pid;
+#ifdef _WIN32
+  jp->proc = hproc;
+  jp->jobobj = hjob;
+#endif
   const int rfd = pfd[ 0 ];
   jp->th = std::thread( [ jp, rfd, pid, cfile, efile ] {
     const auto t0 = std::chrono::steady_clock::now();
@@ -527,12 +738,28 @@ long headless_start( const std::string& task_id, const std::string& circuit_json
         out.append( buf, size_t( n ) );
     close( rfd );
     int status = -1;
+#ifdef _WIN32
+    {
+      DWORD code = 1;
+      WaitForSingleObject( jp->proc, INFINITE );
+      GetExitCodeProcess( jp->proc, &code );
+      status = int( code );
+    }
+#else
     while ( waitpid( pid, &status, 0 ) < 0 && errno == EINTR )
     {
     }
+#endif
     {
       std::lock_guard< std::mutex > l( jp->mu );
       jp->pid = 0;  // reaped: a late cancel must not signal a recycled pid
+#ifdef _WIN32
+      CloseHandle( jp->proc );
+      jp->proc = nullptr;
+      if ( jp->jobobj )
+        CloseHandle( jp->jobobj );  // kill-on-close: nothing the child left behind survives
+      jp->jobobj = nullptr;
+#endif
     }
     std::string e;
     {
@@ -544,7 +771,11 @@ long headless_start( const std::string& task_id, const std::string& circuit_json
     unlink( cfile.c_str() );
     unlink( efile.c_str() );
     jp->ms = std::chrono::duration< double, std::milli >( std::chrono::steady_clock::now() - t0 ).count();
+    #ifdef _WIN32
+    jp->ok = !jp->cancelled && status == 0 && !out.empty();
+#else
     jp->ok = !jp->cancelled && WIFEXITED( status ) && WEXITSTATUS( status ) == 0 && !out.empty();
+#endif
     jp->out = out;
     jp->error = jp->ok ? "" : ( jp->cancelled ? "cancelled" : ( e.empty() ? "spike-run failed (status " + std::to_string( status ) + ")" : e ) );
     jp->done = true;

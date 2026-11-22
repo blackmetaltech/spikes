@@ -139,7 +139,7 @@ SPIKE_REQUIRE_NEST=1 pytest python  # fail instead of skipping
 
 `python/examples/motifs.ipynb` walks through building a circuit, running it and counting motifs. The parity tests need the built `spike-run` and `analysis_test` (set `SPIKE_RUN` and `SPIKE_ANALYSIS_TEST`, or let the tests find them); under ctest the whole suite is the `python_pytest` test.
 
-> **Note:** The package version in `python/pyproject.toml` is 0.5.1.
+> **Note:** The package version in `python/pyproject.toml` is 0.5.2.
 
 ## Related pages
 

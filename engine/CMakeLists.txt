@@ -38,6 +38,11 @@ endif()
 target_link_libraries(spike_nest INTERFACE
   ${SPIKE_LD_GROUP_BEGIN} ${NEST_LIBS} ${SPIKE_LD_GROUP_END} ${GSL_LIB} ${GSLCBLAS_LIB} Threads::Threads)
 
+if(WIN32)
+  # MinGW lays out bit-fields like MSVC by default; NEST (built with the same flag) and its headers need the GCC layout (SpikeData is exactly 8 bytes)
+  target_compile_options(spike_nest INTERFACE -mno-ms-bitfields)
+endif()
+
 file(GLOB TASK_SRC CONFIGURE_DEPENDS src/tasks/*.cpp)
 # Self-registering tasks: reference each task's anchor so the static library keeps its object file.
 set(_anchors "")
@@ -87,6 +92,14 @@ target_compile_options(spike_engine PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
 add_executable(spike-run src/spike_run.cpp)
 target_link_libraries(spike-run PRIVATE spike::engine)
+if(WIN32)
+  # scripts/build-windows.sh builds with MinGW (UCRT64): one self-contained exe that needs only Windows system DLLs.
+  target_link_options(spike-run PRIVATE -static -static-libgcc -static-libstdc++)
+  # UTF-8 as the ANSI code page (Windows 10 1903+): argv, getenv and the std::ifstream paths of a user name with accents work as on Linux
+  enable_language(RC)
+  target_sources(spike-run PRIVATE windows/spike-run.rc)
+  target_include_directories(spike-run PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/windows)  # windres finds the manifest there
+endif()
 # spike-run ships next to the extension: find sibling libraries, and carry its own C++ runtime
 set_target_properties(spike-run PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
 if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

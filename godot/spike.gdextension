@@ -8,7 +8,7 @@ linux.x86_64.debug = "res://bin/libspike_gd_debug.so"
 linux.x86_64.release = "res://bin/libspike_gd_release.so"
 macos.release = "res://bin/libspike_gd_release.dylib"
 macos.debug = "res://bin/libspike_gd_release.dylib"
-; Windows x86_64: planned (MinGW cross-build or a Windows CI runner, see README "Windows"); the DLLs are not produced by scripts/ yet.
+; Windows x86_64: built by scripts/build-windows.sh on a Windows runner (MSYS2 UCRT64), see docs/BUILD.md
 windows.x86_64.debug = "res://bin/spike_gd_debug.dll"
 windows.x86_64.release = "res://bin/spike_gd_release.dll"
 

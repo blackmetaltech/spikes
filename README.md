@@ -6,7 +6,7 @@
 
 The front-end is a **Godot 4.7** game drawn as a 19th-century histology plate: India ink and Golgi stain on paper, sienna for excitation, Prussian blue for inhibition. Underneath it, the NEST kernel is linked statically into a C++ engine (no Python at runtime) that runs the circuit and a simplified body in a closed loop, 1 ms at a time.
 
-> **Alpha (0.5.1).** Playable on Linux and macOS (Apple Silicon). Rough in places: see the [changelog](CHANGELOG.md) for known gaps. Tell us what broke or confused you in [issues](https://github.com/blackmetaltech/spikes/issues).
+> **Alpha (0.5.2).** Playable on Linux, macOS (Apple Silicon) and Windows. Rough in places: see the [changelog](CHANGELOG.md) for known gaps. Tell us what broke or confused you in [issues](https://github.com/blackmetaltech/spikes/issues).
 
 ![A lamprey swimming on a half-centre oscillator](docs/readme/lamprey.png)
 
@@ -71,8 +71,9 @@ Grab the zip for your system from [Releases](https://github.com/blackmetaltech/s
 
 - **Linux x86_64** (glibc 2.39 / Ubuntu 24.04 or newer): `spike-linux-x86_64.zip`, run `./Spike.x86_64`.
 - **macOS, Apple Silicon**: `spike-macos-arm64.zip`. The app is not notarized, so macOS blocks the first launch: System Settings, Privacy & Security, Open Anyway; or `xattr -dr com.apple.quarantine Spike.app`.
+- **Windows x86_64** (10 or newer): `spike-windows-x86_64.zip`, run `Spike.exe`. It is unsigned, so SmartScreen warns: More info, Run anyway.
 
-Windows is being ported (NEST has no official Windows build); Intel Macs are not built.
+Intel Macs are not built.
 
 ## Run from source
 
