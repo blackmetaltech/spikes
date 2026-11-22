@@ -125,3 +125,14 @@ The public site, https://ixaxaar.github.io/spikes/, is the static folder `site/`
 - **Bumping a pin.** Edit `NEST_REF` in `scripts/build-nest.sh`, `NESTML_VERSION` in `build-nestml.sh`, `GODOT_CPP_TAG` in `build-gd.sh` or `GODOT_VERSION` in the `Dockerfile`, commit, push, wait for the toolchain workflow (it starts by itself on master), then re-run ci if it failed for the missing image.
 - **First-time setup on GitHub.** Run the toolchain workflow once. The package is created private and linked to the repository, so Actions in this repository can pull it with `GITHUB_TOKEN`; for pull requests from forks, or to pull it elsewhere, set the package to public (Packages > spike-build > Package settings > Change visibility).
 - **Run CI locally.** `scripts/ci-local.sh [checkout-dir]` runs the same build, ctest, pytest, smoke and package steps in the image (`spike-build:<tag>`, taken from a local build, else pulled, else built) and prints `STEP <name> FAILED` for any failure. Use a clean checkout or worktree (for example `git worktree add ../spikes-ci`) for a faithful run.
+
+## Releasing
+
+`.github/workflows/release.yml` builds and publishes the Linux binary.
+
+1. Set the version in `godot/project.godot` (`config/version`), `python/pyproject.toml`, `python/spike/__init__.py` and the CMake project, and add a `## [<version>]` entry to `CHANGELOG.md`.
+2. Wait for `ci` to pass on `master`.
+3. Tag and push: `git tag v<version> && git push origin v<version>`. The workflow refuses a tag that does not match `config/version` or has no changelog entry.
+4. The workflow builds in the toolchain image, runs `scripts/package.sh` (which smoke-tests the zip: every screen, and CHECK through the bundled `spike-run`), and publishes a GitHub Release with `spike-linux-x86_64.zip`, its `.sha256`, and the changelog entry as notes.
+
+The website's download buttons (`site/app.js`) read the latest release and link straight to the zip, so nothing on the site needs editing for a release. Running the workflow by hand (Actions > release > Run workflow) builds and uploads the zip as an artifact without publishing anything.

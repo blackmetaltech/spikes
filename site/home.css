@@ -122,6 +122,8 @@
 .dlcard .det { color: var(--soft); }
 .dlcard .sz { font-family: var(--mono); font-size: .88rem; color: var(--ink); }
 .fine { font-size: .92rem; color: var(--soft); max-width: 60ch; }
+ol.fine.steps { padding-left: 1.3em; margin: .9rem 0 .6rem; }
+ol.fine.steps li { margin: .25rem 0; }
 .code { background: var(--ink); color: #F3EBDC; padding: 1.1rem 1.25rem; overflow-x: auto; border: 1.5px solid var(--ink); box-shadow: 4px 4px 0 var(--sienna); font-size: .9rem; line-height: 1.6; margin: 0 0 1.2rem; }
 .code code { font-size: inherit; }
 @media (max-width: 1000px) { .dl { grid-template-columns: 1fr; } }

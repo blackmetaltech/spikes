@@ -358,7 +358,12 @@
         <span class="det">x86_64 &middot; zip &middot; glibc 2.39 (Ubuntu 24.04 or newer)</span>
         <span class="sz" id="dl-size">Extract, then run <code>Spike.x86_64</code></span>
       </a>
-      <p class="fine">Windows is planned: the missing piece is cross-building NEST. Each release lists its files on GitHub; the game reads and writes only its own folder under <code>~/.local/share</code>.</p>
+      <ol class="fine steps">
+        <li>Download the zip and extract it anywhere.</li>
+        <li>Run <code>./Spike.x86_64</code> from the extracted folder. No installer, no account.</li>
+        <li>Optional: verify it with the <a id="dl-sha" href="https://github.com/ixaxaar/spikes/releases/latest">SHA-256 checksum</a> (<code>sha256sum -c spike-linux-x86_64.zip.sha256</code>).</li>
+      </ol>
+      <p class="fine">Every release is built and smoke-tested by GitHub Actions from the tagged source. Windows is planned: the missing piece is cross-building NEST. Each release lists its files on GitHub; the game reads and writes only its own folder under <code>~/.local/share</code>.</p>
     </div>
     <div>
       <p class="kicker">Run from source</p>

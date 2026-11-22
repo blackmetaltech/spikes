@@ -1,0 +1,82 @@
+name: release
+# Push a tag v<version> (matching config/version in godot/project.godot) and this builds the Linux zip in the toolchain image, smoke-tests the zip
+# (scripts/package.sh does: every screen, CHECK through the bundled spike-run) and publishes a GitHub Release with it. The website's download buttons
+# (site/app.js) read the latest release and link straight to the zip. Run by hand (workflow_dispatch) it only builds and uploads the zip as an artifact.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write    # create the release
+  packages: read     # pull the toolchain image
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: ver
+        run: |
+          v=$(sed -n 's/^config\/version="\(.*\)"/\1/p' godot/project.godot)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then
+            [ "${GITHUB_REF_NAME}" = "v$v" ] || { echo "::error::tag ${GITHUB_REF_NAME} does not match config/version \"$v\" in godot/project.godot"; exit 1; }
+            grep -q "^## \[$v\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no entry for $v"; exit 1; }
+          fi
+
+      - name: Toolchain image
+        run: |
+          tag=$(scripts/toolchain-tag.sh); img="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/spike-build:$tag"
+          echo "SPIKE_IMAGE=$img" >> "$GITHUB_ENV"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull "$img" || { echo "::error::Toolchain image $img not found: run the 'toolchain' workflow first."; exit 1; }
+
+      - name: Build (engine, release extension, spike-run)
+        run: docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" scripts/build-all.sh
+
+      - name: Package (Linux zip + smoke of the exported build)
+        run: docker run --rm -v "$PWD":/src -w /src -e SKIP_BUILD=1 "$SPIKE_IMAGE" scripts/package.sh
+
+      - name: Checksum and notes
+        run: |
+          cd build
+          sha256sum spike-linux-x86_64.zip > spike-linux-x86_64.zip.sha256
+          cat spike-linux-x86_64.zip.sha256
+          v='${{ steps.ver.outputs.version }}'
+          # the changelog entry of this version: from its heading to the next "## [" heading
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on' ../CHANGELOG.md > notes.md
+          {
+            echo
+            echo "## Install (Linux x86_64, glibc 2.39 / Ubuntu 24.04 or newer)"
+            echo
+            echo '1. Download `spike-linux-x86_64.zip` below and extract it anywhere.'
+            echo '2. Run `./Spike.x86_64` from the extracted folder.'
+            echo '3. Optional: check the download with `sha256sum -c spike-linux-x86_64.zip.sha256`.'
+            echo
+            echo "Website and wiki: https://ixaxaar.github.io/spikes/"
+          } >> notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spike-linux-x86_64
+          path: |
+            build/spike-linux-x86_64.zip
+            build/spike-linux-x86_64.zip.sha256
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            build/spike-linux-x86_64.zip build/spike-linux-x86_64.zip.sha256 \
+            --title "Spike ${{ steps.ver.outputs.version }}" --notes-file build/notes.md --verify-tag
