@@ -10,7 +10,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     80
+    ],
+    [
+     114,
+     80
+    ]
+   ]
   },
   {
    "id": "ADF",
@@ -18,7 +28,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     80
+    ],
+    [
+     234,
+     80
+    ]
+   ]
   },
   {
    "id": "ADL",
@@ -26,7 +46,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     80
+    ],
+    [
+     354,
+     80
+    ]
+   ]
   },
   {
    "id": "AFD",
@@ -34,7 +64,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     80
+    ],
+    [
+     474,
+     80
+    ]
+   ]
   },
   {
    "id": "ALM",
@@ -42,7 +82,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     80
+    ],
+    [
+     594,
+     80
+    ]
+   ]
   },
   {
    "id": "ALN",
@@ -50,7 +100,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     80
+    ],
+    [
+     714,
+     80
+    ]
+   ]
   },
   {
    "id": "AQR",
@@ -58,7 +118,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     80
+    ]
+   ]
   },
   {
    "id": "ASE",
@@ -66,7 +132,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     80
+    ],
+    [
+     954,
+     80
+    ]
+   ]
   },
   {
    "id": "ASG",
@@ -74,7 +150,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     80
+    ],
+    [
+     1074,
+     80
+    ]
+   ]
   },
   {
    "id": "ASH",
@@ -82,7 +168,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     80
+    ],
+    [
+     1194,
+     80
+    ]
+   ]
   },
   {
    "id": "ASI",
@@ -90,7 +186,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     80
+    ],
+    [
+     1314,
+     80
+    ]
+   ]
   },
   {
    "id": "ASJ",
@@ -98,7 +204,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     80
+    ],
+    [
+     1434,
+     80
+    ]
+   ]
   },
   {
    "id": "ASK",
@@ -106,7 +222,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     270
+    ],
+    [
+     114,
+     270
+    ]
+   ]
   },
   {
    "id": "AVM",
@@ -114,7 +240,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     270
+    ]
+   ]
   },
   {
    "id": "AWA",
@@ -122,7 +254,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     270
+    ],
+    [
+     354,
+     270
+    ]
+   ]
   },
   {
    "id": "AWB",
@@ -130,7 +272,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     270
+    ],
+    [
+     474,
+     270
+    ]
+   ]
   },
   {
    "id": "AWC",
@@ -138,7 +290,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     270
+    ],
+    [
+     594,
+     270
+    ]
+   ]
   },
   {
    "id": "BAG",
@@ -146,7 +308,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     270
+    ],
+    [
+     714,
+     270
+    ]
+   ]
   },
   {
    "id": "CEPD",
@@ -154,7 +326,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     270
+    ],
+    [
+     834,
+     270
+    ]
+   ]
   },
   {
    "id": "CEPV",
@@ -162,7 +344,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     270
+    ],
+    [
+     954,
+     270
+    ]
+   ]
   },
   {
    "id": "DVA",
@@ -170,7 +362,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     270
+    ]
+   ]
   },
   {
    "id": "FLP",
@@ -178,7 +376,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     270
+    ],
+    [
+     1194,
+     270
+    ]
+   ]
   },
   {
    "id": "IL1",
@@ -186,7 +394,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     270
+    ],
+    [
+     1314,
+     270
+    ]
+   ]
   },
   {
    "id": "IL1D",
@@ -194,7 +412,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     270
+    ],
+    [
+     1434,
+     270
+    ]
+   ]
   },
   {
    "id": "IL1V",
@@ -202,7 +430,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     460
+    ],
+    [
+     114,
+     460
+    ]
+   ]
   },
   {
    "id": "IL2",
@@ -210,7 +448,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     460
+    ],
+    [
+     234,
+     460
+    ]
+   ]
   },
   {
    "id": "IL2D",
@@ -218,7 +466,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     460
+    ],
+    [
+     354,
+     460
+    ]
+   ]
   },
   {
    "id": "IL2V",
@@ -226,7 +484,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     460
+    ],
+    [
+     474,
+     460
+    ]
+   ]
   },
   {
    "id": "OLL",
@@ -234,7 +502,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     460
+    ],
+    [
+     594,
+     460
+    ]
+   ]
   },
   {
    "id": "OLQD",
@@ -242,7 +520,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     460
+    ],
+    [
+     714,
+     460
+    ]
+   ]
   },
   {
    "id": "OLQV",
@@ -250,7 +538,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     460
+    ],
+    [
+     834,
+     460
+    ]
+   ]
   },
   {
    "id": "PDE",
@@ -258,7 +556,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     460
+    ],
+    [
+     954,
+     460
+    ]
+   ]
   },
   {
    "id": "PHA",
@@ -266,7 +574,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     460
+    ],
+    [
+     1074,
+     460
+    ]
+   ]
   },
   {
    "id": "PHB",
@@ -274,7 +592,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     460
+    ],
+    [
+     1194,
+     460
+    ]
+   ]
   },
   {
    "id": "PHC",
@@ -282,7 +610,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     460
+    ],
+    [
+     1314,
+     460
+    ]
+   ]
   },
   {
    "id": "PLM",
@@ -290,7 +628,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     460
+    ],
+    [
+     1434,
+     460
+    ]
+   ]
   },
   {
    "id": "PLN",
@@ -298,7 +646,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     650
+    ],
+    [
+     114,
+     650
+    ]
+   ]
   },
   {
    "id": "PQR",
@@ -306,7 +664,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     650
+    ]
+   ]
   },
   {
    "id": "PVD",
@@ -314,7 +678,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     650
+    ],
+    [
+     354,
+     650
+    ]
+   ]
   },
   {
    "id": "PVM",
@@ -322,7 +696,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     650
+    ]
+   ]
   },
   {
    "id": "SDQ",
@@ -330,7 +710,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     650
+    ],
+    [
+     594,
+     650
+    ]
+   ]
   },
   {
    "id": "URX",
@@ -338,7 +728,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     650
+    ],
+    [
+     714,
+     650
+    ]
+   ]
   },
   {
    "id": "URYD",
@@ -346,7 +746,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     650
+    ],
+    [
+     834,
+     650
+    ]
+   ]
   },
   {
    "id": "URYV",
@@ -354,7 +764,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     650
+    ],
+    [
+     954,
+     650
+    ]
+   ]
   },
   {
    "id": "ADA",
@@ -362,7 +782,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     840
+    ],
+    [
+     114,
+     840
+    ]
+   ]
   },
   {
    "id": "AIA",
@@ -370,7 +800,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     840
+    ],
+    [
+     234,
+     840
+    ]
+   ]
   },
   {
    "id": "AIB",
@@ -378,7 +818,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     840
+    ],
+    [
+     354,
+     840
+    ]
+   ]
   },
   {
    "id": "AIM",
@@ -386,7 +836,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     840
+    ],
+    [
+     474,
+     840
+    ]
+   ]
   },
   {
    "id": "AIN",
@@ -394,7 +854,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     840
+    ],
+    [
+     594,
+     840
+    ]
+   ]
   },
   {
    "id": "AIY",
@@ -402,7 +872,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     840
+    ],
+    [
+     714,
+     840
+    ]
+   ]
   },
   {
    "id": "AIZ",
@@ -410,7 +890,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     840
+    ],
+    [
+     834,
+     840
+    ]
+   ]
   },
   {
    "id": "ALA",
@@ -418,7 +908,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     840
+    ]
+   ]
   },
   {
    "id": "AUA",
@@ -426,7 +922,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     840
+    ],
+    [
+     1074,
+     840
+    ]
+   ]
   },
   {
    "id": "AVA",
@@ -434,7 +940,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     840
+    ],
+    [
+     1194,
+     840
+    ]
+   ]
   },
   {
    "id": "AVB",
@@ -442,7 +958,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     840
+    ],
+    [
+     1314,
+     840
+    ]
+   ]
   },
   {
    "id": "AVD",
@@ -450,7 +976,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     840
+    ],
+    [
+     1434,
+     840
+    ]
+   ]
   },
   {
    "id": "AVE",
@@ -458,7 +994,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     1030
+    ],
+    [
+     114,
+     1030
+    ]
+   ]
   },
   {
    "id": "AVF",
@@ -466,7 +1012,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     1030
+    ],
+    [
+     234,
+     1030
+    ]
+   ]
   },
   {
    "id": "AVG",
@@ -474,7 +1030,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     1030
+    ]
+   ]
   },
   {
    "id": "AVH",
@@ -482,7 +1044,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     1030
+    ],
+    [
+     474,
+     1030
+    ]
+   ]
   },
   {
    "id": "AVJ",
@@ -490,7 +1062,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     1030
+    ],
+    [
+     594,
+     1030
+    ]
+   ]
   },
   {
    "id": "AVK",
@@ -498,7 +1080,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     1030
+    ],
+    [
+     714,
+     1030
+    ]
+   ]
   },
   {
    "id": "AVL",
@@ -506,7 +1098,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     1030
+    ]
+   ]
   },
   {
    "id": "BDU",
@@ -514,7 +1112,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     1030
+    ],
+    [
+     954,
+     1030
+    ]
+   ]
   },
   {
    "id": "DVB",
@@ -522,7 +1130,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     1030
+    ]
+   ]
   },
   {
    "id": "DVC",
@@ -530,7 +1144,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     1030
+    ]
+   ]
   },
   {
    "id": "I",
@@ -538,7 +1158,25 @@
    "n": 4,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     1030
+    ],
+    [
+     1314,
+     1030
+    ],
+    [
+     1280,
+     1052
+    ],
+    [
+     1314,
+     1052
+    ]
+   ]
   },
   {
    "id": "I1",
@@ -546,7 +1184,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     1030
+    ],
+    [
+     1434,
+     1030
+    ]
+   ]
   },
   {
    "id": "I2",
@@ -554,7 +1202,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     1220
+    ],
+    [
+     114,
+     1220
+    ]
+   ]
   },
   {
    "id": "LUA",
@@ -562,7 +1220,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     1220
+    ],
+    [
+     234,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVC",
@@ -570,7 +1238,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     1220
+    ],
+    [
+     354,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVN",
@@ -578,7 +1256,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     1220
+    ],
+    [
+     474,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVP",
@@ -586,7 +1274,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     1220
+    ],
+    [
+     594,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVQ",
@@ -594,7 +1292,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     1220
+    ],
+    [
+     714,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVR",
@@ -602,7 +1310,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVT",
@@ -610,7 +1324,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     1220
+    ]
+   ]
   },
   {
    "id": "PVW",
@@ -618,7 +1338,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     1220
+    ],
+    [
+     1074,
+     1220
+    ]
+   ]
   },
   {
    "id": "RIA",
@@ -626,7 +1356,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     1220
+    ],
+    [
+     1194,
+     1220
+    ]
+   ]
   },
   {
    "id": "RIB",
@@ -634,7 +1374,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     1220
+    ],
+    [
+     1314,
+     1220
+    ]
+   ]
   },
   {
    "id": "RIC",
@@ -642,7 +1392,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     1220
+    ],
+    [
+     1434,
+     1220
+    ]
+   ]
   },
   {
    "id": "RID",
@@ -650,7 +1410,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIF",
@@ -658,7 +1424,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     1410
+    ],
+    [
+     234,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIG",
@@ -666,7 +1442,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     1410
+    ],
+    [
+     354,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIH",
@@ -674,7 +1460,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIM",
@@ -682,7 +1474,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     1410
+    ],
+    [
+     594,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIP",
@@ -690,7 +1492,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     1410
+    ],
+    [
+     714,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIR",
@@ -698,7 +1510,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     1410
+    ]
+   ]
   },
   {
    "id": "RIS",
@@ -706,7 +1524,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     1410
+    ]
+   ]
   },
   {
    "id": "RMF",
@@ -714,7 +1538,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     1410
+    ],
+    [
+     1074,
+     1410
+    ]
+   ]
   },
   {
    "id": "RMG",
@@ -722,7 +1556,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     1410
+    ],
+    [
+     1194,
+     1410
+    ]
+   ]
   },
   {
    "id": "SAAD",
@@ -730,7 +1574,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     1410
+    ],
+    [
+     1314,
+     1410
+    ]
+   ]
   },
   {
    "id": "SAAV",
@@ -738,7 +1592,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     1410
+    ],
+    [
+     1434,
+     1410
+    ]
+   ]
   },
   {
    "id": "URB",
@@ -746,7 +1610,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     1600
+    ],
+    [
+     114,
+     1600
+    ]
+   ]
   },
   {
    "id": "AS",
@@ -754,7 +1628,53 @@
    "n": 11,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     1790
+    ],
+    [
+     114,
+     1790
+    ],
+    [
+     80,
+     1812
+    ],
+    [
+     114,
+     1812
+    ],
+    [
+     80,
+     1834
+    ],
+    [
+     114,
+     1834
+    ],
+    [
+     80,
+     1856
+    ],
+    [
+     114,
+     1856
+    ],
+    [
+     80,
+     1878
+    ],
+    [
+     114,
+     1878
+    ],
+    [
+     80,
+     1900
+    ]
+   ]
   },
   {
    "id": "DA",
@@ -762,7 +1682,45 @@
    "n": 9,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     1790
+    ],
+    [
+     234,
+     1790
+    ],
+    [
+     200,
+     1812
+    ],
+    [
+     234,
+     1812
+    ],
+    [
+     200,
+     1834
+    ],
+    [
+     234,
+     1834
+    ],
+    [
+     200,
+     1856
+    ],
+    [
+     234,
+     1856
+    ],
+    [
+     200,
+     1878
+    ]
+   ]
   },
   {
    "id": "DB",
@@ -770,7 +1728,37 @@
    "n": 7,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     1790
+    ],
+    [
+     354,
+     1790
+    ],
+    [
+     320,
+     1812
+    ],
+    [
+     354,
+     1812
+    ],
+    [
+     320,
+     1834
+    ],
+    [
+     354,
+     1834
+    ],
+    [
+     320,
+     1856
+    ]
+   ]
   },
   {
    "id": "DD",
@@ -778,7 +1766,33 @@
    "n": 6,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     1790
+    ],
+    [
+     474,
+     1790
+    ],
+    [
+     440,
+     1812
+    ],
+    [
+     474,
+     1812
+    ],
+    [
+     440,
+     1834
+    ],
+    [
+     474,
+     1834
+    ]
+   ]
   },
   {
    "id": "HSN",
@@ -786,7 +1800,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     1790
+    ],
+    [
+     594,
+     1790
+    ]
+   ]
   },
   {
    "id": "M",
@@ -794,7 +1818,21 @@
    "n": 3,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     1790
+    ],
+    [
+     714,
+     1790
+    ],
+    [
+     680,
+     1812
+    ]
+   ]
   },
   {
    "id": "M2",
@@ -802,7 +1840,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     1790
+    ],
+    [
+     834,
+     1790
+    ]
+   ]
   },
   {
    "id": "M3",
@@ -810,7 +1858,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     1790
+    ],
+    [
+     954,
+     1790
+    ]
+   ]
   },
   {
    "id": "PDA",
@@ -818,7 +1876,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     1790
+    ]
+   ]
   },
   {
    "id": "PDB",
@@ -826,7 +1890,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     1790
+    ]
+   ]
   },
   {
    "id": "RIV",
@@ -834,7 +1904,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     1790
+    ],
+    [
+     1314,
+     1790
+    ]
+   ]
   },
   {
    "id": "RMD",
@@ -842,7 +1922,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     1790
+    ],
+    [
+     1434,
+     1790
+    ]
+   ]
   },
   {
    "id": "RMDD",
@@ -850,7 +1940,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     1980
+    ],
+    [
+     114,
+     1980
+    ]
+   ]
   },
   {
    "id": "RMDV",
@@ -858,7 +1958,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     1980
+    ],
+    [
+     234,
+     1980
+    ]
+   ]
   },
   {
    "id": "RME",
@@ -866,7 +1976,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     1980
+    ],
+    [
+     354,
+     1980
+    ]
+   ]
   },
   {
    "id": "RMED",
@@ -874,7 +1994,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     1980
+    ]
+   ]
   },
   {
    "id": "RMEV",
@@ -882,7 +2008,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     1980
+    ]
+   ]
   },
   {
    "id": "RMH",
@@ -890,7 +2022,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     1980
+    ],
+    [
+     714,
+     1980
+    ]
+   ]
   },
   {
    "id": "SABD",
@@ -898,7 +2040,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     1980
+    ]
+   ]
   },
   {
    "id": "SABV",
@@ -906,7 +2054,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     1980
+    ],
+    [
+     954,
+     1980
+    ]
+   ]
   },
   {
    "id": "SIAD",
@@ -914,7 +2072,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     1980
+    ],
+    [
+     1074,
+     1980
+    ]
+   ]
   },
   {
    "id": "SIAV",
@@ -922,7 +2090,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     1980
+    ],
+    [
+     1194,
+     1980
+    ]
+   ]
   },
   {
    "id": "SIBD",
@@ -930,7 +2108,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1280,
+     1980
+    ],
+    [
+     1314,
+     1980
+    ]
+   ]
   },
   {
    "id": "SIBV",
@@ -938,7 +2126,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1400,
+     1980
+    ],
+    [
+     1434,
+     1980
+    ]
+   ]
   },
   {
    "id": "SMBD",
@@ -946,7 +2144,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     2170
+    ],
+    [
+     114,
+     2170
+    ]
+   ]
   },
   {
    "id": "SMBV",
@@ -954,7 +2162,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     2170
+    ],
+    [
+     234,
+     2170
+    ]
+   ]
   },
   {
    "id": "SMDD",
@@ -962,7 +2180,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     2170
+    ],
+    [
+     354,
+     2170
+    ]
+   ]
   },
   {
    "id": "SMDV",
@@ -970,7 +2198,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     2170
+    ],
+    [
+     474,
+     2170
+    ]
+   ]
   },
   {
    "id": "URAD",
@@ -978,7 +2216,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     560,
+     2170
+    ],
+    [
+     594,
+     2170
+    ]
+   ]
   },
   {
    "id": "URAV",
@@ -986,7 +2234,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     680,
+     2170
+    ],
+    [
+     714,
+     2170
+    ]
+   ]
   },
   {
    "id": "VA",
@@ -994,7 +2252,57 @@
    "n": 12,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     800,
+     2170
+    ],
+    [
+     834,
+     2170
+    ],
+    [
+     800,
+     2192
+    ],
+    [
+     834,
+     2192
+    ],
+    [
+     800,
+     2214
+    ],
+    [
+     834,
+     2214
+    ],
+    [
+     800,
+     2236
+    ],
+    [
+     834,
+     2236
+    ],
+    [
+     800,
+     2258
+    ],
+    [
+     834,
+     2258
+    ],
+    [
+     800,
+     2280
+    ],
+    [
+     834,
+     2280
+    ]
+   ]
   },
   {
    "id": "VB",
@@ -1002,7 +2310,53 @@
    "n": 11,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     920,
+     2170
+    ],
+    [
+     954,
+     2170
+    ],
+    [
+     920,
+     2192
+    ],
+    [
+     954,
+     2192
+    ],
+    [
+     920,
+     2214
+    ],
+    [
+     954,
+     2214
+    ],
+    [
+     920,
+     2236
+    ],
+    [
+     954,
+     2236
+    ],
+    [
+     920,
+     2258
+    ],
+    [
+     954,
+     2258
+    ],
+    [
+     920,
+     2280
+    ]
+   ]
   },
   {
    "id": "VC",
@@ -1010,7 +2364,33 @@
    "n": 6,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1040,
+     2170
+    ],
+    [
+     1074,
+     2170
+    ],
+    [
+     1040,
+     2192
+    ],
+    [
+     1074,
+     2192
+    ],
+    [
+     1040,
+     2214
+    ],
+    [
+     1074,
+     2214
+    ]
+   ]
   },
   {
    "id": "VD",
@@ -1018,7 +2398,61 @@
    "n": 13,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     1160,
+     2170
+    ],
+    [
+     1194,
+     2170
+    ],
+    [
+     1160,
+     2192
+    ],
+    [
+     1194,
+     2192
+    ],
+    [
+     1160,
+     2214
+    ],
+    [
+     1194,
+     2214
+    ],
+    [
+     1160,
+     2236
+    ],
+    [
+     1194,
+     2236
+    ],
+    [
+     1160,
+     2258
+    ],
+    [
+     1194,
+     2258
+    ],
+    [
+     1160,
+     2280
+    ],
+    [
+     1194,
+     2280
+    ],
+    [
+     1160,
+     2302
+    ]
+   ]
   },
   {
    "id": "CAN",
@@ -1026,7 +2460,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     80,
+     2360
+    ],
+    [
+     114,
+     2360
+    ]
+   ]
   },
   {
    "id": "MC",
@@ -1034,7 +2478,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     200,
+     2360
+    ],
+    [
+     234,
+     2360
+    ]
+   ]
   },
   {
    "id": "MI",
@@ -1042,7 +2496,13 @@
    "n": 1,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     320,
+     2360
+    ]
+   ]
   },
   {
    "id": "NSM",
@@ -1050,7 +2510,17 @@
    "n": 2,
    "params": {},
    "role": "neuron",
-   "locked": true
+   "locked": true,
+   "pos": [
+    [
+     440,
+     2360
+    ],
+    [
+     474,
+     2360
+    ]
+   ]
   }
  ],
  "groups": [
