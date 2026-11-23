@@ -72,3 +72,23 @@ if ( const GroupInfo* g = st.group_of( "I" ); g and g->free_sign and g->sign > 0
 ```
 
 `Engine::locked_digest()` and `circuit_locked_digest( json, digest, error )` give the `LockedDigest` of a loaded / parsed circuit; `Task::given()` carries the digest a locked level was given; `make_task()` rejects a run that differs (docs/CIRCUIT-FORMAT.md "Locked parts and groups"). Tests: `engine/tests/tasks_atlas_test.cpp`.
+
+## Additions in A2 (add-only): graph queries and null models (`spike/analysis.h`, `src/analysis/graph_queries.cpp`)
+Queries on the `Graph` that the motif census uses (cell-level, directed, no self-loops or multi-edges):
+```cpp
+std::vector<int32_t> hops( g, sources, banned );            // BFS hop distance to every node, -1 = unreachable
+std::vector<int32_t> shortest_path( g, sources, targets, banned );   // one shortest path; lowest node index first at every step; empty if none
+std::vector<int32_t> on_shortest_paths( g, sources, targets, banned ); // sorted nodes on any shortest path (minimum over all source/target pairs), ends included
+Degrees degrees( g );  std::vector<int32_t> hubs( g, k );   // in/out degree per node; the k highest total degrees, ties to the lower index
+```
+Banned nodes are never entered and a banned source or target is dropped. `graph_path_json`, `graph_degrees_json` and `motif_null_json` write the results; `SpikeSim` exposes them as `graph_path_json( sources, targets, banned )`, `graph_degrees_json( k )` and `motif_null_json( model, block_of, n_null, seed )` (plus `_edges` forms on an explicit triple list), model 0 / 1 / 2 = the three nulls below.
+
+`motif_zscores( g, NullModel, block_of, n_null, seed, swaps_per_edge )` fills `MotifResult` (plus `model` and `null_counts`, one census per null graph, null k uses `seed + k`) against one of three nulls, each deterministic per seed (SplitMix64):
+
+| `NullModel` | function | what stays fixed |
+| --- | --- | --- |
+| `EdgeCount` | `shuffle_edges` | node count and edge count only; every edge is redrawn uniformly among ordered pairs |
+| `Degree` | `rewire` | every in- and out-degree (Maslov-Sneppen swaps); gives exactly the old `motif_zscores( g, n_null, seed, swaps_per_edge )` |
+| `Blocks` | `rewire_blocks` | every in- and out-degree and the number of edges from each block to each block (`block_of` = cell type per node) |
+
+A motif that is over-represented against `EdgeCount` but not against `Blocks` is explained by the block structure (for example layers), not by the wiring inside it. `EdgeCount` makes no swaps, so `swap_attempts` is 0 and the ensemble is never flagged degenerate; `Blocks` can be degenerate when the block structure leaves no swap possible.
