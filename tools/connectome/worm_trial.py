@@ -38,12 +38,12 @@ def run(c, ms=SIM_MS):
     return sp
 
 
-def trial(params, where, seed=7):
+def trial(params, where, seed=7, ms=SIM_MS):
     """where = "head" or "tail"; seed = circuit seed. The touch trains are drawn from `seed` too."""
     q = dict(params); q["touch"] = where; q["touch_seed"] = seed * 1000 + (1 if where == "head" else 2)
     c = wc.build(q); c["seed"] = seed
     cells = c["meta"]["cells"]; cl = [CLASS_OF[n] for n in cells]
-    sp = run(c)
+    sp = run(c, ms)
     n_of = {}
     for k in cl: n_of[k] = n_of.get(k, 0) + 1
 
@@ -55,6 +55,9 @@ def trial(params, where, seed=7):
     out = {"where": where, "seed": seed, "spikes": len(sp)}
     for tag, cs in (("A", wc.A_CLASSES), ("B", wc.B_CLASSES)):
         out[tag + "_touch"] = rate(cs, TOUCH); out[tag + "_after"] = rate(cs, AFTER); out[tag] = rate(cs, RESP); out[tag + "_base"] = rate(cs, BASE)
+    out["A_late"] = rate(wc.A_CLASSES, (ms - 200.0, float(ms)))   # last 200 ms (meaningful when ms > SIM_MS)
+    la = [t for t, i in sp if t >= TOUCH[0] and cl[i] in wc.A_CLASSES]
+    out["lat_A"] = round(min(la) - TOUCH[0], 1) if la else None   # first A-type spike after touch onset, ms
     out["ints"] = {k: rate((k,), RESP) for k in wc.COMMAND}
     out["ints_base"] = {k: rate((k,), BASE) for k in wc.COMMAND}
     return out
