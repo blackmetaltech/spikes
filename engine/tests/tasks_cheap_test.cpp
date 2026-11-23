@@ -380,7 +380,7 @@ std::string lower( std::string s )
   return s;
 }
 
-/// part: "a" .. "g" = only that file's rows (a CTest entry each, so none exceeds the timeout); "" = all seven.
+/// part: "a" .. "h" = only that file's rows (a CTest entry each, so none exceeds the timeout); "" = all eight.
 void rows( std::vector< Row >& R, const std::string& part )
 {
 #define CHEAP_ROW( TASK, LABEL, ... ) R.push_back( { TASK, LABEL, __VA_ARGS__, "" } )
@@ -429,6 +429,12 @@ void rows( std::vector< Row >& R, const std::string& part )
 #include "cheap_rows_g.inc"
     }
   catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_g.inc threw: " ) + ex.what() ); }
+  if ( part.empty() || part == "h" )
+    try
+    {
+#include "cheap_rows_h.inc"
+    }
+  catch ( const std::exception& ex ) { CHECK_MSG( false, std::string( "cheap_rows_h.inc threw: " ) + ex.what() ); }
 #undef CHEAP_ROW
 #undef CHEAP_ROW_V
 }

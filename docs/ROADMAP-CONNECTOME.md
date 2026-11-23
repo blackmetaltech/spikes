@@ -25,11 +25,13 @@ Until now the player builds a circuit and the game checks it. In the Atlas the w
 ## Chapters
 | Chapter | Levels | Concept | What is scored | Sources (verified when the level lands) |
 |---|---|---|---|---|
-| **Reading wiring** (worm) | `a_path`, `a_motif`, task `a_predict`, case `dx_a_worm` | from adjacency to pathway; motifs against a null model; hubs | find the shortest sensor-to-muscle pathway and confirm it by silencing; pick the null model under which the feed-forward motif is over-represented; bet on which single ablation abolishes reversal, then run it | Cook 2019; Varshney 2011; Milo 2002; Chalfie 1985 |
+| **Reading wiring** (worm) | `a_path`, `a_motif`, `a_predict`, case `dx_a_worm` | from adjacency to pathway; motifs against a null model; hubs | test the path finder's shortest route by keeping it alone (in the model it does not carry the response: a route on paper is not a pathway that works; the level scores the route and tells the run, not "pathway confirmed"); pick the null model under which the feed-forward loop is over-represented (a bet; the engine computes the z-scores); bet on which one interneuron class can be silenced without losing the backward response, then run it; find which class of four is silenced by recording | Cook 2019; Varshney 2011; Milo 2002; Chalfie 1985 |
 | **A ring from real wiring** (fly compass) | `a_signs`, `a_shift`, task `a_compass`, case `dx_a_compass` | connectome-constrained modelling; cell types; the same idea as the Bestiary compass, now with measured wiring | assign signs and gains per cell type so the real EPG, PEN and Delta7 wiring holds one bump; find which cell type shifts it; hold a heading in the dark and turn with the fly | Scheffer 2020; Turner-Evans 2020; Hulse 2021; Seelig and Jayaraman 2015 |
 | **Random or designed?** (mushroom body) | `a_random`, `a_sparse`, task `a_odour` | convergence statistics; sparse coding from real fan-in and feedback inhibition | test whether projection-neuron-to-Kenyon-cell wiring differs from a degree-preserving shuffle; set the inhibitory feedback so the real wiring gives a sparse code; discriminate two similar odours | Caron 2013; Li 2020; Lin 2014 |
 | **Same wiring, different dynamics** | `a_degenerate`, case `dx_a_twins` | degeneracy; what a connectome leaves out | two circuits with identical wiring behave differently: find the recording that tells them apart within the experiment budget | Bargmann and Marder 2013; Prinz 2004 |
 | **Boss: a brain predicts a behaviour** | `boss_atlas_feeding` | whole-brain modelling from wiring and predicted transmitters | on an excerpt of the sugar-to-proboscis pathway, predict which cell types are needed for the motor output, bet, then test by silencing | Shiu 2024; Dorkenwald 2024; Eckstein 2024 |
+
+**Worm chapter, as built.** `a_path` no longer scores "shortest pathway confirmed": in the model every shortest route kept alone leaves the backward motor neurons silent, so it scores the route and tells what the run showed. `a_motif` and `a_predict` are bets, decided by what the engine measures on the given circuit (research/atlas-a.md 4b); `a_motif` is `level_kind` "diagnosis" (302 cells; decided by the commit).
 
 About 12 levels and 3 cases. The compass and mushroom-body chapters replace nothing: the Bestiary levels teach the idea on a hand-built circuit, the Atlas levels meet the measured one.
 
@@ -48,7 +50,7 @@ About 12 levels and 3 cases. The compass and mushroom-body chapters replace noth
 | # | Scope | Exit criteria | Status |
 |---|---|---|---|
 | A1 | Hemibrain extraction script with compass and mushroom-body tables and provenance; scale benchmark; `locked` and `free` in the format, engine and editor; one throwaway level proving the loop | tables reproduce from the script; benchmark numbers in this file; tests for locked wiring; CI green | done (2026-11-23) |
-| A2 | Worm chapter; wiring matrix; null-model bench; prediction bet | 3 levels and 1 case pass the honesty contract; the matrix and bench are in the interaction graph | next |
+| A2 | Worm chapter; wiring matrix; null-model bench; prediction bet | 3 levels and 1 case pass the honesty contract; the matrix and bench are in the interaction graph | engine side built (`a_path`, `a_motif`, `a_predict`, `dx_a_worm`, chapter `a_worm`; research/atlas-a.md 4b), game side next |
 | A3 | Compass chapter; state-space view | real wiring holds a bump with the reference's signs and gains on seeds 101 to 105; a wrong sign assignment fails | planned |
 | A4 | Mushroom-body chapter | the real fan-in statistics are reported with the null model; sparse code scored | planned |
 | A5 | Degeneracy chapter, feeding boss, Atlas map plate, wiki, release 0.6 | full CI; CHANGELOG; release | planned |

@@ -54,3 +54,9 @@ Unchanged from 0.4: mechanism checks via structure, no numbers in verdicts and t
 3. Crab (NESTML STG cell) and fly MB/compass.
 4. Diagnosis scoring on probes; Bestiary map plate.
 5. Release check, CHANGELOG, tag.
+
+## Answer strings of diagnosis cases and prediction bets (0.6)
+A player's answer travels in the variant slot: `task->set_variant( "candidate" )`, `"candidate@N"` (N probes or instrument reads so far), `"candidate@N:W"` (W wrong guesses made before this one, charged to the score) and `"candidate@revealed"` (the player gave up; nothing is scored). An empty string means nothing submitted. `score()` can be read at any time. A diagnosis case (`level_kind` "diagnosis", `DxTask`) judges the candidate against a stored answer; value is 100 minus 15 per charged wrong guess minus 3 per probe beyond the first three, floor 25.
+
+A **prediction bet** is a level whose `Task::Diagnosis` has `bet` true: the answer is committed BEFORE the experiment (the game offers no lesion probes until the player has committed) and the level is judged on what the run measures for the committed candidate, not on a stored answer (`Diagnosis::answer` is the expected one, and a test holds the run to it). `Diagnosis::budget` is the number of free instrument reads (the same formula, with this budget in place of three). A bet carries its commit in the same slot; the registry guard lets a bet (not only a diagnosis case) carry a variant string. Bets of the worm chapter: `a_motif`, `a_predict` (docs/circuits). A case may replace the generic paragraph about one dead connection with `DxSpec::method`.
+

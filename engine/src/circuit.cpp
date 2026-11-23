@@ -573,7 +573,7 @@ void parse_groups( const json& j, CircuitSpec& c )
     const json& g = ( *it )[ i ];
     const std::string path = at( "groups", i );
     require_object( g, path );
-    check_keys( g, { "id", "label", "pops", "sign", "scale", "free", "ranges" }, path );
+    check_keys( g, { "id", "label", "pops", "sign", "scale", "free", "ranges", "off" }, path );
     GroupSpec gs;
     gs.id = get_string( g, "id", path, true );
     if ( gs.id.empty() or not ids.insert( gs.id ).second )
@@ -601,11 +601,17 @@ void parse_groups( const json& j, CircuitSpec& c )
         fail( sub( path, "sign" ), "must be +1 or -1" );
       gs.sign = sg.get< double >() > 0 ? 1 : -1;
     }
+    if ( g.contains( "off" ) )
+    {
+      if ( not g[ "off" ].is_boolean() )
+        fail( sub( path, "off" ), "must be true or false" );
+      gs.off = g[ "off" ].get< bool >();
+    }
     if ( g.contains( "scale" ) )
     {
       const json& sc = g[ "scale" ];
-      if ( not sc.is_number() or not( sc.get< double >() > 0.0 ) or not( sc.get< double >() <= 1e6 ) )
-        fail( sub( path, "scale" ), "must be a positive number" );
+      if ( not sc.is_number() or not( gs.off ? sc.get< double >() >= 0.0 : sc.get< double >() > 0.0 ) or not( sc.get< double >() <= 1e6 ) )
+        fail( sub( path, "scale" ), gs.off ? "must be a number from 0 up" : "must be a positive number" );
       gs.scale = sc.get< double >();
     }
     json ranges = json::object();
@@ -639,8 +645,8 @@ void parse_groups( const json& j, CircuitSpec& c )
           if ( rg == ranges.end() or not rg->is_array() or rg->size() != 2 or not ( *rg )[ 0 ].is_number() or not ( *rg )[ 1 ].is_number() )
             fail( sub( path, "ranges" ), "a free '" + name + "' needs a range [lo, hi]" );
           const double lo = ( *rg )[ 0 ].get< double >(), hi = ( *rg )[ 1 ].get< double >();
-          if ( not( lo > 0.0 and hi >= lo ) )
-            fail( sub( path, "ranges" ), "the range of '" + name + "' must satisfy 0 < lo <= hi" );
+          if ( not( ( gs.off ? lo >= 0.0 : lo > 0.0 ) and hi >= lo ) )
+            fail( sub( path, "ranges" ), gs.off ? "the range of '" + name + "' must satisfy 0 <= lo <= hi" : "the range of '" + name + "' must satisfy 0 < lo <= hi" );
           if ( name == "scale" )
           {
             gs.free_scale = true;

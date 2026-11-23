@@ -45,6 +45,7 @@ struct DxSpec
   std::vector< Task::Diagnosis::Probe > probes;  // optional: the evidence probes (default: derived from the answer, see DxTask::make_probes)
   std::string hint3, hint3_target;               // tier 3: a REGION of the circuit (empty: the connections of the group of tier 2); never a pair of candidates
   Task::Note note;
+  std::string method;                            // add-only (0.6): replaces the generic paragraph about ONE dead connection, for a case whose lesion is not a connection (a silenced cell class)
 };
 
 class DxTask : public Task
@@ -84,8 +85,11 @@ public:
   std::string brief() const override
   {
     std::ostringstream o;
-    o << s_.vignette << "\n\nFindings: " << s_.symptoms
-      << "\n\nThis circuit is a working one with ONE connection dead: every candidate is drawn, but the dead one carries nothing. Run it and "
+    o << s_.vignette << "\n\nFindings: " << s_.symptoms << "\n\n";
+    if ( !s_.method.empty() )
+      o << s_.method << " Candidates:";
+    else
+      o << "This circuit is a working one with ONE connection dead: every candidate is drawn, but the dead one carries nothing. Run it and "
          "watch which groups fire and which do not answer their input: the dead connection leads from an active group into one that fails to "
          "respond to it. To probe, cut a suspected connection in the lesion lab and see whether the symptoms or the activity downstream "
          "change: cutting a connection that is working changes something, while cutting the dead one changes nothing (and neither does "

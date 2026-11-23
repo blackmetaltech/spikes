@@ -159,6 +159,14 @@ public:
   /// `tells` is one plain sentence on what the probe separates. The list is evidence to CHECK, not to display: showing it would show the answer.
   struct Probe { std::string kind, target, tells; };
   std::vector< Probe > probes;
+  /// 0.6 (Atlas), add-only: a PREDICTION BET. true: the answer is committed BEFORE the experiment (the game offers no lesion probes until the player has committed, and the
+  /// commit is sent with set_variant like a diagnosis answer: "candidate@N:W", "@N" instruments read, "@N:W" wrong commits charged), and the level is judged on what the run on
+  /// the given circuit measures for the committed candidate, not on a stored answer (`answer` is the expected one, a test holds the run to it). Without a commit the level's
+  /// control run is scored instead (see the level). false (default) = an ordinary diagnosis case.
+  bool bet = false;
+  /// 0.6 (Atlas), add-only: the experiment budget, the number of instrument reads (scopes opened, probes) a player gets free of charge on this level; 0 = the level declares none
+  /// (a diagnosis case keeps its own rule: the first three probes are free).
+  int budget = 0;
 };
   virtual Diagnosis diagnosis() const { return {}; }
 

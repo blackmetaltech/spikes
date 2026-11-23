@@ -371,6 +371,35 @@ Six draws form a cluster in which AVA, AVB, AVD and PVC are each needed and AVE 
 
 The feed-forward loop is more frequent than in a random graph with the same number of edges and less frequent than in graphs with the same degrees. Milo et al. 2002 report the feed-forward loop as a motif of the worm's wiring; their data set and null model differ from these (their record was read, not their methods), so the difference is noted and not explained.
 
+### The model point of the levels (iteration A2, step 1)
+
+Script `tools/connectome/worm_point.py`, run on GitHub runners on 2026-11-23 (4 shards; run 45223533836). Circuit as in search 2 (every synapse excitatory, weight = synapse count x scale, no electrical coupling, tau_syn_ex 2 ms) and the same head touch (150 Hz Poisson trains to ALML, ALMR and AVM for 400 ms from 500 ms), 1,500 ms per trial. Grid: chemical scale 14.6, 15.5, 16.5, 17.7 pA per synapse; background current 110, 130, 150, 170, 190 pA; synapse floor 3 and 5 (40 points). Circuit seeds 1, 2, 3, 101 to 105 (8 seeds); the touch trains differ with the seed. A point must satisfy, on all eight seeds: intact, backward (A-type) motor neurons at least 5 Hz and forward (B-type) below 1 Hz over [500, 1200) ms and both below 1 Hz before the touch ([100, 500)) and at the end ([1000, 1500)); each of AVA, AVB, AVD and PVC silenced, A-type below 1 Hz; AVE silenced, A-type at least 5 Hz.
+
+| Outcome | Points |
+|---|---|
+| the intact criterion fails on some seed (stopped at the first failing seed: seed 1 for 31 points, seed 3 for 3) | 34 |
+| intact holds on all eight seeds, but silencing AVB does not abolish the response | 4 |
+| holds on all eight seeds | 2: (15.5, 170, floor 3) and (16.5, 150, floor 3) |
+
+No point with the synapse floor 5 holds. The point **chemical scale 15.5 pA per synapse, I_e 170 pA, tau_syn_ex 2 ms, synapse floor 3** is the model point of the levels. Rates in Hz per cell, one value per seed (1, 2, 3, 101, 102, 103, 104, 105):
+
+| Condition | A-type | B-type |
+|---|---|---|
+| intact | 18.03, 19.86, 18.84, 18.23, 18.78, 19.39, 18.16, 18.64 | 0 on all |
+| baseline and after the touch | A and B at 0 on all | |
+| AVA silenced | 0 on all | 0 on all |
+| AVB silenced | 0, 0, 0, 0, 0.07, 0, 0, 0 | 0 on all |
+| AVD silenced | 0.07, 0.27, 0, 0.14, 0.14, 0, 0.07, 0.14 | 0 on all |
+| PVC silenced | 0 on all | 0 on all |
+| AVE silenced | 15.1, 17.28, 15.65, 15.78, 16.12, 16.05, 15.58, 16.53 | 0 on all |
+| route AVB alone (the other four silenced) | 0 on all | 0 on all |
+| route AVD alone | 0 on all | 0 on all |
+| route AVE alone | 0 on all | 0 on all |
+
+With the synapse floor 3 the shortest class-level routes from the head touch cells (ALM, AVM) to the backward motor neurons (DA, VA) are two hops long and pass through AVB, AVD or AVE (AVM to AVB, ALM to AVD and AVE; PVC is three hops away). **Each route kept alone gives silent motor neurons on all eight seeds**: in this model no shortest route carries the response, and AVA, which is on none of them, is needed. The other point that holds, (16.5, 150, 3), gives the same ordering with smaller margins (intact A-type 12.4 to 22.7 Hz, AVE silenced 9.7 to 20.0 Hz).
+
+**What the levels claim.** `a_path` scores the route, not the response (the response of a route kept alone is the lesson), `a_predict` asks which class can be silenced (AVE, measured on the eight seeds), and `dx_a_worm` asks which of AVA, AVB, AVD, PVC is silenced. All of it is a statement about this model (every synapse excitatory, no electrical coupling), not about the animal; the notebook entries cite Chalfie et al. 1985 only for what its record says: two pathways for anterior touch (AVD and AVB), one for posterior touch (PVC), found with wiring reconstructions and laser killing of cells.
+
 ## 5. Sources
 
 Only the eleven verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.

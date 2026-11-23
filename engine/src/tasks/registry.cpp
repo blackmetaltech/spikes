@@ -123,8 +123,8 @@ public:
   void set_variant( const std::string& v ) override
   {
     Task::set_variant( v );
-    // a challenge variant must be one the level lists (a diagnosis case carries the submitted answer in this slot and judges it itself)
-    bad_variant_ = !v.empty() && t_->level_kind() != "diagnosis" && !t_->variants().count( v );
+    // a challenge variant must be one the level lists (a diagnosis case, and a prediction bet (Diagnosis::bet), carry the submitted answer in this slot and judge it themselves)
+    bad_variant_ = !v.empty() && t_->level_kind() != "diagnosis" && !t_->diagnosis().bet && !t_->variants().count( v );
     t_->set_variant( v );
   }
   std::vector< Hint > hints() const override { return t_->hints(); }
