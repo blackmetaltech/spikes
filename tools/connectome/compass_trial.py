@@ -12,7 +12,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 import compass_circuit as cc
-BIN = os.path.join(ROOT, "build", "engine", "spike-run")
+# the runner: $SPIKE_RUN, else the engine tree's build, else the game's copy (scripts/build-all.sh without --tests makes only that one)
+BIN = os.environ.get("SPIKE_RUN") or next((b for b in (os.path.join(ROOT, "build", "engine", "spike-run"), os.path.join(ROOT, "godot", "bin", "spike-run")) if os.path.exists(b)), os.path.join(ROOT, "build", "engine", "spike-run"))
 CUE_MS, BASE = 500.0, 40.0
 DATA = cc.load()
 EPG = [i for i, n in enumerate(DATA["neurons"]) if n["type"] == "EPG"]

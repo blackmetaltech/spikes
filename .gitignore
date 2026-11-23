@@ -29,3 +29,6 @@ third_party/nest-build-py/
 /site/wiki/img/
 /site/sitemap.xml
 godot/build_id.txt
+
+# results of tools run by the research workflow
+/out/

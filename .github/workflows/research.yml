@@ -1,0 +1,72 @@
+name: research
+# Heavy one-off computations (parameter searches, benchmarks, multi-seed sweeps) run here and not on a desktop. Manual only.
+# Each shard builds NEST's models and spike-run in the toolchain image (godot/bin/spike-run; tools find it through $SPIKE_RUN), runs one command at the
+# repository root, and uploads whatever the command wrote to out/. SHARD is the 0-based index of the shard and SHARDS their number, so a command can
+# give each shard its own seed:   python3 tools/connectome/compass_search.py 500 $((100 + SHARD)) pairs=1
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Command run at the repository root inside the toolchain image; write results to out/'
+        required: true
+      shards:
+        description: 'Number of parallel jobs (1 to 20)'
+        default: '1'
+      name:
+        description: 'Name of the uploaded artifact'
+        default: 'research'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      shards: ${{ steps.s.outputs.shards }}
+    steps:
+      - id: s
+        env:
+          N: ${{ inputs.shards }}
+        run: |
+          case "$N" in ''|*[!0-9]*) echo "::error::shards must be a number"; exit 1 ;; esac
+          [ "$N" -ge 1 ] && [ "$N" -le 20 ] || { echo "::error::shards must be 1 to 20"; exit 1; }
+          echo "shards=[$(seq -s, 0 $((N - 1)))]" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain image
+        run: |
+          tag=$(scripts/toolchain-tag.sh); img="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/spike-build:$tag"
+          echo "SPIKE_IMAGE=$img" >> "$GITHUB_ENV"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull "$img"
+
+      - name: Build (models, spike-run)
+        run: docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" scripts/build-all.sh
+
+      - name: Run
+        env:
+          CMD: ${{ inputs.command }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD":/src -w /src -e CMD -e SHARD -e SHARDS -e SPIKE_RUN=/src/godot/bin/spike-run "$SPIKE_IMAGE" bash -c "$CMD"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.name }}-${{ matrix.shard }}
+          path: out/
+          if-no-files-found: warn
