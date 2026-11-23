@@ -134,6 +134,15 @@ const DEV_IDS := ["atlas_probe"]
 static func atlas_dev() -> bool: return OS.get_environment("SP_ATLAS") != "" and mock_script() != null
 static func is_dev(id: String) -> bool: return DEV_IDS.has(task_of(id))
 static func ext_ok() -> bool: return ClassDB.class_exists("SpikeTask")
+## The engine's task ids whose circuits this build holds: all of them in a development build; a release export leaves the development-only levels out
+## (export_presets.cfg and the package scripts do not pack their circuit files), so the smoke run of an exported build does not ask for them.
+static func shipped_ids() -> Array:
+	var out := []
+	if not ext_ok(): return out
+	for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+		if DEV_IDS.has(str(id)) and mock_script() == null: continue
+		out.append(str(id))
+	return out
 ## The circuit a locked-wiring level gives the player (path relative to circuits/, Task::given), "" for every other level.
 static func given_path(id: String) -> String:
 	if not ext_ok(): return ""
