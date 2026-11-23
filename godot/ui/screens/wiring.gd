@@ -353,14 +353,14 @@ static func null_run(c: Dictionary, level: int, model: int, sign_idx: int, n_nul
 ## Words for one motif class of a null-bench result. Never a bare number: the null model is named first.
 static func null_text(m: Dictionary, model: int, n_null: int, degenerate: bool) -> String:
 	var mn: String = MOTIFS[clampi(int(m.get("index", 0)), 0, 12)]
-	var head := "Null model: %s (%d graphs). %s%s: real count %d." % [NULLS[clampi(model, 0, 2)][1], n_null, mn.substr(0, 1).to_upper(), mn.substr(1), int(m.get("count", 0))]
+	var head := "Null model: %s (%d graphs). %s%s: real count %d" % [NULLS[clampi(model, 0, 2)][1], n_null, mn.substr(0, 1).to_upper(), mn.substr(1), int(m.get("count", 0))]
 	var zv: Variant = m.get("z", null)
 	if not bool(m.get("z_defined", zv != null)) or zv == null:
-		return head + " The null never varies for this class, so z is not defined."
-	var mean := "null mean %.1f, sd %.1f, z %+.1f." % [float(m.get("null_mean", 0.0)), float(m.get("null_sd", 0.0)), float(zv)]
+		return head + ". The null never varies for this class, so z is not defined."
+	var mean := ", null mean %.1f, sd %.1f, z %+.1f." % [float(m.get("null_mean", 0.0)), float(m.get("null_sd", 0.0)), float(zv)]
 	var verdict := "about as often as chance"
 	if bool(m.get("significant", false)): verdict = "more often than chance" if float(zv) > 0.0 else "less often than chance"
-	var s := head + " " + mean + " This class occurs " + verdict + " under this null."
+	var s := head + mean + " This class occurs " + verdict + " under this null."
 	if degenerate: s += " The null is too weak to rely on (under a fifth of the swaps were possible)."
 	return s
 
@@ -386,22 +386,20 @@ class View extends Control:
 	var on_pick := Callable()       # (population id)
 	var hover := Vector2i(-1, -1)
 	var _ml := 0.0
-	var _foot := 40.0
 	const LEGEND := "Rows send, columns receive. Sienna excites (solid), blue inhibits (split or barred). Darker is stronger. Yellow outline: on a shortest path."
 	var _mt := 0.0
 	var _o := Vector2.ZERO
 	var _s := 1.0
 	func _ready() -> void:
-		clip_contents = true; custom_minimum_size = Vector2(300, 300); mouse_filter = Control.MOUSE_FILTER_STOP
+		clip_contents = true; custom_minimum_size = Vector2(240, 200); mouse_filter = Control.MOUSE_FILTER_STOP
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func set_model(w_: Wiring, lay_: Dictionary, rend_: Dictionary) -> void:
 		wiring = w_; lay = lay_; rend = rend_; tex = ImageTexture.create_from_image(rend_["img"]); hover = Vector2i(-1, -1); queue_redraw()
 	func _geometry() -> void:
-		var fz := Kit.fs(16 if size.x > 600.0 else 14)
-		_ml = minf(size.x * 0.28, float(fz) * (6.5 if size.x > 600.0 else 4.2)); _mt = minf(size.y * 0.28, float(fz) * (6.0 if size.x > 600.0 else 4.0))
-		_foot = Fonts.regular.get_multiline_string_size(LEGEND, HORIZONTAL_ALIGNMENT_LEFT, size.x - 24.0, fz).y + 10.0
-		_s = maxf(minf(size.x - _ml - 18.0, size.y - _mt - _foot - 12.0), 40.0)
+		var fz := Kit.fs(16 if size.y > 450.0 else 14)
+		_ml = minf(size.x * 0.28, float(fz) * (6.5 if size.y > 450.0 else 4.2)); _mt = minf(size.y * 0.28, float(fz) * (6.0 if size.y > 450.0 else 4.0))
+		_s = maxf(minf(size.x - _ml - 18.0, size.y - _mt - 18.0), 40.0)
 		_o = Vector2(_ml + 8.0, _mt + 8.0)
 	func _cell_at(p: Vector2) -> Vector2i:
 		var m: int = int(lay.get("n", 0))
@@ -433,11 +431,14 @@ class View extends Control:
 		var sp := _span_at(idx)
 		if not sp.is_empty() and on_pick.is_valid(): on_pick.call(str(sp["id"]))
 	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED and size.y > 60.0:   # as wide as it is tall: the matrix is square, the reading column takes the rest
+			var want := size.y + (minf(size.y * 0.28, float(Kit.fs(16)) * 4.2) if size.y < 450.0 else minf(size.y * 0.28, float(Kit.fs(16)) * 6.5)) + 10.0
+			if absf(custom_minimum_size.x - want) > 2.0: custom_minimum_size.x = want
 		if what == NOTIFICATION_MOUSE_EXIT and hover.x >= 0:
 			hover = Vector2i(-1, -1); queue_redraw()
 			if on_caption.is_valid(): on_caption.call("")
 	func _draw() -> void:
-		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular
+		var fz := Kit.fs(16 if size.y > 450.0 else 14); var f := Fonts.regular
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
 		if message != "" or wiring == null or lay.is_empty() or tex == null:
 			draw_multiline_string(f, Vector2(16, 40), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, Kit.fs(18), -1, Kit.TEXT_SOFT); return
@@ -488,7 +489,6 @@ class View extends Control:
 				draw_set_transform(Vector2(_o.x + mid + float(fz) * 0.35, _o.y - 6.0), -PI / 2.0, Vector2.ONE)
 				draw_string(f, Vector2.ZERO, nm, HORIZONTAL_ALIGNMENT_LEFT, _o.y - 10.0, fz, Kit.TEXT)
 				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE); last_x = _o.x + mid + float(fz) * 0.5
-		draw_multiline_string(f, Vector2(12, _o.y + _s + float(fz) + 6.0), LEGEND, HORIZONTAL_ALIGNMENT_LEFT, size.x - 24.0, fz, -1, Kit.TEXT_SOFT)
 
 ## The null distribution of one motif class as a histogram strip, the real count marked on it, and the verdict in words.
 class Strip extends Control:
@@ -503,13 +503,13 @@ class Strip extends Control:
 	func _draw() -> void:
 		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
-		Kit.draw_fig(self, Vector2(18, 28), 2, "Null distribution: " + str(Wiring.NULLS[model][1]), size.x - 44, "", 17)
+		Kit.draw_fig(self, Vector2(18, 28), "1b", "Null distribution: " + str(Wiring.NULLS[model][1]), size.x - 44, "", 17)
 		if message != "" or m.is_empty():
 			draw_multiline_string(f, Vector2(16, 58), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, -1, Kit.TEXT_SOFT); return
 		var count := int(m.get("count", 0))
 		var txt := Wiring.null_text(m, model, n_null, degenerate)
 		var th := f.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32.0, fz).y
-		var gx := 18.0; var gw := size.x - 40.0; var gy := 42.0; var gh := maxf(size.y - gy - th - 28.0, 30.0)
+		var gx := 18.0; var gw := size.x - 40.0; var gy := 66.0; var gh := maxf(size.y - gy - th - 28.0, 30.0)
 		draw_line(Vector2(gx, gy + gh), Vector2(gx + gw, gy + gh), Kit.TEXT, 1.5)
 		if counts.is_empty():
 			draw_string(f, Vector2(gx, gy + gh * 0.5), "No histogram for one sign of edges at the cell level.", HORIZONTAL_ALIGNMENT_LEFT, gw, fz, Kit.TEXT_SOFT)
@@ -525,7 +525,7 @@ class Strip extends Control:
 			if mx >= gx and mx <= gx + gw: Gfx.dashed(self, PackedVector2Array([Vector2(mx, gy), Vector2(mx, gy + gh)]), Kit.TEXT_SOFT, 1.5)
 			var rx := gx + gw * (float(count) - lo + 0.5) / span
 			draw_line(Vector2(rx, gy - 4.0), Vector2(rx, gy + gh), Kit.exc(), 3.0)
-			draw_string(fb, Vector2(clampf(rx - 30.0, gx, gx + gw - 60.0), gy + float(fz) * 0.2), "real", HORIZONTAL_ALIGNMENT_CENTER, 60.0, fz, Kit.EXC_INK)
+			draw_string(fb, Vector2(clampf(rx - 30.0, gx, gx + gw - 60.0), gy - 10.0), "real", HORIZONTAL_ALIGNMENT_CENTER, 60.0, fz, Kit.EXC_INK)
 			draw_string(f, Vector2(gx, gy + gh + float(fz) + 2.0), str(int(h["lo"])), HORIZONTAL_ALIGNMENT_LEFT, 80.0, fz - 2, Kit.TEXT_SOFT)
 			draw_string(f, Vector2(gx + gw - 80.0, gy + gh + float(fz) + 2.0), str(int(h["hi"])), HORIZONTAL_ALIGNMENT_RIGHT, 80.0, fz - 2, Kit.TEXT_SOFT)
 		draw_multiline_string(f, Vector2(16, size.y - th - 4.0 + float(fz)), txt, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32.0, fz, -1, Kit.TEXT)
