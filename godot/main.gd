@@ -83,8 +83,6 @@ func _analysis_demo() -> void:
 	await get_tree().create_timer(3.5).timeout
 	var lab := screen as LabScreen
 	if lab != null: open_analysis(lab.circuit, lab.tele, lab.task_id)
-	if OS.get_environment("SP_ATAB") != "" and screen != null and "tab" in screen:   # SP_ATAB=<n>: the Analysis tab to show (7 = wiring), for screenshots
-		await _frames(4); screen.set("tab", int(OS.get_environment("SP_ATAB"))); screen.call("_tab_changed")
 
 ## SP_SIM_UNTIL=<model ms>: wait until the lab's run has reached that model time (deterministic screenshots on a slow software renderer).
 func _shot_when_ready() -> void:
