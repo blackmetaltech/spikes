@@ -7,6 +7,7 @@
 // seed 1 ), for the induced three-cell class 030T. The correct option is the one whose z is significant and positive (analysis::motif_is_significant); tasks_atlas_worm_test asserts that
 // exactly one option is, and that it equals Diagnosis::answer ("edges", expected from research/atlas-a.md 4b).
 //
+// With no commit the run is a control run (it passes, capped at 60, and tells nothing about the loops), as a_predict.
 // level_kind "diagnosis": the level is decided by the committed answer and not by a world (the 302-cell circuit is no bench to build on), exactly as a diagnosis case; it hangs off
 // a_path. The commit travels in the variant slot: "edges", "edges@N", "edges@N:W", "edges@revealed" (dx_common.h). Diagnosis::bet is true, Diagnosis::budget the free instrument reads.
 #include "atlas_worm.h"
@@ -197,7 +198,15 @@ public:
     if ( !wiring_.ok() ) s.verdict = "Not wired: " + wiring_.message() + ".";
     else if ( !mech_.empty() ) s.verdict = mech_;
     else if ( !have_ ) s.verdict = "The engine has not counted the loops yet. Run the circuit.";
-    else if ( !commit_.has ) s.verdict = "No prediction committed yet. Commit to a null model, then read what the engine found.";
+    else if ( !commit_.has )
+    {
+      // no commit: the bench ran and told nothing; a control run, so that the level's reference passes the harness that gives no answer (scripts/smoke.sh); capped, and silent about the result
+      int n_sig = 0;
+      for ( int m = 0; m < 3; ++m ) n_sig += bench_.significant[ m ] ? 1 : 0;
+      s.passed = n_sig == 1;
+      s.value = s.passed ? 60.0 : 0.0;
+      s.verdict = "No prediction was committed before the engine ran the three shuffles, so this counts as a control run and says nothing about the loops. Commit to a null model first to earn the full score.";
+    }
     else if ( commit_.revealed ) s.verdict = std::string( "The answer was revealed: " ) + kAnswer + ". Nothing is scored for a revealed bet.";
     else if ( !known ) s.verdict = "'" + commit_.cand + "' is not one of the three null models.";
     else

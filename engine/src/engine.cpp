@@ -1774,7 +1774,7 @@ const Structure& Engine::Impl::structure_of()
     }
     std::map< size_t, int > indeg;
     double sum = 0;
-    int n = 0;
+    int n = 0, n_stored = 0;
     int n_self = 0, n_ring = 0;
     double self_w = 0, ring_w = -1e30;
     const bool same_pop = ps.pre_pop >= 0 && ps.pre_pop == ps.post_pop;
@@ -1784,6 +1784,7 @@ const Structure& Engine::Impl::structure_of()
       {
         const Dictionary cs = nest::get_connection_status( std::deque< nest::ConnectionID >{ c } ).at( 0 );
         const double w = ( m.projs[ k ].base == "diffusion_connection" or not cs.known( "weight" ) ) ? cs.get< double >( "drift_factor" ) : cs.get< double >( "weight" );  // 0.6: a diffusion_connection has no weight: its sign is the drift's
+        ++n_stored;
         if ( w == 0.0 )
           continue;  // a zero-weight connection is not a connection (connections() drops it too)
         pi.w_abs_max = std::max( pi.w_abs_max, std::fabs( w ) );
@@ -1810,6 +1811,7 @@ const Structure& Engine::Impl::structure_of()
     {
     }
     pi.n_edges = n;
+    pi.n_stored_edges = n_stored;
     pi.n_self_edges = n_self;
     pi.n_ring_edges = n_ring;
     pi.self_w_max = self_w;
