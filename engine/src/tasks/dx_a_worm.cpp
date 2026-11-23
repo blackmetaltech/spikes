@@ -2,9 +2,9 @@
 // circuits/tools/gen_atlas_worm.py) is the touch circuit of the worm chapter with every cell and every connection, but the OUTPUTS of one interneuron class (AVA, AVB, AVD or PVC) carry
 // nothing. The player finds which by recording. The world is the ordinary world of a_path (atlas_worm.h): head touch, the two motor groups.
 //
-// THE SIGNATURE (tools/connectome/worm_dx.py, research/atlas-a.md 4b): in all four lesions the touch cells fire and the backward motor neurons stay silent. What differs is which interneuron
-// classes still fire after the touch. With the answer AVD silenced, AVD itself fires strongly (a lesion of AVA, AVB or PVC leaves it nearly silent): one read of the AVD class tells the answer
-// from the other three, and the classes AVA, AVB and PVC fire too, so a read of the backward motor neurons shows the break is after the interneurons. The case is fictional.
+// THE SIGNATURE (tasks_atlas_worm_test prints it, research/atlas-a.md 4b): in all four lesions the touch cells fire. After the touch AVB fires clearly (20 Hz and more) when AVA, AVB or AVD is the
+// silenced class, and stays nearly silent (6 Hz and less) only when PVC is: AVB depends on PVC for its drive in this model. So one read of the AVB class tells the answer (PVC) from the other
+// three, on every circuit seed tried. In the answer's patient the backward and forward motor neurons are silent and AVA and AVD are silent too. The case is fictional.
 #include "dx_common.h"
 
 namespace spike::tasks
@@ -28,21 +28,21 @@ DxSpec spec()
              "and the classes after it lose what it carried. You can also silence a class yourself in the lesion lab. Then name the silenced class. The case is scored on what it took: "
              "each wrong guess and each probe beyond the first few lowers the score.";
   s.candidates = { "pop:AVA", "pop:AVB", "pop:AVD", "pop:PVC" };
-  s.answer = "pop:AVD";
+  s.answer = "pop:PVC";
   s.labels = { { "pop:AVA", "the interneuron class AVA carries nothing" }, { "pop:AVB", "the interneuron class AVB carries nothing" },
     { "pop:AVD", "the interneuron class AVD carries nothing" }, { "pop:PVC", "the interneuron class PVC carries nothing" } };
   s.explain = {
-    { "pop:AVA", "With AVA silent, AVD would stay nearly silent after a head touch in this model. Here AVD fires strongly, so the fault is not in AVA." },
-    { "pop:AVB", "With AVB silent, AVA and AVD would stay nearly silent after a head touch in this model. Here they fire strongly, so the fault is not in AVB." },
-    { "pop:AVD", "AVD fires strongly after the head touch and the backward motor neurons stay silent: in this model the class that fails is the one that fires and passes nothing on." },
-    { "pop:PVC", "With PVC silent, AVA, AVB and AVD would all stay nearly silent after a head touch in this model. Here they fire, so the fault is not in PVC." } };
-  s.probes = { { "scope", "AVD", "separates the silenced class from the other three: it fires strongly only when its own output is the one that is cut" },
-    { "cut", "pop:AVD", "silencing a class that is already silent changes nothing downstream" } };
+    { "pop:AVA", "With AVA silent, AVB would still fire strongly after a head touch in this model. Here AVB is nearly silent, so the fault is not in AVA." },
+    { "pop:AVB", "With the output of AVB cut, AVB itself would still fire strongly after a head touch in this model. Here it is nearly silent, so the fault is further back." },
+    { "pop:AVD", "With AVD silent, AVB would still fire strongly after a head touch in this model. Here AVB is nearly silent, so the fault is not in AVD." },
+    { "pop:PVC", "In this model AVB depends on PVC for its drive. With the output of PVC cut, AVB, AVA and AVD stay nearly silent after a head touch while PVC itself fires: the class that fails is the one that fires and passes nothing on." } };
+  s.probes = { { "scope", "AVB", "separates the silenced class from the other three: AVB stays nearly silent only when its drive from the silenced class is gone" },
+    { "cut", "pop:PVC", "silencing a class that is already silent changes nothing downstream" } };
   s.concepts_new = { "diagnosis" };
   s.concepts_used = { "pathway" };
   s.hint1 = "All four lesions give the same symptom, no backing up. They differ in which cells still fire after the touch. Record the classes between the touch cells and the backward motor neurons.";
   s.hint2 = "Open the scope of one of the interneuron classes and compare it with what it would do in a healthy worm.";
-  s.hint2_target = "AVD";
+  s.hint2_target = "AVB";
   s.hint3 = "The silenced class is among the interneuron classes AVA, AVB, AVD and PVC. Compare how strongly each of them fires after the touch.";
   s.hint3_target = "AVA";
   s.note = { "Finding a circuit by killing cells",
