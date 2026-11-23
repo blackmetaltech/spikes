@@ -178,6 +178,12 @@ static func dx_put(task: String, st: Dictionary) -> void:
 	b["dx"] = {"tries": int(st.get("tries", 0)), "probes": int(st.get("probes", 0)), "probed": st.get("probed", {}), "wrong": st.get("wrong", []), "revealed": bool(st.get("revealed", false))}
 	_best[task] = b; _save()
 static func dx_revealed(task: String) -> bool: return bool(dx_state(task)["revealed"])
+## One instrument read of a diagnosis case or a prediction bet made outside the lab (the Analysis screen): counted once per thing read, as the lab counts its own probes.
+static func dx_probe(task: String, kind: String, key: String) -> void:
+	if task == "": return
+	var st := dx_state(task); var seen: Dictionary = st["probed"]; var k := kind + ":" + key
+	if seen.has(k): return
+	seen[k] = true; st["probed"] = seen; st["probes"] = seen.size(); dx_put(task, st)
 ## The case was solved: the next visit starts with no wrong picks and no probes (the reveal flag stays).
 static func dx_solved(task: String) -> void:
 	var st := dx_state(task); st["tries"] = 0; st["probes"] = 0; st["probed"] = {}; st["wrong"] = []; dx_put(task, st)

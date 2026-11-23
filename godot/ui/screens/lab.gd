@@ -424,6 +424,8 @@ func _process(dt: float) -> void:
 static func _short(n: int) -> String: return "%.1fk" % (n / 1000.0) if n >= 10000 else str(n)
 
 func _is_dx() -> bool: return task_id != "" and str(Campaign.info(task_id).get("kind", "")) == "diagnosis"
+## A prediction bet (a_motif, a_predict): a diagnosis-kind level whose answer is committed before the run (Task::diagnosis().bet).
+func _is_bet() -> bool: return _is_dx() and bool(_dx_info.get("bet", Campaign.is_bet(task_id)))
 
 func _title() -> String:
 	if task_id == "": return "Sandbox"
@@ -581,6 +583,7 @@ func _stars_now() -> int:
 func _watch_episode() -> void:
 	if tele == null: return
 	if tele.failed and not _fail_shown: _fail_shown = true; _banner_raw("The simulation stopped: " + tele.error + ". Fix the circuit and press “Reset”.")
+	if _is_bet(): _watch_bet(); return
 	if tele.task == null or tele.sim == null or tele.failed or not _test.is_empty() or lesion_on or _is_dx(): return
 	var passed := bool(tele.score.get("passed", false))
 	if passed and not _rec_pass:
@@ -762,8 +765,30 @@ func _dx_persist() -> void:
 func _dx_submit() -> void:
 	var cand := str(_dx.get("picked", ""))
 	if cand == "" or tele == null or tele.task == null or not tele.task.has_method("set_variant"): return
+	if _is_bet(): _bet_commit(); return
 	tele.task.set_variant("%s@%d:%d" % [cand, int(_dx.get("probes", 0)), int(_dx.get("tries", 0))])   # the diagnosis tasks take the answer through the variant slot (engine/src/tasks/dx_common.h)
-	var sc: Dictionary = tele.task.score(); var ok := bool(sc.get("passed", false))
+	_dx_apply(cand, tele.task.score())
+
+## A prediction bet: the commit is sent with the new run (the answer string "candidate@reads:wrong" is handed to the task before it is reset, as the engine expects), the
+## episode plays on the bench, and the verdict is read when it ends (_watch_bet). A wrong bet can be followed by another; each costs what the engine says.
+func _bet_commit() -> void:
+	var cand := str(_dx.get("picked", ""))
+	if cand == "" or bool(_dx.get("running", false)) or bool(_dx.get("solved", false)) or bool(_dx.get("gave_up", false)): return
+	_dx["committed"] = cand; _dx["running"] = true; _dx["verdict"] = ""
+	var keep := variant
+	variant = "%s@%d:%d" % [cand, int(_dx.get("probes", 0)), int(_dx.get("tries", 0))]
+	_reload(); variant = keep
+	if tele != null: tele.running = true
+	_sync_run_btn(); _build_inspector()
+
+func _watch_bet() -> void:
+	if not bool(_dx.get("running", false)) or tele == null or tele.task == null or tele.sim == null or not tele.finished: return
+	_dx["running"] = false
+	_dx_apply(str(_dx.get("committed", "")), tele.task.score())
+
+## The judgement of an answer (a diagnosis case's submit, or a bet's finished run): the result card, the record, the next state.
+func _dx_apply(cand: String, sc: Dictionary) -> void:
+	var ok := bool(sc.get("passed", false))
 	_dx["verdict"] = str(sc.get("verdict", "")); _dx["score"] = float(sc.get("value", 0.0))
 	Playlog.event("diagnosis", {"task": task_id, "answer": cand, "correct": ok, "probes": int(_dx.get("probes", 0)), "wrong_before": int(_dx.get("tries", 0))})
 	if ok:
@@ -777,6 +802,7 @@ func _dx_submit() -> void:
 	else:
 		_dx["tries"] = int(_dx.get("tries", 0)) + 1; GameAudio.event("fail")
 		var wr: Array = _dx.get("wrong", []); if not wr.has(cand): wr.append(cand)
+		if _is_bet(): _dx["picked"] = ""   # a wrong bet: the answer is chosen again
 		_dx["wrong"] = wr; _dx_persist()   # a wrong pick says only "not that one": no lit-up connection, no reason (the reasons come with the solved or revealed case)
 	_build_inspector(); _scroll_end.call_deferred()
 
