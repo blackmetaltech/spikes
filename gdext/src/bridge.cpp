@@ -91,6 +91,107 @@ std::string motif_json_edges( const std::vector< double >& triples, int n, int s
   }
 }
 
+// ---- graph queries and null bench (add-only)
+static std::vector< int32_t > to_nodes( const std::vector< int >& v )
+{
+  return std::vector< int32_t >( v.begin(), v.end() );
+}
+
+static spike::analysis::Graph graph_of_engine( const spike::Engine& engine )
+{
+  return spike::analysis::make_graph( spike::analysis::edges_from_engine( engine ), engine.neuron_count() );
+}
+
+static spike::analysis::Graph graph_of_triples( const std::vector< double >& triples, int n )
+{
+  std::vector< spike::analysis::Edge > edges;
+  for ( size_t i = 0; i + 2 < triples.size(); i += 3 )
+    edges.push_back( { static_cast< int32_t >( triples[ i ] ), static_cast< int32_t >( triples[ i + 1 ] ), triples[ i + 2 ] } );
+  return spike::analysis::make_graph( edges, n );
+}
+
+static std::string null_run( const spike::analysis::Graph& g, int model, const std::vector< int >& block_of, int n_null, unsigned long long seed )
+{
+  if ( model < 0 || model > 2 )
+    return error_json( "null model must be 0 (edge count), 1 (degree) or 2 (blocks)" );
+  return spike::analysis::motif_null_json( spike::analysis::motif_zscores(
+    g, static_cast< spike::analysis::NullModel >( model ), to_nodes( block_of ), n_null, seed ) );
+}
+
+std::string graph_path_json( const spike::Engine& engine, const std::vector< int >& sources, const std::vector< int >& targets, const std::vector< int >& banned )
+{
+  try
+  {
+    return spike::analysis::graph_path_json( graph_of_engine( engine ), to_nodes( sources ), to_nodes( targets ), to_nodes( banned ) );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
+  }
+}
+
+std::string graph_path_json_edges( const std::vector< double >& triples, int n, const std::vector< int >& sources, const std::vector< int >& targets,
+  const std::vector< int >& banned )
+{
+  try
+  {
+    return spike::analysis::graph_path_json( graph_of_triples( triples, n ), to_nodes( sources ), to_nodes( targets ), to_nodes( banned ) );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
+  }
+}
+
+std::string graph_degrees_json( const spike::Engine& engine, int k )
+{
+  try
+  {
+    return spike::analysis::graph_degrees_json( graph_of_engine( engine ), k );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
+  }
+}
+
+std::string graph_degrees_json_edges( const std::vector< double >& triples, int n, int k )
+{
+  try
+  {
+    return spike::analysis::graph_degrees_json( graph_of_triples( triples, n ), k );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
+  }
+}
+
+std::string motif_null_json( const spike::Engine& engine, int model, const std::vector< int >& block_of, int n_null, unsigned long long seed )
+{
+  try
+  {
+    return null_run( graph_of_engine( engine ), model, block_of, n_null, seed );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
+  }
+}
+
+std::string motif_null_json_edges( const std::vector< double >& triples, int n, int model, const std::vector< int >& block_of, int n_null,
+  unsigned long long seed )
+{
+  try
+  {
+    return null_run( graph_of_triples( triples, n ), model, block_of, n_null, seed );
+  }
+  catch ( const std::exception& e )
+  {
+    return error_json( e.what() );
+  }
+}
+
 Stats spike_stats( const std::vector< spike::Spike >& spikes, int n, double t0_ms, double t1_ms )
 {
   Stats s;

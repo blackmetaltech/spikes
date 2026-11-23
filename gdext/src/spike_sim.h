@@ -76,6 +76,17 @@ public:
   /// 4-node census; refuses (error JSON) when the work estimate exceeds max_work (0 = no limit).
   String motif4_json( int64_t sign, int64_t n_null, int64_t seed, double max_work ) const;
   static String motif4_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t sign, int64_t n_null, int64_t seed, double max_work );
+  /// Graph queries on the loaded circuit's cell-level graph (analysis.h): hops, one shortest path and the nodes on shortest paths from
+  /// `sources` to `targets` avoiding `banned`; in/out degrees and the k highest-degree hubs; the motif census against a null model
+  /// (model 0 edge count only, 1 degree-preserving, 2 degree + block-to-block counts; block_of = one block id per neuron).
+  /// The _edges forms take an explicit graph (flat triples pre, post, weight over nodes 0..n-1). JSON text, {"error": ...} on failure.
+  String graph_path_json( const PackedInt32Array& sources, const PackedInt32Array& targets, const PackedInt32Array& banned ) const;
+  static String graph_path_json_edges( const PackedFloat64Array& triples, int64_t n, const PackedInt32Array& sources, const PackedInt32Array& targets,
+    const PackedInt32Array& banned );
+  String graph_degrees_json( int64_t k ) const;
+  static String graph_degrees_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t k );
+  String motif_null_json( int64_t model, const PackedInt32Array& block_of, int64_t n_null, int64_t seed ) const;
+  static String motif_null_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t model, const PackedInt32Array& block_of, int64_t n_null, int64_t seed );
 
   spike::Engine& engine() { return *engine_; }
   bool owns() const { return loaded_ && owner_ == this; }
