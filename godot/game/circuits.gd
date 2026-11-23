@@ -187,6 +187,7 @@ static func validate(c: Variant) -> String:
 			if not g is Dictionary or not (g as Dictionary).get("id", null) is String or not (g as Dictionary).get("pops", null) is Array: return "a cell-type group needs a text id and a list of populations"
 			for f in ["sign", "scale"]:
 				if (g as Dictionary).has(f) and not _is_num((g as Dictionary)[f]): return "group %s: \"%s\" must be a number" % [str((g as Dictionary)["id"]), f]
+			if (g as Dictionary).has("off") and not (g as Dictionary)["off"] is bool: return "group %s: \"off\" must be true or false" % str((g as Dictionary)["id"])
 			if (g as Dictionary).has("free") and not (g as Dictionary)["free"] is Array: return "group %s: \"free\" must be a list" % str((g as Dictionary)["id"])
 			if (g as Dictionary).has("ranges") and not (g as Dictionary)["ranges"] is Dictionary: return "group %s: \"ranges\" must be an object" % str((g as Dictionary)["id"])
 	for key in ["seed", "resolution_ms", "schema_version"]:
@@ -454,6 +455,23 @@ static func group_of_pop(c: Dictionary, pop_id: String) -> Dictionary:
 	return {}
 static func group_free(g: Dictionary, what: String) -> bool: return (g.get("free", []) as Array).has(what)
 static func group_label(g: Dictionary) -> String: return str(g.get("label", g.get("id", "")))
+## A cell type that can be switched off (the worm chapter, `"off": true`): its scale may reach 0 (all its outgoing weights then 0) and only such a type may.
+static func group_off(g: Dictionary) -> bool: return bool(g.get("off", false))
+## An `off` cell type whose scale is 0: silenced.
+static func group_silenced(g: Dictionary) -> bool: return group_off(g) and float(g.get("scale", 1.0)) <= 0.0
+## The cell type of population `pop_id` is silenced (false for a population in no group).
+static func pop_silenced(c: Dictionary, pop_id: String) -> bool:
+	var g := group_of_pop(c, pop_id)
+	return not g.is_empty() and group_silenced(g)
+## Silence (true: scale 0) or switch on (false: scale 1, or the top of its range) an `off` cell type. Returns "" when done, else the reason.
+static func group_set_active(c: Dictionary, gid: String, active: bool) -> String:
+	var i := group_index(c, gid); if i < 0: return "There is no cell type %s." % gid
+	var g: Dictionary = groups(c)[i]
+	if not group_off(g): return "%s cannot be switched off in this level." % group_label(g)
+	if not group_free(g, "scale"): return "The scale of %s is fixed by this level." % group_label(g)
+	var r := group_scale_range(g)
+	g["scale"] = clampf(1.0, r.x, r.y) if active else maxf(r.x, 0.0)
+	return ""
 ## [lo, hi] of the free scale of a group; [0, 0] when scale is not free.
 static func group_scale_range(g: Dictionary) -> Vector2:
 	if not group_free(g, "scale"): return Vector2.ZERO
@@ -490,7 +508,8 @@ static func group_set_scale(c: Dictionary, gid: String, v: float) -> String:
 	var g: Dictionary = groups(c)[i]
 	if not group_free(g, "scale"): return "The scale of %s is fixed by this level." % group_label(g)
 	var r := group_scale_range(g)
-	g["scale"] = clampf(snappedf(v, SCALE_STEP), r.x, r.y)
+	var lo := r.x if group_off(g) else maxf(r.x, SCALE_STEP)   # only a cell type that can be switched off may reach 0
+	g["scale"] = clampf(snappedf(v, SCALE_STEP), lo, maxf(r.y, lo))
 	return ""
 ## One stepper click: scale + dir x SCALE_STEP.
 static func group_step_scale(c: Dictionary, gid: String, dir: int) -> String:

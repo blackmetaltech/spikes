@@ -819,8 +819,15 @@ func _sync_layers() -> void:
 	# the layer's own rect must reach the bench: a zero-size Control whose origin sits above or left of the canvas (a fit that pans the
 	# block up, view_off < 0) was culled whole, and the axons and resting cells vanished (a diagnosis case at 1920x1080)
 	_ink.size = Vector2(1e5, 1e5)
-	var ik := [_gen, lesions.hash(), Settings.colorblind, editable]
+	var ik := [_gen, lesions.hash(), Settings.colorblind, editable, _off_key()]
 	if ik != _ink_key: _ink_key = ik; _ink.queue_redraw()
+
+## Which cell types the level lets the player switch off are switched off now (part of the ink layer's cache key).
+func _off_key() -> String:
+	var s := ""
+	for g in Circuits.groups(circuit):
+		if Circuits.group_silenced(g): s += str(g.get("id", "")) + ","
+	return s
 
 ## The ink layer (in geometry space; the layer's transform is the view): every axon and every cell at rest. The editor's own _draw adds what moves.
 func _draw_ink() -> void:
@@ -842,7 +849,7 @@ func _draw_ink() -> void:
 			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); ci.draw_circle(cm, 13.0, Gfx.SHEET); ci.draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
 			ci.draw_line(cm + Vector2(-6, -6), cm + Vector2(6, 6), Kit.RED, 3.0, true); ci.draw_line(cm + Vector2(-6, 6), cm + Vector2(6, -6), Kit.RED, 3.0, true)
 	for p in _g["pops"]:
-		var col := _kind_col(str(p["kind"])); var silenced := lesions.has("pop:" + str(p["id"]))
+		var col := _kind_col(str(p["kind"])); var silenced := lesions.has("pop:" + str(p["id"])) or Circuits.pop_silenced(circuit, str(p["id"]))   # a lesion, or a cell type the level lets the player switch off (scale 0)
 		if p["ens"]: _ink_ensemble(ci, p, col, silenced)
 		else: _ink_cells(ci, p, col, silenced)
 		if bool(p.get("locked", false)): _engrave_pop(ci, p)
@@ -930,7 +937,7 @@ func _draw() -> void:
 		var id: String = p["id"]; var col := _kind_col(str(p["kind"]))
 		var isel: bool = (sel.get("t", "") == "pop" and sel.get("id", "") == id) or msel.has(id)
 		var ihov: bool = _hover.get("t", "") == "pop" and _hover.get("id", "") == id
-		var silenced := lesions.has("pop:" + id)
+		var silenced := lesions.has("pop:" + id) or Circuits.pop_silenced(circuit, id)
 		if not view.intersects(p["box"]): continue
 		if p["ens"]: _live_ensemble(p, col, isel, ihov, silenced)
 		else: _live_cells(p, col, isel, ihov, silenced)
