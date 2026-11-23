@@ -69,5 +69,3 @@ jobs:
           path: build/spike-linux-x86_64.zip
           if-no-files-found: error
 
-  # Windows x86_64 is planned (docs: README "Windows"): NEST + GSL + godot-cpp need a MinGW or MSVC toolchain and the
-  # engine's POSIX bits (realpath, dladdr, fork/exec in the headless runner) need Windows ports first.

@@ -319,7 +319,9 @@ func _extension_checks() -> void:
 	if not ClassDB.class_exists("SpikeSim"): return
 	var bad = ClassDB.instantiate("SpikeSim")
 	_check(not bad.load_circuit("{not json"), "SpikeSim accepted invalid JSON"); _check(str(bad.error()) != "", "SpikeSim gave no error text for invalid JSON")
-	var ids: PackedStringArray = ClassDB.instantiate("SpikeTask").call("task_ids")
+	var ids := PackedStringArray(Campaign.shipped_ids())   # a release export does not ship the development-only levels (Campaign.DEV_IDS)
+	if Campaign.mock_script() == null:
+		for d in Campaign.DEV_IDS: _check(Circuits.read_reference(str(d) + ".json") == "", "the development-only level %s is in this release build (%s.json is readable)" % [d, d])
 	_check(ids.size() >= 3, "task_ids gave %d tasks, want 3" % ids.size())
 	var sum_spikes := 0
 	for id in ids:
@@ -348,7 +350,7 @@ func _extension_checks() -> void:
 ## The lab opens on every task with its reference circuit, runs, and takes an edit (the circuit editor reloads the engine).
 func _lab_checks() -> void:
 	if not ClassDB.class_exists("SpikeTask"): return
-	for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+	for id in Campaign.shipped_ids():
 		cur = ""; open_lab(id, true); await _frames(30)
 		var lab := screen as LabScreen
 		_check(lab != null and lab.tele.sim != null, "lab: %s reference circuit did not load%s" % [id, (" (" + lab.tele.error + ")") if lab != null else ""])
@@ -460,7 +462,7 @@ func _task_checks() -> void:
 	if not ClassDB.class_exists("SpikeTask"): return
 	OS.unset_environment("SP_MOCK"); Campaign.refresh()
 	var n_checked := 0; var n_mod := 0
-	for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+	for id in Campaign.shipped_ids():
 		var t = Campaign.make(id); var info := Campaign.info(id)
 		var ref := Circuits.parse(Circuits.read_reference(Campaign.ref_path(id)))
 		# 1. the skeleton the lab builds: every channel kind equals the reference's
