@@ -5,8 +5,8 @@ Research for v0.6 "Atlas", iteration A1 (see `docs/ROADMAP-CONNECTOME.md`). The 
 Conventions
 - **[V]**: the claim was checked against the PubMed record (title, abstract) of the cited paper, 2026-11-23. Abstract-level only.
 - **[run]**: a number printed by a script in this repository, quoted as printed.
-- A claim that none of the eight verified papers supports is not cited. It is listed in the last section.
-- The eight verified citations are in `research/atlas-a-citations.json`.
+- A claim that none of the eleven verified papers supports is not cited. It is listed in the last section.
+- The eleven verified citations are in `research/atlas-a-citations.json`.
 
 ## 1. Data sources
 
@@ -32,7 +32,7 @@ What the central-complex and mushroom-body papers add to the table's use:
 
 ### Worm: C. elegans hermaphrodite
 
-`tools/connectome/worm_stats.py` reads the hermaphrodite connectome through the `cect` package (version 0.3.5, per the script's docstring), through its `Cook2019HermReader`. The data are the whole-animal connectome of both sexes assembled by Cook and colleagues in 2019; that paper is not among the eight verified papers, so the roadmap's Cook 2019 entry stays unverified (see the last section). Chemical edges are directed. Gap junctions are symmetric. An "edge" is a pair of cells with at least one synapse and a "count" is a number of synapses. Nothing is written to the repository.
+The data are the whole-animal connectome of both sexes of Cook et al. 2019 [V], hermaphrodite adjacency matrices (SI 5, corrected July 2020), read through the `cect` package, version 0.3.5, with its `Cook2019Herm` reader. `tools/connectome/worm_table.py` writes two committed tables from it, `data/connectome/worm/touch.json` (the touch-withdrawal excerpt, 54 cells, every connection among them) and `data/connectome/worm/whole.json` (all 302 neurons the reader returns, every chemical and electrical connection); `data/connectome/worm/PROVENANCE.md` records the file, its hash and what was kept. `tools/connectome/worm_report.py` reads only those tables. Chemical connections are directed, gap junctions are symmetric, an edge is a pair of cells with at least one synapse and a count is a number of synapses. The older `tools/connectome/worm_stats.py` reads `cect` directly and is superseded by the report for these numbers.
 
 Varshney et al. 2011 [V] assembled self-consistent gap-junction and chemical-synapse networks of the hermaphrodite and computed degree distributions, synaptic multiplicities, small-world properties, central neurons and network motifs. They are the reference for the kinds of statistic the worm script reports.
 
@@ -161,19 +161,118 @@ The loop is reciprocal and broad: every KC has synapses with APL in both directi
 
 Output side [run]: 35 MBON types (43 neurons); 159 DANs in 31 types. KC to MBON synapses (pairs with at least 5 synapses), top five by MBON type: MBON01 26724, MBON07 25498, MBON14 22538, MBON11 22144, MBON09 15037. DAN to KC synapses (pairs with at least 5) by family: PAM0 6162, PAM1 933, PPL1 12662. KCs per MBON type (at least 5 synapses): MBON11 1479, MBON22 1218, MBON01 920, MBON02 894, MBON07 888, MBON12 882, MBON14 878, MBON18 807.
 
-### Worm: numbers pending
+### Worm: wiring tables and numbers
 
-The `cect` package is not importable in the environment that wrote this note (`ModuleNotFoundError: No module named 'cect'`), and nothing was installed. The worm numbers are pending. `tools/connectome/worm_stats.py` computes:
+Printed by `python3 tools/connectome/worm_report.py` (about 8 seconds, pure Python, reads `touch.json` and `whole.json`), pasted as printed [run]. Class names are derived by a rule in `worm_table.py` (trailing digits dropped, then a trailing L or R when the other side exists), not a field of the data. Reading the tables: a sensor-to-motor connection is a direct one-hop edge in the class matrix (AVM onto DA, VA and VB; PLM onto VA), so the one-hop rows at low thresholds are not a mistake of the path search.
 
-- cell count, number of directed chemical edges, total chemical synapses, gap-junction entries and contacts;
-- a split of cells by name into motor-neuron series (DA, DB, DD, VA, VB, VD, AS, VC) and others, and which of the touch cells ALML, ALMR, AVM, PLML, PLMR are present;
-- for AVA, AVB, AVD, PVC and AVE (left and right), the number of chemical out-partners and in-partners;
-- the ten cells with the highest chemical degree (in plus out partners);
-- the number of A-type (DA, VA) and B-type (DB, VB) motor neurons, and the shortest chemical path (in hops) from ALML, AVM and PLML to each;
-- the single cells whose removal lengthens the shortest ALM and AVM path to the A-type neurons;
-- a census of feed-forward loops in the chemical network, against a shuffle (see the script for the null model used).
+#### a. Class-level matrices of touch.json (rows presynaptic, columns postsynaptic; '.' = none)
 
-To fill this section: create the virtual environment named in the script's docstring on a GitHub runner, run the script, and paste its output here unedited.
+Cells: 54. Chemical connections between cells: 308 (1540 synapses). Electrical couplings: 161 (count total 846, each coupling listed once).
+Class cell counts: ALM 2, AVM 1, PLM 2, AVA 2, AVB 2, AVD 2, AVE 2, PVC 2, DA 9, VA 12, DB 7, VB 11
+
+Chemical synapse counts summed over cell pairs:
+
+| pre \ post | ALM | AVM | PLM | AVA | AVB | AVD | AVE | PVC | DA | VA | DB | VB |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALM | 1 | . | . | . | . | 3 | 3 | 25 | . | . | . | . |
+| AVM | . | . | . | . | 22 | 2 | . | 27 | 2 | 1 | . | 1 |
+| PLM | . | . | . | 17 | . | 18 | . | . | . | 6 | . | . |
+| AVA | . | . | . | 19 | 9 | 14 | 8 | 77 | 137 | 145 | 10 | . |
+| AVB | . | . | . | 47 | 8 | 7 | 4 | 2 | 6 | 8 | . | 3 |
+| AVD | . | . | . | 167 | 1 | 8 | 7 | 3 | 42 | 16 | 2 | . |
+| AVE | 1 | . | . | 67 | . | 13 | 3 | 3 | 44 | 26 | 3 | . |
+| PVC | . | . | . | 27 | 69 | 40 | 21 | 16 | 8 | . | 39 | 20 |
+| DA | . | . | . | . | . | . | . | . | 8 | 2 | 12 | . |
+| VA | . | . | . | 6 | . | 1 | 1 | 7 | 27 | 14 | 10 | 40 |
+| DB | . | . | . | . | . | . | . | . | 66 | . | . | . |
+| VB | . | . | . | . | . | . | 1 | 1 | . | 63 | . | 3 |
+
+Electrical counts (the matrix is symmetric; a coupling inside a class, such as AVAL-AVAR, appears twice in its diagonal cell):
+
+| pre \ post | ALM | AVM | PLM | AVA | AVB | AVD | AVE | PVC | DA | VA | DB | VB |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALM | . | 23 | . | . | . | 2 | . | . | . | . | . | . |
+| AVM | 23 | . | . | . | . | 8 | . | . | . | . | . | . |
+| PLM | . | . | . | 6 | . | 5 | . | 12 | . | . | . | . |
+| AVA | . | . | 6 | 36 | 3 | 33 | 4 | 52 | 81 | 113 | . | 2 |
+| AVB | . | . | . | 3 | 36 | . | . | . | . | . | 69 | 87 |
+| AVD | 2 | 8 | 5 | 33 | . | 12 | . | 2 | . | 1 | . | . |
+| AVE | . | . | . | 4 | . | . | 10 | . | 1 | . | . | . |
+| PVC | . | . | 12 | 52 | . | 2 | . | 134 | 25 | 32 | 10 | 9 |
+| DA | . | . | . | 81 | . | . | 1 | 25 | 40 | 27 | 1 | 1 |
+| VA | . | . | . | 113 | . | 1 | . | 32 | 27 | 6 | 1 | 14 |
+| DB | . | . | . | . | 69 | . | . | 10 | 1 | 1 | 70 | 9 |
+| VB | . | . | . | 2 | 87 | . | . | 9 | 1 | 14 | 9 | 82 |
+
+#### b. Shortest class-level paths at synapse thresholds
+
+A class-level edge is kept when its summed count (over the cell pairs of the two classes, self-connections within a cell excluded) is at least t. 'hops' = fewest edges from any source class to any target class. 'on a shortest path' = interneuron classes with distance from source plus distance to target equal to the hop count. 'cut by' = interneuron classes whose removal alone leaves no path.
+
+**chemical only**
+
+| t | edges | anterior touch (ALM, AVM) to A-type: hops | interneurons on a shortest path | cut by | posterior touch (PLM) to B-type: hops | interneurons on a shortest path | cut by | ALM, AVM to B: hops | PLM to A: hops |
+|---:|---:|---|---|---|---|---|---|---|---|
+| 1 | 60 | 1 | none | none | 2 | AVA, AVD | none | 1 | 1 |
+| 2 | 52 | 1 | none | none | 2 | AVA, AVD | none | 2 | 1 |
+| 3 | 47 | 2 | AVB, AVD, AVE, PVC | none | 2 | AVA | none | 2 | 1 |
+| 5 | 40 | 2 | AVB, PVC | none | 2 | AVA | none | 2 | 1 |
+| 10 | 30 | 3 | AVA, AVB, AVD, AVE, PVC | none | 2 | AVA | none | 2 | 2 |
+
+**chemical plus electrical**
+
+| t | edges | anterior touch (ALM, AVM) to A-type: hops | interneurons on a shortest path | cut by | posterior touch (PLM) to B-type: hops | interneurons on a shortest path | cut by | ALM, AVM to B: hops | PLM to A: hops |
+|---:|---:|---|---|---|---|---|---|---|---|
+| 1 | 83 | 1 | none | none | 2 | AVA, AVD, PVC | none | 1 | 1 |
+| 2 | 73 | 1 | none | none | 2 | AVA, AVD, PVC | none | 2 | 1 |
+| 3 | 66 | 2 | AVB, AVD, AVE, PVC | none | 2 | AVA, PVC | none | 2 | 1 |
+| 5 | 62 | 2 | AVB, AVD, PVC | none | 2 | AVA, PVC | none | 2 | 1 |
+| 10 | 50 | 2 | AVD, PVC | none | 2 | AVA, PVC | none | 2 | 2 |
+
+#### c. Motifs in the whole chemical network (cell level, binarised)
+
+Nodes 302 (of which 302 have at least one chemical edge), directed edges 3671. 38 self-connections (a cell onto itself) are left out of the graph and of every null model.
+Motifs are induced triads, as in the standard triad census: 030T = a>b, b>c, a>c and no other edge among the three; 030C = a>b>c>a and no other edge. (An undirected count that ignores reciprocal edges, as `worm_stats.py` did, is larger.)
+Categories (from the data set's own lists, stored in whole.json): interneuron 89, motor 123, other 7, sensory 83. The 7 neurons in none of the sensory, interneuron and motor lists form a fourth block, 'other'.
+Observed: 030T (feed-forward loop) 2281, 030C (3-cycle) 184.
+
+Null models, 100 shuffles each, seed 1 (one generator, models run in the order i, ii, iii):
+
+| null model | motif | observed | null mean | null sd | z |
+|---|---|---:|---:|---:|---:|
+| (i) same number of edges placed at random | 030T feed-forward loop | 2281 | 1592.76 | 42.94 | 16.03 |
+| (i) same number of edges placed at random | 030C 3-cycle | 184 | 532.66 | 23.29 | -14.97 |
+| (ii) degree-preserving edge swaps (in- and out-degree of every cell kept) | 030T feed-forward loop | 2281 | 3296.88 | 97.94 | -10.37 |
+| (ii) degree-preserving edge swaps (in- and out-degree of every cell kept) | 030C 3-cycle | 184 | 837.64 | 37.79 | -17.30 |
+| (iii) degree-preserving swaps that also keep the block counts (pre category to post category) | 030T feed-forward loop | 2281 | 3376.47 | 117.91 | -9.29 |
+| (iii) degree-preserving swaps that also keep the block counts (pre category to post category) | 030C 3-cycle | 184 | 826.71 | 43.41 | -14.80 |
+
+Swap attempts per shuffle: 36710 (10 x edges); mean accepted swaps: (ii) 30285, (iii) 16583. sd is the sample standard deviation over the 100 shuffles.
+
+Block counts of the observed network (rows pre category, columns post category); model (iii) keeps every one of them:
+
+| pre \ post | sensory | interneuron | motor | other |
+|---|---:|---:|---:|---:|
+| sensory | 335 | 550 | 262 | 0 |
+| interneuron | 288 | 819 | 490 | 28 |
+| motor | 84 | 209 | 579 | 5 |
+| other | 0 | 9 | 9 | 4 |
+
+#### d. Ten cells of highest total chemical degree
+
+Degree = number of distinct chemical partners out plus in (self-connections excluded); ties broken by name.
+
+| rank | cell | class | category | degree | out | in | synapses out | synapses in |
+|---:|---|---|---|---:|---:|---:|---:|---:|
+| 1 | AVAL | AVA | interneuron | 108 | 43 | 65 | 258 | 667 |
+| 2 | AVAR | AVA | interneuron | 107 | 48 | 59 | 292 | 685 |
+| 3 | AVDR | AVD | interneuron | 76 | 30 | 46 | 155 | 237 |
+| 4 | DVA | DVA | sensory | 74 | 44 | 30 | 158 | 146 |
+| 5 | PVCR | PVC | interneuron | 71 | 38 | 33 | 172 | 262 |
+| 6 | AVEL | AVE | interneuron | 70 | 24 | 46 | 124 | 304 |
+| 7 | AVER | AVE | interneuron | 69 | 25 | 44 | 133 | 295 |
+| 8 | AVBL | AVB | interneuron | 68 | 23 | 45 | 65 | 338 |
+| 9 | PVCL | PVC | interneuron | 68 | 35 | 33 | 157 | 283 |
+| 10 | AVDL | AVD | interneuron | 64 | 25 | 39 | 139 | 264 |
 
 ## 3. What the tables do not give, and what the compass probe assumes
 
@@ -217,7 +316,7 @@ The second search was added to the script and started. It was stopped before it 
 
 ## 5. Sources
 
-Only the eight verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.
+Only the eleven verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.
 
 | Cited as | Used for | Supports |
 |---|---|---|
@@ -229,15 +328,15 @@ Only the eight verified papers are cited. Each is quoted in the form its `match`
 | Caron et al. 2013 | random convergence | each Kenyon cell integrates an apparently random combination of glomeruli |
 | Lin et al. 2014 | APL feedback | Kenyon cells activate the GABAergic APL, APL inhibits Kenyon cells, which keeps the code sparse and decorrelated |
 | Varshney et al. 2011 | worm wiring | self-consistent hermaphrodite networks; degree, multiplicity, small-world and motif statistics |
+| Cook et al. 2019 | worm connectome | whole-animal connectomes of both sexes, quantitative connectivity matrices from sensory input to end-organ output; the data read through `cect` |
+| Chalfie et al. 1985 | touch circuit | six touch receptors, five pairs of interneurons and 69 motor neurons; two anterior-touch pathways (AVD and AVB) and one posterior-touch pathway (PVC); gap-junction coupling of the anterior touch cells |
+| Milo et al. 2002 | network motifs | motifs defined as patterns occurring significantly more often than in randomised networks; found also in the synaptic network of C. elegans |
 
-The record of each paper in the PubMed database was read on 2026-11-23 (PMIDs 32880371, 34696823, 32916090, 30124430, 33315010, 23615618, 24561998, 21304930). Only abstracts were read.
+The record of each paper in the PubMed database was read on 2026-11-23 (PMIDs 32880371, 34696823, 32916090, 30124430, 33315010, 23615618, 24561998, 21304930, 31270481, 3981252, 12399590). Only abstracts were read.
 
 ## Open: needs a source
 
-- Transmitter and sign of E-PG, P-EN, P-EG and Delta7 (the script assumes the first three excitatory and Delta7 inhibitory): the abstracts of the eight papers do not state them; the full text of Turner-Evans et al. 2020 may.
+- Transmitter and sign of E-PG, P-EN, P-EG and Delta7 (the script assumes the first three excitatory and Delta7 inhibitory): the abstracts of the verified papers do not state them; the full text of Turner-Evans et al. 2020 may.
 - Which half of the bridge moves the bump in which direction for a given turn: no abstract states it.
-- Cook et al. 2019 as the source of the worm connectome read through `cect`: not among the eight verified papers.
-- The `cect` package version and the reader named in the worm script (0.3.5, `Cook2019HermReader`) were taken from the script, not checked against the package.
-- Worm statistics: pending until `worm_stats.py` runs.
 - Result of the second compass search (19 type-pair scales, background current per population): not run to the end.
 - That the derived ring order (bridge position as the ring) corresponds to the physiological ring: the table supports only the half-ring spacing of Delta7 glomeruli.
