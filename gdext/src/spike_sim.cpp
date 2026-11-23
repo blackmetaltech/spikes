@@ -286,6 +286,37 @@ String SpikeSim::motif4_json_edges( const PackedFloat64Array& triples, int64_t n
 {
   return js( spike_gd::motif4_json_edges( dbls( triples ), int( n ), int( sign ), int( n_null ), uint64_t( seed ), max_work ) );
 }
+String SpikeSim::graph_path_json( const PackedInt32Array& sources, const PackedInt32Array& targets, const PackedInt32Array& banned ) const
+{
+  if ( !owns() )
+    return "";
+  return js( spike_gd::graph_path_json( *engine_, ints( sources ), ints( targets ), ints( banned ) ) );
+}
+String SpikeSim::graph_path_json_edges( const PackedFloat64Array& triples, int64_t n, const PackedInt32Array& sources, const PackedInt32Array& targets,
+  const PackedInt32Array& banned )
+{
+  return js( spike_gd::graph_path_json_edges( dbls( triples ), int( n ), ints( sources ), ints( targets ), ints( banned ) ) );
+}
+String SpikeSim::graph_degrees_json( int64_t k ) const
+{
+  if ( !owns() )
+    return "";
+  return js( spike_gd::graph_degrees_json( *engine_, int( k ) ) );
+}
+String SpikeSim::graph_degrees_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t k )
+{
+  return js( spike_gd::graph_degrees_json_edges( dbls( triples ), int( n ), int( k ) ) );
+}
+String SpikeSim::motif_null_json( int64_t model, const PackedInt32Array& block_of, int64_t n_null, int64_t seed ) const
+{
+  if ( !owns() )
+    return "";
+  return js( spike_gd::motif_null_json( *engine_, int( model ), ints( block_of ), int( n_null ), uint64_t( seed ) ) );
+}
+String SpikeSim::motif_null_json_edges( const PackedFloat64Array& triples, int64_t n, int64_t model, const PackedInt32Array& block_of, int64_t n_null, int64_t seed )
+{
+  return js( spike_gd::motif_null_json_edges( dbls( triples ), int( n ), int( model ), ints( block_of ), int( n_null ), uint64_t( seed ) ) );
+}
 
 void SpikeSim::_bind_methods()
 {
@@ -328,4 +359,10 @@ void SpikeSim::_bind_methods()
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "sta_json", "stimulus", "dt_ms", "spike_times_ms", "before_ms", "after_ms" ), &SpikeSim::sta_json );
   ClassDB::bind_method( D_METHOD( "motif4_json", "sign", "n_null", "seed", "max_work" ), &SpikeSim::motif4_json );
   ClassDB::bind_static_method( "SpikeSim", D_METHOD( "motif4_json_edges", "triples", "n", "sign", "n_null", "seed", "max_work" ), &SpikeSim::motif4_json_edges );
+  ClassDB::bind_method( D_METHOD( "graph_path_json", "sources", "targets", "banned" ), &SpikeSim::graph_path_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "graph_path_json_edges", "triples", "n", "sources", "targets", "banned" ), &SpikeSim::graph_path_json_edges );
+  ClassDB::bind_method( D_METHOD( "graph_degrees_json", "k" ), &SpikeSim::graph_degrees_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "graph_degrees_json_edges", "triples", "n", "k" ), &SpikeSim::graph_degrees_json_edges );
+  ClassDB::bind_method( D_METHOD( "motif_null_json", "model", "block_of", "n_null", "seed" ), &SpikeSim::motif_null_json );
+  ClassDB::bind_static_method( "SpikeSim", D_METHOD( "motif_null_json_edges", "triples", "n", "model", "block_of", "n_null", "seed" ), &SpikeSim::motif_null_json_edges );
 }

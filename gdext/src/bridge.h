@@ -10,6 +10,16 @@ namespace spike_gd
 std::string motif_json( const spike::Engine& engine, int sign, int n_null, unsigned long long seed );
 /// Same census on an explicit edge list (flat triples pre, post, weight; node indices 0..n-1), e.g. the population graph.
 std::string motif_json_edges( const std::vector< double >& triples, int n, int sign, int n_null, unsigned long long seed );
+// ---- graph queries and null bench (add-only; analysis.h graph_path_json / graph_degrees_json / motif_null_json). Node indices are circuit-level
+// neurons (the _edges forms: 0..n-1 of the given triples). `model`: 0 edge-count only, 1 degree-preserving, 2 degree + block-to-block counts.
+std::string graph_path_json( const spike::Engine& engine, const std::vector< int >& sources, const std::vector< int >& targets, const std::vector< int >& banned );
+std::string graph_path_json_edges( const std::vector< double >& triples, int n, const std::vector< int >& sources, const std::vector< int >& targets,
+  const std::vector< int >& banned );
+std::string graph_degrees_json( const spike::Engine& engine, int k );
+std::string graph_degrees_json_edges( const std::vector< double >& triples, int n, int k );
+std::string motif_null_json( const spike::Engine& engine, int model, const std::vector< int >& block_of, int n_null, unsigned long long seed );
+std::string motif_null_json_edges( const std::vector< double >& triples, int n, int model, const std::vector< int >& block_of, int n_null,
+  unsigned long long seed );
 struct Stats
 {
   std::vector< double > rates, cv;
