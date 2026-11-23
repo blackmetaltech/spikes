@@ -13,6 +13,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -431,9 +432,15 @@ void test_dx()
   CHECK( patient[ "projections" ].size() == given[ "projections" ].size() and patient[ "populations" ].size() == given[ "populations" ].size() );
   for ( const auto& k : kClasses ) CHECK_MSG( ( weights_out( patient, k ) == 0.0 ) == ( "pop:" + k == d.answer ), "only the answer's outputs are silent: " + k );
   // the signature: with a class silenced its outputs carry nothing. The motor groups are silent in all four; AVB is nearly silent only when PVC is the silenced one.
+  std::vector< uint64_t > dx_seeds = { 1, 2, 3, 101, 102, 103, 104, 105 };
+  if ( std::getenv( "ATLAS_DX_SEEDS" ) )   // a seed-margin study on a runner: seeds 1 .. N
+  {
+    dx_seeds.clear();
+    for ( uint64_t k = 1; k <= static_cast< uint64_t >( std::atoi( std::getenv( "ATLAS_DX_SEEDS" ) ) ); ++k ) dx_seeds.push_back( k );
+  }
   std::map< std::string, std::vector< std::map< std::string, double > > > by;
   for ( const char* lesion : { "AVA", "AVB", "AVD", "PVC" } )
-    for ( uint64_t seed : { 1, 2, 3, 101, 102, 103, 104, 105 } )
+    for ( uint64_t seed : dx_seeds )
     {
       json c = given;
       for ( auto& g : c[ "groups" ] ) g[ "scale" ] = g[ "id" ] == lesion ? 0.0 : 1.0;
