@@ -297,22 +297,30 @@ Also not in the tables: the ellipsoid-body wedge of each cell (the ring order is
 
 ## 4. Feasibility probe of the compass on real wiring (iteration A1)
 
-Question: does the measured compass wiring hold a bump when the circuit is given one sign per cell type and one gain per type?
+Question: does the measured compass wiring hold a bump where a cue put it, when the circuit is given one sign per cell type and gains per type or per type pair?
 
-What was run, and what it found:
+Answer so far: no. Two random searches found no setting that does. The wiring does form a compact bump, but the bump does not stay where the cue put it.
 
 | Search | Parameters drawn | Draws | Trials per draw | Result |
 |---|---|---|---|---|
-| 1 (`compass_search.py`) | one synapse scale per presynaptic cell type, plus background current, synaptic time constants and turn gain | 2,000 | 2 (cue at ring positions 2 and 10), circuit seed 7 | no draw held a bump at both cues; no draw held it at one cue |
-| 2 (`pairs=1`) | one scale per type pair (19 pairs) and a background current per population | started, stopped before it finished | | no result |
+| 1 (`compass_search.py`, desktop, 2026-11-22) | one synapse scale per presynaptic cell type, background current, synaptic time constants, turn gain | 2,000 | 2 (cue at ring positions 2 and 10), circuit seed 7 | no draw held a bump at both cues; none at one cue |
+| 2 (`pairs=1`, GitHub runners, 2026-11-23, seeds 200 to 207) | one scale per type pair (19 pairs), a background current per population, and the rest as in search 1 | 8,000 | the same 2 | no draw held a bump at both cues; none at one cue |
 
-The second search was added to the script and started. It was stopped before it finished, so it has no result and no partial result is quoted.
+"Held" is the test of `compass_trial.held` on the window 3,000 to 3,500 ms: bump within 30 degrees of the cue, strength above 0.5, at least 0.7 of the spikes near the peak, mean rate between 2 and 60 Hz.
 
-**Conclusion.** Whether measured compass wiring holds a bump with per-type signs and gains is open. The first search found nothing; that is a statement about one parameterisation (one scale per presynaptic type), not about the wiring. The second, larger parameterisation has not been run to the end.
+What the 16,000 trials of search 2 did, from the `.stage1` records:
 
-**Risk.** This is the main risk of iteration A3 (real wiring holds a bump with the reference's signs and gains on seeds 101 to 105). If no per-type or per-pair assignment works, the compass chapter needs a different design (for example, free parameters that are not per cell type), and A3 cannot be designed until this is known.
+| Late state | Share of trials |
+|---|---|
+| silent (mean rate below 2 Hz) | 0.7927 |
+| saturated (above 60 Hz) | 0.1502 |
+| in the rate band (2 to 60 Hz) | 0.0571 (913 trials) |
 
-**Next step.** Run the second search to completion on a GitHub runner, not a desktop, before A3 is designed. Report the number of draws, which trials passed and the best parameters, then update this section.
+Of the 913 trials in the rate band, 92 had a bump of strength above 0.5 and 161 were within 30 degrees of the cue, but only 2 had strength above 0.3 and were within 30 degrees. No draw had both of its trials in the band with strength above 0.3 and within 45 degrees. The six strongest late bumps (strength 0.98, every spike near the peak) sat about 60 degrees from a cue at position 10 and about 120 degrees from a cue at position 2, which is what one fixed resting place of the bump would give. This points to a bump that forms and then moves to a place the wiring prefers. It was not tested directly (no trial recorded the late angle for more than two cues).
+
+**Conclusion.** With leaky integrate-and-fire cells, weights proportional to synapse counts and gains per type or per type pair, random search does not find a setting in which the measured wiring holds a bump at the cued place. This is a statement about these parameterisations and a random search of 10,000 draws, not a proof that none exists.
+
+**Risk for A3.** The exit criterion of A3 (real wiring holds a bump with the reference's signs and gains on seeds 101 to 105) is not met by anything found so far. Before A3 is designed, one of these has to be decided and tested on runners: a directed search (an optimiser on a graded score, instead of random draws); a free parameter that is not per type (for example a per-cell background current that evens out the ring); or a level whose stated lesson is the drift itself (the measured wiring forms a bump and does not hold it without tuning).
 
 ## 5. Sources
 
@@ -338,5 +346,5 @@ The record of each paper in the PubMed database was read on 2026-11-23 (PMIDs 32
 
 - Transmitter and sign of E-PG, P-EN, P-EG and Delta7 (the script assumes the first three excitatory and Delta7 inhibitory): the abstracts of the verified papers do not state them; the full text of Turner-Evans et al. 2020 may.
 - Which half of the bridge moves the bump in which direction for a given turn: no abstract states it.
-- Result of the second compass search (19 type-pair scales, background current per population): not run to the end.
+- Whether the late bump of the compass probe rests at one fixed place for every cue (section 4): not tested directly.
 - That the derived ring order (bridge position as the ring) corresponds to the physiological ring: the table supports only the half-ring spacing of Delta7 glomeruli.
