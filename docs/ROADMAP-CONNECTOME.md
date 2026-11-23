@@ -31,7 +31,7 @@ Until now the player builds a circuit and the game checks it. In the Atlas the w
 | **Same wiring, different dynamics** | `a_degenerate`, case `dx_a_twins` | degeneracy; what a connectome leaves out | two circuits with identical wiring behave differently: find the recording that tells them apart within the experiment budget | Bargmann and Marder 2013; Prinz 2004 |
 | **Boss: a brain predicts a behaviour** | `boss_atlas_feeding` | whole-brain modelling from wiring and predicted transmitters | on an excerpt of the sugar-to-proboscis pathway, predict which cell types are needed for the motor output, bet, then test by silencing | Shiu 2024; Dorkenwald 2024; Eckstein 2024 |
 
-**Worm chapter, as built.** `a_path` no longer scores "shortest pathway confirmed": in the model every shortest route kept alone leaves the backward motor neurons silent, so it scores the route and tells what the run showed. `a_motif` and `a_predict` are bets, decided by what the engine measures on the given circuit (research/atlas-a.md 4b); `a_motif` is `level_kind` "diagnosis" (302 cells; decided by the commit).
+**Worm chapter, as built.** `a_path` no longer scores "shortest pathway confirmed": in the model every shortest route kept alone leaves the backward motor neurons silent, so it scores the route and tells what the run showed. `a_motif` and `a_predict` are bets, decided by what the engine measures on the given circuit (research/atlas-a.md 4b); both are `level_kind` "diagnosis" (decided by the commit; the engine applies the lesion itself).
 
 About 12 levels and 3 cases. The compass and mushroom-body chapters replace nothing: the Bestiary levels teach the idea on a hand-built circuit, the Atlas levels meet the measured one.
 
