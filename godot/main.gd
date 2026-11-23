@@ -19,6 +19,7 @@ var lab_keep := {}
 var analysis_circuit := {}
 var analysis_tele: Telemetry = null
 var analysis_task := ""
+var lab_select := ""           # a cell type the lab selects on the bench when it opens (set by the Analysis screen: a name tapped in the wiring matrix)
 var campaign_chapter := ""    # the campaign map remembers its chapter and node between visits
 var campaign_node := ""
 var origin := {}               # screen id -> the screen it was last opened from (forward navigation): Back returns there, whichever of several doors it came through

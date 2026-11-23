@@ -298,13 +298,14 @@ flowchart LR
 | `settings.controls` | tab | Settings, Controls tab (read-only key list) |  |
 | `settings.game` | tab | Settings, Game tab (difficulty, play log) | `OptMode`, `OptRecordMyPlay`, `BtnExportJson`, `BtnClear`, `BtnExportSave`, `BtnImportSave`, `BtnOpenLogFolder`, `BtnResetProgress` |
 | `credits` | screen | Credits | `BtnBack`, `BtnWhatIsReal` |
-| `analysis` | screen | Analysis, 3-node motifs | `BtnBack`, `StepTab`, `StepLevel`, `StepSign`, `StepNull` |
+| `analysis` | screen | Analysis, 3-node motifs | `BtnBack`, `StepTab`, `StepLevel`, `StepSign`, `StepNull`, `StepNullModel`, `StepMotif` |
 | `analysis.4node` | tab | Analysis, 4-node motifs tab |  |
 | `analysis.hrv` | tab | Analysis, HRV tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.prc` | tab | Analysis, PRC tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.bursts` | tab | Analysis, bursts tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.energy` | tab | Analysis, energy tab |  |
 | `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
+| `analysis.wiring` | tab | Analysis, wiring tab (matrix, path finder) | `StepOrder`, `StepWiringLevel`, `StepFrom`, `StepTo`, `StepWithout` |
 | `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?`, `BtnUndo?`, `BtnRedo?` |
 | `lab.atlas` | frame | Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections | `StepSign_*?`, `BtnScaleDown_*?`, `BtnScaleUp_*?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
@@ -358,5 +359,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 72 nodes, 155 edges, 8 guard checks.
+Counts: 73 nodes, 156 edges, 8 guard checks.
 <!-- END GENERATED -->

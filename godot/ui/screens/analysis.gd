@@ -6,7 +6,9 @@ extends Screen
 ##   HRV       heart-rate variability (SDNN, RMSSD, pNN50, LF/HF) of the beats of one population (spikes merged within 150 ms are one beat)
 ##   PRC       phase-response curve of that population to the task's scripted perturbations (task timeline events), from the recorded spikes
 ##   bursts    burst detection (max ISI 170 ms, min 3 spikes) on that population
+##   wiring    the adjacency matrix of the bench (ordered by cell type, degree), a shortest-path finder between two cell types, with one silenced (godot/ui/screens/wiring.gd)
 ##   energy    mean spikes per second per neuron against the task's energy budget (the energy star, Progress.ENERGY_HZ) and the ATP it costs
+## The 3-node tab also takes the null model (same number of edges, same degrees, same degrees and cell-type blocks) and shows the null distribution of one class.
 ## HRV, PRC and bursts need a recording: RECORD re-runs the circuit on the task (a throwaway engine, the lab's is stopped while this screen is open)
 ## for 10 s, 30 s, 60 s or the full episode and keeps every spike. Beside the tabs, spike statistics of the lab run so far (rate, ISI CV, Golomb chi).
 var circuit := {}
@@ -20,7 +22,7 @@ var back_btn: Button
 var chart: MotifChart
 var panel: SeriesPanel
 var stats_view: StatsView
-const TABS := [[0, "3-node"], [1, "4-node"], [2, "HRV"], [3, "PRC"], [4, "bursts"], [5, "energy"], [6, "STA"]]
+const TABS := [[0, "3-node"], [1, "4-node"], [2, "HRV"], [3, "PRC"], [4, "bursts"], [5, "energy"], [6, "STA"], [7, "wiring"]]
 const RECORDS := [[10, "10 s"], [30, "30 s"], [60, "60 s"], [0, "full"]]
 const BEAT_GAP_MS := 150.0
 const MOTIF4_MAX_WORK := 5.0e7
@@ -32,6 +34,26 @@ var _rec_run := {}        # a recording in progress
 var _head_motif: Array = []
 var _head_rec: Array = []
 var _rec_step: Kit.Stepper = null
+var null_model := 1       # 0 same number of edges, 1 same degrees (the original display), 2 same degrees and cell-type blocks
+var motif_sel := Wiring.DEFAULT_MOTIF
+var strip: Wiring.Strip
+var left: VBoxContainer
+var _head_null: Array = []
+var _head_wiring: Array = []
+var wiring_order := 0
+var wiring_level := 0
+var w_from := 0
+var w_to := 0
+var w_ban := -1           # cell type silenced for the path query (-1 = none)
+var wmodel: Wiring = null
+var wlay := {}
+var wpath := {}
+var wbox: VBoxContainer
+var wview: Wiring.View
+var wresult: Label
+var wcaption: Label
+var wnote: Label
+var _null_counts: Array = []
 const STA_MAX_S := 20     # the reverse-correlation recording is at most this long (the stimulus is kept per millisecond)
 
 func default_focus() -> Control: return back_btn
@@ -56,6 +78,12 @@ func build() -> void:
 	_head_motif.append(Kit.ident(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0), "StepSign")); mrow.add_child(_head_motif[-1])
 	_head_motif.append(Kit.italic("nulls", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
 	_head_motif.append(Kit.ident(Kit.stepper([[20, "20"], [100, "100"], [500, "500"]], str(null_n), func(i): null_n = int(i); compute(), 80.0), "StepNull")); mrow.add_child(_head_motif[-1])
+	_head_null.append(Kit.italic("null model", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_null[-1])
+	_head_null.append(Kit.ident(Kit.stepper(Wiring.NULLS, str(null_model), func(i): null_model = int(i); compute(), 330.0 if not phone else 230.0, 18), "StepNullModel")); mrow.add_child(_head_null[-1])
+	_head_null.append(Kit.italic("motif", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_null[-1])
+	var mopts := []
+	for mi in Wiring.MOTIFS.size(): mopts.append([mi, Wiring.MOTIFS[mi]])
+	_head_null.append(Kit.ident(Kit.stepper(mopts, str(motif_sel), func(i): motif_sel = int(i); _update_strip(), 280.0 if not phone else 200.0, 18), "StepMotif")); mrow.add_child(_head_null[-1])
 	var pops: Array = circuit.get("populations", [])
 	if pops.size() > 0:
 		pop_idx = _default_pop()
@@ -66,11 +94,37 @@ func build() -> void:
 	_head_rec.append(Kit.italic("record", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
 	_head_rec.append(Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")); mrow.add_child(_head_rec[-1]); _rec_step = _head_rec[-1]
 	_head_rec.append(Kit.btn("RECORD", func(): _start_record(), "green", 20, Vector2(120, 0))); mrow.add_child(_head_rec[-1])
+	if pops.size() > 0:
+		var wrow := HFlowContainer.new(); wrow.add_theme_constant_override("h_separation", 12); wrow.add_theme_constant_override("v_separation", 6); v.add_child(wrow)
+		var popt := []; var bopt := [[-1, "nothing"]]
+		for i in pops.size(): popt.append([i, str(pops[i].get("id", i))]); bopt.append([i, str(pops[i].get("id", i))])
+		w_from = 0; w_to = pops.size() - 1
+		var sw := 150.0 if not phone else 110.0
+		_head_wiring.append(Kit.italic("order", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.ident(Kit.stepper(Wiring.ORDERS, str(wiring_order), func(i): wiring_order = int(i); _compute_wiring(), 200.0 if not phone else 150.0, 18), "StepOrder")); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.italic("level", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.ident(Kit.stepper(Wiring.LEVELS, str(wiring_level), func(i): wiring_level = int(i); _compute_wiring(), 150.0 if not phone else 120.0, 18), "StepWiringLevel")); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.italic("path from", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.ident(Kit.stepper(popt, str(w_from), func(i): w_from = int(i); _wiring_path(), sw, 18), "StepFrom")); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.italic("to", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.ident(Kit.stepper(popt, str(w_to), func(i): w_to = int(i); _wiring_path(), sw, 18), "StepTo")); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.italic("without", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(Kit.ident(Kit.stepper(bopt, str(w_ban), func(i): w_ban = int(i); _wiring_path(), sw, 18), "StepWithout")); wrow.add_child(_head_wiring[-1])
 	var cols := HBoxContainer.new(); cols.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_theme_constant_override("separation", int(16 * f)); v.add_child(cols)
-	chart = MotifChart.new(); chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chart.size_flags_stretch_ratio = 1.5; chart.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(chart)
+	left = VBoxContainer.new(); left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left.size_flags_stretch_ratio = 1.5; left.size_flags_vertical = Control.SIZE_EXPAND_FILL; left.add_theme_constant_override("separation", int(10 * f)); cols.add_child(left)
+	chart = MotifChart.new(); chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chart.size_flags_vertical = Control.SIZE_EXPAND_FILL; left.add_child(chart)
+	strip = Wiring.Strip.new(); strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL; strip.custom_minimum_size = Vector2(300, 190 if not phone else 230); left.add_child(strip)
 	panel = SeriesPanel.new(); panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; panel.size_flags_stretch_ratio = 1.5; panel.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(panel)
 	stats_view = StatsView.new(); stats_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL; stats_view.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(stats_view)
 	stats_view.tele = tele; stats_view.circuit = circuit
+	wbox = VBoxContainer.new(); wbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL; wbox.size_flags_vertical = Control.SIZE_EXPAND_FILL; wbox.add_theme_constant_override("separation", int(8 * f)); cols.add_child(wbox)
+	wview = Wiring.View.new(); wview.size_flags_horizontal = Control.SIZE_EXPAND_FILL; wview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wview.on_caption = func(t: String): _set_caption(t)
+	wview.on_pick = func(id: String): pick_pop(id)
+	wbox.add_child(wview)
+	wresult = Kit.label("", 20 if not phone else 16, Kit.TEXT, true); wbox.add_child(wresult)
+	wcaption = Kit.label("Point at a mark, or tap it, to read it.", 18 if not phone else 15, Kit.TEXT_SOFT, true); wbox.add_child(wcaption)
+	wnote = Kit.italic("", 16 if not phone else 14, Kit.TEXT_SOFT, true); wbox.add_child(wnote)
 	if OS.get_environment("SP_ATAB") != "": tab = int(OS.get_environment("SP_ATAB"))   # screenshot hooks: open on a tab, and press Record
 	_tab_changed()
 	if OS.get_environment("SP_AREC") != "": _start_record()
@@ -79,8 +133,10 @@ func _sta_msg() -> String:
 	return "Press “Record”: the first cell of the population is driven by a Gaussian white-noise current for the length chosen (at most %d s; 10 s is usually plenty), and the current that came before each of its spikes is averaged, minus the average of the whole current." % STA_MAX_S
 
 func _tab_changed() -> void:
-	chart.visible = tab <= 0; panel.visible = tab > 0
+	left.visible = tab <= 0; chart.visible = tab <= 0; panel.visible = tab > 0 and tab != 7; wbox.visible = tab == 7; stats_view.visible = tab != 7
 	for c in _head_motif: c.visible = tab <= 1
+	for c in _head_null: c.visible = tab == 0
+	for c in _head_wiring: c.visible = tab == 7
 	for c in _head_rec: c.visible = (tab >= 2 and tab <= 4) or tab == 6
 	if tab == 6 and (rec_s == 0 or rec_s > STA_MAX_S) and _rec_step != null:   # the default length is within the stated maximum: the first option, 10 s
 		rec_s = int(RECORDS[0][0]); _rec_step.idx = 0; _rec_step.val.text = Kit.label_case(str(RECORDS[0][1]))
@@ -97,29 +153,89 @@ func _default_pop() -> int:
 	return 0
 
 func compute() -> void:
+	if tab == 7: _compute_wiring(); return
 	if tab == 1: _compute_motif4(); return
 	if tab >= 2: _compute_series(); return
-	result = {}
-	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: chart.message = "No circuit yet. Build one in the lab."; chart.queue_redraw(); return
-	if not ClassDB.class_exists("SpikeSim"): chart.message = "The spike-gd GDExtension is not loaded."; chart.queue_redraw(); return
+	result = {}; _null_counts = []; chart.model = null_model; chart.note = "Edges of both signs are used at the neuron level for this null." if null_model != 1 and level_idx == 1 and sign_idx != 0 else ""; strip.m = {}; strip.counts = []; strip.message = ""
+	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0: chart.message = "No circuit yet. Build one in the lab."; chart.queue_redraw(); strip.queue_redraw(); return
+	if not ClassDB.class_exists("SpikeSim"): chart.message = "The spike-gd GDExtension is not loaded."; chart.queue_redraw(); strip.queue_redraw(); return
 	var txt := ""
+	if null_model != 1:   # the other two null models (docs/ENGINE-STRUCTURE.md): the engine's null bench; the census is the same, only the nulls differ
+		var dn := Wiring.null_run(circuit, level_idx, null_model, sign_idx, null_n)
+		if dn.has("error"): chart.message = str(dn["error"]); chart.result = {}
+		else: result = dn; chart.message = ""; _null_counts = _counts_of(dn)
+		chart.level = level_idx; chart.result = result if not dn.has("error") else {}; chart.queue_redraw()
+		_update_strip()
+		if stats_view != null: stats_view.queue_redraw()
+		return
 	if level_idx == 0:
 		var g := population_graph(circuit)
-		if int(g["n"]) < 3: chart.message = "Fewer than 3 populations: wire at least three to count three-node motifs."; chart.result = {}; chart.queue_redraw(); return
+		if int(g["n"]) < 3: chart.message = "Fewer than 3 populations: wire at least three to count three-node motifs."; chart.result = {}; chart.queue_redraw(); strip.queue_redraw(); return
 		var sim0 = ClassDB.instantiate("SpikeSim")
 		txt = str(sim0.motif_json_edges(g["edges"], int(g["n"]), sign_idx, null_n, int(circuit.get("seed", 1))))
 	else:
 		# A throwaway engine just to read the connection graph from NEST (the lab's engine is stopped while this screen is open).
 		var sim = ClassDB.instantiate("SpikeSim")
-		if not sim.load_circuit(Circuits.to_json(circuit)): chart.message = "The engine rejected the circuit: " + str(sim.error()); chart.queue_redraw(); return
+		if not sim.load_circuit(Circuits.to_json(circuit)): chart.message = "The engine rejected the circuit: " + str(sim.error()); chart.queue_redraw(); strip.queue_redraw(); return
 		txt = str(sim.motif_json(sign_idx, null_n, int(circuit.get("seed", 1))))
 		sim.stop()
 	var d := Circuits.parse(txt)
 	if d.has("error"): chart.message = str(d["error"])
-	else: result = d; chart.message = ""
+	else:
+		result = d; chart.message = ""
+		# the same null with its census per null graph, for the strip (the engine's degree null gives the numbers above exactly); one sign at the cell level has none
+		if level_idx == 0 or sign_idx == 0: _null_counts = _counts_of(Wiring.null_run(circuit, level_idx, 1, sign_idx, null_n))
 	chart.level = level_idx; chart.result = result; chart.queue_redraw()
+	_update_strip()
 	if stats_view != null: stats_view.queue_redraw()
 
+## The null census per null graph of every class: [[count in null 0, count in null 1, ...] per class], or [] when the result carries none.
+func _counts_of(d: Dictionary) -> Array:
+	var out: Array = []
+	for m in d.get("motifs", []): out.append((m as Dictionary).get("null_counts", []))
+	return out
+
+## The strip under the census: the null distribution of the selected class with the real count marked, and what it means in words.
+func _update_strip() -> void:
+	if strip == null: return
+	strip.model = null_model; strip.n_null = int(result.get("null_samples", null_n)); strip.degenerate = bool(result.get("degenerate", false))
+	strip.counts = []; strip.m = {}; strip.message = chart.message if result.is_empty() else ""
+	var ms: Array = result.get("motifs", [])
+	if motif_sel >= 0 and motif_sel < ms.size():
+		strip.m = ms[motif_sel]
+		if motif_sel < _null_counts.size(): strip.counts = _null_counts[motif_sel]
+	strip.queue_redraw()
+
+
+# ---------- wiring: matrix and path finder (wiring.gd) ----------
+func _compute_wiring() -> void:
+	wpath = {}
+	if wview == null: return
+	if circuit.is_empty() or Circuits.neuron_count(circuit) == 0:
+		wview.message = "No circuit yet. Build one in the lab."; wview.queue_redraw(); wresult.text = ""; wnote.text = ""; return
+	if wmodel == null: wmodel = Wiring.of(circuit)   # the circuit does not change while this screen is open
+	wlay = wmodel.layout(wiring_order, wiring_level)
+	wview.message = ""
+	wview.set_model(wmodel, wlay, wmodel.render(wlay))
+	wnote.text = wmodel.notes()
+	_wiring_path()
+
+## Re-ask the path finder (two cell types, one silenced) and outline the cells on a shortest path in the matrix.
+func _wiring_path() -> void:
+	if wmodel == null or wview == null: return
+	wpath = wmodel.path_query(w_from, w_to, w_ban)
+	wresult.text = str(wpath.get("text", ""))
+	wview.rects = wmodel.outline_rects(wlay, wpath) if not wlay.is_empty() else []
+	wview.queue_redraw()
+
+func _set_caption(t: String) -> void:
+	if wcaption != null: wcaption.text = t if t != "" else "Point at a mark, or tap it, to read it."
+
+## A cell type name was tapped in the matrix: back to the lab with that cell type selected on the bench.
+func pick_pop(id: String) -> void:
+	if app == null: return
+	app.lab_select = id
+	app.open_lab(app.analysis_task, false, true)
 
 # ---------- 4-node census ----------
 func _compute_motif4() -> void:
@@ -289,12 +405,14 @@ class MotifChart extends Control:
 	var result := {}
 	var message := ""
 	var level := 0
+	var model := 1      # the null model of the z-scores: 0 same number of edges, 1 same degrees, 2 same degrees and cell-type blocks (Wiring.NULLS)
+	var note := ""
 	func _ready() -> void: clip_contents = true; custom_minimum_size = Vector2(380, 300)
 	func min_text_px() -> float: return float(Kit.fs(14)) * Kit.ppl
 	func _draw() -> void:
 		var fz := Kit.fs(16 if size.x > 600.0 else 14); var f := Fonts.regular; var fb := Fonts.bold   # the table reads at 16 px (it was 11-14)
 		Kit.draw_plate(self, Rect2(Vector2.ZERO, size - Vector2(Kit.SHADOW, Kit.SHADOW)))
-		Kit.draw_fig(self, Vector2(18, 32), 1, "Three-node motifs" + (": count, and z-score against degree-preserving rewiring" if size.x > 900.0 else ""), size.x - 44, "", 19)
+		Kit.draw_fig(self, Vector2(18, 32), 1, "Three-node motifs" + (": count, and z-score against " + str(Wiring.NULL_PHRASE[clampi(model, 0, 2)]) if size.x > 900.0 else ""), size.x - 44, "", 19)
 		if message != "" or not result.has("motifs"):
 			draw_string(f, Vector2(0, size.y * 0.5), message if message != "" else "computing...", HORIZONTAL_ALIGNMENT_CENTER, size.x, Kit.fs(20), Kit.TEXT_SOFT); return
 		var ms: Array = result["motifs"]; var top := 46.0 + float(fz) + 6.0   # a header row for the axis label, below the caption
@@ -338,6 +456,13 @@ class MotifChart extends Control:
 
 	func _footer(degenerate: bool, acc: float) -> String:
 		var g := "populations" if level == 0 else "neurons"
+		if model != 1:   # the other two nulls: named, and no swap statistics for the one that makes none
+			var nm := str(Wiring.NULLS[clampi(model, 0, 2)][1])
+			var t0 := "%s graph: %d nodes, %d edges. Null model: %s, %d null graphs" % [g, int(result.get("nodes", 0)), int(result.get("edges", 0)), nm, int(result.get("null_samples", 0))]
+			if model == 2: t0 += ", swaps accepted %.0f%%" % (acc * 100.0)
+			t0 += ". * = |z| > 2 and null sd >= 0.5. n/a = count fixed by the null."
+			if degenerate: t0 += "\nWARNING: under a fifth of the swaps were possible: the nulls barely differ from the data and nothing is starred."
+			return t0 + ("\n" + note if note != "" else "")
 		if size.x < 600.0:   # phone: one short line (plus a short warning), the full legend does not fit
 			var c := "%s: %d nodes, %d edges, swaps %.0f%%  * = |z|>2  n/a = fixed" % [g, int(result.get("nodes", 0)), int(result.get("edges", 0)), acc * 100.0]
 			return c + ("\nWARNING: null too weak (<20%% swaps), no stars" if degenerate else "")
