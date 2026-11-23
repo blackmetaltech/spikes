@@ -1,0 +1,159 @@
+[
+ {
+  "id": "caron2013",
+  "authors": [
+   "Caron SJC",
+   "Ruta V",
+   "Abbott LF",
+   "Axel R"
+  ],
+  "year": 2013,
+  "title": "Random convergence of olfactory inputs in the Drosophila mushroom body",
+  "journal": "Nature",
+  "volume": "497",
+  "pages": "113-117",
+  "doi": "10.1038/nature12063",
+  "pmid": "23615618",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 23615618): title, authors, journal, year, volume and DOI match",
+  "match": "Caron SJC|Caron et al\\.? \\(?2013"
+ },
+ {
+  "id": "franconville2018",
+  "authors": [
+   "Franconville R",
+   "Beron C",
+   "Jayaraman V"
+  ],
+  "year": 2018,
+  "title": "Building a functional connectome of the Drosophila central complex",
+  "journal": "eLife",
+  "volume": "7",
+  "pages": "e37017",
+  "doi": "10.7554/eLife.37017",
+  "pmid": "30124430",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 30124430): title, authors, journal, year, volume and DOI match",
+  "match": "Franconville R|Franconville et al\\.? \\(?2018"
+ },
+ {
+  "id": "hulse2021",
+  "authors": [
+   "Hulse BK",
+   "Haberkern H",
+   "Franconville R",
+   "Turner-Evans D",
+   "Takemura SY"
+  ],
+  "year": 2021,
+  "title": "A connectome of the Drosophila central complex reveals network motifs suitable for flexible navigation and context-dependent action selection",
+  "journal": "eLife",
+  "volume": "10",
+  "pages": "e66039",
+  "doi": "10.7554/eLife.66039",
+  "pmid": "34696823",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 34696823): title, authors, journal, year, volume and DOI match",
+  "match": "Hulse BK|Hulse et al\\.? \\(?2021"
+ },
+ {
+  "id": "li2020",
+  "authors": [
+   "Li F",
+   "Lindsey JW",
+   "Marin EC",
+   "Otto N",
+   "Dreher M"
+  ],
+  "year": 2020,
+  "title": "The connectome of the adult Drosophila mushroom body provides insights into function",
+  "journal": "eLife",
+  "volume": "9",
+  "pages": "e62576",
+  "doi": "10.7554/eLife.62576",
+  "pmid": "33315010",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 33315010): title, authors, journal, year, volume and DOI match",
+  "match": "Li F|Li et al\\.? \\(?2020"
+ },
+ {
+  "id": "lin2014",
+  "authors": [
+   "Lin AC",
+   "Bygrave AM",
+   "de Calignon A",
+   "Lee T",
+   "Miesenbock G"
+  ],
+  "year": 2014,
+  "title": "Sparse, decorrelated odor coding in the mushroom body enhances learned odor discrimination",
+  "journal": "Nat Neurosci",
+  "volume": "17",
+  "pages": "559-568",
+  "doi": "10.1038/nn.3660",
+  "pmid": "24561998",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 24561998): title, authors, journal, year, volume and DOI match",
+  "match": "Lin AC|Lin et al\\.? \\(?2014"
+ },
+ {
+  "id": "scheffer2020",
+  "authors": [
+   "Scheffer LK",
+   "Xu CS",
+   "Januszewski M",
+   "Lu Z",
+   "Takemura SY"
+  ],
+  "year": 2020,
+  "title": "A connectome and analysis of the adult Drosophila central brain",
+  "journal": "eLife",
+  "volume": "9",
+  "pages": "e57443",
+  "doi": "10.7554/eLife.57443",
+  "pmid": "32880371",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 32880371): title, authors, journal, year, volume and DOI match",
+  "match": "Scheffer LK|Scheffer et al\\.? \\(?2020"
+ },
+ {
+  "id": "turnerevans2020",
+  "authors": [
+   "Turner-Evans DB",
+   "Jensen KT",
+   "Ali S",
+   "Paterson T",
+   "Sheridan A"
+  ],
+  "year": 2020,
+  "title": "The neuroanatomical ultrastructure and function of a biological ring attractor",
+  "journal": "Neuron",
+  "volume": "108",
+  "pages": "145-163.e10",
+  "doi": "10.1016/j.neuron.2020.08.006",
+  "pmid": "32916090",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 32916090): title, authors, journal, year, volume and DOI match",
+  "match": "Turner-Evans DB|Turner-Evans et al\\.? \\(?2020"
+ },
+ {
+  "id": "varshney2011",
+  "authors": [
+   "Varshney LR",
+   "Chen BL",
+   "Paniagua E",
+   "Hall DH",
+   "Chklovskii DB"
+  ],
+  "year": 2011,
+  "title": "Structural properties of the Caenorhabditis elegans neuronal network",
+  "journal": "PLoS Comput Biol",
+  "volume": "7",
+  "pages": "e1001066",
+  "doi": "10.1371/journal.pcbi.1001066",
+  "pmid": "21304930",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-22 (PMID 21304930): title, authors, journal, year, volume and DOI match",
+  "match": "Varshney L|Varshney et al\\.? \\(?2011"
+ }
+]

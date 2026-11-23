@@ -8,6 +8,7 @@ What the data do not give, and this script has to assume (all are parameters):
   - the sign of each cell type:  EPG, PEN_a, PEN_b, PEG excitatory (cholinergic), Delta7 inhibitory (glutamatergic, acting through an inhibitory receptor);
     sources in research/atlas-a.md. Delta7 sign is a literature assumption, not in the table.
   - the weight of one synapse, one scale per presynaptic type (pA per synapse): weight = sign * synapse_count * scale[type]
+    (optional, used in the second search: a scale for one type pair, parameter w_<pre>_<post>, for example w_EPG_D7; and I_e_<pop> for one population's background current)
   - the cell model and its constants (iaf_psc_alpha, tau_syn_ex / tau_syn_in), a background current I_e (a stand-in for everything the cells receive that the table does not hold)
   - how the task's input reaches the cells: the landmark (cue k) reaches the E-PG cells at ring position k; the two turn sensors reach the P-EN cells of one side each
     (the left bridge half pushes the bump towards higher ring positions: see "shift" in research/atlas-a.md). Gains are parameters.
@@ -42,11 +43,11 @@ def build(p=None, data=None):
         local.append(count.get(pid, 0)); count[pid] = count.get(pid, 0) + 1
     order = ["EPG", "PENa", "PENb", "PEG", "D7"]
     sign = {"EPG": q["sign_EPG"], "PENa": q["sign_PEN"], "PENb": q["sign_PEN"], "PEG": q["sign_PEG"], "D7": q["sign_D7"]}
-    pops = [{"id": pid, "model": "iaf_psc_alpha", "n": count[pid], "params": {"I_e": q["I_e"], "tau_syn_ex": q["tau_syn_ex"], "tau_syn_in": q["tau_syn_in"]}, "role": "neuron"} for pid in order]
+    pops = [{"id": pid, "model": "iaf_psc_alpha", "n": count[pid], "params": {"I_e": q.get("I_e_" + pid, q["I_e"]), "tau_syn_ex": q["tau_syn_ex"], "tau_syn_in": q["tau_syn_in"]}, "role": "neuron"} for pid in order]
     edges = {}
     for a, b, w in d["connections"]:
         pa, pb = ids[a], ids[b]
-        edges.setdefault((pa, pb), []).append([local[a], local[b], round(sign[pa] * w * q["scale_" + pa], 4), q["delay"]])
+        edges.setdefault((pa, pb), []).append([local[a], local[b], round(sign[pa] * w * q.get("w_%s_%s" % (pa, pb), q["scale_" + pa]), 4), q["delay"]])
     proj = [{"pre": a, "post": b, "edges": e, "synapse": {"synapse_model": "static_synapse"}} for (a, b), e in sorted(edges.items(), key=lambda kv: (order.index(kv[0][0]), order.index(kv[0][1])))]
     epg = [i for i, n in enumerate(ns) if n["type"] == "EPG"]
     inputs = []
