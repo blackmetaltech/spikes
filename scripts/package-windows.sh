@@ -64,6 +64,7 @@ cp -f godot/bin/spike_gd_release.dll godot/bin/spike_gd_debug.dll
 rm -f "$out/spike_gd_debug.dll"
 cp -f godot/bin/spike_gd_release.dll godot/bin/spike-run.exe "$out/"
 cp -rL godot/circuits godot/catalog "$out/"
+rm -f "$out"/circuits/atlas_probe*.json   # the development-only Atlas probe is not shipped (as in package.sh)
 cp -f README.md "$out/README.md"
 rm -f "$zip_path" "$zip_path.sha256"; (cd "$out" && zip -qr -X "$zip_path" .)
 (cd build && sha256sum "$name.zip" > "$name.zip.sha256")
