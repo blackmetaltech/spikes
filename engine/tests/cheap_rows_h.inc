@@ -1,7 +1,6 @@
-// cheap-circuit rows (see tasks_cheap_test.cpp for the format). Owner: the Atlas wing of 0.6, iteration A2: the worm chapter's levels a_path and a_predict (locked touch circuit, five interneuron
+// cheap-circuit rows (see tasks_cheap_test.cpp for the format). Owner: the Atlas wing of 0.6, iteration A2: the worm chapter's level a_path (locked touch circuit, five interneuron
 // classes with a free scale from 0 to 1). docs/REQ-0.4.md rule 3: an empty bench, a single cell, the reference with every weight 0, then every wrong way to set the five classes, each with the word
-// its verdict must carry, and tampering with the given wiring. (a_motif is a bet decided by a committed answer: tasks_atlas_worm_test holds its cheap cases; a row here would need a passing
-// reference without an answer.) A row passes when the level does not pass on seeds 1 and 2 and says why.
+// its verdict must carry, and tampering with the given wiring. (a_predict and a_motif are bets decided by a committed answer, level_kind diagnosis: a row here would need a reference that passes without an answer; tasks_atlas_worm_test holds their cases.) A row passes when the level does not pass on seeds 1 and 2 and says why.
 {
   // set the scale of the five classes; a class not named keeps the value in `rest`
   auto classes = []( std::map< std::string, double > set, double rest ) -> cheap::Mut {
@@ -38,18 +37,5 @@
     CHEAP_ROW_V( t, "a silenced class only almost silenced", "partly", cheap::from_ref( t, classes( { { "AVD", 1.0 }, { "AVB", 0.05 } }, 0.0 ) ) );
     CHEAP_ROW_V( t, "tampered: the kept route's weights raised", "wiring", cheap::from_ref( t, scale_edges( "AVD", 2.0 ) ) );
     CHEAP_ROW_V( t, "tampered: a class made free to sign", "cell type", cheap::from_ref( t, group_free( "AVD", { "scale", "sign" } ) ) );
-  }
-  {
-    const char* t = "a_predict";
-    CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
-    CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
-    CHEAP_ROW( t, "reference with every weight 0", cheap::zero_weights( t ) );
-    CHEAP_ROW_V( t, "nothing silenced (the intact worm)", "no class is silenced", cheap::from_ref( t, classes( {}, 1.0 ) ) );
-    CHEAP_ROW_V( t, "everything silenced", "more than one class", cheap::from_ref( t, classes( {}, 0.0 ) ) );
-    CHEAP_ROW_V( t, "two classes silenced (AVE and AVB)", "more than one class", cheap::from_ref( t, classes( { { "AVE", 0.0 }, { "AVB", 0.0 } }, 1.0 ) ) );
-    for ( const char* k : { "AVA", "AVB", "AVD", "PVC" } )
-      CHEAP_ROW_V( t, std::string( "silencing " ) + k + " (the response is lost)", "needs this class", cheap::from_ref( t, classes( { { "AVE", 1.0 }, { k, 0.0 } }, 1.0 ) ) );
-    CHEAP_ROW_V( t, "the surviving class only half silenced", "partly", cheap::from_ref( t, classes( { { "AVE", 0.5 } }, 1.0 ) ) );
-    CHEAP_ROW_V( t, "tampered: a class's weights lowered by hand", "wiring", cheap::from_ref( t, scale_edges( "AVA", 0.5 ) ) );
   }
 }

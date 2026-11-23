@@ -4,7 +4,7 @@
 Writes, next to this script's circuits/ directory:
   a_path_given.json    the given touch circuit (every population and projection locked; five cell-type groups AVA, AVB, AVD, AVE, PVC, sign fixed (+1), scale free from 0 to 1, given at 1)
   a_path.json          its reference for a_path: the classes of one shortest route kept (AVD), the others silenced (scale 0)
-  a_predict_given.json = a_path_given.json;   a_predict.json: its reference, AVE silenced
+  a_predict_given.json = a_predict.json = a_path_given.json (a bet: the level silences the committed class itself)
   a_motif_given.json   the whole chemical wiring of the hermaphrodite (302 cells, classes as populations, locked, no stimulus; four category groups with nothing free) = a_motif.json
   dx_a_worm.json       the patient of the diagnosis case: the touch circuit, not locked, no groups, the outputs of one class (the answer) at weight 0
 
@@ -24,7 +24,6 @@ POINT = dict(scale_chem=15.5, I_e=170.0, min_count=3, tau_syn_ex=2.0)
 SOURCE = ("C. elegans hermaphrodite connectome, Cook SJ et al. 2019, Nature 571:63-71, doi:10.1038/s41586-019-1352-7, read through OpenWorm cect 0.3.5; "
           "the data keep the terms of the original publication; extraction: tools/connectome/worm_table.py; data/connectome/worm/PROVENANCE.md")
 ANSWER_A_PATH = ("AVD",)           # the route kept in the reference of a_path (shortest routes at class level: through AVB, AVD or AVE)
-ANSWER_A_PREDICT = "AVE"            # the class silenced in the reference of a_predict
 ANSWER_DX = "PVC"                   # the class silenced in the patient of dx_a_worm
 LAYOUT = {"ALM": (90, 140), "AVM": (90, 260), "PLM": (90, 380), "AVA": (340, 80), "AVB": (340, 190), "AVD": (340, 300), "AVE": (340, 410), "PVC": (340, 520),
           "DA": (600, 100), "VA": (600, 240), "DB": (600, 380), "VB": (600, 520)}
@@ -104,7 +103,7 @@ if __name__ == "__main__":
     put("a_path_given.json", given)
     put("a_predict_given.json", given)
     put("a_path.json", touch_circuit({k: 1.0 if k in ANSWER_A_PATH else 0.0 for k in wc.COMMAND}, "Atlas: the route AVD kept alone (reference)"))
-    put("a_predict.json", touch_circuit({k: 0.0 if k == ANSWER_A_PREDICT else 1.0 for k in wc.COMMAND}, "Atlas: AVE silenced (reference)"))
+    put("a_predict.json", given)   # a bet: the level silences the committed class itself, so its circuit is the given one
     w = whole_circuit()
     put("a_motif_given.json", w)
     put("a_motif.json", w)
