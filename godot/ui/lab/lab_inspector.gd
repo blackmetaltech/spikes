@@ -181,9 +181,13 @@ func group_card(g: Dictionary, small: int) -> void:
 	else:
 		srow.add_child(Kit.label("%s (fixed by the level)" % ("inhibitory" if neg else "excitatory"), small, Kit.TEXT))
 	var crow := HFlowContainer.new(); crow.add_theme_constant_override("h_separation", 10); body.add_child(crow)
-	crow.add_child(Kit.label("scale", small, Kit.TEXT_SOFT))
+	crow.add_child(Kit.label("state" if Circuits.group_off(g) and Circuits.group_free(g, "scale") else "scale", small, Kit.TEXT_SOFT))
 	var sc := float(g.get("scale", 1.0))
-	if Circuits.group_free(g, "scale"):
+	if Circuits.group_free(g, "scale") and Circuits.group_off(g):
+		# a cell type that can be switched off: two states, active (scale 1) or silenced (scale 0); the stepper of 0.05 steps is not offered
+		crow.add_child(Kit.ident(Kit.stepper([["1", "active"], ["0", "silenced"]], "0" if Circuits.group_silenced(g) else "1", func(v): _group_edit(Circuits.group_set_active(circuit, gid, str(v) == "1")), 230.0 if not Layout.phone else 180.0, 18, 40.0), "StepActive_" + gid))
+		if Circuits.group_silenced(g): body.add_child(Kit.label("Silenced: every connection out of %s carries nothing." % gid, small, Kit.TEXT_SOFT, true))
+	elif Circuits.group_free(g, "scale"):
 		var r := Circuits.group_scale_range(g)
 		crow.add_child(Kit.ident(Kit.btn("-", func(): _group_edit(Circuits.group_step_scale(circuit, gid, -1)), "panel", 18, Vector2(44, 40)), "BtnScaleDown_" + gid))
 		var vl := Kit.label("%.2f" % sc, 20, Kit.TEXT); vl.custom_minimum_size.x = 60; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; Kit.ident(vl, "ScaleValue_" + gid); crow.add_child(vl)
