@@ -4,7 +4,7 @@
 //      (and of `spike-run --locked-digest`); a_motif's circuit is the whole chemical wiring (302 cells) and its reference is the given circuit.
 //   3. tampering with the given wiring, cells, types, channels or a free value out of range is rejected, in the engine, with a verdict that names the part and no number.
 //   4. a_path: the reference passes seeds 101 to 105 (quick and full, three modes); each of the three shortest routes kept alone passes the level and the verdict says the worm does not back up.
-//   5. a_predict: exactly one of the five commits passes on the circuit seeds 1 to 3 and 101 to 105, it is Diagnosis::answer, and the others fail with a verdict that says the response needs the class.
+//   5. a_predict (the level silences the committed class itself): exactly one of the five commits passes on the circuit seeds 1 to 3 and 101 to 105, it is Diagnosis::answer, and the others fail with a verdict that says the response needs the class.
 //   6. a_motif: the engine's three z-scores; exactly one null model gives a significant positive z for the feed-forward loop; it is Diagnosis::answer.
 //   7. dx_a_worm: exactly one candidate passes; the four lesions are told apart by which classes fire after the touch (the recording signature the case rests on).
 //   8. no verdict or hint (tiers 1 to 3) of the four carries a digit.
@@ -191,7 +191,7 @@ void test_digests()
   {
     auto t = make_task( id );
     CHECK_MSG( t->given().digest == d_path, std::string( id ) + ": Task::given().digest is not the digest of its given circuit: run spike-run --locked-digest on it and update the task" );
-    CHECK( t->given().circuit == std::string( id ) + "_given.json" and t->level_kind() == "atlas" );
+    CHECK( t->given().circuit == std::string( id ) + "_given.json" and t->level_kind() == ( std::string( id ) == "a_path" ? "atlas" : "diagnosis" ) );
   }
   auto m = make_task( "a_motif" );
   CHECK_MSG( m->given().digest == d_motif, "a_motif: Task::given().digest is not the digest of a_motif_given.json" );
@@ -302,9 +302,12 @@ void test_a_predict()
   const json given = load_file( "a_predict_given.json" ), ref = load_file( "a_predict.json" );
   auto t = make_task( "a_predict" );
   const auto d = t->diagnosis();
-  std::printf( "a_predict: one commit per class, seeds 1 to 3 and 101 to 105\n" );
+  std::printf( "a_predict: one commit per class (the level silences it), seeds 1 to 3 and 101 to 105\n" );
+  CHECK( ref == given );
+  CHECK( t->level_kind() == "diagnosis" and not t->on_spine() and t->parent() == "a_path" and t->chapter() == "a_worm" );
   CHECK( d.bet and d.budget == 3 and d.candidates.size() == 5 and d.answer == "AVE" and d.candidates.front() != d.answer );
   CHECK( std::set< std::string >( d.candidates.begin(), d.candidates.end() ) == std::set< std::string >( kClasses.begin(), kClasses.end() ) );
+  CHECK( d.probes.size() >= 1 and d.probes.size() <= 2 );
   for ( const auto& c : d.candidates ) CHECK( d.labels.count( c ) and d.explain.count( c ) );
   std::string survivor;
   for ( uint64_t seed : { 1, 2, 3, 101, 102, 103, 104, 105 } )
@@ -312,7 +315,7 @@ void test_a_predict()
     std::vector< std::string > passing;
     for ( const auto& k : kClasses )
     {
-      const Res r = run( "a_predict", scales( given, { { k, 0.0 } }, 1.0 ), seed, true, "standard", k );
+      const Res r = run( "a_predict", given, seed, true, "standard", k );
       CHECK_MSG( r.loaded and not rejected( r ), k + ": " + r.verdict );
       no_digit( "a_predict verdict", r.verdict );
       if ( r.passed )
@@ -321,30 +324,38 @@ void test_a_predict()
         CHECK_MSG( r.value == 100.0 and r.verdict.rfind( "Correct", 0 ) == 0, "a right commit scores in full: " + r.verdict );
       }
       else
-        CHECK_MSG( r.verdict.find( "needs this class" ) != std::string::npos, k + ": " + r.verdict );
+        CHECK_MSG( r.value == 0.0 and r.verdict.find( "needs this class" ) != std::string::npos, k + ": " + r.verdict );
     }
     CHECK_MSG( passing.size() == 1, "seed " + std::to_string( seed ) + ": exactly one class may be silenced without losing the response, found " + std::to_string( passing.size() ) );
     if ( passing.size() == 1 ) { if ( survivor.empty() ) survivor = passing[ 0 ]; CHECK_MSG( passing[ 0 ] == survivor, "the surviving class changes with the seed" ); }
   }
   CHECK_MSG( survivor == d.answer, "the run's surviving class (" + survivor + ") is not Diagnosis::answer (" + d.answer + ")" );
-  // the commit and the lesion must agree
-  { const Res r = run( "a_predict", ref, 101, true, "standard", "AVA" ); CHECK( not r.passed and r.verdict.find( "committed to AVA but silenced AVE" ) != std::string::npos ); no_digit( "mismatch", r.verdict ); }
-  { const Res r = run( "a_predict", ref, 101, true, "standard", "XYZ" ); CHECK( not r.passed and r.verdict.find( "not one of the five" ) != std::string::npos ); }
-  // no commit: a control run, capped; nothing silenced: no lesion; two silenced: no single bet; partial: no lesion
-  { const Res r = run( "a_predict", ref ); CHECK_MSG( r.passed and r.value <= 60.0 and r.verdict.find( "control run" ) != std::string::npos, r.verdict ); no_digit( "control", r.verdict ); }
-  { const Res r = run( "a_predict", given, 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "No class is silenced" ) != std::string::npos ); }
-  { const Res r = run( "a_predict", scales( given, { { "AVE", 0.0 }, { "AVB", 0.0 } }, 1.0 ), 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "More than one class" ) != std::string::npos ); }
-  { const Res r = run( "a_predict", scales( given, { { "AVE", 0.4 } }, 1.0 ), 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "partly" ) != std::string::npos ); }
+  // the level silences the committed class itself: the intact circuit with a commit loses exactly that class's output (checked through the rates: AVA silenced means no response)
+  { const Res r = run( "a_predict", given, 101, true, "standard", "AVA" ); CHECK( not r.passed and r.parts.at( "a_hz" ) < 1.0 ); }
+  { const Res r = run( "a_predict", given, 101, true, "standard", "AVE" ); CHECK( r.passed and r.parts.at( "a_hz" ) >= 5.0 ); }
+  // no commit: not passed, the verdict asks for the bet (nothing about the response)
+  { const Res r = run( "a_predict", given ); CHECK_MSG( not r.passed and r.value == 0.0 and r.verdict.find( "No prediction committed" ) != std::string::npos, r.verdict ); no_digit( "no commit", r.verdict ); }
+  { const Res r = run( "a_predict", given, 101, true, "standard", "XYZ" ); CHECK( not r.passed and r.verdict.find( "not one of the five" ) != std::string::npos ); }
+  // the circuit must be the given one: an edited class is read as an edited circuit, not as a lesion
+  { const Res r = run( "a_predict", scales( given, { { "AVE", 0.0 } }, 1.0 ), 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "has been edited" ) != std::string::npos ); no_digit( "edited", r.verdict ); }
+  { const Res r = run( "a_predict", scales( given, { { "AVE", 0.4 } }, 1.0 ), 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "has been edited" ) != std::string::npos ); }
   // the cost of a commit: 100 - 15 per wrong commit - 3 per read beyond the budget, floor 25; revealed scores nothing
-  { const Res r = run( "a_predict", ref, 101, true, "standard", "AVE@5:2" ); CHECK_MSG( r.passed and r.value == 64.0, "value " + std::to_string( r.value ) ); no_digit( "costed", r.verdict ); }
-  { const Res r = run( "a_predict", ref, 101, true, "standard", "AVE@2:0" ); CHECK( r.passed and r.value == 100.0 ); }
-  { const Res r = run( "a_predict", ref, 101, true, "standard", "AVE@40:9" ); CHECK( r.passed and r.value == 25.0 ); }
-  { const Res r = run( "a_predict", ref, 101, true, "standard", "AVE@revealed" ); CHECK( not r.passed and r.value == 0.0 and r.verdict.find( "revealed" ) != std::string::npos ); no_digit( "revealed", r.verdict ); }
+  { const Res r = run( "a_predict", given, 101, true, "standard", "AVE@5:2" ); CHECK_MSG( r.passed and r.value == 64.0, "value " + std::to_string( r.value ) ); no_digit( "costed", r.verdict ); }
+  { const Res r = run( "a_predict", given, 101, true, "standard", "AVE@2:0" ); CHECK( r.passed and r.value == 100.0 ); }
+  { const Res r = run( "a_predict", given, 101, true, "standard", "AVE@40:9" ); CHECK( r.passed and r.value == 25.0 ); }
+  { const Res r = run( "a_predict", given, 101, true, "standard", "AVE@revealed" ); CHECK( not r.passed and r.value == 0.0 and r.verdict.find( "revealed" ) != std::string::npos ); no_digit( "revealed", r.verdict ); }
+  // every mode and the full episode agree
+  for ( const char* mode : { "guided", "standard", "researcher" } )
+    for ( bool quick : { true, false } )
+    {
+      const Res r = run( "a_predict", given, 102, quick, mode, "AVE" );
+      CHECK_MSG( r.passed, std::string( mode ) + ": " + r.verdict );
+    }
   const Res r = run( "a_predict", given );
   CHECK( r.hints.size() == 3 );
   for ( const auto& h : r.hints ) no_digit( "a_predict hint " + std::to_string( h.tier ), h.text );
   for ( const auto& [ k, v ] : d.explain ) no_digit( "a_predict explain", v );
-  CHECK( not t->brief().empty() and not t->notebook().citation.empty() and t->chapter() == "a_worm" );
+  CHECK( not t->brief().empty() and not t->notebook().citation.empty() );
 }
 
 // ---------------------------------------------------------------- 6. a_motif
@@ -373,7 +384,7 @@ void test_a_motif()
     CHECK_MSG( r.parts[ "z_edges" ] > 2.0 and r.parts[ "z_degree" ] < -2.0 and r.parts[ "z_blocks" ] < -2.0, "the sign of every z-score is as research/atlas-a.md 4b reports" );
     CHECK( r.value == 100.0 and r.verdict.rfind( "Correct", 0 ) == 0 ); }
   { Res r = run( "a_motif", c, 101, true, "standard", "edges@5:2", false, 20, false ); CHECK_MSG( r.passed and r.value == 64.0, "value " + std::to_string( r.value ) ); }
-  { Res r = run( "a_motif", c, 101, true, "standard", "", false, 20, false ); CHECK_MSG( r.passed and r.value == 60.0 and r.verdict.find( "control run" ) != std::string::npos and r.verdict.find( "more frequent" ) == std::string::npos, "no commit is a control run that tells nothing: " + r.verdict ); no_digit( "motif control", r.verdict ); }
+  { Res r = run( "a_motif", c, 101, true, "standard", "", false, 20, false ); CHECK_MSG( not r.passed and r.value == 0.0 and r.verdict.find( "No prediction committed" ) != std::string::npos and r.verdict.find( "more frequent" ) == std::string::npos, "no commit is not passed and tells nothing: " + r.verdict ); no_digit( "motif no commit", r.verdict ); }
   { Res r = run( "a_motif", c, 101, true, "standard", "edges@revealed", false, 20, false ); CHECK( not r.passed and r.value == 0.0 ); }
   { Res r = run( "a_motif", c, 101, true, "standard", "nonsense", false, 20, false ); CHECK( not r.passed and r.verdict.find( "not one of the three" ) != std::string::npos ); }
   // the full episode and the three modes agree
