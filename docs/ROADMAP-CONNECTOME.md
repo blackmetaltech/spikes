@@ -51,7 +51,7 @@ About 12 levels and 3 cases. The compass and mushroom-body chapters replace noth
 |---|---|---|---|
 | A1 | Hemibrain extraction script with compass and mushroom-body tables and provenance; scale benchmark; `locked` and `free` in the format, engine and editor; one throwaway level proving the loop | tables reproduce from the script; benchmark numbers in this file; tests for locked wiring; CI green | done (2026-11-23) |
 | A2 | Worm chapter; wiring matrix; null-model bench; prediction bet | 3 levels and 1 case pass the honesty contract; the matrix and bench are in the interaction graph | engine side built (`a_path`, `a_motif`, `a_predict`, `dx_a_worm`, chapter `a_worm`; research/atlas-a.md 4b), game side next |
-| A3 | Compass chapter; state-space view | real wiring holds a bump with the reference's signs and gains on seeds 101 to 105; a wrong sign assignment fails | planned |
+| A3 | Compass chapter; state-space view | real wiring holds a bump with the reference's signs and gains on seeds 101 to 105; a wrong sign assignment fails | next: blocked on the open question in research/atlas-a.md section 4 (no setting found in which the measured wiring holds a bump where it was put) |
 | A4 | Mushroom-body chapter | the real fan-in statistics are reported with the null model; sparse code scored | planned |
 | A5 | Degeneracy chapter, feeding boss, Atlas map plate, wiki, release 0.6 | full CI; CHANGELOG; release | planned |
 

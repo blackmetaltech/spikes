@@ -58,8 +58,8 @@ These are small and independent; they run beside the first Atlas iteration.
 | # | Iteration | Release | Status |
 |---|---|---|---|
 | A1 | Atlas groundwork: data extraction, scale benchmark, locked-wiring levels | 0.6 | done |
-| A2 | Worm: reading wiring | 0.6 | next |
-| A3 | Fly compass from real wiring; state-space view | 0.6 | planned |
+| A2 | Worm: reading wiring | 0.6 | done |
+| A3 | Fly compass from real wiring; state-space view | 0.6 | next (design open, see research/atlas-a.md section 4) |
 | A4 | Fly mushroom body from real wiring | 0.6 | planned |
 | A5 | Same wiring, different dynamics; the feeding circuit boss | 0.6 | planned |
 | M1 to M5 | Memory wing | 0.7 | planned |
