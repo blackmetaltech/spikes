@@ -155,5 +155,76 @@
   "status": "verified",
   "verified_by": "PubMed record read 2026-11-22 (PMID 21304930): title, authors, journal, year, volume and DOI match",
   "match": "Varshney L|Varshney et al\\.? \\(?2011"
+ },
+ {
+  "id": "cook2019",
+  "authors": [
+   "Cook SJ",
+   "Jarrell TA",
+   "Brittin CA",
+   "Wang Y",
+   "Bloniarz AE",
+   "Yakovlev MA",
+   "Nguyen KCQ",
+   "Tang LT-H",
+   "Bayer EA",
+   "Duerr JS",
+   "Bülow HE",
+   "Hobert O",
+   "Hall DH",
+   "Emmons SW"
+  ],
+  "year": 2019,
+  "title": "Whole-animal connectomes of both Caenorhabditis elegans sexes",
+  "journal": "Nature",
+  "volume": "571",
+  "pages": "63-71",
+  "doi": "10.1038/s41586-019-1352-7",
+  "pmid": "31270481",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-23 (PMID 31270481): title, authors, journal, year, volume and DOI match",
+  "match": "Cook SJ|Cook et al\\.? \\(?2019"
+ },
+ {
+  "id": "chalfie1985",
+  "authors": [
+   "Chalfie M",
+   "Sulston JE",
+   "White JG",
+   "Southgate E",
+   "Thomson JN",
+   "Brenner S"
+  ],
+  "year": 1985,
+  "title": "The neural circuit for touch sensitivity in Caenorhabditis elegans",
+  "journal": "J Neurosci",
+  "volume": "5",
+  "pages": "956-964",
+  "doi": "10.1523/JNEUROSCI.05-04-00956.1985",
+  "pmid": "3981252",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-23 (PMID 3981252): title, authors, journal, year, volume and DOI match",
+  "match": "Chalfie M|Chalfie et al\\.? \\(?1985"
+ },
+ {
+  "id": "milo2002",
+  "authors": [
+   "Milo R",
+   "Shen-Orr S",
+   "Itzkovitz S",
+   "Kashtan N",
+   "Chklovskii D",
+   "Alon U"
+  ],
+  "year": 2002,
+  "title": "Network motifs: simple building blocks of complex networks",
+  "journal": "Science",
+  "volume": "298",
+  "pages": "824-827",
+  "doi": "10.1126/science.298.5594.824",
+  "pmid": "12399590",
+  "status": "verified",
+  "verified_by": "PubMed record read 2026-11-23 (PMID 12399590): title, authors, journal, year, volume and DOI match",
+  "match": "Milo R|Milo et al\\.? \\(?2002"
  }
 ]
