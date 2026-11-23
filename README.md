@@ -1,12 +1,12 @@
 # 🧠 SPIKE — wire neurons, run a body
 
-**[Website](https://spike.blackmetal.tech/)** · **[Wiki](https://spike.blackmetal.tech/wiki/)** · **[Releases](https://github.com/ixaxaar/spikes/releases)** · **[What is real](docs/WHAT-IS-REAL.md)** · **[Changelog](CHANGELOG.md)** · **[Issues](https://github.com/ixaxaar/spikes/issues)**
+**[Website](https://spike.blackmetal.tech/)** · **[Wiki](https://spike.blackmetal.tech/wiki/)** · **[Releases](https://github.com/blackmetaltech/spikes/releases)** · **[What is real](docs/WHAT-IS-REAL.md)** · **[Changelog](CHANGELOG.md)** · **[Issues](https://github.com/blackmetaltech/spikes/issues)**
 
 **Build small spiking neural circuits and watch them run a body.** Wire sensory cells to interneurons to motor pools, and a leg kicks, a lamprey swims, a heart speeds up when you stand, a pupil narrows in the light, a worm backs away from a touch. Every neuron is a real [NEST](https://www.nest-simulator.org/) model, simulated live inside the game, in NEST's own names and units (mV, ms, pA, nS, Hz).
 
 The front-end is a **Godot 4.7** game drawn as a 19th-century histology plate: India ink and Golgi stain on paper, sienna for excitation, Prussian blue for inhibition. Underneath it, the NEST kernel is linked statically into a C++ engine (no Python at runtime) that runs the circuit and a simplified body in a closed loop, 1 ms at a time.
 
-> **Alpha (0.5.0).** Playable on desktop Linux. Rough in places: see the [changelog](CHANGELOG.md) for known gaps. Tell us what broke or confused you in [issues](https://github.com/ixaxaar/spikes/issues).
+> **Alpha (0.5.2).** Playable on Linux, macOS (Apple Silicon) and Windows. Rough in places: see the [changelog](CHANGELOG.md) for known gaps. Tell us what broke or confused you in [issues](https://github.com/blackmetaltech/spikes/issues).
 
 ![A lamprey swimming on a half-centre oscillator](docs/readme/lamprey.png)
 
@@ -67,7 +67,13 @@ spikes = spike.run(net, 1000.0)
 
 ## Download
 
-Linux x86_64 only for now (glibc 2.39 / Ubuntu 24.04 or newer). Grab `spike-linux-x86_64.zip` from [Releases](https://github.com/ixaxaar/spikes/releases), extract, run `Spike.x86_64`. Windows is planned; the missing piece is cross-building NEST.
+Grab the zip for your system from [Releases](https://github.com/blackmetaltech/spikes/releases) and extract it anywhere.
+
+- **Linux x86_64** (glibc 2.39 / Ubuntu 24.04 or newer): `spike-linux-x86_64.zip`, run `./Spike.x86_64`.
+- **macOS, Apple Silicon**: `spike-macos-arm64.zip`. The app is not notarized, so macOS blocks the first launch: System Settings, Privacy & Security, Open Anyway; or `xattr -dr com.apple.quarantine Spike.app`.
+- **Windows x86_64** (10 or newer): `spike-windows-x86_64.zip`, run `Spike.exe`. It is unsigned, so SmartScreen warns: More info, Run anyway.
+
+Intel Macs are not built.
 
 ## Run from source
 

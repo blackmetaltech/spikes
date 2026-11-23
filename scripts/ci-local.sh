@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run what .github/workflows/ci.yml runs, locally, in the same toolchain image.
 #   scripts/ci-local.sh [dir]        dir = checkout to test (default: this one; use a clean worktree for a faithful run)
-# The image is spike-build:<tag> (tag = scripts/toolchain-tag.sh). It is used if present locally, else pulled from ghcr.io/ixaxaar/spike-build,
+# The image is spike-build:<tag> (tag = scripts/toolchain-tag.sh). It is used if present locally, else pulled from ghcr.io/blackmetaltech/spike-build,
 # else built from the Dockerfile (cold ~1.5 h; cached afterwards). Set SPIKE_IMAGE to use another image.
 # Prints "STEP <name> FAILED" for each failing step and exits non-zero if any failed.
 set -uo pipefail
@@ -10,7 +10,7 @@ dir=$(cd "${1:-$here}" && pwd)
 tag=$("$here/scripts/toolchain-tag.sh")
 img=${SPIKE_IMAGE:-spike-build:$tag}
 if ! docker image inspect "$img" >/dev/null 2>&1; then
-  docker pull "ghcr.io/ixaxaar/spike-build:$tag" 2>/dev/null && docker tag "ghcr.io/ixaxaar/spike-build:$tag" "$img" \
+  docker pull "ghcr.io/blackmetaltech/spike-build:$tag" 2>/dev/null && docker tag "ghcr.io/blackmetaltech/spike-build:$tag" "$img" \
     || docker build -t "$img" "$here" || { echo "STEP image FAILED"; exit 10; }
 fi
 cd "$dir"
