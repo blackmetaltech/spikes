@@ -76,6 +76,17 @@ def whole_circuit():
         for j, i in enumerate(classes[k]):
             local[i] = j; cls[i] = k
     pops = [{"id": k, "model": "iaf_psc_alpha", "n": len(classes[k]), "params": {}, "role": "neuron", "locked": True} for k in order]
+    # editor positions (not part of the locked digest): one band per cell category, twelve classes to a row, the cells of a class two abreast. Without positions the
+    # editor lays a file out itself when it is opened, and the circuit on the bench would then differ from the file it came from.
+    x0, y0, dx, dy, per_row = 80, 80, 120, 190, 12
+    col, row, last = 0, 0, None
+    for p in pops:
+        cat = ns[classes[p["id"]][0]]["category"]
+        if last is not None and cat != last: col, row = 0, row + 1
+        if col == per_row: col, row = 0, row + 1
+        cx, cy = x0 + dx * col, y0 + dy * row
+        p["pos"] = [[cx + 34 * (k % 2), cy + 22 * (k // 2)] for k in range(p["n"])]
+        col += 1; last = cat
     edges = {}
     for a, b, n in d["chemical"]:
         edges.setdefault((cls[a], cls[b]), []).append([local[a], local[b], float(n), 2.0])
