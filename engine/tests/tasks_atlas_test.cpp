@@ -306,6 +306,21 @@ void test_tampering()
   { json c = ref; c[ "inputs" ][ 1 ][ "weight" ] = 120.0; expect_rejected( c, "an input weight changed", chan ); }
   { json c = ref; c[ "outputs" ][ 0 ][ "neurons" ] = json::array( { { { "pop", "P" } } } ); expect_rejected( c, "the output read from other cells", chan ); }
   { json c = ref; c[ "inputs" ].erase( 1 ); expect_rejected( c, "an input removed", "" ); }
+  {  // the tampered circuit that would pass without the lock: every live weight is exactly the reference's (so only the digest tells them apart)
+    auto weights = []( const json& c ) {
+      std::vector< double > w;
+      Engine e;
+      if ( not e.load( c.dump() ) ) return w;
+      for ( const auto& q : e.connections() ) w.push_back( q.weight );
+      return w;
+    };
+    json c = set_group( ref, "I", "scale", 0.25 );
+    for ( auto& e : c[ "projections" ][ 2 ][ "edges" ] ) e[ 2 ] = e[ 2 ].get< double >() * 0.98 / 0.25;
+    const auto a = weights( ref ), b = weights( c );
+    CHECK_MSG( a.size() == b.size() and not a.empty(), "tampered twin: same number of connections" );
+    for ( size_t i = 0; i < a.size() and i < b.size(); ++i ) CHECK_MSG( std::fabs( a[ i ] - b[ i ] ) < 1e-9, "tampered twin: live weight " + std::to_string( i ) + " differs" );
+    expect_rejected( c, "a twin of the reference by stored weights (identical live weights)", wiring );
+  }
   // a free value outside its range
   for ( double s : { 0.1, 2.5, 5.0 } )
   {

@@ -181,6 +181,14 @@ static func validate(c: Variant) -> String:
 		if d.has(key) and not d[key] is Array: return "\"%s\" must be a list" % key
 	for key in ["meta", "record"]:
 		if d.has(key) and not d[key] is Dictionary: return "\"%s\" must be an object" % key
+	if d.has("groups"):
+		if not d["groups"] is Array: return "\"groups\" must be a list"
+		for g in d["groups"]:
+			if not g is Dictionary or not (g as Dictionary).get("id", null) is String or not (g as Dictionary).get("pops", null) is Array: return "a cell-type group needs a text id and a list of populations"
+			for f in ["sign", "scale"]:
+				if (g as Dictionary).has(f) and not _is_num((g as Dictionary)[f]): return "group %s: \"%s\" must be a number" % [str((g as Dictionary)["id"]), f]
+			if (g as Dictionary).has("free") and not (g as Dictionary)["free"] is Array: return "group %s: \"free\" must be a list" % str((g as Dictionary)["id"])
+			if (g as Dictionary).has("ranges") and not (g as Dictionary)["ranges"] is Dictionary: return "group %s: \"ranges\" must be an object" % str((g as Dictionary)["id"])
 	for key in ["seed", "resolution_ms", "schema_version"]:
 		if d.has(key) and not _is_num(d[key]): return "\"%s\" must be a finite number" % key
 	if d.has("resolution_ms") and float(d["resolution_ms"]) <= 0.0: return "\"resolution_ms\" must be positive"
@@ -274,7 +282,7 @@ static func parse_checked(json: String) -> Dictionary:
 	return {"circuit": v, "error": "", "repaired": rep}
 
 ## Godot's JSON reads every number as a float and would write 1 as 1.0, which the engine rejects for integer fields (schema_version, n, seed ...): restore them.
-const INT_KEYS := ["schema_version", "n", "seed", "indegree", "outdegree", "idx", "pos", "projection"]
+const INT_KEYS := ["schema_version", "n", "seed", "indegree", "outdegree", "idx", "pos", "projection", "sign"]   # "sign": a cell-type group's +1 / -1
 static func to_json(c: Dictionary) -> String: return JSON.stringify(_norm(c, ""), "  ")
 
 static func _norm(v: Variant, key: String) -> Variant:
@@ -408,6 +416,87 @@ static func ensure_pos(c: Dictionary) -> void:
 			var a := auto_pos(pi, k, n); pos.append([a.x, a.y])
 		p["pos"] = pos
 
+# ---------- locked parts and cell-type groups (0.6, the Atlas; docs/CIRCUIT-FORMAT.md "Locked parts and groups") ----------
+## A locked-wiring level hands the player a circuit whose wiring is data: `locked: true` on a population or a projection, and a `groups` list of cell types whose free
+## parameters (sign, scale) the player sets. The engine applies |stored weight| x scale x sign at load; the editor works on the stored circuit and shows the effective sign.
+## The lock itself is enforced by the engine (Task::given: a circuit that differs from the given one is rejected whatever the editor did); these helpers and the editor make
+## the player's side of it clear and keep the bench from drifting away from the given circuit.
+const SCALE_STEP := 0.05   # the stepper of a scale card moves in these steps (a reference's own scale is kept off this grid, so a hand-tuned bench is never a copy of it)
+const LOCK_POP := "This cell group is part of the given circuit, which is locked: it cannot be deleted, resized or given another model."
+const LOCK_PROJ := "This connection is part of the given wiring, which is locked: its endpoints, weights and delays cannot be edited, and it cannot be deleted. Set the cell-type cards instead."
+const LOCK_NEW := "The wiring of this level is given: connections cannot be added or removed. Set the cell-type cards instead."
+const LOCK_ADD := "The circuit of this level is given and locked: cells cannot be added to it. Set the cell-type cards instead."
+const LOCK_PASTE := "The circuit of this level is given and locked: cells and connections cannot be pasted into it."
+const LOCK_IO := "The sensors and motors of this level are given: what they are wired to cannot be changed."
+
+static func is_locked(d: Variant) -> bool: return d is Dictionary and bool((d as Dictionary).get("locked", false))
+static func has_locked_wiring(c: Dictionary) -> bool:
+	for pr in c.get("projections", []):
+		if is_locked(pr): return true
+	return false
+static func has_locks(c: Dictionary) -> bool:
+	if has_locked_wiring(c): return true
+	for p in c.get("populations", []):
+		if is_locked(p): return true
+	return false
+static func groups(c: Dictionary) -> Array:
+	var g: Variant = c.get("groups", [])
+	return g if g is Array else []
+static func group_index(c: Dictionary, gid: String) -> int:
+	var gs := groups(c)
+	for i in gs.size():
+		if str((gs[i] as Dictionary).get("id", "")) == gid: return i
+	return -1
+## The group (a live Dictionary of the circuit) a population belongs to; {} when it is in none.
+static func group_of_pop(c: Dictionary, pop_id: String) -> Dictionary:
+	for g in groups(c):
+		if (g as Dictionary).get("pops", []).has(pop_id): return g
+	return {}
+static func group_free(g: Dictionary, what: String) -> bool: return (g.get("free", []) as Array).has(what)
+static func group_label(g: Dictionary) -> String: return str(g.get("label", g.get("id", "")))
+## [lo, hi] of the free scale of a group; [0, 0] when scale is not free.
+static func group_scale_range(g: Dictionary) -> Vector2:
+	if not group_free(g, "scale"): return Vector2.ZERO
+	var r: Variant = (g.get("ranges", {}) as Dictionary).get("scale", [])
+	return Vector2(float(r[0]), float(r[1])) if r is Array and r.size() == 2 else Vector2.ZERO
+## True when the stored scale of a free scale lies inside its range (a level rejects a circuit outside it).
+static func group_in_range(g: Dictionary) -> bool:
+	var r := group_scale_range(g)
+	if r == Vector2.ZERO: return true
+	var v := float(g.get("scale", 1.0))
+	return v >= r.x * (1.0 - 1e-9) and v <= r.y * (1.0 + 1e-9)
+## The factor the engine applies to the weights of every projection out of `pop_id` (scale x sign); 1 for a population in no group.
+static func pop_factor(c: Dictionary, pop_id: String) -> float:
+	var g := group_of_pop(c, pop_id)
+	if g.is_empty(): return 1.0
+	return maxf(float(g.get("scale", 1.0)), 0.0) * (-1.0 if float(g.get("sign", 1)) < 0.0 else 1.0)
+## The weight the engine runs projection `pr` with: |stored| x scale x sign for a projection out of a group, the stored weight otherwise.
+static func proj_weight_eff(c: Dictionary, pr: Dictionary) -> float:
+	var w := proj_weight(pr)
+	if (c.get("groups", []) as Array).is_empty(): return w
+	var g := group_of_pop(c, proj_pop(pr.get("pre", "")))
+	return w if g.is_empty() else absf(w) * pop_factor(c, proj_pop(pr.get("pre", "")))
+
+## Set the sign of group `gid` (+1 / -1). Returns "" when it was set, else the reason in words (the sign is not free in this level).
+static func group_set_sign(c: Dictionary, gid: String, sign_: int) -> String:
+	var i := group_index(c, gid); if i < 0: return "There is no cell type %s." % gid
+	var g: Dictionary = groups(c)[i]
+	if not group_free(g, "sign"): return "The sign of %s is fixed by this level." % group_label(g)
+	g["sign"] = 1 if sign_ >= 0 else -1
+	return ""
+## Set the scale of group `gid`, snapped to SCALE_STEP and clamped to its range. Returns "" when set, else the reason.
+static func group_set_scale(c: Dictionary, gid: String, v: float) -> String:
+	var i := group_index(c, gid); if i < 0: return "There is no cell type %s." % gid
+	var g: Dictionary = groups(c)[i]
+	if not group_free(g, "scale"): return "The scale of %s is fixed by this level." % group_label(g)
+	var r := group_scale_range(g)
+	g["scale"] = clampf(snappedf(v, SCALE_STEP), r.x, r.y)
+	return ""
+## One stepper click: scale + dir x SCALE_STEP.
+static func group_step_scale(c: Dictionary, gid: String, dir: int) -> String:
+	var i := group_index(c, gid); if i < 0: return "There is no cell type %s." % gid
+	return group_set_scale(c, gid, float((groups(c)[i] as Dictionary).get("scale", 1.0)) + float(dir) * SCALE_STEP)
+
 # ---------- projections ----------
 static func proj_pop(ref: Variant) -> String:
 	if ref is Dictionary: return str(ref.get("pop", ""))
@@ -428,7 +517,7 @@ static func proj_weight_shown(c: Dictionary, i: int) -> float:
 	if i < 0 or i >= projs.size(): return 0.0
 	var pr: Dictionary = projs[i]
 	var t: Array = (c.get("meta", {}) as Dictionary).get("dx_types", [])
-	if t.is_empty() or i >= t.size(): return proj_weight(pr)
+	if t.is_empty() or i >= t.size(): return proj_weight_eff(c, pr)
 	var pi := pop_index(c, proj_pop(pr.get("post", ""))); var nominal := weight_of(str(c["populations"][pi].get("model", ""))) if pi >= 0 else 1.0
 	return -nominal if str(t[i]) == "I" else nominal
 
@@ -462,7 +551,7 @@ static func kinds(c: Dictionary) -> Dictionary:
 	var sum := {}
 	for pr in c.get("projections", []):
 		var pre := proj_pop(pr.get("pre", ""))
-		sum[pre] = float(sum.get(pre, 0.0)) + signf(proj_weight(pr))
+		sum[pre] = float(sum.get(pre, 0.0)) + signf(proj_weight_eff(c, pr))
 	var note: Dictionary = c.get("meta", {}).get("editor", {}).get("ei", {})
 	var out := {}
 	for p in c.get("populations", []):
@@ -713,6 +802,7 @@ static func add_projection(c: Dictionary, pre: String, post: String) -> int:
 
 static func remove_population(c: Dictionary, id: String) -> void:
 	var pi := pop_index(c, id)
+	if pi >= 0 and is_locked(c["populations"][pi]): return   # a locked population stays (the editor says why)
 	if pi >= 0: c["populations"].remove_at(pi)
 	var keep := []
 	for p in c["projections"]:
@@ -736,7 +826,7 @@ static func remove_population(c: Dictionary, id: String) -> void:
 		rec["voltage"] = vv
 
 static func set_model(c: Dictionary, id: String, model: String, preset: int) -> void:
-	var pi := pop_index(c, id); if pi < 0: return
+	var pi := pop_index(c, id); if pi < 0 or is_locked(c["populations"][pi]): return
 	var p: Dictionary = c["populations"][pi]; var presets: Array = presets_of(model)
 	p["model"] = model; p["params"] = (presets[clampi(preset, 0, presets.size() - 1)][1] as Dictionary).duplicate()
 
@@ -747,7 +837,7 @@ static func preset_of(p: Dictionary) -> int:
 	return -1
 
 static func set_n(c: Dictionary, id: String, n: int) -> void:
-	var pi := pop_index(c, id); if pi < 0: return
+	var pi := pop_index(c, id); if pi < 0 or is_locked(c["populations"][pi]): return
 	var p: Dictionary = c["populations"][pi]; p["n"] = n
 	var pos: Array = p.get("pos", [])
 	while pos.size() > n: pos.pop_back()
@@ -871,6 +961,11 @@ static func fingerprint(c: Dictionary) -> String:
 			t.sort()
 			if key == "inputs": parts.append("I %s %s w%s [%s]" % [str(ch.get("name", "")), str(ch.get("kind", "")), _sig3(float(ch.get("weight", 0.0))), ",".join(t)])
 			else: parts.append("O %s %s %s g%s t%s [%s]" % [str(ch.get("name", "")), str(ch.get("kind", "rate")), str(ch.get("modulator", "")), _sig3(float(ch.get("gain", 0.0))), _sig3(float(ch.get("tau_ms", 0.0))), ",".join(t)])
+	for g in groups(c):   # the free values of the cell types: a bench given by the level with other values than the reference's is not a copy of it
+		var gs: Array = []
+		for p in (g as Dictionary).get("pops", []): gs.append(str(sig.get(str(p), "?")))
+		gs.sort()
+		parts.append("G %s s%s x%s [%s]" % [str(g.get("id", "")), _sig3(float(g.get("sign", 1))), _sig3(float(g.get("scale", 1.0))), ",".join(PackedStringArray(gs))])
 	for row in c.get("modulation", []):
 		if row is Dictionary: parts.append("M %s %s %s %s" % [str(sig.get(proj_pop(row.get("pop", "")), "?")), str(row.get("modulator", "")), str(row.get("param", "")), _dict_sig(row)])
 	parts.sort()

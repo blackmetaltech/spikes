@@ -471,7 +471,7 @@ func _build(shapes_only := false) -> Dictionary:
 	for pi in pops.size():
 		var pd: Dictionary = pops[pi]; var n := Circuits.pop_n(pd); var id := str(pd.get("id", ""))
 		var pts: PackedVector2Array = per_pop[pi]
-		var p := {"id": id, "pi": pi, "n": n, "first": first, "kind": str(kd.get(id, "E")), "ens": n > ENSEMBLE_N}
+		var p := {"id": id, "pi": pi, "n": n, "first": first, "kind": str(kd.get(id, "E")), "ens": n > ENSEMBLE_N, "locked": Circuits.is_locked(pd)}
 		first += n
 		var lo := pts[0] if pts.size() > 0 else Vector2.ZERO; var hi := lo; var c := Vector2.ZERO
 		for q in pts: lo = lo.min(q); hi = hi.max(q); c += q
@@ -578,7 +578,7 @@ func _build(shapes_only := false) -> Dictionary:
 		var model := str(pops[bpi].get("model", ""))
 		if not wref.has(model): wref[model] = Circuits.weight_of(model)
 		var width := (1.6 + clampf(sqrt(absf(w) / float(wref[model])), 0.0, 2.0) * 1.2) * clampf(view_scale, 0.85, 1.2)
-		axons.append({"cp": cp, "pts": Gfx.bez_points(cp[0], cp[1], cp[2], cp[3], 28), "w": w, "width": width})
+		axons.append({"cp": cp, "pts": Gfx.bez_points(cp[0], cp[1], cp[2], cp[3], 28), "w": w, "width": width, "locked": Circuits.is_locked(pr)})
 	g["axons"] = axons
 	# channel edges (bundled per target group); a card in an outer column runs through the gap below it
 	var ins_by := {}; var outs_by := {}
@@ -831,9 +831,12 @@ func _draw_ink() -> void:
 		if ax.is_empty(): continue
 		var cp: PackedVector2Array = ax["cp"]; var pts: PackedVector2Array = ax["pts"]
 		var w: float = ax["w"]; var col := _kind_col("I" if w < 0.0 else "E"); var width: float = ax["width"]
-		ci.draw_polyline(pts, Color(col, 0.86), width, true)
-		if w < 0.0: Gfx.bar_head(ci, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
-		else: Gfx.arrow_head(ci, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
+		if bool(ax.get("locked", false)):   # given wiring: engraved, a quieter stroke than the inked axons (docs/IDENTITY.md)
+			Gfx.engraved(ci, pts, col, width); Gfx.engraved_head(ci, cp[3], cp[3] - cp[2], col, 10.0 * clampf(view_scale, 0.9, 1.2), w < 0.0)
+		else:
+			ci.draw_polyline(pts, Color(col, 0.86), width, true)
+			if w < 0.0: Gfx.bar_head(ci, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
+			else: Gfx.arrow_head(ci, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
 		if lesions.has("proj:%d" % pj):   # a cut axon: dashed red with an X at its middle
 			ci.draw_polyline(pts, Color(Gfx.SHEET, 0.85), width + 6.0, true); Gfx.dashed(ci, pts, Color(Kit.RED, 0.95), 2.2, 5.0, 7.0)
 			var cm := Gfx.bez(cp[0], cp[1], cp[2], cp[3], 0.5); ci.draw_circle(cm, 13.0, Gfx.SHEET); ci.draw_arc(cm, 13.0, 0, TAU, 24, Kit.RED, 2.2, true)
@@ -842,6 +845,21 @@ func _draw_ink() -> void:
 		var col := _kind_col(str(p["kind"])); var silenced := lesions.has("pop:" + str(p["id"]))
 		if p["ens"]: _ink_ensemble(ci, p, col, silenced)
 		else: _ink_cells(ci, p, col, silenced)
+		if bool(p.get("locked", false)): _engrave_pop(ci, p)
+
+## A locked group wears an engraved frame: a double hairline rule round it (round the outline of a small group, round each cell of a single one, round the ellipse of an ensemble).
+func _engrave_pop(ci: CanvasItem, p: Dictionary) -> void:
+	if p["ens"]:
+		var c: Vector2 = p["c"]; var rx: float = p["rx"]; var ry: float = p["ry"]
+		var a := Gfx.ellipse(c, rx + 5.0, ry + 5.0, 64); a.append(a[0]); var b := Gfx.ellipse(c, rx + 8.5, ry + 8.5, 64); b.append(b[0])
+		Gfx.engraved_frame(ci, a, b)
+	elif int(p["n"]) > 1 and p.has("box"):
+		var bx: Rect2 = p["box"]
+		Gfx.engraved_frame(ci, _group_outline(bx.grow(3.0)), _group_outline(bx.grow(6.5)))
+	else:
+		for q in (p["pts"] as PackedVector2Array):
+			var a2 := Gfx.ellipse(q, _rg + 4.0, _rg + 4.0, 40); a2.append(a2[0]); var b2 := Gfx.ellipse(q, _rg + 7.0, _rg + 7.0, 40); b2.append(b2[0])
+			Gfx.engraved_frame(ci, a2, b2)
 
 func _draw() -> void:
 	if _ink != null: _sync_layers()
@@ -882,6 +900,9 @@ func _draw() -> void:
 		var ihov: bool = _hover.get("t", "") == "proj" and int(_hover.get("i", -1)) == pj
 		if not (isel or ihov): continue   # at rest it is on the ink layer; selected or hovered it is inked again over a highlighter stroke
 		draw_polyline(pts, Color(Kit.GAMBOGE, 0.42 if isel else 0.24), width + 8.0, true)
+		if bool(ax.get("locked", false)):   # an engraved axon stays engraved when selected: the highlighter shows it, the cut does not turn into ink
+			Gfx.engraved(self, pts, col, width + (0.8 if isel else 0.0)); Gfx.engraved_head(self, cp[3], cp[3] - cp[2], col, 10.0 * clampf(view_scale, 0.9, 1.2), w < 0.0)
+			continue
 		draw_polyline(pts, Color(col.darkened(0.15 if isel else 0.0), 0.95), width + (0.8 if isel else 0.0), true)
 		if w < 0.0: Gfx.bar_head(self, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2), width)
 		else: Gfx.arrow_head(self, cp[3], cp[3] - cp[2], Color(col, 0.95), 11.0 * clampf(view_scale, 0.9, 1.2))
@@ -1510,6 +1531,8 @@ func _toggle_bus(h: Dictionary) -> void:
 
 func _make_link(src: Dictionary, dst: Dictionary) -> void:
 	if src.is_empty() or dst.is_empty() or not editable: return
+	if src["t"] == "pop" and dst["t"] == "pop" and Circuits.has_locked_wiring(circuit): note(Circuits.LOCK_NEW, 6.0); return   # the wiring is given
+	if (src["t"] == "in" or dst["t"] == "out") and Circuits.has_locks(circuit): note(Circuits.LOCK_IO, 6.0); return
 	if src["t"] == "pop" and dst["t"] == "pop":
 		var before: int = circuit["projections"].size(); var idx := Circuits.add_projection(circuit, str(src["id"]), str(dst["id"]))
 		select({"t": "proj", "i": idx})
@@ -1581,11 +1604,21 @@ func selected_pops() -> Array:
 func delete_selected() -> void:
 	if not editable or (sel.is_empty() and msel.is_empty()): return
 	if msel.size() > 1:
-		for id in msel.keys(): Circuits.remove_population(circuit, str(id))
+		var kept_locked := 0
+		for id in msel.keys():
+			var lp := Circuits.pop_index(circuit, str(id))
+			if lp >= 0 and Circuits.is_locked(circuit["populations"][lp]): kept_locked += 1
+			else: Circuits.remove_population(circuit, str(id))
+		if kept_locked > 0: note(Circuits.LOCK_POP, 6.0)   # the locked ones stay, and the editor says why
 		msel = {}; sel = {}; selection_changed.emit(sel); structure_changed.emit(); queue_redraw(); return
 	match str(sel.get("t", "")):
-		"pop": Circuits.remove_population(circuit, str(sel["id"]))
-		"proj": circuit["projections"].remove_at(int(sel["i"]))
+		"pop":
+			var dp := Circuits.pop_index(circuit, str(sel["id"]))
+			if dp >= 0 and Circuits.is_locked(circuit["populations"][dp]): note(Circuits.LOCK_POP, 6.0); return
+			Circuits.remove_population(circuit, str(sel["id"]))
+		"proj":
+			if Circuits.is_locked(circuit["projections"][int(sel["i"])]): note(Circuits.LOCK_PROJ, 6.0); return
+			circuit["projections"].remove_at(int(sel["i"]))
 		"in":
 			if not is_free_input(str(sel["name"])): return   # a task's sensors stay
 			var keep := []
@@ -1626,6 +1659,7 @@ func copy_selection() -> int:
 func paste_fragment(f: Dictionary = {}, at := Vector2(-1, -1)) -> Dictionary:
 	if f.is_empty(): f = CircuitClip.clip
 	if not editable: return {"error": "the bench is read-only"}
+	if Circuits.has_locks(circuit): note(Circuits.LOCK_PASTE, 6.0); return {"error": "the circuit of this level is given and locked"}
 	if not CircuitClip.is_fragment(f) or (f["pops"] as Array).is_empty(): return {"error": "nothing to paste"}
 	commit_now()
 	var before := _snap(circuit)

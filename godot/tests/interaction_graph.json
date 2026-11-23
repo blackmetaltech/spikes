@@ -475,6 +475,21 @@
     "key": "Escape"
    }
   },
+  "lab.atlas": {
+   "kind": "frame",
+   "label": "Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections",
+   "detect": {
+    "screen": "lab",
+    "task": "level"
+   },
+   "optional": [
+    "StepSign_*",
+    "BtnScaleDown_*",
+    "BtnScaleUp_*"
+   ],
+   "abstract": true,
+   "state_of": "lab"
+  },
   "lab.sandbox": {
    "kind": "screen",
    "label": "Sandbox (free bench, no task)",
@@ -734,7 +749,8 @@
     "BtnLoadC",
     "BtnCopyCircuitAsJson",
     "BtnPasteCircuitJson",
-    "BtnImportFromAPassedLevel"
+    "BtnImportFromAPassedLevel",
+    "BtnRestoreGivenCircuit"
    ],
    "scope": "MoreMenu",
    "modal": true,

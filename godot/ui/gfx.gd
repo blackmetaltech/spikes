@@ -65,6 +65,38 @@ static func bar_head(ci: CanvasItem, tip: Vector2, dir: Vector2, col: Color, siz
 	var d := dir.normalized(); var n := d.orthogonal()
 	ci.draw_line(tip - n * size * 0.7, tip + n * size * 0.7, col, w * 1.6, true)
 
+## ENGRAVED (docs/IDENTITY.md, the Atlas wing): given, locked wiring is cut into the plate, not inked on it. An inked axon is one solid, saturated stroke with a filled head; an
+## engraved one is a quieter pair of hairlines with the paper showing between them (the groove), toned toward ink so it recedes, and an open head (a V for excitation, a bar for
+## inhibition: the second code of docs/IDENTITY.md stays). `col` is the Golgi sienna or Prussian blue of the sign. Width follows `w`, never the weight's colour saturation.
+const ENGRAVE_ALPHA := 0.62
+static func engraved_col(col: Color) -> Color: return Color(col.lerp(INK, 0.42), ENGRAVE_ALPHA)
+
+static func engraved(ci: CanvasItem, pts: PackedVector2Array, col: Color, w: float) -> void:
+	if pts.size() < 2: return
+	var c := engraved_col(col); var off := maxf(1.1, w * 0.45); var line := maxf(0.8, w * 0.28)
+	var left := PackedVector2Array(); var right := PackedVector2Array()
+	for i in pts.size():
+		var d := (pts[mini(i + 1, pts.size() - 1)] - pts[maxi(i - 1, 0)]); if d.length() < 0.001: d = Vector2.RIGHT
+		var n := d.normalized().orthogonal()
+		left.append(pts[i] + n * off); right.append(pts[i] - n * off)
+	ci.draw_polyline(pts, Color(SHEET, 0.55), off * 2.0 + line, true)   # the groove: paper between the two cuts
+	ci.draw_polyline(left, c, line, true); ci.draw_polyline(right, c, line, true)
+
+## The open head of an engraved axon: a V (excitation) or a bar (inhibition) in the same hairline.
+static func engraved_head(ci: CanvasItem, tip: Vector2, dir: Vector2, col: Color, size: float, inhibitory: bool) -> void:
+	var d := dir.normalized(); var n := d.orthogonal(); var c := engraved_col(col)
+	if inhibitory:
+		ci.draw_line(tip - n * size * 0.7, tip + n * size * 0.7, c, 1.8, true)
+		ci.draw_line(tip - d * 3.0 - n * size * 0.7, tip - d * 3.0 + n * size * 0.7, c, 1.0, true)
+	else:
+		var a := tip - d * size + n * size * 0.55; var b := tip - d * size - n * size * 0.55
+		ci.draw_polyline(PackedVector2Array([a, tip, b]), c, 1.6, true)
+
+## A population's engraved frame: a double rule round it (outer hairline, inner hairline a few px in), over the stain. `outline` is a closed polyline of the group's outline.
+static func engraved_frame(ci: CanvasItem, outline: PackedVector2Array, inner: PackedVector2Array) -> void:
+	ci.draw_polyline(outline, Color(INK, 0.5), 1.0, true)
+	if inner.size() > 1: ci.draw_polyline(inner, Color(INK, 0.3), 0.8, true)
+
 static func cr_spline(pts: PackedVector2Array, per := 6) -> PackedVector2Array:
 	if pts.size() < 3: return pts
 	var out := PackedVector2Array()
