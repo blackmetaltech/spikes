@@ -5,7 +5,7 @@ extends Node
 ## Env hooks:  SP_TASK=reflex|lamprey|worm + SP_REF=1 (lab opens that task with its reference circuit)   SP_SPEED=<x> (lab run speed)   SP_SEL=pop:<id>|proj:<i>|in:<name>|out:<name> (lab selection)
 ##             SP_SMOKE=1 (open every screen, tab and layout, load the GDExtension, assert, print SMOKE OK, quit)   SP_SHOT=<png> + SP_SHOT_AT=<sec>
 ##             SP_SCREEN=title|tasks|parts|lab|analysis|settings|credits|notebook|real   SP_CHAPTER=<chapter id> + SP_NODE=<task id> (campaign map)   SP_MOCK=1 (synthetic body-system tasks; debug builds only)
-##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_LAYOUT=desktop|handheld|phone
+##             SP_UNLOCK_ALL=1 (open every node and part)   SP_PROGRESS=reflex:3:92,worm:2:81 (fake best scores)   SP_CATALOG=<thumbs.json>   SP_LESION=1 (lab opens in the lesion lab)   SP_TAB=Display|Audio|Controls   SP_ATAB=<n> (Analysis tab, with SP_SCREEN=analysis)   SP_LAYOUT=desktop|handheld|phone
 ##             SP_TUTORIAL=1 (start Plate 0)   SP_TUT_STEP=<n> (walk it to step n with Do it for me)   SP_TUT_LOG=1   SP_PICKER=1 (the mode picker over the map)
 ##             SP_UIGRAPH=1 (walk the interaction graph, tests/interaction_graph.json, print UIGRAPH OK, quit)   SP_NOAUTOSAVE (never write settings)   SP_NODISPLAY (never touch window mode / vsync)   SP_NOTHROTTLE   SP_PAD=1 (start in nav mode)
 
@@ -83,6 +83,8 @@ func _analysis_demo() -> void:
 	await get_tree().create_timer(3.5).timeout
 	var lab := screen as LabScreen
 	if lab != null: open_analysis(lab.circuit, lab.tele, lab.task_id)
+	if OS.get_environment("SP_ATAB") != "" and screen != null and "tab" in screen:   # SP_ATAB=<n>: the Analysis tab to show (7 = wiring), for screenshots
+		await _frames(4); screen.set("tab", int(OS.get_environment("SP_ATAB"))); screen.call("_tab_changed")
 
 ## SP_SIM_UNTIL=<model ms>: wait until the lab's run has reached that model time (deterministic screenshots on a slow software renderer).
 func _shot_when_ready() -> void:
