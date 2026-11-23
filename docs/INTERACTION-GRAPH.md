@@ -133,6 +133,7 @@ flowchart LR
   title["Title (Plate I)"]
   campaign["Campaign map (default chapter)"]
   analysis["Analysis, 3-node motifs"]
+  lab_atlas["Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections"]
   lab_sandbox["Sandbox (free bench, no task)"]
   lab_task["Lab on a level"]
   lab_dx["Lab on a diagnosis case (read-only patient circuit)"]
@@ -305,6 +306,7 @@ flowchart LR
 | `analysis.energy` | tab | Analysis, energy tab |  |
 | `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?`, `BtnUndo?`, `BtnRedo?` |
+| `lab.atlas` | frame | Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections | `StepSign_*?`, `BtnScaleDown_*?`, `BtnScaleUp_*?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
 | `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnDetails?`, `BtnOpenNotebook?` |
 | `lab.dx` | screen | Lab on a diagnosis case (read-only patient circuit) | `BtnCase`, `BtnHint?` |
@@ -319,7 +321,7 @@ flowchart LR
 | `lab.dx.wrong` | state | Diagnosis: a wrong answer was submitted |  |
 | `lab.dx.solved` | state | Diagnosis: solved (CORRECT card, notebook entry) |  |
 | `lab.dx.revealed` | state | Diagnosis: answer revealed after three wrong tries |  |
-| `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?`, `BtnRestorePreviousBench?`, `BtnSaveToA?`, `BtnSaveToB?`, `BtnSaveToC?`, `BtnLoadA?`, `BtnLoadB?`, `BtnLoadC?`, `BtnCopyCircuitAsJson?`, `BtnPasteCircuitJson?`, `BtnImportFromAPassedLevel?` |
+| `lab.more` | modal | More menu (speed, level, tools) | `MoreMenu`, `StepSpeed`, `BtnFit`, `StepMode`, `BtnEmptyBench`, `BtnSkip?`, `StepVariant?`, `BtnTestX5?`, `BtnResults?`, `BtnReference?`, `BtnLesions?`, `BtnLeaveLesions?`, `BtnAnalysis?`, `BtnLoad?`, `BtnSave?`, `BtnRestorePreviousBench?`, `BtnSaveToA?`, `BtnSaveToB?`, `BtnSaveToC?`, `BtnLoadA?`, `BtnLoadB?`, `BtnLoadC?`, `BtnCopyCircuitAsJson?`, `BtnPasteCircuitJson?`, `BtnImportFromAPassedLevel?`, `BtnRestoreGivenCircuit?` |
 | `lab.parts_modal` | modal | Parts bin (pick the next neuron's type) | `BtnClose`, `PartsBin`, `Use_*`, `Select_*` |
 | `lab.import` | modal | Import from a passed level (your solved circuits, pasted as a group) | `BtnClose`, `Imp_*?` |
 | `lab.endcard` | modal | End-of-episode card (score, stars, next steps) | `BtnRunAgain`, `BtnTestX5`, `BtnClose`, `BtnResults?`, `BtnHint?`, `BtnNextTask?`, `BtnLesionLab?`, `BtnAnalysis?` |
@@ -356,5 +358,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 71 nodes, 155 edges, 8 guard checks.
+Counts: 72 nodes, 155 edges, 8 guard checks.
 <!-- END GENERATED -->

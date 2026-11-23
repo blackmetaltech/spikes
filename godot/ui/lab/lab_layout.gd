@@ -313,7 +313,7 @@ func open_menu() -> void:
 			if phone or not test_on_bar(): item.call(lv2, "Test x5", lab._test_start, "green")
 			if passed_here(): item.call(lv2, "Results", histo_show, "panel")
 			if reference_open(): item.call(lv2, "Reference", lab._load_reference, "panel")
-			item.call(lv2, "Empty bench", lab._empty_bench)
+			item.call(lv2, "Restore given circuit" if Campaign.given_path(tid) != "" else "Empty bench", lab._empty_bench)
 			if lab._has_history(): item.call(lv2, "Restore previous bench", lab._restore_bench)
 	# II b. solution slots: three saved circuits per level, kept across restarts
 	if not dxm:

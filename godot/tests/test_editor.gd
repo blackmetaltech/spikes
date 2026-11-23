@@ -37,6 +37,7 @@ func _init() -> void:
 	_accessors()
 	_group_sizes()
 	_small_bench()
+	_atlas()
 	print("EDITOR %s (%d checks)" % ["OK" if fails == 0 else "FAILED: %d" % fails, checks])
 	quit(0 if fails == 0 else 1)
 
@@ -350,3 +351,94 @@ func _small_bench() -> void:
 			_check(ed.view_scale >= 0.2, "%s: zoom %d%% (an ordinary circuit is not shown at the floor)" % [tag, roundi(ed.view_scale * 100.0)])
 			_check(cut == 0, "%s: %d channel cards are cut at the bench edge" % [tag, cut])
 			ed.queue_free()
+
+
+# ---------------------------------------------------------------------------------------------------- locked wiring and cell types (the Atlas, 0.6)
+## A locked-wiring level's given circuit (circuits/atlas_probe_given.json, the development-only atlas_probe): engraved wiring that can be selected and inspected but not edited or
+## deleted (the editor says so in words), cell-type groups whose free sign and scale are the player's, undo / redo over them, the reference fingerprint, keyboard access.
+func _atlas() -> void:
+	var c := _load("atlas_probe_given.json"); var ref := _load("atlas_probe.json")
+	_check((c.get("populations", []) as Array).size() == 4 and Circuits.groups(c).size() == 3 and Circuits.has_locks(c) and Circuits.has_locked_wiring(c), "the given circuit has four locked populations and three cell types")
+	for p in c["populations"]: _check(Circuits.is_locked(p), "population %s is locked" % p["id"])
+	for pr in c["projections"]: _check(Circuits.is_locked(pr), "projection %s>%s is locked" % [pr["pre"], pr["post"]])
+	_check(Circuits.validate(c) == "", "the given circuit is a valid file")
+	var bad := c.duplicate(true); bad["groups"] = {"a": 1}
+	_check(Circuits.validate(bad) != "", "groups that are not a list are refused")
+	# effective signs and weights: the stored weights are magnitudes, the group applies |w| x scale x sign
+	var kd := Circuits.kinds(c); _check(kd["I"] == "E", "as given, the interneuron type excites (sign +1)")
+	var ip := Circuits.proj_between(c, "I", "M"); var stored := Circuits.proj_weight(c["projections"][ip])
+	_check(is_equal_approx(Circuits.proj_weight_eff(c, c["projections"][ip]), stored * 0.5), "effective weight = stored x scale (0.5 as given)")
+	_check(Circuits.group_set_sign(c, "I", -1) == "" and Circuits.kinds(c)["I"] == "I", "sign -1 makes the interneuron type inhibitory")
+	_check(is_equal_approx(Circuits.proj_weight_eff(c, c["projections"][ip]), -stored * 0.5) and is_equal_approx(Circuits.proj_weight(c["projections"][ip]), stored), "the stored weight is untouched, the effective one is signed")
+	_check(Circuits.proj_weight_shown(c, ip) < 0.0, "the editor draws it as inhibitory (a bar head)")
+	_check(Circuits.group_set_sign(c, "P", -1) != "" and float(Circuits.group_of_pop(c, "P")["sign"]) == 1.0, "a fixed type's sign cannot be set, and the reason is in words")
+	_check(Circuits.group_set_scale(c, "N", 2.0) != "" and float(Circuits.group_of_pop(c, "N")["scale"]) == 1.0, "a fixed type's scale cannot be set")
+	_check(Circuits.group_set_scale(c, "I", 9.0) == "" and is_equal_approx(float(Circuits.group_of_pop(c, "I")["scale"]), 2.0), "a scale above the range is clamped to its top")
+	_check(Circuits.group_set_scale(c, "I", 0.01) == "" and is_equal_approx(float(Circuits.group_of_pop(c, "I")["scale"]), 0.25), "a scale below the range is clamped to its bottom")
+	Circuits.group_set_scale(c, "I", 0.98); _check(is_equal_approx(float(Circuits.group_of_pop(c, "I")["scale"]), 1.0), "a scale snaps to the stepper's 0.05 grid")
+	Circuits.group_step_scale(c, "I", 1); Circuits.group_step_scale(c, "I", 1); _check(is_equal_approx(float(Circuits.group_of_pop(c, "I")["scale"]), 1.1), "two clicks on + give 1.10")
+	Circuits.group_step_scale(c, "I", -1); _check(is_equal_approx(float(Circuits.group_of_pop(c, "I")["scale"]), 1.05), "- steps back")
+	_check(Circuits.group_in_range(Circuits.group_of_pop(c, "I")), "the scale is inside its range")
+	c["groups"][2]["scale"] = 5.0; _check(not Circuits.group_in_range(c["groups"][2]), "a scale from a file that is outside its range is noticed")
+	# the reference lock: the given circuit is not the reference; a bench tuned to the reference's own (off-grid) values is its copy; a hand-set grid value is not
+	var g2 := _load("atlas_probe_given.json")
+	_check(Circuits.fingerprint(g2) != Circuits.fingerprint(ref), "the given circuit is not a copy of the reference")
+	Circuits.group_set_sign(g2, "I", -1); Circuits.group_set_scale(g2, "I", 1.0)
+	_check(Circuits.fingerprint(g2) != Circuits.fingerprint(ref), "a hand-set scale on the stepper's grid is not a copy of the reference")
+	g2["groups"][2]["scale"] = ref["groups"][2]["scale"]
+	_check(Circuits.fingerprint(g2) == Circuits.fingerprint(ref), "the reference's own free values on the given wiring are the reference")
+	var off: float = float(ref["groups"][2]["scale"]) / Circuits.SCALE_STEP
+	_check(absf(off - roundf(off)) > 0.05, "the reference's free scale is off the stepper's grid (%s)" % str(ref["groups"][2]["scale"]))
+	# a hand-tuned bench survives the file round trip (the autosave and the solution slots keep the whole circuit text)
+	var rt: Dictionary = Circuits.parse_checked(Circuits.to_json(c))["circuit"]
+	_check(float(rt["groups"][2]["scale"]) == float(c["groups"][2]["scale"]) and (rt["populations"][0] as Dictionary).get("locked", false) == true and Circuits.groups(rt).size() == 3, "groups and locked flags survive to_json and parse")
+
+	# the editor: engraved geometry, selectable and inspectable, refusing every edit of a locked part in words
+	var c2 := _load("atlas_probe_given.json"); var ed := _editor(Vector2(1126, 690)); ed.set_circuit(c2, null)
+	var g := ed._geo()
+	for a in g["axons"]: _check(bool(a.get("locked", false)), "every given axon is drawn engraved")
+	for p in g["pops"]: _check(bool(p.get("locked", false)), "every given group is drawn with the engraved frame")
+	ed.select({"t": "proj", "i": 2}); _check(str(ed.sel.get("t", "")) == "proj" and int(ed.sel.get("i", -1)) == 2, "a locked axon can be selected (and inspected)")
+	ed.select({"t": "pop", "id": "M"}); _check(str(ed.sel.get("id", "")) == "M", "a locked group can be selected (and inspected)")
+	var n_pop := (c2["populations"] as Array).size(); var n_proj := (c2["projections"] as Array).size(); var before := Circuits.to_json(c2)
+	ed._note = ""; ed.delete_selected()
+	_check((c2["populations"] as Array).size() == n_pop and ed._note.contains("locked") and ed._note.contains("deleted"), "Delete on a locked group does nothing and says why: '%s'" % ed._note)
+	ed.select({"t": "proj", "i": 0}); ed._note = ""; ed.delete_selected()
+	_check((c2["projections"] as Array).size() == n_proj and ed._note.contains("locked") and ed._note.contains("deleted"), "Delete on a locked axon does nothing and says why: '%s'" % ed._note)
+	ed.select_all(); ed._note = ""; ed.delete_selected()
+	_check((c2["populations"] as Array).size() == n_pop and ed._note != "", "Select all, Delete: every group stays, and the editor says so")
+	ed._note = ""; ed._make_link({"t": "pop", "id": "P"}, {"t": "pop", "id": "I"})
+	_check((c2["projections"] as Array).size() == n_proj and ed._note.contains("given"), "a new connection is refused in words: '%s'" % ed._note)
+	ed._note = ""; ed._make_link({"t": "in", "name": "plus"}, {"t": "pop", "id": "M"})
+	_check((c2["inputs"][0]["targets"] as Array).size() == 1 and ed._note.contains("given"), "re-wiring a sensor is refused in words: '%s'" % ed._note)
+	ed._note = ""; ed._make_link({"t": "pop", "id": "P"}, {"t": "out", "name": "diff"})
+	_check((c2["outputs"][0]["neurons"] as Array).size() == 1 and ed._note.contains("given"), "re-wiring a motor is refused in words")
+	ed._note = ""; var pr := ed.paste_fragment(CircuitClip.fragment(c2, ["P"], false))
+	_check(pr.has("error") and (c2["populations"] as Array).size() == n_pop and ed._note.contains("locked"), "pasting into the given circuit is refused in words")
+	Circuits.set_n(c2, "P", 7); Circuits.set_model(c2, "P", "aeif_cond_alpha", 0); Circuits.remove_population(c2, "P")
+	_check(Circuits.to_json(c2) == before, "the data layer refuses to resize, re-model or delete a locked group, too")
+	# moving a locked group is not editing it (positions are free)
+	var x0 := float(c2["populations"][0]["pos"][0][0]); ed._move_pop("P", Vector2(10, 0))
+	_check(is_equal_approx(float(c2["populations"][0]["pos"][0][0]), x0 + 10.0), "a locked group can be moved on the bench")
+	# keyboard and pad: the cursor reaches the locked groups and axons, accepts them (inspect), and Delete answers in words
+	ed.select({}); ed._note = ""
+	ed._cursor = {"t": "pop", "id": "I"}; ed.cursor_accept()
+	_check(str(ed.sel.get("id", "")) == "I", "the keyboard cursor selects a locked group (Enter)")
+	ed.delete_selected(); _check(ed._note.contains("locked"), "Delete from the keyboard answers in words")
+	var navs := ed._nav_items(); var has_proj := false; var has_pop := false
+	for it in navs:
+		if str((it["h"] as Dictionary).get("t", "")) == "proj": has_proj = true
+		if str((it["h"] as Dictionary).get("t", "")) == "pop": has_pop = true
+	_check(has_pop and has_proj, "the keyboard and pad cursor can reach groups and axons of the given circuit")
+	# undo and redo cover the cell-type cards: one step per burst, byte for byte, and redo gives it back
+	var c3 := _load("atlas_probe_given.json"); var ed3 := _editor(Vector2(1126, 690)); ed3.set_circuit(c3, null)
+	var s0 := Circuits.to_json(c3)
+	Circuits.group_set_sign(c3, "I", -1); ed3.edit_pending(); ed3.commit_now(); var s1 := Circuits.to_json(c3)
+	for k in 3: Circuits.group_step_scale(c3, "I", 1)
+	ed3.edit_pending(); ed3.commit_now(); var s2 := Circuits.to_json(c3)
+	_check(s0 != s1 and s1 != s2, "the sign and the scale are edits")
+	_check(ed3.undo_depth() == 2, "two steps on the stack (%d)" % ed3.undo_depth())
+	ed3.undo(); _check(Circuits.to_json(c3) == s1, "undo gives the scale back"); ed3.undo(); _check(Circuits.to_json(c3) == s0, "undo gives the sign back, byte for byte")
+	ed3.redo(); ed3.redo(); _check(Circuits.to_json(c3) == s2, "redo gives both back")
+	_check(is_same(ed3.circuit, c3), "undo and redo keep the lab's circuit Dictionary")
+	for e in [ed, ed3]: e.queue_free()

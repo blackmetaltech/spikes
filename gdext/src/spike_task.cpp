@@ -279,6 +279,7 @@ String SpikeTask::headless_runner_path()
 }
 String SpikeTask::default_model() const { return task_ ? S( task_->default_model() ) : String(); }
 String SpikeTask::recipe() const { return task_ ? S( task_->recipe() ) : String(); }
+String SpikeTask::given_circuit() const { return task_ and not task_->given().digest.empty() ? S( task_->given().circuit ) : String(); }
 int64_t SpikeTask::score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant, int64_t circuit_seed )
 {
   if ( !task_ )
@@ -393,6 +394,7 @@ void SpikeTask::_bind_methods()
   ClassDB::bind_method( D_METHOD( "notebook" ), &SpikeTask::notebook );
   ClassDB::bind_method( D_METHOD( "default_model" ), &SpikeTask::default_model );
   ClassDB::bind_method( D_METHOD( "recipe" ), &SpikeTask::recipe );
+  ClassDB::bind_method( D_METHOD( "given_circuit" ), &SpikeTask::given_circuit );
   ClassDB::bind_method( D_METHOD( "score_headless_async", "circuit_json", "seeds", "mode", "variant", "circuit_seed" ), &SpikeTask::score_headless_async, DEFVAL( int64_t( -1 ) ) );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "headless_cancel", "job" ), &SpikeTask::headless_cancel );
   ClassDB::bind_static_method( "SpikeTask", D_METHOD( "headless_runner_path" ), &SpikeTask::headless_runner_path );

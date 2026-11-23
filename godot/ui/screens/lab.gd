@@ -298,6 +298,9 @@ func _set_ref_lock(on: bool) -> void:
 ## The empty bench of a task: its sensors and motors with the kinds the task reads (dc or Poisson sensors, rate or modulator motors) from the task's
 ## channel_kinds() or, until the extension has it, from its reference circuit.
 func _skeleton(tid: String) -> Dictionary:
+	if tid != "" and ext_ok:   # a locked-wiring level starts from the circuit it gives (the "empty" bench of such a level is that circuit again)
+		var gc := given_circuit(tid)
+		if not gc.is_empty(): return gc
 	var c := Circuits.empty("My " + tid + " circuit" if tid != "" else "My circuit")
 	if ext_ok and tid != "":
 		var t = Campaign.make(tid)
@@ -320,6 +323,16 @@ func _skeleton(tid: String) -> Dictionary:
 				c["outputs"].append(ch)
 		c["meta"]["task"] = tid
 		_store_task_weights(c, tid, t)
+	return c
+
+## The circuit a locked-wiring level hands the player (Task::given), a fresh copy; {} when the level gives none.
+static func given_circuit(tid: String) -> Dictionary:
+	var gp := Campaign.given_path(tid)
+	if gp == "": return {}
+	var c := Circuits.parse(Circuits.read_reference(gp))
+	if c.is_empty(): return {}
+	if not (c.get("meta", {}) is Dictionary): c["meta"] = {}
+	c["meta"]["task"] = tid
 	return c
 
 ## Remember the task-declared sensor weights in meta.editor.task_weights = {name: {kind, w}} so the first connect (editor, family wiring) uses them.
@@ -419,6 +432,7 @@ func _toggle_connect() -> void:
 	layout.sync_connect_btn(); editor.queue_redraw()
 
 func _add_neuron(kind: String) -> void:
+	if Circuits.has_locks(circuit): editor.note(Circuits.LOCK_ADD, 6.0); return
 	var card := Catalog.card(part_card)
 	var id := Circuits.add_card(circuit, card, editor.free_spot(), kind) if not card.is_empty() else Circuits.add_neuron(circuit, "iaf_psc_alpha", 0, editor.free_spot(), kind)
 	editor.select({"t": "pop", "id": id}); editor.fit(); _on_structure()
@@ -482,6 +496,7 @@ func _do_load_reference() -> void:
 ## Start over from the task's skeleton: its sensors and motors, no neurons (and no longer reference-derived).
 func _empty_bench() -> void:
 	if task_id == "": return
+	if Campaign.given_path(task_id) != "": _replace_bench("Restore the given circuit?", "The cell-type cards go back to their starting values.", "Restore given circuit", _do_empty_bench); return
 	_replace_bench("Empty the bench?", "All neurons and connections are removed.", "Empty bench", _do_empty_bench)
 
 func _do_empty_bench() -> void:

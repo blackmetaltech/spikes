@@ -127,7 +127,19 @@ static func mock03() -> bool: return OS.get_environment("SP_MOCK03") != "" and m
 ## The synthetic body-system task ids (SP_MOCK); [] when mocks are off.
 static func mock_ids() -> Array: return (_mc("IDS") as Array).duplicate() if mock_on() else []
 static func mock_has(id: String) -> bool: return mock_on() and (_mc("DEF") as Dictionary).has(id)
+## The Atlas wing's development-only level (0.6, A1): a real engine task that is NOT in the campaign. It is offered like the synthetic mock levels, in a debug build only (the
+## mock file is excluded from the release export, and so are the level's circuit files), and only with SP_ATLAS set. `make` works for it always (tests, the engine), `installed`
+## lists it only here.
+const DEV_IDS := ["atlas_probe"]
+static func atlas_dev() -> bool: return OS.get_environment("SP_ATLAS") != "" and mock_script() != null
+static func is_dev(id: String) -> bool: return DEV_IDS.has(task_of(id))
 static func ext_ok() -> bool: return ClassDB.class_exists("SpikeTask")
+## The circuit a locked-wiring level gives the player (path relative to circuits/, Task::given), "" for every other level.
+static func given_path(id: String) -> String:
+	if not ext_ok(): return ""
+	var t = ClassDB.instantiate("SpikeTask")
+	if not t.make(task_of(id)) or not t.has_method("given_circuit"): return ""
+	return str(t.call("given_circuit"))
 static func unlock_all() -> bool: return OS.get_environment("SP_UNLOCK_ALL") != ""
 
 ## A task object for `id`: the engine's SpikeTask, or a synthetic one for the SP_MOCK dev ids. null when unknown. The task is put in the player's current
@@ -153,7 +165,9 @@ static func installed() -> Array:
 	if _have_ids: return _ids
 	var out := []
 	if ext_ok():
-		for id in ClassDB.instantiate("SpikeTask").call("task_ids"): out.append(str(id))
+		for id in ClassDB.instantiate("SpikeTask").call("task_ids"):
+			if DEV_IDS.has(str(id)) and not atlas_dev(): continue   # the Atlas probe is a development level
+			out.append(str(id))
 	if mock03():
 		var real := out.duplicate(); out = []
 		for c in CHAPTERS:

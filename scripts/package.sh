@@ -39,6 +39,7 @@ godot --headless --path godot --export-release "Linux x86_64" "$root/$out/Spike.
 cp -f godot/bin/libspike_gd_release.so godot/bin/spike-run "$out/"
 strip --strip-unneeded "$out/libspike_gd_release.so" "$out/spike-run"
 cp -rL godot/circuits godot/catalog "$out/"
+rm -f "$out"/circuits/atlas_probe*.json   # the development-only Atlas probe (a debug build with SP_ATLAS) is not shipped; the pck leaves it out too (export_presets.cfg)
 cp -f README.md "$out/README.md"
 
 # modes: the Godot export copies the binary without the exec bit; set them here, where the zip is assembled (zip stores the Unix mode of each file as it is on disk)

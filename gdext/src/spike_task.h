@@ -60,6 +60,7 @@ public:
   Dictionary notebook() const;               // {title, text, citation}
   String default_model() const;              // catalog card id the lab selects by default ("" = lab default)
   String recipe() const;                     // concrete numbers kept apart from the brief ("" = none)
+  String given_circuit() const;              // 0.6 (Atlas), add-only: the circuit a locked-wiring level hands the player (path relative to circuits/; "" = not a locked level)
   // v0.3 instant check: headless scoring in a worker thread (own spike-run process per call; never blocks the main thread)
   /// Start a headless score of `circuit_json` on this task id (make() first). seeds: PackedInt64Array (empty = [1]). Returns a job id (> 0), or 0 on failure.
   int64_t score_headless_async( const String& circuit_json, const PackedInt64Array& seeds, const String& mode, const String& variant, int64_t circuit_seed = -1 );

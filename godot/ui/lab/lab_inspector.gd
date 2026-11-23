@@ -126,11 +126,77 @@ func inspect_brief(small: int) -> void:
 			var rr := HBoxContainer.new(); rr.add_theme_constant_override("separation", 12); add(rr)
 			var rb := Kit.btn("Show recipe", func(): lab._recipe_open = true; Progress.record_recipe(tid); build(), "amber", 18); rb.size_flags_vertical = Control.SIZE_SHRINK_CENTER; rr.add_child(rb)
 			var rl := Kit.label("The recipe gives the numbers. Using it costs the third star.", small, Kit.TEXT_SOFT, true); rl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; rr.add_child(rl)
+	if not Circuits.groups(lab.circuit).is_empty(): inspect_groups(small)   # a locked-wiring level: one card per cell type, always in view
 	if not lab._brief_full and tid != "": return   # the star rule and the legend sit behind the expander with the rest of the brief
 	if tid != "" and str(Progress.challenge(tid)["text"]) != "": add(Kit.label(Progress.star_rules_text(tid), small, Kit.TEXT_SOFT, true))
 	var leg := HBoxContainer.new(); leg.add_theme_constant_override("separation", 8)
 	leg.add_child(Kit.chip("EXCITATORY", Kit.exc(), 14)); leg.add_child(Kit.chip("INHIBITORY", Kit.inh(), 14)); leg.add_child(Kit.chip("SENSOR", Kit.SENSOR, 14)); leg.add_child(Kit.chip("MOTOR", Gfx.VIOLET, 14))
 	add(leg)
+
+## ---- locked wiring and cell types (0.6, the Atlas): what the inspector shows for the given circuit ----
+
+## A locked group: read-only facts (it is engraved on the bench), the reason in words, its trace, and the card of its cell type.
+func inspect_locked_pop(id: String, p: Dictionary, kd: Dictionary, small: int) -> void:
+	var circuit := lab.circuit; var tele := lab.tele
+	var pi := Circuits.pop_index(circuit, id)
+	add(head(id, Kit.inh() if kd[id] == "I" else Kit.exc(), "%s  %s   given (locked)" % ["inhibitory" if kd[id] == "I" else "excitatory", str(p.get("model", ""))]))
+	add(Kit.label("%d cell%s of %s. %s" % [Circuits.pop_n(p), "" if Circuits.pop_n(p) == 1 else "s", str(p.get("model", "")), Circuits.LOCK_POP], small, Kit.TEXT_SOFT, true))
+	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 10); add(row)
+	row.add_child(Kit.btn("Trace", func(): toggle_trace(id), "on" if tele.watched.has(Circuits.pop_first(circuit, pi)) else "panel", 18))
+	var grp := Circuits.group_of_pop(circuit, id)
+	if not grp.is_empty(): group_card(grp, small)
+
+## A locked axon: its facts, the reason in words, and the card of the cell type it leaves (the only thing that changes it).
+func inspect_locked_proj(i: int, pr: Dictionary, w_eff: float, small: int) -> void:
+	var circuit := lab.circuit
+	var pre := Circuits.proj_pop(pr.get("pre", ""))
+	var n := (pr.get("edges", []) as Array).size()
+	var unit := "pA"
+	var pi := Circuits.pop_index(circuit, Circuits.proj_pop(pr.get("post", "")))
+	if pi >= 0: unit = Catalog.unit_of(str(circuit["populations"][pi].get("model", "")))
+	add(Kit.label("%d connection%s, delay %s ms, %s %s a spike. Engraved: part of the given wiring." % [n, "" if n == 1 else "s", str(snappedf(Circuits.proj_delay(pr), 0.1)), "each carries" if w_eff != 0.0 else "none carries", "%s%s %s" % ["+" if w_eff >= 0.0 else "-", str(snappedf(absf(w_eff), 0.1)), unit]], small, Kit.TEXT, true))
+	add(Kit.label(Circuits.LOCK_PROJ, small, Kit.TEXT_SOFT, true))
+	var grp := Circuits.group_of_pop(circuit, pre)
+	if not grp.is_empty(): group_card(grp, small)
+
+## One card for every cell type of the circuit (a locked-wiring level's free parameters), under the brief.
+func inspect_groups(small: int) -> void:
+	add(Kit.hsep())
+	add(Kit.label("CELL TYPES: the wiring is given, these are not. A control that is not free is fixed by the level.", small, Kit.TEXT_SOFT, true))
+	for g in Circuits.groups(lab.circuit): group_card(g, small)
+
+## The card of one cell type: its cell groups, and its sign and scale. A free parameter has a control (a sign toggle, a scale stepper); a fixed one is shown as text.
+## Every change is one undo step (lab._on_structure) and is saved with the circuit (the autosave and the solution slots keep the whole file).
+func group_card(g: Dictionary, small: int) -> void:
+	var circuit := lab.circuit; var gid := str(g.get("id", ""))
+	var neg := float(g.get("sign", 1)) < 0.0
+	var card := Kit.card(Circuits.group_label(g), Kit.PANEL_HI, Kit.inh() if neg else Kit.exc())
+	card[0].set_meta("sp_group", gid)
+	var body: VBoxContainer = card[1]
+	body.add_child(Kit.label("cell groups: %s" % ", ".join(PackedStringArray((g.get("pops", []) as Array).map(func(x): return str(x)))), small, Kit.TEXT_SOFT, true))
+	var srow := HFlowContainer.new(); srow.add_theme_constant_override("h_separation", 10); body.add_child(srow)
+	srow.add_child(Kit.label("sign", small, Kit.TEXT_SOFT))
+	if Circuits.group_free(g, "sign"):
+		srow.add_child(Kit.ident(Kit.stepper([["1", "excitatory"], ["-1", "inhibitory"]], "-1" if neg else "1", func(v): _group_edit(Circuits.group_set_sign(circuit, gid, int(v))), 230.0 if not Layout.phone else 180.0, 18, 40.0), "StepSign_" + gid))
+	else:
+		srow.add_child(Kit.label("%s (fixed by the level)" % ("inhibitory" if neg else "excitatory"), small, Kit.TEXT))
+	var crow := HFlowContainer.new(); crow.add_theme_constant_override("h_separation", 10); body.add_child(crow)
+	crow.add_child(Kit.label("scale", small, Kit.TEXT_SOFT))
+	var sc := float(g.get("scale", 1.0))
+	if Circuits.group_free(g, "scale"):
+		var r := Circuits.group_scale_range(g)
+		crow.add_child(Kit.ident(Kit.btn("-", func(): _group_edit(Circuits.group_step_scale(circuit, gid, -1)), "panel", 18, Vector2(44, 40)), "BtnScaleDown_" + gid))
+		var vl := Kit.label("%.2f" % sc, 20, Kit.TEXT); vl.custom_minimum_size.x = 60; vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; Kit.ident(vl, "ScaleValue_" + gid); crow.add_child(vl)
+		crow.add_child(Kit.ident(Kit.btn("+", func(): _group_edit(Circuits.group_step_scale(circuit, gid, 1)), "panel", 18, Vector2(44, 40)), "BtnScaleUp_" + gid))
+		crow.add_child(Kit.label("allowed %.2f to %.2f" % [r.x, r.y], small, Kit.TEXT_SOFT))
+		if not Circuits.group_in_range(g): body.add_child(Kit.label("This scale is outside the allowed range: CHECK will refuse the circuit. Use - or + to bring it back.", small, Kit.RED, true))
+	else:
+		crow.add_child(Kit.label("%.2f (fixed by the level)" % sc, small, Kit.TEXT))
+	add(card[0])
+
+func _group_edit(why: String) -> void:
+	if why != "": lab.editor.note(why, 5.0); return
+	lab._on_structure(); build()
 
 ## A slider row. `quad` makes the slider square-law (value = hi * s^2 for s in 0..1): fine steps near zero for weights, which run from fractions of a pA (a burster
 ## onto an integrate-and-fire cell) to thousands (a relay), with the same slider.
@@ -173,7 +239,10 @@ func inspect_pop(id: String, small: int) -> void:
 	var pi := Circuits.pop_index(circuit, id); if pi < 0: inspect_brief(small); return
 	var p: Dictionary = circuit["populations"][pi]; var kd := Circuits.kinds(circuit)
 	var kcol := Kit.inh() if kd[id] == "I" else Kit.exc()
+	if Circuits.is_locked(p): inspect_locked_pop(id, p, kd, small); return
 	add(head(id, kcol, "%s  %s" % ["inhibitory" if kd[id] == "I" else "excitatory", str(p.get("model", ""))]))
+	var grp := Circuits.group_of_pop(circuit, id)
+	if not grp.is_empty(): group_card(grp, small)   # the cell type this group belongs to: its sign and scale act on every axon out of it
 	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 10); row.add_theme_constant_override("v_separation", 6); add(row)
 	var model := str(p.get("model", "")); var presets: Array = Circuits.presets_of(model)
 	var models := Circuits.model_options(model)
@@ -248,9 +317,11 @@ func flip_kind(id: String) -> void:
 func inspect_proj(i: int, small: int) -> void:
 	var circuit := lab.circuit
 	if i >= circuit["projections"].size(): inspect_brief(small); return
-	var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight(pr)
+	var pr: Dictionary = circuit["projections"][i]; var w := Circuits.proj_weight_eff(circuit, pr)
 	var pre := Circuits.proj_pop(pr.get("pre", "")); var post := Circuits.proj_pop(pr.get("post", ""))
 	add(head("%s > %s" % [pre, post], Kit.inh() if w < 0.0 else Kit.exc(), "%s synapse   %s" % ["inhibitory" if w < 0.0 else "excitatory", str(pr.get("rule", "explicit edges"))]))
+	if Circuits.is_locked(pr): inspect_locked_proj(i, pr, w, small); return
+	w = Circuits.proj_weight(pr)
 	var pi := Circuits.pop_index(circuit, post); var wmax: float = Circuits.proj_wmax_for(str(circuit["populations"][pi].get("model", "")), lab.task_id) if pi >= 0 else 400.0
 	var unit := Catalog.unit_of(str(circuit["populations"][pi].get("model", ""))) if pi >= 0 else "pA"
 	var r1 := HFlowContainer.new(); r1.add_theme_constant_override("h_separation", 10); add(r1)
