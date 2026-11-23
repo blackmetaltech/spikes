@@ -70,6 +70,7 @@ find "$app" \( -name 'libspike_gd*' -o -name spike-run \) -type f -delete
 cp -f godot/bin/libspike_gd_release.dylib godot/bin/spike-run "$fw/"
 strip -x "$fw/libspike_gd_release.dylib" "$fw/spike-run"
 cp -rL godot/circuits godot/catalog "$res/"
+rm -f "$res"/circuits/atlas_probe*.json   # the development-only Atlas probe is not shipped (as in package.sh)
 cp -f README.md "$res/README.md"
 chmod 755 "$app/Contents/MacOS/$exe" "$fw/spike-run" "$fw/libspike_gd_release.dylib"
 
