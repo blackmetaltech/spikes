@@ -9,7 +9,7 @@ Fixed: synaptic time constants 5 ms, turn_w 1, the sign assumptions of compass_c
 Score of an individual (circuit seed 7, cues at ring positions 2, 6, 10, 14, 3,500 ms; late window 3,000 to 3,500 ms), mean over the four cues of
   rate * (0.25 + 0.25 * strength + 0.25 * near_peak + 0.25 * (1 - min(err, 90) / 90))
 with rate = max(0, 1 - d / 2), d = decades between the mean E-PG rate and the band 2 to 60 Hz (0 inside), strength and near_peak as in compass_trial.analyse, err the angular error of the late bump.
-The first term rewards being in the band, the others reward a bump of one place that sits at the cue. 1.0 is a perfect score. Held (compass_trial.held) is tested separately.
+The start population is the best 32 of 128 random draws. The first term rewards being in the band, the others reward a bump of one place that sits at the cue. 1.0 is a perfect score. Held (compass_trial.held) is tested separately.
 Individuals whose four trials all hold are re-run on circuit seed 8; the 'passes' field counts held trials of 8. Workers: $JOBS.
 """
 import json, math, os, random, sys, time
@@ -67,7 +67,8 @@ def evolve(seed, minutes, path, fixed, mu, lam):
     t0 = time.time()
     out = open(path, "w")
     with Pool(int(os.environ.get("JOBS", os.cpu_count() or 4))) as pool:
-        pop = pool.map(evaluate, [(random_genes(rng), fixed) for _ in range(lam)], chunksize=1)
+        pop = pool.map(evaluate, [(random_genes(rng), fixed) for _ in range(4 * lam)], chunksize=1)   # four times lambda random draws, the best lambda start
+        pop = sorted(pop, key=lambda r: r["score"], reverse=True)[:lam]
         gen = 0
         while True:
             pop.sort(key=lambda r: r["score"], reverse=True)

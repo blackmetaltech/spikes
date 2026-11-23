@@ -18,7 +18,7 @@ WIN = {"cue": (300, 500), "w700": (700, 1000), "w1500": (1500, 2000), "w3000": (
 def drift_trial(a):
     p, cue, ms, seed = a
     sp, err = ct.run(ct.circuit(p, cue, 0.0, seed), ms)
-    out = {"cue": cue}
+    out = {}
     for k, (x, y) in WIN.items():
         if y <= ms:
             r = ct.analyse(ct.profile(sp, x, y)); out[k] = {"angle": None if r["angle"] is None else round(r["angle"], 1), "strength": round(r["strength"], 3), "mean_hz": round(r["mean_hz"], 2), "near_peak": round(r["near_peak"], 3)}
@@ -64,7 +64,7 @@ def report(dirs):
         for w in WIN:
             an = [t[w]["angle"] for t in r["trials"] if t[w]["angle"] is not None and t[w]["mean_hz"] >= 0.3]
             m, R = cmean(an)
-            fol = sum(1 for t in r["trials"] if t[w]["angle"] is not None and t[w]["mean_hz"] >= 0.3 and abs((t[w]["angle"] - 22.5 * t["cue"] + 180) % 360 - 180) < 30)
+            fol = sum(1 for k, t in enumerate(r["trials"]) if t[w]["angle"] is not None and t[w]["mean_hz"] >= 0.3 and abs((t[w]["angle"] - 22.5 * k + 180) % 360 - 180) < 30)
             stats.append("%.2f/%d" % (R, fol)); tot[w].append((R, fol))
         late = ["%3d" % round(t["w5500"]["angle"]) if t["w5500"]["angle"] is not None and t["w5500"]["mean_hz"] >= 0.3 else "  -" for t in r["trials"]]
         an = [t["w5500"]["angle"] for t in r["trials"] if t["w5500"]["angle"] is not None and t["w5500"]["mean_hz"] >= 0.3]
@@ -84,8 +84,23 @@ def report(dirs):
         else: print("  draw %2d: silent at every cue" % i)
 
 
+def stage1_table(dirs):
+    """Summary of compass_search .stage1 files by name prefix (norm1, norm2, norm3): trials silent / in band / saturated, and near misses."""
+    print("%-6s %6s %8s %8s %8s %8s %12s %10s %10s %9s" % ("norm", "draws", "trials", "silent", "in band", "satur.", "band,str>.5", "band,err<30", "held both", "held one"))
+    for pre in ("norm1", "norm2", "norm3"):
+        fs = [f for d in dirs for f in glob.glob(os.path.join(d, "**", pre + "_*.jsonl.stage1"), recursive=True)]
+        rows = [json.loads(l) for f in fs for l in open(f)]
+        tr = [t for r in rows for t in r["trials"]]
+        if not tr: continue
+        sil = sum(1 for t in tr if t["mean_hz"] < 2); sat = sum(1 for t in tr if t["mean_hz"] > 60); band = [t for t in tr if 2 <= t["mean_hz"] <= 60]
+        both = sum(1 for r in rows if all(t["held"] for t in r["trials"]))
+        print("%-6s %6d %8d %8.4f %8.4f %8.4f %12d %10d %10d %9d" % (pre, len(rows), len(tr), sil / len(tr), len(band) / len(tr), sat / len(tr), sum(1 for t in band if t["strength"] > 0.5), sum(1 for t in band if t["err"] is not None and t["err"] < 30), both, sum(1 for r in rows if any(t["held"] for t in r["trials"]))))
+
+
 if __name__ == "__main__":
-    if sys.argv[1] == "find":
+    if sys.argv[1] == "s1":
+        stage1_table(sys.argv[2:])
+    elif sys.argv[1] == "find":
         os.makedirs(os.path.dirname(sys.argv[5]) or ".", exist_ok=True)
         find(int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), sys.argv[5])
     else:
