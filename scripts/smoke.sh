@@ -34,7 +34,8 @@ for id in $tasks; do
   # diagnosis cases are decided by the submitted answer (set_variant), not by the circuit. The answer is NOT read from the C++ source: nothing
   # submitted must fail, then every candidate the case offers (spike-run --list-variants) is submitted: exactly one must pass. The hints no longer
   # name candidates (that leaked the answer), so the tier-3 hint must not contain any candidate id either.
-  if [[ "$id" == dx_* ]]; then
+  # a case is a task of level kind "diagnosis" (the dx_* cases and the prediction bets a_motif and a_predict), not a task whose id starts with dx_
+  if [ "$("$run" --level-kind "$id" 2>/dev/null)" = "diagnosis" ]; then
     if SPIKE_CIRCUITS_DIR="$root/circuits" "$run" --task "$id" --seed 1 --quick --require any > /dev/null 2>&1; then
       echo "FAIL: $id passes with nothing submitted"; fail=1; continue
     fi
