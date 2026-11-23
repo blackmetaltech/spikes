@@ -35,13 +35,16 @@ if(SPIKE_BUILD_TESTS)
   # Plate 0's first-run logic (godot/tests/test_tutorial.gd): fresh save starts at step 1, skipped / finished never restarts. Needs only godot.
   add_test(NAME tutorial COMMAND ${CMAKE_SOURCE_DIR}/scripts/tutorial_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(tutorial PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
+  # The Analysis screen's wiring matrix, path finder and null-model bench (godot/tests/test_wiring.gd). Needs godot and the extension.
+  add_test(NAME godot_wiring COMMAND ${CMAKE_SOURCE_DIR}/scripts/wiring_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  set_tests_properties(godot_wiring PROPERTIES TIMEOUT 700 SKIP_RETURN_CODE 77)
   add_test(NAME godot_polish COMMAND ${CMAKE_SOURCE_DIR}/scripts/polish_test.sh WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(godot_polish PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
   # The lab's specimen layers (godot/assets/specimens) against the plate drawings they are cut from; skips (77) without pycairo.
   add_test(NAME art_specimens COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/art/check_specimens.py WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   set_tests_properties(art_specimens PROPERTIES SKIP_RETURN_CODE 77)
   # These all open the one Godot project in godot/ (import cache, export); run side by side they trip over each other, so ctest -j takes them in turn.
-  set_tests_properties(ui_graph save_io godot_editor tutorial godot_polish PROPERTIES RESOURCE_LOCK godot_project)
+  set_tests_properties(ui_graph save_io godot_editor tutorial godot_polish godot_wiring PROPERTIES RESOURCE_LOCK godot_project)
 endif()
 foreach(d python godot)
   if(EXISTS "${CMAKE_SOURCE_DIR}/${d}/CMakeLists.txt")
