@@ -51,3 +51,18 @@ summary: One sentence.       # under the title, on the index, in search results 
 ## Images
 
 `IMAGES.md` lists the captures the pages use; `scripts/site-media.sh` makes them (the `wiki` items) from the exported game into `img/` as WebP (`ONLY="wiki:first-hour-lab" scripts/site-media.sh` remakes one; it needs the exported game, `xvfb-run`, ffmpeg and ImageMagick). Site-wide media (clips, screenshots) are in `../assets/media/` and the chapter plates in `../assets/plates/`; both may be used from a page with a relative path.
+
+## Voice
+
+Straight, short, punchy. The reader is a player or a scientist with ten seconds.
+
+- Lead with the point. The first sentence of a page or section says what the thing is or what to do.
+- Short sentences. One idea each. Split anything joined by a semicolon or "and ... and".
+- Say "you". Use the imperative for steps: "Click Check", not "the player can click Check".
+- Plain verbs, concrete nouns. Cut "simply", "just", "really", "actually", "in order to", "note that", "it is worth", "essentially", "leverage", "seamless", "robust", "delve", "powerful".
+- No warm-up and no wrap-up. No "In this page we will", no closing summary that repeats the page.
+- No hedging stacks. One "roughly" is enough; "may possibly" is not.
+- No sales voice and no exclamation marks. State the limit as plainly as the feature.
+- Lists and tables for parallel items; prose for reasons. Do not turn reasoning into bullets.
+- Keep every fact: numbers, units, level ids, key names, cell and parameter names, citations, links, anchors and image paths stay exactly as they are. Shorter must not mean vaguer or wrong.
+- British spelling, as in the rest of the project.

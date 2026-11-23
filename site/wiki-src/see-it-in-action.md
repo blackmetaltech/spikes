@@ -5,21 +5,21 @@ section: Start here
 summary: Every clip and screenshot of the game, captured from the released build, with what each one shows.
 ---
 
-Everything on this page was captured from the exported game by `scripts/site-media.sh`, which drives the game through its screenshot hooks and records with Godot's movie mode, so every frame is rendered and the circuit runs at its true speed (the lab's speed is shown in the top right of each full-screen clip). The clips play while they are on screen; with reduced motion turned on in your system they wait for you to press play. Select a screenshot to see it full size.
+`scripts/site-media.sh` captured everything here from the exported game. It drives the game through its screenshot hooks and records with Godot's movie mode, so every frame is rendered and the circuit runs at its true speed (the lab's speed is shown in the top right of each full-screen clip). Clips play while on screen. With reduced motion on in your system, they wait for you to press play. Select a screenshot to see it full size.
 
-> **Note:** These media were captured before several later changes: the Bestiary specimen views, the rewritten circuit editor with its Undo and Redo buttons, the score stamp with its criteria rows, and the map's wing selector. The game looks a little different now. The clips and screenshots show how the circuits behave, which has not changed. Running `scripts/site-media.sh` makes new ones.
+> **Note:** These media predate several changes: the Bestiary specimen views, the rewritten circuit editor with its Undo and Redo buttons, the score stamp with its criteria rows, and the map's wing selector. The game looks a little different now, but the circuits behave as shown. Run `scripts/site-media.sh` to make new ones.
 
 ## Bodies
 
 <div class="gallery">
 
-![A lamprey swims on a half-centre oscillator: the raster fills with alternating bursts and the body bends left and right](../assets/media/lamprey.webm "The lamprey. Left and right pools inhibit each other and tire, so they take turns; the toy swimmer turns the alternation into a travelling wave and forward speed. 1x.")
+![A lamprey swims on a half-centre oscillator: the raster fills with alternating bursts and the body bends left and right](../assets/media/lamprey.webm "The lamprey. Left and right pools inhibit each other and tire, so they take turns. The toy swimmer turns the alternation into a travelling wave and forward speed. 1x.")
 
 ![The heart: the drawn heart beats, the ECG scrolls, heart rate and pressure rise as exercise starts](../assets/media/heart.webm "The heart. Sympathetic and vagal pools steer a sinoatrial pacemaker cell; at rest the vagal tone holds the rate near 65, and when exercise starts it climbs toward 120. 2x.")
 
-![The baroreflex: the body stands up, mean pressure dips on the gauge and is pulled back](../assets/media/baroreflex.webm "The baroreflex. Standing up pools blood in the legs and pressure falls; baroreceptor afferents drive the brainstem circuit, which answers through the vagal and sympathetic outputs within seconds. 4x.")
+![The baroreflex: the body stands up, mean pressure dips on the gauge and is pulled back](../assets/media/baroreflex.webm "The baroreflex. Standing up pools blood in the legs and pressure falls. Baroreceptor afferents drive the brainstem circuit, which answers through the vagal and sympathetic outputs within seconds. 4x.")
 
-![The stretch reflex: tendon taps stretch the muscle and the limb answers](../assets/media/limb.webm "The stretch reflex. A tap stretches the muscle, spindle Ia afferents fire, the motoneurons answer within tens of milliseconds and reciprocal inhibition holds the antagonist off. The joint-angle plot shows each tap. 1x.")
+![The stretch reflex: tendon taps stretch the muscle and the limb answers](../assets/media/limb.webm "The stretch reflex. A tap stretches the muscle and spindle Ia afferents fire. The motoneurons answer within tens of milliseconds, and reciprocal inhibition holds the antagonist off. The joint-angle plot shows each tap. 1x.")
 
 </div>
 
@@ -27,11 +27,11 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 <div class="gallery">
 
-![The leech heartbeat: two heart interneurons burst in turn](../assets/media/leech.webm "The leech heartbeat. Two heart interneurons inhibit each other and burst in turn; each one silences its own side's motor neuron, so the two sides beat alternately. The gauges read the period and the overlap. 1x.")
+![The leech heartbeat: two heart interneurons burst in turn](../assets/media/leech.webm "The leech heartbeat. Two heart interneurons inhibit each other and burst in turn. Each silences its own side's motor neuron, so the sides beat alternately. The gauges read the period and the overlap. 1x.")
 
-![The fly compass: a bump of activity moves round the ring as the fly turns in the dark](../assets/media/compass.webm "The fly's compass. Sixteen compass cells in a ring hold a bump of activity; shifting cells move it when the fly turns, and the bump follows the fly's true heading. 1x.")
+![The fly compass: a bump of activity moves round the ring as the fly turns in the dark](../assets/media/compass.webm "The fly's compass. Sixteen compass cells in a ring hold a bump of activity. Shifting cells move it when the fly turns, and it follows the fly's true heading. 1x.")
 
-![The crab pyloric rhythm: the raster fills in with the triphasic pattern](../assets/media/raster.webm "The pyloric rhythm. Conductance-based crab STG cells start from rest; within a second the raster settles into the pacemaker burst, then LP, then PY. 1x.")
+![The crab pyloric rhythm: the raster fills in with the triphasic pattern](../assets/media/raster.webm "The pyloric rhythm. Conductance-based crab STG cells start from rest. Within a second the raster settles into the pacemaker burst, then LP, then PY. 1x.")
 
 </div>
 
@@ -39,13 +39,13 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 <div class="gallery">
 
-![The phase plane of one neuron: the current steps past onset and the trajectory circles a loop of repeated firing](../assets/media/phase.webm "The phase plane on Where firing starts. Nullclines and fixed points come from the cell's live parameters; once the current passes onset the resting state is gone (the readout says so) and the trajectory runs round a loop of repeated firing. 0.05x, so the loop can be followed.")
+![The phase plane of one neuron: the current steps past onset and the trajectory circles a loop of repeated firing](../assets/media/phase.webm "The phase plane on Where firing starts. Nullclines and fixed points come from the cell's live parameters. Once the current passes onset the resting state is gone (the readout says so) and the trajectory runs round a loop of repeated firing. 0.05x, so you can follow the loop.")
 
-![CHECK on a hand-built lamprey circuit: a toast reports the pass and the gauge marks the check](../assets/media/check.webm "CHECK. The circuit is scored headless, in five worlds, while the live run carries on; the verdict arrives as a toast and says in words what the circuit did. 1x.")
+![CHECK on a hand-built lamprey circuit: a toast reports the pass and the gauge marks the check](../assets/media/check.webm "CHECK. The circuit is scored headless, in five worlds, while the live run carries on. The verdict arrives as a toast and says in words what the circuit did. 1x.")
 
 ![A CHECK result card: not passed, left and right are not alternating](../assets/media/check-fail.webp "A failing verdict: the same lamprey without its crossed inhibition. It names the missing mechanism, never a number to aim for.")
 
-![An end card: passed, two stars, the third star explained](../assets/media/check-pass.webp "A hand-built circuit passes in all five worlds and earns two stars; the card says how to earn the third (16 neurons or fewer).")
+![An end card: passed, two stars, the third star explained](../assets/media/check-pass.webp "A hand-built circuit passes in all five worlds and earns two stars. The card says how to earn the third (16 neurons or fewer).")
 
 </div>
 
@@ -121,4 +121,4 @@ Everything on this page was captured from the exported game by `scripts/site-med
 
 ## Making these again
 
-The media are rebuilt from the game with one command; see [Building from source](building-from-source.md) and `docs/BUILD.md` in the repository. Each clip also exists as an MP4 and a small GIF next to the WebM in `site/assets/media/`, for READMEs and old browsers.
+One command rebuilds the media from the game. See [Building from source](building-from-source.md) and `docs/BUILD.md` in the repository. Each clip also exists as an MP4 and a small GIF beside the WebM in `site/assets/media/`, for READMEs and old browsers.

@@ -41,8 +41,8 @@ OUT = ROOT / "site/wiki"
 SITE = ROOT / "site"
 TEMPLATE = Path(__file__).resolve().parent / "template.html"
 BASE_URL = "https://spike.blackmetal.tech/"
-REPO_BLOB = "https://github.com/ixaxaar/spikes/blob/master/"
-REPO_EDIT = "https://github.com/ixaxaar/spikes/edit/master/"
+REPO_BLOB = "https://github.com/blackmetaltech/spikes/blob/master/"
+REPO_EDIT = "https://github.com/blackmetaltech/spikes/edit/master/"
 ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"]
 
 

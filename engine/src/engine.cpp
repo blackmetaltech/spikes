@@ -6,6 +6,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <deque>
 #include <limits>
@@ -55,6 +56,17 @@ inline uint64_t fnv_bytes( uint64_t h, uint64_t v, int nbytes )
 
 Dictionary to_dict( const nlohmann::json& o );
 
+#ifdef _WIN32
+// NEST dictionaries hold `long`, which is 32 bits on Windows: an integer parameter that does not fit is refused, not silently wrapped.
+void check_long( const nlohmann::json& e, const std::string& key )
+{
+  const bool ok = e.is_number_unsigned() ? e.get< unsigned long long >() <= static_cast< unsigned long long >( LONG_MAX )
+                                         : ( e.get< long long >() >= LONG_MIN and e.get< long long >() <= LONG_MAX );
+  if ( not ok )
+    throw std::runtime_error( "'" + key + "': integer out of range for NEST on Windows (32-bit long)" );
+}
+#endif
+
 void put( Dictionary& d, const std::string& key, const nlohmann::json& v )
 {
   using J = nlohmann::json;
@@ -65,6 +77,9 @@ void put( Dictionary& d, const std::string& key, const nlohmann::json& v )
     break;
   case J::value_t::number_integer:
   case J::value_t::number_unsigned:
+#ifdef _WIN32
+    check_long( v, key );
+#endif
     d[ key ] = v.get< long >();
     break;
   case J::value_t::number_float:
@@ -88,7 +103,13 @@ void put( Dictionary& d, const std::string& key, const nlohmann::json& v )
     if ( v.empty() )
       throw std::runtime_error( "'" + key + "': empty arrays are not supported" );
     if ( all_int )
+    {
+#ifdef _WIN32
+      for ( const auto& e : v )
+        check_long( e, key );
+#endif
       d[ key ] = v.get< std::vector< long > >();
+    }
     else
       d[ key ] = v.get< std::vector< double > >();
     break;

@@ -43,7 +43,7 @@ One iteration is one chapter (2 or 3 micro-puzzles, one task, 1 or 2 diagnosis c
 
 Implementation is done by small agents in their own worktrees; direction, review, and art that needs a sense of geometry stay with the lead. At most two or three agents run at once.
 
-## Before 0.6: debts carried from 0.5.0 (0.5.1)
+## Before 0.6: debts carried from 0.5.0 (0.5.3)
 | Debt | Plan |
 |---|---|
 | No buildable escape oscillator for the leech heart | an h-current NESTML cell; then a tested escape reference |
