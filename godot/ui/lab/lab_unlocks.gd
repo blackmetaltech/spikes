@@ -8,6 +8,8 @@ extends RefCounted
 ##   LabUnlocks.locked_text(task)     one line for the More menu: what opens later
 
 const FEATURE_TEXT := {"inhibitory": "inhibitory neurons", "parts": "the parts bin", "analysis": "analysis", "loadsave": "load and save"}
+## Chapters whose levels are about reading wiring: the Analysis screen is open in them whatever the campaign has reached (Analysis is their instrument).
+const INSTRUMENT_CHAPTERS := ["a_worm"]
 static var _first := {}   # feature -> index in Campaign.order() of the first level that needs it
 
 static func all_open(task_id: String) -> bool:
@@ -28,6 +30,7 @@ static func reach(task_id: String) -> int:
 
 static func has(task_id: String, feature: String) -> bool:
 	if all_open(task_id): return true
+	if feature == "analysis" and INSTRUMENT_CHAPTERS.has(Campaign.chapter_of(Campaign.task_of(task_id))): return true   # the Atlas wing's instruments: the matrix, the path finder, the null bench
 	return reach(task_id) >= first_level(feature)
 
 ## Index of the first level (play order) that needs `feature`; a large number when none does.

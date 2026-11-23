@@ -214,6 +214,15 @@
    },
    "state_of": "campaign"
   },
+  "campaign.chapter.a_worm": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Atlas: Reading wiring",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "a_worm"
+   },
+   "state_of": "campaign"
+  },
   "parts": {
    "kind": "screen",
    "label": "Parts bin (browse the catalogue)",
@@ -495,7 +504,7 @@
   },
   "lab.atlas": {
    "kind": "frame",
-   "label": "Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections",
+   "label": "Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper, or an active / silenced switch for a cell type that can be switched off), no way to add or delete cells and connections",
    "detect": {
     "screen": "lab",
     "task": "level"
@@ -503,7 +512,8 @@
    "optional": [
     "StepSign_*",
     "BtnScaleDown_*",
-    "BtnScaleUp_*"
+    "BtnScaleUp_*",
+    "StepActive_*"
    ],
    "abstract": true,
    "state_of": "lab"
@@ -1321,6 +1331,13 @@
    "to": "campaign.chapter.tuning",
    "control": "Chapter_tuning",
    "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
+  },
+  {
+   "id": "campaign.tab.a_worm",
+   "from": "campaign",
+   "to": "campaign.chapter.a_worm",
+   "control": "Wing_atlas",
+   "note": "The wing switch shows the Atlas chapter and opens it."
   },
   {
    "id": "campaign.wing.body",
