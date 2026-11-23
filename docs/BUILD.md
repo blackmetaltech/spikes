@@ -86,9 +86,10 @@ Every `engine/tests/*.cpp` is one ctest entry named after the file, except the t
 | `tutorial` | Plate 0's first-run logic (`test_tutorial.gd`) | godot only |
 | `godot_polish` | Lab chrome logic (`test_polish.gd`): time labels, score parts, latches | godot only |
 | `godot_wiring` | The Analysis screen's wiring matrix, path finder and null-model bench (`test_wiring.gd`) | godot and the extension (skips without) |
+| `godot_atlas` | The Atlas worm chapter's game side (`test_atlas.gd`): wing gating, glossary, silencing control, bet panel, right and wrong bets through the engine | godot and the extension (skips without) |
 | `art_specimens` | The lab's specimen layers match the plate drawings they are cut from (`tools/art/check_specimens.py`) | pycairo (skips without) |
 
-The six Godot tests share one project folder (`godot/`), so they take a ctest resource lock and run one after another even with `-j`. Plain `pytest python` skips the PyNEST tests when PyNEST is absent.
+The seven Godot tests share one project folder (`godot/`), so they take a ctest resource lock and run one after another even with `-j`. Plain `pytest python` skips the PyNEST tests when PyNEST is absent.
 
 ## Python quick start
 
