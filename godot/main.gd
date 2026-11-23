@@ -223,7 +223,8 @@ func _show_notice(msg: String) -> void:
 ## CHECK runs the bundled spike-run next to the game. A zip that lost its executable bit (some unzippers, some file managers) would make Check fail with no hint:
 ## set the bit when we can, say so plainly when we cannot. Returns "" or the message.
 func _ensure_runner_exec() -> String:
-	for p in [OS.get_executable_path().get_base_dir().path_join("spike-run"), ProjectSettings.globalize_path("res://bin/spike-run")]:
+	if OS.has_feature("windows"): return ""   # no execute bit on Windows; the runner is spike-run.exe beside Spike.exe
+	for p in [OS.get_executable_path().get_base_dir().path_join("spike-run"), OS.get_executable_path().get_base_dir().path_join("../Frameworks/spike-run"), ProjectSettings.globalize_path("res://bin/spike-run")]:
 		if not FileAccess.file_exists(p): continue
 		var perm := FileAccess.get_unix_permissions(p)
 		if perm & 0x49 == 0x49: return ""

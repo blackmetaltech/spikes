@@ -2,32 +2,32 @@
 title: Inputs and outputs
 section: Reference
 order: 52
-summary: The sensor and motor cards of a level: every input kind (dc, Poisson, rate drive, tuned Poisson, spike trains) and every output kind (rate, modulator, ring readout, rate value), with units and real examples.
+summary: The sensor and motor cards of a level: every input kind (dc, Poisson, rate drive, tuned Poisson, spike trains) and output kind (rate, modulator, ring readout, rate value), with units and examples.
 ---
 
 # Inputs and outputs
 
-A level does not give you a body to wire neurons into directly. It gives you **cards**. Sensor cards on one side feed the circuit. Motor cards on the other side are read by the level. Everything between them is yours.
+A level gives you **cards**, not a body to wire into. Sensor cards on one side feed the circuit. Motor cards on the other side are read by the level. You wire everything between them.
 
-This page explains every kind of card, the units it uses, and how to wire it. For the screen layout see [how to read the lab](how-to-read-the-lab.html). For what sits behind the motor cards (muscles, heart, lungs) see [bodies](bodies.html).
+This page covers every kind of card, its units, and how to wire it. For the screen layout see [how to read the lab](how-to-read-the-lab.html). For what sits behind the motor cards (muscles, heart, lungs) see [bodies](bodies.html).
 
 ## How the cards work
 
-**Sensor cards** (inputs) sit at one edge of the circuit editor. The level writes a value to each one, every millisecond. A sensor does nothing until you connect it to a neuron group. To connect: drag from the right edge of the sensor card onto a neuron, or press **Connect**, click the card, then click the neuron.
+**Sensor cards** (inputs) sit at one edge of the circuit editor. The level writes a value to each one, every millisecond. A sensor does nothing until you connect it to a neuron group. Drag from the right edge of the sensor card onto a neuron, or press **Connect**, click the card, then click the neuron.
 
-**Motor cards** (outputs) sit at the other edge. The level reads what your neurons do. To connect: drag from a neuron's rim onto the card, or use Connect mode in the other direction. Nothing is read until at least one neuron is wired to the card. An unwired motor reads 0, and the verdict says so.
+**Motor cards** (outputs) sit at the other edge. The level reads what your neurons do. Drag from a neuron's rim onto the card, or use Connect mode in the other direction. Nothing is read until at least one neuron is wired to the card. An unwired motor reads 0, and the verdict says so.
 
-Select a card and the inspector shows what it is connected to, its kind, and its settings. **Disconnect all** removes every connection of the card. A card the level provides cannot be deleted. An input you add yourself (a free noise input, in the sandbox) can.
+Select a card and the inspector shows what it is connected to, its kind, and its settings. **Disconnect all** removes every connection of the card. You cannot delete a card the level provides. You can delete an input you add yourself (a free noise input, in the sandbox).
 
-**First-connect weight.** The first time you connect a sensor to a neuron, the lab picks a weight that makes that cell type fire. Many levels set their own start weight for a sensor, so the level can be solved without hunting for a working number. You can change it afterwards in the inspector. See [synapses and modulators](synapses-and-modulators.html) for weights.
+**First-connect weight.** The first time you connect a sensor to a neuron, the lab picks a weight that makes that cell type fire. Many levels set their own start weight for a sensor, so you can solve the level without hunting for a working number. Change it afterwards in the inspector. See [synapses and modulators](synapses-and-modulators.html) for weights.
 
 ## Numbered families
 
-Some levels have many sensors or motors with a numbered name: `cue0` to `cue15`, `dist0` to `dist7`, `pn0` to `pn19`. They are a **family**. A family stands for a body part that has many places: the ring of the fly compass, the eight segments of the gut, the glomeruli of the fly's antennal lobe.
+Some levels have many sensors or motors with a numbered name: `cue0` to `cue15`, `dist0` to `dist7`, `pn0` to `pn19`. They are a **family**. A family stands for a body part with many places: the ring of the fly compass, the eight segments of the gut, the glomeruli of the fly's antennal lobe.
 
-The inspector of any card in a family says: "cue0 to cue15 are a numbered family of 16. A group of 16 neurons wired to any one of them connects neuron k to sensor k." So you do not wire sixteen cards by hand. Either drag from one card onto a group of 16 neurons, or press the button **Wire all to \<group\>** (for sensors) or **Wire \<group\> (16) to all** (for motors). The button appears for each group in the circuit whose size equals the size of the family. Neuron k is connected to sensor k, or motor k.
+The inspector of any card in a family says: "cue0 to cue15 are a numbered family of 16. A group of 16 neurons wired to any one of them connects neuron k to sensor k." So you do not wire sixteen cards by hand. Drag from one card onto a group of 16 neurons, or press the button **Wire all to \<group\>** (for sensors) or **Wire \<group\> (16) to all** (for motors). The button appears for each group in the circuit whose size equals the size of the family. Neuron k is connected to sensor k, or motor k.
 
-The order matters. For a ring readout (below), the order you connect the neurons is the order around the ring.
+Order matters. For a ring readout (below), the order you connect the neurons is the order around the ring.
 
 ## Input kinds
 
@@ -42,7 +42,7 @@ The order matters. For a ring readout (below), the order you connect the neurons
 
 ### DC input
 
-A **DC** (direct current) input gives its target neurons a steady current. The value the level writes is multiplied by the weight (in pA per unit of value), so the current in picoamps is `value * weight`. It is smooth: no randomness, no spikes.
+A **DC** (direct current) input gives its target neurons a steady current. The level's value is multiplied by the weight (in pA per unit of value), so the current in picoamps is `value * weight`. It is smooth: no randomness, no spikes.
 
 Use it for a graded signal such as a stretch, a pressure or a level. Many micro-puzzles use `dc`, because a clean signal makes the mechanism easy to read. The inspector shows the weight as "pA/unit". The slider goes up to 2000 pA/unit, whatever cell it drives: a conductance-based cell still takes a current.
 
@@ -54,24 +54,24 @@ Examples:
 
 ### Poisson input
 
-A **Poisson** input gives its target neurons random spikes at a given average rate. "Poisson" means the spikes are independent: knowing when the last one came tells you nothing about the next. Every neuron the input is wired to gets **its own independent train**, so two neurons on the same sensor hear different chatter. That is the reason convergence (many inputs onto one cell) averages noise away.
+A **Poisson** input gives its target neurons random spikes at a given average rate. "Poisson" means the spikes are independent: when the last one came tells you nothing about the next. Every neuron the input is wired to gets **its own independent train**, so two neurons on the same sensor hear different chatter. That is why convergence (many inputs onto one cell) averages noise away.
 
 The weight is the size of one spike's effect, in the unit of the target cell (pA, nS or mV). The value is a rate in hertz. In the lab the inspector's rate slider goes from 0 to 400 Hz for inputs you add yourself.
 
 Examples:
 
-- **Touch reflex.** `touch` is a Poisson input. The receptor chatters at about 150 Hz in the background, and at about 400 Hz while something pokes the skin. A poke is only 2.7 times the background, which is why one cell alone cannot tell a poke from a noisy stretch of chatter.
+- **Touch reflex.** `touch` is a Poisson input. The receptor chatters at about 150 Hz in the background, and at about 400 Hz while something pokes the skin. A poke is only 2.7 times the background, so one cell alone cannot tell a poke from a noisy stretch of chatter.
 - **Worm.** The sensors `ASEL` and `ASER` are Poisson inputs: a 5 Hz background, with salt change adding up to 400 Hz.
 - **Pupil.** `retina` is a Poisson rate from the eye model (5 to 100 Hz per fibre, times four fibres). `threat` is 0 normally and 250 Hz during the fright cue.
 - **Breathing.** `drive` is a constant Poisson rate of 200 Hz into whatever cells you wire.
 
-In the sandbox you can add a free noise input with **+ Noise** (the button is not on a level: see below). It starts as a Poisson input at 30 Hz with a weight of half the usual first-connect weight. In the inspector, a stepper switches it between **Poisson spikes** and **DC current**. It is for the sandbox, where you drive cells with it. A level scores only the sensors it declares, and an input the player adds is a stimulus the level did not give: undeclared stimulus would be a way to cheat, so the button is not offered on a level, and a free input that arrives anyway (a circuit built in the sandbox and imported, or loaded from a file) makes the run unable to pass: the score is held below the pass mark and the verdict says the circuit brings a stimulus of its own and that this is why. The noise a level wants is its own: the Renshaw cell level declares a sensor called `noise`, and Researcher mode adds physiological noise to every level.
+In the sandbox, **+ Noise** adds a free noise input (the button is not on a level: see below). It starts as a Poisson input at 30 Hz with a weight of half the usual first-connect weight. In the inspector, a stepper switches it between **Poisson spikes** and **DC current**. It is for the sandbox, where you drive cells with it. A level scores only the sensors it declares. An input the player adds is a stimulus the level did not give, and undeclared stimulus would be a way to cheat. So the button is not offered on a level. A free input that arrives anyway (a circuit built in the sandbox and imported, or loaded from a file) makes the run unable to pass: the score is held below the pass mark and the verdict says the circuit brings a stimulus of its own and that this is why. The noise a level wants is its own: the Renshaw cell level declares a sensor called `noise`, and Researcher mode adds physiological noise to every level.
 
 ### Rate drive
 
-A **rate drive** feeds rate units (population rates, no spikes). The value the level writes, times the weight, is added to the drive of each unit it reaches. The drive is the unit's `mu` parameter. For a mean-field (Siegert) unit it is `mean`, the external rate in spikes per second. The weight slider goes from 0 to 5.
+A **rate drive** feeds rate units (population rates, no spikes). The level's value, times the weight, is added to the drive of each unit it reaches. The drive is the unit's `mu` parameter. For a mean-field (Siegert) unit it is `mean`, the external rate in spikes per second. The weight slider goes from 0 to 5.
 
-Only rate populations may be targets. Spiking inputs on rate populations are refused when the circuit loads, and rate drives on spiking cells likewise.
+Only rate populations may be targets. The loader refuses spiking inputs on rate populations, and rate drives on spiking cells.
 
 Example: **Two populations that make a rhythm** has a `drive`. **Two populations, one winner** has two drives, `a_in` and `b_in`.
 
@@ -79,22 +79,22 @@ Example: **Two populations that make a rhythm** has a `drive`. **Two populations
 
 ### Tuned Poisson input
 
-A **tuned** input says: "the stimulus is at this angle", and each cell it reaches fires at a rate that depends on how far its **preferred angle** is from the stimulus. A cell's preferred angle is the one it responds to most. Cell k of N has the preferred angle `period * k / N`. The rate follows a bell-shaped (von Mises) curve:
+A **tuned** input says "the stimulus is at this angle". Each cell it reaches fires at a rate that depends on how far its **preferred angle** is from the stimulus. A cell's preferred angle is the one it responds to most. Cell k of N has the preferred angle `period * k / N`. The rate follows a bell-shaped (von Mises) curve:
 
 `rate = base + (peak - base) * exp(kappa * (cos(2 pi (angle - preferred) / period) - 1))` in Hz
 
-The settings of the curve are fixed by the level: `rate_max` (default 50 Hz), `rate_base` (default 0), `kappa` (default 2, higher is narrower) and the period (360 degrees for a direction, 180 for an orientation). You do not edit them. The level sets the stimulus angle, in degrees.
+The level fixes the curve's settings: `rate_max` (default 50 Hz), `rate_base` (default 0), `kappa` (default 2, higher is narrower) and the period (360 degrees for a direction, 180 for an orientation). You do not edit them. The level sets the stimulus angle, in degrees.
 
-Used by the three Tuning levels. See [campaign-theory](campaign-theory.html).
+The three Tuning levels use it. See [campaign-theory](campaign-theory.html).
 
 ### Spike trains and sinusoidal Poisson
 
-Two more kinds exist for circuit files, Python and `spike-run`. They are not part of the lab's free-input menu.
+Two more kinds exist for circuit files, Python and `spike-run`. They are not in the lab's free-input menu.
 
 - `spike_generator` emits spikes at the exact times you list, in milliseconds. Times must sit on the resolution grid (usually 0.1 ms), be above 0 and be sorted.
 - `sinusoidal_poisson` has a rate `max(0, rate + amplitude * sin(2 pi freq t + phase))`. Use it for an oscillating drive such as a theta rhythm. The frequency must be below the Nyquist limit of the resolution.
 
-These two are for the sandbox, the command line and Python. On a level, a circuit that carries a `spike_generator`, or any input channel the level does not drive, is not allowed to pass: its score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Free noise from **+ Noise** (sandbox only) is a Poisson input that the lab marks as yours, and it is the way to test a circuit against chatter there. See [a circuit is data](circuit-is-data.html).
+These two are for the sandbox, the command line and Python. On a level, a circuit that carries a `spike_generator`, or any input channel the level does not drive, cannot pass: its score is capped at 49 and the verdict says the circuit brings a stimulus of its own. Free noise from **+ Noise** (sandbox only) is a Poisson input that the lab marks as yours, and it is how you test a circuit against chatter there. See [a circuit is data](circuit-is-data.html).
 
 ## Output kinds
 
@@ -107,7 +107,7 @@ These two are for the sandbox, the command line and Python. On a level, a circui
 
 ### Rate readout
 
-The default motor card. The level counts the spikes of the connected neurons. Most levels use the mean rate **per neuron**, in hertz, often smoothed over a few tens of milliseconds, and then convert it into a drive for a body part. The conversions are explicit and are part of each level's design. For example:
+The default motor card. The level counts the spikes of the connected neurons. Most levels use the mean rate **per neuron**, in hertz, often smoothed over a few tens of milliseconds, and convert it into a drive for a body part. The conversions are explicit and part of each level's design. For example:
 
 - Breathing: the phrenic motor rate, divided by a reference rate, gives the inspiratory drive from 0 to 1.
 - Pupil: the sphincter and dilator rates, divided by a reference rate, give each muscle's drive from 0 to 1.
@@ -116,7 +116,7 @@ The default motor card. The level counts the spikes of the connected neurons. Mo
 
 > **Note:** The engine can give the **summed** pool rate or the **per neuron** mean. A level says which it uses in its brief and in the pass rule. If a level is judged on the mean rate, adding cells does not raise it. If it is judged on a total, adding cells does.
 
-A rate card over rate units reads 0 (rate units have no spikes): use a rate value card instead.
+A rate card over rate units reads 0 (rate units have no spikes). Use a rate value card instead.
 
 ### Modulator outputs
 
@@ -138,19 +138,19 @@ Example: **Autonomic heart rate** has three motor cards. `sa_beat` is a rate rea
 
 A **ring readout** reads a bump of activity on a ring of cells and turns it into an angle. The cells are laid out in order: cell k of N has the preferred angle `360 * k / N` degrees, cell 0 at the top. After every step the engine adds up one arrow per spike, each pointing at its cell's angle. The direction of the sum is the bump angle. The length of the sum, divided by the number of spikes, is the **strength** from 0 to 1. A strength of 1 means all spikes sit at one angle. A flat or cancelling ring gives 0. With no spikes in a step, there is no direction.
 
-You must connect the **whole ring group, in order**. The order you wire the cells decides the angles. A group wired in reverse reads as a mirror image. A cell can appear only once (the engine refuses a ring that lists a neuron twice).
+Connect the **whole ring group, in order**. The order you wire the cells decides the angles. A group wired in reverse reads as a mirror image. A cell can appear only once (the engine refuses a ring that lists a neuron twice).
 
-Used by the fly compass levels, and by **Reading a direction from a crowd**. In the lab the **Rate readout / Ring readout** stepper appears on such a card. On the compass levels the world panel draws the ring as sixteen wedges washed by their cells' firing, the bump as a needle, a tick on the rim for the true heading and another for the landmark while the lights are on.
+The fly compass levels and **Reading a direction from a crowd** use it. In the lab the **Rate readout / Ring readout** stepper appears on such a card. On the compass levels the world panel draws the ring as sixteen wedges washed by their cells' firing, the bump as a needle, a tick on the rim for the true heading and another for the landmark while the lights are on.
 
 ### Rate value
 
 A **rate value** reads the mean activity of rate units, in arbitrary units. For a Siegert unit it is the rate in spikes per second. There is nothing to choose in the inspector. The card says: "Rate readout: the mean rate of the rate units connected to this channel."
 
-Used by **Two populations that make a rhythm**, **Two populations, one winner** and **The network and its mean field**. These levels draw their motor channels as scrolling traces on one shared scale.
+**Two populations that make a rhythm**, **Two populations, one winner** and **The network and its mean field** use it. These levels draw their motor channels as scrolling traces on one shared scale.
 
 ## Every level's channels
 
-Names from the reference circuits (the level may add more sensors than a reference uses). Families are shown with their size in brackets.
+Names from the reference circuits (a level may add more sensors than a reference uses). Families are shown with their size in brackets.
 
 | Level | Sensors (kind) | Motors (kind) |
 |---|---|---|
