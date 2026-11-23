@@ -266,7 +266,7 @@ def load_circuit(circuit) -> dict:
 
 
 _FREE_PARAMS = {"sign": "sign", "scale": "range"}   # the parameters a group may declare free (engine/src/circuit.cpp kFreeParams); a later one is one more row here
-_GROUP_KEYS = {"id", "label", "pops", "sign", "scale", "free", "ranges"}
+_GROUP_KEYS = {"id", "label", "pops", "sign", "scale", "free", "ranges", "off"}
 
 
 def apply_groups(spec: dict) -> dict:
@@ -314,9 +314,12 @@ def apply_groups(spec: dict) -> dict:
         sign = g.get("sign", 1)
         if isinstance(sign, bool) or not isinstance(sign, (int, float)) or sign not in (1, -1):
             raise CircuitError(f"{path}.sign: must be +1 or -1")
+        off = g.get("off", False)
+        if not isinstance(off, bool):
+            raise CircuitError(f"{path}.off: must be true or false")
         scale = g.get("scale", 1.0)
-        if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not 0.0 < scale <= 1e6:
-            raise CircuitError(f"{path}.scale: must be a positive number")
+        if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not ((0.0 <= scale if off else 0.0 < scale) and scale <= 1e6):
+            raise CircuitError(f"{path}.scale: must be a number from 0 up" if off else f"{path}.scale: must be a positive number")
         free = g.get("free", [])
         ranges = g.get("ranges", {})
         if not isinstance(free, list) or not isinstance(ranges, dict):
@@ -326,8 +329,8 @@ def apply_groups(spec: dict) -> dict:
                 raise CircuitError(f"{path}.free: unknown free parameter '{name}' (this package knows sign and scale)")
             if _FREE_PARAMS[name] == "range":
                 rg = ranges.get(name)
-                if not (isinstance(rg, list) and len(rg) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in rg) and 0.0 < rg[0] <= rg[1]):
-                    raise CircuitError(f"{path}.ranges: a free '{name}' needs a range [lo, hi] with 0 < lo <= hi")
+                if not (isinstance(rg, list) and len(rg) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in rg) and (0.0 <= rg[0] if off else 0.0 < rg[0]) and rg[0] <= rg[1]):
+                    raise CircuitError(f"{path}.ranges: a free '{name}' needs a range [lo, hi] with {'0 <= lo' if off else '0 < lo'} <= hi")
         for name in ranges:
             if name not in free:
                 raise CircuitError(f"{path}.ranges: '{name}' has a range but is not in the free list")

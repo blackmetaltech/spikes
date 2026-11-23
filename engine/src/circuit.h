@@ -138,6 +138,7 @@ struct GroupSpec
   std::vector< std::string > free;
   bool free_sign = false, free_scale = false;
   double scale_min = 0.0, scale_max = 0.0;
+  bool off = false;   // add-only: "off": true lets the scale (and the lower end of its range) be 0, a cell type that can be switched off
 };
 
 struct CircuitSpec

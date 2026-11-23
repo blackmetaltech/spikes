@@ -258,6 +258,8 @@ Dictionary SpikeTask::diagnosis() const
     pr.push_back( q );
   }
   d[ "probes" ] = pr;
+  d[ "bet" ] = g.bet;         // 0.6 (Atlas), add-only: the answer is committed before the experiment
+  d[ "budget" ] = g.budget;   // 0.6 (Atlas), add-only: free instrument reads
   return d;
 }
 Dictionary SpikeTask::notebook() const
