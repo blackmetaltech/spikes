@@ -84,11 +84,11 @@ func _orders() -> void:
 	var l0 := w.layout(0, 0); var items0: PackedInt32Array = l0["items"]
 	var ix := items0.find(fx)
 	_check(items0[ix] == fx and items0[ix + 1] == fx + 1 and items0[ix + 2] == fx + 2, "by cell type keeps the cells of a type in file order")
-	var l1 := w.layout(1, 0); var i1: PackedInt32Array = l1["items"]; var j := i1.find(fx)
-	_check(i1[j] == fx + 2 and i1[j + 1] == fx and i1[j + 2] == fx + 1, "by out-degree puts the cell with two targets first (got %s)" % str([i1[j], i1[j + 1], i1[j + 2]]))
+	var l1 := w.layout(1, 0); var i1: PackedInt32Array = l1["items"]
+	_check(i1.find(fx + 2) < i1.find(fx) and i1.find(fx) < i1.find(fx + 1) and i1.find(fx + 2) == i1.find(fx) - 1, "by out-degree puts the cell with two targets first, inside its type (got %s)" % str(i1))
 	var y := Circuits.pop_index(c, "Y"); var fy := w.first[y]
-	var l2 := w.layout(2, 0); var i2: PackedInt32Array = l2["items"]; var k := i2.find(fy)
-	_check(i2[k] == fy + 1 and i2[k + 1] == fy, "by in-degree puts the cell with two inputs first")
+	var l2 := w.layout(2, 0); var i2: PackedInt32Array = l2["items"]
+	_check(i2.find(fy + 1) < i2.find(fy) and i2.find(fy) - i2.find(fy + 1) == 1, "by in-degree puts the cell with two inputs first")
 	_check(int(l1["spans"][0]["a"]) == 0 and int(l1["spans"][-1]["b"]) == w.n, "the type spans tile the matrix")
 	var lt := w.layout(1, 1); var it: PackedInt32Array = lt["items"]
 	_check(int(lt["level"]) == 1 and it.size() == w.np and str(w.ids[it[0]]) in ["A", "B", "C", "D", "E", "F", "G", "X"], "cell-type level by out-degree lists one row per type, busiest first")
