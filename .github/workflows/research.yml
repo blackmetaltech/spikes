@@ -1,6 +1,7 @@
 name: research
 # Heavy one-off computations (parameter searches, benchmarks, multi-seed sweeps) run here and not on a desktop. Manual only.
-# Each shard builds NEST's models and spike-run in the toolchain image (godot/bin/spike-run; tools find it through $SPIKE_RUN), runs one command at the
+# Each shard builds NEST's models and spike-run in the toolchain image (godot/bin/spike-run; tools find it through $SPIKE_RUN; reused from a cache when the
+# engine sources have not changed, unless build=full), runs one command at the
 # repository root, and uploads whatever the command wrote to out/. SHARD is the 0-based index of the shard and SHARDS their number, so a command can
 # give each shard its own seed:   python3 tools/connectome/compass_search.py 500 $((100 + SHARD)) pairs=1
 on:
@@ -15,6 +16,9 @@ on:
       name:
         description: 'Name of the uploaded artifact'
         default: 'research'
+      build:
+        description: 'cached = reuse spike-run from an earlier run with the same engine sources (a circuit or tool change then starts in about a minute); full = always build, needed by a command that compiles tests itself'
+        default: 'cached'
 
 permissions:
   contents: read
@@ -52,7 +56,16 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           docker pull "$img"
 
+      - name: Cached spike-run (same toolchain and engine sources)
+        id: cache
+        if: inputs.build != 'full'
+        uses: actions/cache@v4
+        with:
+          path: godot/bin/spike-run
+          key: spike-run-${{ env.SPIKE_IMAGE }}-${{ hashFiles('engine/**', 'models/**', 'CMakeLists.txt', 'scripts/build-all.sh', 'scripts/build-gd.sh') }}
+
       - name: Build (models, spike-run)
+        if: steps.cache.outputs.cache-hit != 'true'
         run: docker run --rm -v "$PWD":/src -w /src "$SPIKE_IMAGE" scripts/build-all.sh
 
       - name: Run
