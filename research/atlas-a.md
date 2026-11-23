@@ -322,6 +322,55 @@ Of the 913 trials in the rate band, 92 had a bump of strength above 0.5 and 161 
 
 **Risk for A3.** The exit criterion of A3 (real wiring holds a bump with the reference's signs and gains on seeds 101 to 105) is not met by anything found so far. Before A3 is designed, one of these has to be decided and tested on runners: a directed search (an optimiser on a graded score, instead of random draws); a free parameter that is not per type (for example a per-cell background current that evens out the ring); or a level whose stated lesson is the drift itself (the measured wiring forms a bump and does not hold it without tuning).
 
+## 4b. Feasibility probe of the worm touch circuit (iteration A2)
+
+Scripts: `tools/connectome/worm_circuit.py`, `worm_trial.py`, `worm_search.py`, `worm_ablate.py`. All runs were made on GitHub runners on 2026-11-23. The circuit is `data/connectome/worm/touch.json` with nothing pruned, leaky integrate-and-fire cells and weights proportional to synapse counts. Touch is a 150 Hz train to each sensor of the touched end for 400 ms.
+
+**Search 1: does the wiring tell head touch from tail touch?** 12,000 draws (seeds 300 to 307) over one sign per interneuron class, an optional sign rule between the backward and forward groups, the weight scales, the background current, the synaptic time constants and a minimum synapse count. "Selective" means head touch gives the A-type motor neurons at least 5 Hz and twice the B-type rate, and tail touch the reverse.
+
+| Outcome | Draws |
+|---|---|
+| selective both ways | 16 of 12,000 |
+| head criterion met | 2,104 |
+| tail criterion met | 319 |
+
+All 16 two-way draws have the chemical output of AVA inhibitory, of AVD excitatory and of PVC inhibitory, with electrical coupling on. No source in this note supports an inhibitory AVA output, so the setting is not used. With every class excitatory and no sign rule (1,652 draws), 769 met the head criterion and none the tail criterion, and in those the head and the tail trial gave the same rates: any touch ignites the whole circuit, and the A-type cells win because they receive more synapses. The second stage of this search (other seeds, ablations) failed on a bug in the touch spike times, fixed afterwards.
+
+**Search 2: the circuit with every synapse excitatory, head touch only** (`worm_ablate.py`, 900 draws, seeds 400 to 405). A draw is usable when head touch gives the A-type cells at least 5 Hz, the baseline is below 1 Hz and the activity stops after the touch.
+
+| Outcome | Draws |
+|---|---|
+| runaway (activity does not stop) | 831 |
+| silent | 52 |
+| usable | 17 |
+
+In the 17 usable draws the B-type cells stay at or near 0 Hz. Each was then run on circuit seeds 7, 8 and 9 with interneuron classes silenced.
+
+| Class | Silencing it abolishes the response (of 17) | It alone carries the response (of 17) |
+|---|---|---|
+| AVA | 17 | 0 |
+| PVC | 17 | 0 |
+| AVD | 13 | 0 |
+| AVB | 6 | 0 |
+| AVE | 0 | 0 |
+
+Six draws form a cluster in which AVA, AVB, AVD and PVC are each needed and AVE is not: chemical scale 14.6 to 17.7 pA per synapse, background current 106 to 193 pA, excitatory time constant 2 ms, minimum count 3 or 5, no electrical coupling.
+
+**What this means for the levels.**
+- The wiring diagram offers two-hop routes from the head sensors to the A-type motor neurons through AVB, AVD, AVE or PVC (at 3 synapses or more). In the model no single interneuron class carries the response alone. A route on paper is not a pathway that works.
+- AVA, the cell of highest degree, is on none of those shortest routes and is needed in every usable draw.
+- The model's result for PVC (needed for the backward response) is a property of this model: excitatory synapses only, no electrical coupling. It is not a claim about the animal. Chalfie et al. 1985 is the source for what ablations do in the animal; its record was read, its full text was not, so no ablation result from it is quoted here.
+- The usable region is narrow (17 of 900). A level needs one fixed parameter point, checked on held-out seeds.
+
+**Motifs with the engine's census** (`python/spike/motifs.py`, induced three-cell classes, 302 cells, 3,671 directed pairs without self-connections, 50 shuffles, seed 1):
+
+| Class | Count | z, same number of edges | z, same degrees |
+|---|---|---|---|
+| feed-forward loop (030T) | 2,281 | +18.25 | -8.56 |
+| feedback loop (030C) | 184 | -16.30 | -14.57 |
+
+The feed-forward loop is more frequent than in a random graph with the same number of edges and less frequent than in graphs with the same degrees. Milo et al. 2002 report the feed-forward loop as a motif of the worm's wiring; their data set and null model differ from these (their record was read, not their methods), so the difference is noted and not explained.
+
 ## 5. Sources
 
 Only the eleven verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.
