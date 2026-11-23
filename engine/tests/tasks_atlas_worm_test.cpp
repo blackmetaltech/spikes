@@ -398,7 +398,7 @@ void test_dx()
   const auto d = t->diagnosis();
   std::printf( "dx_a_worm: the four lesions by what the scope shows\n" );
   CHECK( t->level_kind() == "diagnosis" and not t->on_spine() and t->parent() == "a_path" and t->chapter() == "a_worm" and d.circuit == "dx_a_worm.json" );
-  CHECK( d.candidates.size() == 4 and d.answer == "pop:AVD" and d.candidates.front() != d.answer and not d.bet );
+  CHECK( d.candidates.size() == 4 and d.answer == "pop:PVC" and d.candidates.front() != d.answer and not d.bet );
   CHECK( d.probes.size() >= 1 and d.probes.size() <= 2 );
   for ( const auto& c : d.candidates ) CHECK( d.labels.count( c ) and d.explain.count( c ) and t->brief().find( c ) != std::string::npos );
   for ( const auto& [ k, v ] : d.explain ) no_digit( "dx explain", v );
@@ -419,7 +419,7 @@ void test_dx()
   };
   CHECK( patient[ "projections" ].size() == given[ "projections" ].size() and patient[ "populations" ].size() == given[ "populations" ].size() );
   for ( const auto& k : kClasses ) CHECK_MSG( ( weights_out( patient, k ) == 0.0 ) == ( "pop:" + k == d.answer ), "only the answer's outputs are silent: " + k );
-  // the signature: with a class silenced its outputs carry nothing. The motor groups are silent in all four; AVD fires clearly only when it is the silenced one.
+  // the signature: with a class silenced its outputs carry nothing. The motor groups are silent in all four; AVB is nearly silent only when PVC is the silenced one.
   std::map< std::string, std::vector< std::map< std::string, double > > > by;
   for ( const char* lesion : { "AVA", "AVB", "AVD", "PVC" } )
     for ( uint64_t seed : { 1, 2, 3, 101, 102, 103, 104, 105 } )
@@ -438,18 +438,22 @@ void test_dx()
     double lo = 1e9, hi = 0;
     for ( const auto& r : rows )
     {
-      for ( const char* m : { "DA", "VA", "DB", "VB" } ) CHECK_MSG( ( r.count( m ) ? r.at( m ) : 0.0 ) < 1.0, lesion + ": the motor group " + m + " must be silent" );
-      const double avd = r.count( "AVD" ) ? r.at( "AVD" ) : 0.0;
-      lo = std::min( lo, avd ); hi = std::max( hi, avd );
+      const double avb = r.count( "AVB" ) ? r.at( "AVB" ) : 0.0;
+      lo = std::min( lo, avb ); hi = std::max( hi, avb );
       CHECK_MSG( r.at( "ALM" ) > 20.0 and r.at( "AVM" ) > 20.0, lesion + ": the touch cells fire as usual" );
+      if ( lesion == "PVC" )
+      {
+        for ( const char* m : { "DA", "VA", "DB", "VB", "AVA", "AVD" } ) CHECK_MSG( ( r.count( m ) ? r.at( m ) : 0.0 ) < 1.0, lesion + ": " + m + " must be silent in the patient" );
+        CHECK_MSG( r.at( "PVC" ) > 10.0, "the silenced class itself fires" );
+      }
     }
-    std::printf( "  lesion %-4s AVD %.1f..%.1f Hz\n", lesion.c_str(), lo, hi );
-    if ( lesion == "AVD" ) CHECK_MSG( lo >= 8.0, "AVD must fire clearly when it is the silenced class" );
-    else CHECK_MSG( hi <= 6.0, "AVD must stay nearly silent when " + lesion + " is the silenced class" );
+    std::printf( "  lesion %-4s AVB %.1f..%.1f Hz\n", lesion.c_str(), lo, hi );
+    if ( lesion == "PVC" ) CHECK_MSG( hi <= 8.0, "AVB must stay nearly silent when PVC is the silenced class" );
+    else CHECK_MSG( lo >= 15.0, "AVB must fire clearly when " + lesion + " is the silenced class" );
   }
   { const Res r = run( "dx_a_worm", patient, 101, true, "standard", "", true, 0, true );   // the patient itself
     CHECK_MSG( r.loaded and r.parts.at( "run_passed" ) == 0.0, "the patient must fail its world" );
-    CHECK_MSG( r.class_hz.count( "AVD" ) and r.class_hz.at( "AVD" ) >= 8.0, "the patient's AVD fires clearly" ); }
+    CHECK_MSG( r.class_hz.count( "AVB" ) and r.class_hz.at( "AVB" ) <= 8.0 and r.class_hz.count( "PVC" ) and r.class_hz.at( "PVC" ) > 10.0, "the patient: AVB nearly silent, PVC fires" ); }
   const Res r = run( "dx_a_worm", patient );
   CHECK( r.hints.size() == 3 );
   for ( const auto& h : r.hints ) no_digit( "dx hint " + std::to_string( h.tier ), h.text );

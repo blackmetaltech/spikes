@@ -25,7 +25,7 @@ SOURCE = ("C. elegans hermaphrodite connectome, Cook SJ et al. 2019, Nature 571:
           "the data keep the terms of the original publication; extraction: tools/connectome/worm_table.py; data/connectome/worm/PROVENANCE.md")
 ANSWER_A_PATH = ("AVD",)           # the route kept in the reference of a_path (shortest routes at class level: through AVB, AVD or AVE)
 ANSWER_A_PREDICT = "AVE"            # the class silenced in the reference of a_predict
-ANSWER_DX = "AVD"                   # the class silenced in the patient of dx_a_worm
+ANSWER_DX = "PVC"                   # the class silenced in the patient of dx_a_worm
 LAYOUT = {"ALM": (90, 140), "AVM": (90, 260), "PLM": (90, 380), "AVA": (340, 80), "AVB": (340, 190), "AVD": (340, 300), "AVE": (340, 410), "PVC": (340, 520),
           "DA": (600, 100), "VA": (600, 240), "DB": (600, 380), "VB": (600, 520)}
 
