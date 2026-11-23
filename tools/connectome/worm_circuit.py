@@ -94,12 +94,15 @@ def build(params=None, data=None):
         rnd = random.Random(q["touch_seed"])
         for i in keep:
             if ns[i]["name"] in (HEAD if q["touch"] == "head" else TAIL):
-                t, ts = 0.0, []
+                t, ks = 0.0, []
                 while True:
                     t += rnd.expovariate(q["touch_hz"] / 1000.0)
                     if t >= q["touch_ms"]: break
-                    ts.append(round(q["touch_t0"] + t, 1))
-                inputs.append({"name": "touch_" + ns[i]["name"], "kind": "spike_generator", "spike_times": sorted(ts),
+                    k = int(round((q["touch_t0"] + t) / RES))
+                    if ks and k <= ks[-1]: k = ks[-1] + 1   # strictly ascending: the engine refuses t < previous after snapping, so equal times (rounded to 0.1 ms) are nudged one step on
+                    ks.append(k)
+                ts = [round(k * RES, 1) for k in ks]
+                inputs.append({"name": "touch_" + ns[i]["name"], "kind": "spike_generator", "spike_times": ts,
                                "targets": [{"pop": cls[i], "idx": [local[i]]}], "weight": q["touch_w"]})
     return {"schema_version": 1, "name": "C. elegans touch wiring, full measured (probe)", "resolution_ms": RES, "seed": 7,
             "populations": pops, "projections": proj, "inputs": inputs, "outputs": [], "record": {"spikes": "all"},
