@@ -64,6 +64,7 @@ func default_focus() -> Control: return back_btn
 
 func build() -> void:
 	var f := f(); var phone := Layout.phone
+	if OS.get_environment("SP_ANULL") != "": null_model = int(OS.get_environment("SP_ANULL"))   # screenshot hook: the null model shown
 	if OS.get_environment("SP_ATAB") != "": tab = int(OS.get_environment("SP_ATAB"))   # screenshot hook: open on a tab (set before the tab stepper is built)
 	if circuit.is_empty() and app != null: circuit = app.analysis_circuit; tele = app.analysis_tele; task_id = app.analysis_task
 	if not _level_set:   # a locked-wiring level with cells inside its populations (the worm chapter): read it at the level of cells, as the engine's own counts do
