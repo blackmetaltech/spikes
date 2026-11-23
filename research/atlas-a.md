@@ -402,6 +402,18 @@ With the synapse floor 3 the shortest class-level routes from the head touch cel
 
 **What the levels claim.** `a_path` scores the route, not the response (the response of a route kept alone is the lesson), `a_predict` asks which class can be silenced (AVE, measured on the eight seeds), and `dx_a_worm` asks which of AVA, AVB, AVD, PVC is silenced. All of it is a statement about this model (every synapse excitatory, no electrical coupling), not about the animal; the notebook entries cite Chalfie et al. 1985 only for what its record says: two pathways for anterior touch (AVD and AVB), one for posterior touch (PVC), found with wiring reconstructions and laser killing of cells.
 
+**Sixty seeds through the tasks** (`spike-run`, circuit seeds 1 to 60, 2026-11-23). Rate of the backward (A-type) motor neurons during the response, with one class silenced by `a_predict`:
+
+| Class silenced | A-type rate over 60 seeds (Hz) | Counts as "still backs up" (5 Hz or more) on |
+|---|---|---|
+| AVA | 0.00 to 0.00 | 0 of 60 |
+| PVC | 0.00 to 0.00 | 0 of 60 |
+| AVD | 0.00 to 0.34 | 0 of 60 |
+| AVB | 0.00 to 5.78 | 1 of 60 (seed 20) |
+| AVE | 7.14 to 18.03 | 60 of 60 |
+
+The B-type rate is 0 in every run. The outcome for AVB is not clear-cut and the gap between AVB (up to 5.78 Hz) and AVE (down to 7.14 Hz) is too narrow for a threshold between them, so `a_predict` offers four classes and leaves AVB out, and says so. The reference of `a_path` passes on 60 of 60 seeds.
+
 ## 5. Sources
 
 Only the eleven verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.

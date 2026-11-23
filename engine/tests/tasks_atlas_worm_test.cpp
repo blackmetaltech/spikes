@@ -33,6 +33,7 @@ json load_file( const std::string& name ) { return json::parse( chk::slurp( circ
 bool has_digit( const std::string& s ) { return std::any_of( s.begin(), s.end(), []( unsigned char c ) { return std::isdigit( c ); } ); }
 std::set< std::string > g_texts_checked;
 const std::vector< std::string > kClasses = { "AVA", "AVB", "AVD", "AVE", "PVC" };
+const std::vector< std::string > kBets = { "AVA", "AVD", "AVE", "PVC" };   // a_predict offers these (AVB silenced gives a weak, seed-dependent response: no clear outcome)
 
 void no_digit( const std::string& what, const std::string& text )
 {
@@ -306,15 +307,15 @@ void test_a_predict()
   std::printf( "a_predict: one commit per class (the level silences it), seeds 1 to 3 and 101 to 105\n" );
   CHECK( ref == given );
   CHECK( t->level_kind() == "diagnosis" and not t->on_spine() and t->parent() == "a_path" and t->chapter() == "a_worm" );
-  CHECK( d.bet and d.budget == 3 and d.candidates.size() == 5 and d.answer == "AVE" and d.candidates.front() != d.answer );
-  CHECK( std::set< std::string >( d.candidates.begin(), d.candidates.end() ) == std::set< std::string >( kClasses.begin(), kClasses.end() ) );
+  CHECK( d.bet and d.budget == 3 and d.candidates.size() == 4 and d.answer == "AVE" and d.candidates.front() != d.answer );
+  CHECK( std::set< std::string >( d.candidates.begin(), d.candidates.end() ) == std::set< std::string >( kBets.begin(), kBets.end() ) );
   CHECK( d.probes.size() >= 1 and d.probes.size() <= 2 );
   for ( const auto& c : d.candidates ) CHECK( d.labels.count( c ) and d.explain.count( c ) );
   std::string survivor;
   for ( uint64_t seed : { 1, 2, 3, 101, 102, 103, 104, 105 } )
   {
     std::vector< std::string > passing;
-    for ( const auto& k : kClasses )
+    for ( const auto& k : kBets )
     {
       const Res r = run( "a_predict", given, seed, true, "standard", k );
       CHECK_MSG( r.loaded and not rejected( r ), k + ": " + r.verdict );
@@ -336,7 +337,8 @@ void test_a_predict()
   { const Res r = run( "a_predict", given, 101, true, "standard", "AVE" ); CHECK( r.passed and r.parts.at( "a_hz" ) >= 5.0 ); }
   // no commit: not passed, the verdict asks for the bet (nothing about the response)
   { const Res r = run( "a_predict", given ); CHECK_MSG( not r.passed and r.value == 0.0 and r.verdict.find( "No prediction committed" ) != std::string::npos, r.verdict ); no_digit( "no commit", r.verdict ); }
-  { const Res r = run( "a_predict", given, 101, true, "standard", "XYZ" ); CHECK( not r.passed and r.verdict.find( "not one of the five" ) != std::string::npos ); }
+  for ( const char* other : { "XYZ", "AVB" } )   // AVB is a class of the circuit and is not offered for the bet
+  { const Res r = run( "a_predict", given, 101, true, "standard", other ); CHECK_MSG( not r.passed and r.verdict.find( "not one of the classes offered" ) != std::string::npos, std::string( other ) + ": " + r.verdict ); no_digit( "not offered", r.verdict ); }
   // the circuit must be the given one: an edited class is read as an edited circuit, not as a lesion
   { const Res r = run( "a_predict", scales( given, { { "AVE", 0.0 } }, 1.0 ), 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "has been edited" ) != std::string::npos ); no_digit( "edited", r.verdict ); }
   { const Res r = run( "a_predict", scales( given, { { "AVE", 0.4 } }, 1.0 ), 101, true, "standard", "AVE" ); CHECK( not r.passed and r.verdict.find( "has been edited" ) != std::string::npos ); }

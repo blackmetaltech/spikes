@@ -5,8 +5,8 @@
 // When the run starts the TASK silences the committed class itself (the weights of every connection out of that class are set to 0 before the first slice, as a lesion of the lesion lab),
 // touches the head, and the verdict says what happened. The game edits nothing. Diagnosis::bet is true and Diagnosis::budget is the number of free instrument reads.
 //
-// WHAT PASSES: a commit, naming one of the five classes, and the run shows that the worm still backs up (atlas_worm.h). The class for which the response survives is measured, not stored:
-// tasks_atlas_worm_test holds the run to Diagnosis::answer (AVE) and asserts that exactly one of the five commits passes on the circuit seeds 1 to 3 and 101 to 105.
+// WHAT PASSES: a commit, naming one of the four classes offered (AVA, AVD, AVE, PVC; see bets()), and the run shows that the worm still backs up (atlas_worm.h). The class for which the response survives is measured, not stored:
+// tasks_atlas_worm_test holds the run to Diagnosis::answer (AVE) and asserts that exactly one of the four commits passes on the circuit seeds 1 to 3 and 101 to 105.
 // NO COMMIT: not passed, and the verdict asks for the bet. SCORE: 100 minus 15 per wrong commit (the W of "cand@N:W") and 3 per instrument read beyond the budget (floor 25), as a case.
 // The circuit must be the given one with every class at scale 1: the lesion is the level's, not the player's.
 #include "atlas_worm.h"
@@ -19,6 +19,13 @@ namespace
 using namespace atlas_worm;
 
 const char* kAnswer = "AVE";
+/// The classes offered for the bet. AVB is not offered: with AVB silenced the backward response is weak and differs from seed to seed (the backward motor neurons fire
+/// at 0 to 5.8 Hz over circuit seeds 1 to 60, against 0 to 0.3 Hz for AVA, AVD and PVC and 7.1 to 18.0 Hz for AVE; research/atlas-a.md 4b), so a bet on it has no clear outcome.
+const std::vector< std::string >& bets()
+{
+  static const std::vector< std::string > c = { "AVA", "AVD", "AVE", "PVC" };
+  return c;
+}
 
 class APredict : public WormRun
 {
@@ -29,7 +36,7 @@ public:
   {
     Info i = world( "a_predict", "Atlas: bet on a silencing" );
     i.brief = "Five interneuron classes sit between the touch cells and the motor neurons of the worm. Silence any one of them and, in some cases, the worm no longer backs up when its head is touched. "
-              "Which one class can be silenced without losing the backward response? Commit to one class first. Then the level silences it, touches the head, and tells you what happened. "
+              "Which one class can be silenced without losing the backward response? Four are offered: AVA, AVD, AVE and PVC. Commit to one class first. Then the level silences it, touches the head, and tells you what happened. "
               "A committed prediction earns more than finding it by trial and error.";
     i.concepts_new = { "prediction" };
     i.concepts_used = { "pathway" };
@@ -71,10 +78,10 @@ public:
   {
     Diagnosis d;
     d.circuit = "a_predict_given.json";
-    d.symptoms = "The touch circuit of the worm, with its wiring given. Five interneuron classes can each be silenced.";
+    d.symptoms = "The touch circuit of the worm, with its wiring given. Four of its interneuron classes are offered for silencing. AVB is left out: in this model its loss leaves a weak response that differs from run to run.";
     d.answer = kAnswer;
-    d.candidates = ordered( "a_predict", commands(), kAnswer );
-    for ( const auto& c : commands() )
+    d.candidates = ordered( "a_predict", bets(), kAnswer );
+    for ( const auto& c : bets() )
     {
       d.labels[ c ] = "the interneuron class " + c;
       d.explain[ c ] = c == kAnswer ? "In this model the worm still backs up with " + c + " silenced."
@@ -106,7 +113,7 @@ public:
     s.parts[ "committed" ] = commit_.has ? 1.0 : 0.0;
     s.parts[ "wrong_guesses" ] = wrong_;
     s.parts[ "probes" ] = commit_.probes;
-    const auto& cands = commands();
+    const auto& cands = bets();
     const bool known = commit_.has && std::find( cands.begin(), cands.end(), commit_.cand ) != cands.end();
     s.passed = false;
     s.value = 0;
@@ -117,7 +124,7 @@ public:
     else if ( commit_.revealed )
       s.verdict = std::string( "The answer was revealed: " ) + kAnswer + ". Nothing is scored for a revealed bet.";
     else if ( !known )
-      s.verdict = "'" + commit_.cand + "' is not one of the five classes.";
+      s.verdict = "'" + commit_.cand + "' is not one of the classes offered.";
     else if ( !done() )
       s.verdict = "Running.";
     else if ( !mech_.empty() )
@@ -139,7 +146,7 @@ protected:
     const Setting st = setting();
     if ( !st.missing.empty() ) { mech_ = "The interneuron class cards are missing: load the given circuit again."; return; }
     if ( !st.silenced.empty() || !st.partial.empty() ) { mech_ = "The given circuit has been edited. Leave every class at its given value: the level silences the class you committed to itself."; return; }
-    const auto& cands = commands();
+    const auto& cands = bets();
     if ( !commit_.has || commit_.revealed || std::find( cands.begin(), cands.end(), commit_.cand ) == cands.end() ) return;
     // the lesion: every connection out of the committed class is set to weight 0 (all edges of each of its projections, whatever their order)
     for ( const auto& pr : g_.st.projections )
