@@ -509,7 +509,8 @@ func _end_text() -> String:
 	if not lab._test_result.is_empty():
 		parts.append("Test: %d of %d seeds passed." % [int(lab._test_result["passes"]), int(lab._test_result["n"])])
 	if lab._is_reference():
-		parts.append("This is the reference circuit, or a copy of it: it earns no stars. Open More, press “Empty bench” and build your own.")
+		if Circuits.has_locks(lab.circuit): parts.append("This is the reference circuit, or a copy of it: it earns no stars. Open More, press “Restore given circuit” and set the cell-type cards yourself.")
+		else: parts.append("This is the reference circuit, or a copy of it: it earns no stars. Open More, press “Empty bench” and build your own.")
 	elif not passed:
 		if lab._test_result.is_empty(): parts.append(Circuits.cap_verdict(str(sc.get("verdict", "")), lab.circuit, tid))
 		if lab.mode == "researcher": parts.append("Researcher mode: no hints. Read the scopes and the lesion table.")
