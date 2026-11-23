@@ -67,6 +67,7 @@ struct ProjectionInfo
   double self_w_max = 0, ring_w_max = 0;      // 0.5, add-only: strongest self connection (absolute), strongest ring-neighbour connection (signed; 0 when there is none)
   double w_abs_max = 0;                       // 0.7, add-only: the largest |weight| over the connections (0 when n_edges == 0): "does any connection of this projection matter"
   bool locked = false;                        // 0.6 (Atlas), add-only: "locked": true in the file: endpoints, edges, delays and synapse model are data, not editable
+  int32_t n_stored_edges = 0;                 // 0.6, add-only: connections pre -> post INCLUDING the ones at weight 0 (a class switched off by a group scale of 0): the wiring as given, whatever its weights
   int32_t n_ring_edges = 0;                   // 0.5, add-only: connections between two different cells: inside one population only those at ring distance 1 (cell k to cell k+-1 of its N, wrapping), between two populations all of them
 };
 

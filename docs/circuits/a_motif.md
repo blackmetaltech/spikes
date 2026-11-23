@@ -5,5 +5,7 @@ Task `a_motif` (`engine/src/tasks/a_motif.cpp`, chapter "a_worm", `level_kind` "
 ## The bet
 Under which null model is the feed-forward loop more frequent than chance? `edges` (the same number of edges), `degree` (the same in- and out-degree of every cell), `blocks` (the same degrees and the same number of connections between the four cell-type blocks, the circuit's groups). The engine computes the three z-scores itself: `analysis::motif_zscores( g, NullModel, block_of, 100, seed 1 )` for the induced class 030T (self-connections are not part of the graph). The correct option is the one whose z is significant and positive; a test asserts that exactly one is, and that it is `edges` (research/atlas-a.md 4b and "Worm: wiring tables and numbers": positive against the same number of edges, negative against the two stricter shuffles).
 
+With no commit the run is a control run (passes, at most 60, tells nothing about the loops), as in `a_predict`, so the reference passes `scripts/smoke.sh`.
+
 ## Why level_kind "diagnosis"
 The level is decided by the committed answer, not by a world, and `tasks_circuits_test` caps every non-diagnosis reference at 60 cells (302 here), `tasks_quick_full_test` needs a reference that passes without an answer. As a diagnosis-kind task it is skipped by those, exactly as the cases are.

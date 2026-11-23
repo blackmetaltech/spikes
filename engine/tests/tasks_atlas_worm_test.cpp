@@ -132,20 +132,24 @@ void test_format_off()
   std::string err;
   CHECK_MSG( not loads( tiny( json::array( { g } ) ), &err ) and err.find( "groups[0]" ) != std::string::npos, "scale 0 and a range from 0 without off are errors: " + err );
   g[ "off" ] = true;
-  Engine e;
-  CHECK_MSG( e.load( tiny( json::array( { g } ) ).dump() ), e.error() );
-  bool zero = true;
-  for ( const auto& q : e.connections() ) zero = false;   // connections() lists non-zero weights only: a class at scale 0 carries nothing
-  CHECK_MSG( zero, "a group at scale 0 still carries weight" );
-  const Structure st0 = e.structure();
-  const auto* gi = &st0.groups[ 0 ];
-  CHECK( gi->scale == 0.0 and gi->scale_in_range and gi->scale_min == 0.0 and gi->scale_max == 1.0 );
+  {
+    Engine e;
+    CHECK_MSG( e.load( tiny( json::array( { g } ) ).dump() ), e.error() );
+    bool zero = true;
+    for ( const auto& q : e.connections() ) { zero = false; (void) q; }   // connections() lists non-zero weights only: a class at scale 0 carries nothing
+    CHECK_MSG( zero, "a group at scale 0 still carries weight" );
+    const Structure st0 = e.structure();
+    const auto* gi = &st0.groups[ 0 ];
+    CHECK( gi->scale == 0.0 and gi->scale_in_range and gi->scale_min == 0.0 and gi->scale_max == 1.0 );
+  }
   g[ "scale" ] = 0.5;
-  Engine e2;
-  CHECK( e2.load( tiny( json::array( { g } ) ).dump() ) );
-  double w = 0;
-  for ( const auto& q : e2.connections() ) w += q.weight;
-  CHECK_MSG( std::fabs( w - 50.0 ) < 1e-9, "scale 0.5 should halve the stored weights" );
+  {
+    Engine e2;
+    CHECK( e2.load( tiny( json::array( { g } ) ).dump() ) );
+    double w = 0;
+    for ( const auto& q : e2.connections() ) w += q.weight;
+    CHECK_MSG( std::fabs( w - 50.0 ) < 1e-9, "scale 0.5 should halve the stored weights" );
+  }
   json bad = g; bad[ "off" ] = "yes";
   CHECK_MSG( not loads( tiny( json::array( { bad } ) ), &err ) and err.find( "off" ) != std::string::npos, "off must be a boolean: " + err );
   json neg = g; neg[ "scale" ] = -0.1;
@@ -369,7 +373,7 @@ void test_a_motif()
     CHECK_MSG( r.parts[ "z_edges" ] > 2.0 and r.parts[ "z_degree" ] < -2.0 and r.parts[ "z_blocks" ] < -2.0, "the sign of every z-score is as research/atlas-a.md 4b reports" );
     CHECK( r.value == 100.0 and r.verdict.rfind( "Correct", 0 ) == 0 ); }
   { Res r = run( "a_motif", c, 101, true, "standard", "edges@5:2", false, 20, false ); CHECK_MSG( r.passed and r.value == 64.0, "value " + std::to_string( r.value ) ); }
-  { Res r = run( "a_motif", c, 101, true, "standard", "", false, 20, false ); CHECK( not r.passed and r.verdict.find( "No prediction committed" ) != std::string::npos ); }
+  { Res r = run( "a_motif", c, 101, true, "standard", "", false, 20, false ); CHECK_MSG( r.passed and r.value == 60.0 and r.verdict.find( "control run" ) != std::string::npos and r.verdict.find( "more frequent" ) == std::string::npos, "no commit is a control run that tells nothing: " + r.verdict ); no_digit( "motif control", r.verdict ); }
   { Res r = run( "a_motif", c, 101, true, "standard", "edges@revealed", false, 20, false ); CHECK( not r.passed and r.value == 0.0 ); }
   { Res r = run( "a_motif", c, 101, true, "standard", "nonsense", false, 20, false ); CHECK( not r.passed and r.verdict.find( "not one of the three" ) != std::string::npos ); }
   // the full episode and the three modes agree

@@ -104,11 +104,11 @@ protected:
     }
     if ( st.silenced.empty() ) { mech_ = "Nothing is silenced: every interneuron class is still on, so this is the whole circuit and not one route. Silence the classes that are not on your route."; return; }
     if ( st.kept.empty() ) { mech_ = "Every interneuron class is silenced, so no route is left to test. Keep the classes of one route."; return; }
-    // the given graph at class level: one node per population, an edge where a projection has connections (the wiring is locked, so this is the given graph)
+    // the given graph at class level: one node per population, an edge where a projection has connections, even at weight 0 (n_stored_edges; the wiring is locked, so this is the given graph)
     const int n = static_cast< int >( g_.st.populations.size() );
     std::vector< analysis::Edge > edges;
     for ( const auto& pr : g_.st.projections )
-      if ( pr.n_edges > 0 && pr.pre_index != pr.post_index ) edges.push_back( { pr.pre_index, pr.post_index, 1.0 } );
+      if ( pr.n_stored_edges > 0 && pr.pre_index != pr.post_index ) edges.push_back( { pr.pre_index, pr.post_index, 1.0 } );
     const analysis::Graph gr = analysis::make_graph( edges, n );
     const std::vector< int32_t > src = g_.in_pops( "touch_head" ), dst = g_.out_pops( "reverse" );
     const std::vector< int32_t > best = analysis::shortest_path( gr, src, dst );
