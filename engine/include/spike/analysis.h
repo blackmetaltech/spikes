@@ -84,6 +84,10 @@ constexpr double kMinSwapAcceptance = 0.2;
 constexpr double kSignificantZ = 2.0;
 constexpr double kMinNullSd = 0.5;
 
+/// What a null ensemble keeps fixed: EdgeCount = only node and edge count; Degree = every in/out degree (rewire);
+/// Blocks = every in/out degree and the number of edges between each ordered pair of blocks (rewire_blocks).
+enum class NullModel { EdgeCount, Degree, Blocks };
+
 struct MotifResult
 {
   Census counts;                  // real graph
@@ -100,6 +104,9 @@ struct MotifResult
   double effective_swaps_per_edge = 0.0;  // accepted swaps per edge per null graph
   bool degenerate = false;          // swap_acceptance < kMinSwapAcceptance (or fewer than 2 edges): nulls hardly differ from the data
   std::vector< int > significant;   // 1 if finite z, |z| > kSignificantZ and null_sd >= kMinNullSd; infinite/undefined z is never significant
+  // --- add-only, filled only by the NullModel overload of motif_zscores()
+  NullModel model = NullModel::Degree;
+  std::vector< Census > null_counts;  // one census per null graph (null k uses seed + k), for drawing the null distribution
 };
 
 /// Census plus z-scores against `n_null` rewired graphs (null k uses seed + k).
@@ -112,6 +119,56 @@ bool motif_is_significant( const MotifResult& r, int c );
 
 /// Results as one JSON object (class table + counts + z), for the Godot analysis screen and the CLI tool.
 std::string motif_result_json( const MotifResult& r );
+
+// ---------------------------------------------------------------- graph queries and more null models (src/analysis/graph_queries.cpp)
+
+/// BFS hop distance from the set `sources` to every node along directed edges; banned nodes are never entered (a banned source
+/// is dropped). Unreachable nodes get -1; out-of-range indices are ignored. Result has g.n entries.
+std::vector< int32_t > hops( const Graph& g, const std::vector< int32_t >& sources, const std::vector< int32_t >& banned = {} );
+
+/// One shortest directed path from any source to any target, as a node list. Of all shortest paths the lexicographically smallest
+/// node sequence is returned (lowest node index first at every step). Empty if no target is reachable.
+std::vector< int32_t > shortest_path( const Graph& g, const std::vector< int32_t >& sources, const std::vector< int32_t >& targets,
+  const std::vector< int32_t >& banned = {} );
+
+/// Sorted nodes that lie on at least one shortest path (of the minimum length over all source/target pairs) from a source to a
+/// target, ends included. Empty if no target is reachable.
+std::vector< int32_t > on_shortest_paths( const Graph& g, const std::vector< int32_t >& sources, const std::vector< int32_t >& targets,
+  const std::vector< int32_t >& banned = {} );
+
+struct Degrees
+{
+  std::vector< int32_t > in, out;
+};
+Degrees degrees( const Graph& g );
+
+/// The k nodes of highest total (in + out) degree, highest first, ties by lower index.
+std::vector< int32_t > hubs( const Graph& g, int k );
+
+/// Null model that keeps only the node count and the edge count: every edge is redrawn uniformly among ordered pairs, no
+/// self-loops, no multi-edges. Deterministic for a given seed (SplitMix64, as rewire).
+Graph shuffle_edges( const Graph& g, uint64_t seed );
+
+/// Maslov-Sneppen swaps as rewire(), accepted only if the edge counts between blocks stay what they were: of the two new edges,
+/// each must have the (block of pre, block of post) pair of the edge it replaces (either pairing of the two old edges counts).
+/// So every in/out degree and the number of edges from each block to each block are kept. `block_of` is one id per node
+/// (nodes past its end share the block -1).
+Graph rewire_blocks( const Graph& g, const std::vector< int32_t >& block_of, uint64_t seed, int swaps_per_edge, RewireStats* stats = nullptr );
+
+/// Census plus z-scores against `n_null` graphs of the given null model (null k uses seed + k). `block_of` is used by Blocks only.
+/// NullModel::Degree gives exactly what motif_zscores( g, n_null, seed, swaps_per_edge ) gives, plus null_counts.
+/// EdgeCount has no swaps: swap_attempts / swap_accepted stay 0 and the ensemble is never called degenerate.
+MotifResult motif_zscores( const Graph& g, NullModel model, const std::vector< int32_t >& block_of, int n_null, uint64_t seed,
+  int swaps_per_edge = 10 );
+
+const char* null_model_name( NullModel m );  // "edge_count", "degree", "blocks"
+
+/// JSON writers: a path query ({"hops","path","on_paths",...}), degrees and hubs, and the null bench of a MotifResult made
+/// by the NullModel overload (per class: count, null mean / sd, z, significant, null_counts).
+std::string graph_path_json( const Graph& g, const std::vector< int32_t >& sources, const std::vector< int32_t >& targets,
+  const std::vector< int32_t >& banned = {} );
+std::string graph_degrees_json( const Graph& g, int k );
+std::string motif_null_json( const MotifResult& r );
 
 // ---------------------------------------------------------------- spike statistics
 
