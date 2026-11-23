@@ -40,7 +40,7 @@ func _process(dt: float) -> void:
 func _auto_pick() -> void:
 	if _picked_ep == tele.episode or tele.sim == null or tele.t_ms < 1000.0: return
 	_picked_ep = tele.episode
-	if tele.task_id.begins_with("dx_") or tele.watched != Circuits.default_watch(tele.circuit): return
+	if (tele.task_id != "" and str(Campaign.info(tele.task_id).get("kind", "")) == "diagnosis") or tele.watched != Circuits.default_watch(tele.circuit): return
 	var silent := false
 	for w in tele.watched: silent = silent or (int(w) < tele.count.size() and tele.count[int(w)] == 0)
 	if not silent: return

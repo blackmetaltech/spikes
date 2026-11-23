@@ -56,6 +56,8 @@ var wresult: Label
 var wcaption: Label
 var wnote: Label
 var _null_counts: Array = []
+var reads_label: Label = null
+var _level_set := false
 const STA_MAX_S := 20     # the reverse-correlation recording is at most this long (the stimulus is kept per millisecond)
 
 func default_focus() -> Control: return back_btn
@@ -64,6 +66,9 @@ func build() -> void:
 	var f := f(); var phone := Layout.phone
 	if OS.get_environment("SP_ATAB") != "": tab = int(OS.get_environment("SP_ATAB"))   # screenshot hook: open on a tab (set before the tab stepper is built)
 	if circuit.is_empty() and app != null: circuit = app.analysis_circuit; tele = app.analysis_tele; task_id = app.analysis_task
+	if not _level_set:   # a locked-wiring level with cells inside its populations (the worm chapter): read it at the level of cells, as the engine's own counts do
+		_level_set = true
+		if not Circuits.groups(circuit).is_empty() and Circuits.neuron_count(circuit) > (circuit.get("populations", []) as Array).size(): level_idx = 1
 	add_child(Kit.bench())
 	var margin := MarginContainer.new(); margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var mx := int(50 * f) if not phone else 16; var my := int(26 * f) if not phone else 8
@@ -73,6 +78,8 @@ func build() -> void:
 	var head := HFlowContainer.new(); head.add_theme_constant_override("h_separation", 12); head.add_theme_constant_override("v_separation", 6); v.add_child(head)
 	back_btn = Kit.btn("← Back", func(): app.back(), "ghost", 22 if not phone else 18); back_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(back_btn)
 	var ttl := Kit.display("Analysis", int(46 * f) if not phone else 28, Kit.TEXT); ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; ttl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(ttl)
+	if task_id != "" and Campaign.is_bet(task_id):   # a prediction bet: the Analysis screen is an instrument, and every tab opened is one read (Progress.dx_probe)
+		reads_label = Kit.italic("", 18 if not phone else 15, Kit.AMBER); reads_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(reads_label)
 	head.add_child(Kit.ident(Kit.stepper(TABS, str(tab), func(i): tab = int(i); _tab_changed(), 380.0 if not phone else 260.0, 20 if not phone else 18), "StepTab"))
 	var mrow := HFlowContainer.new(); mrow.add_theme_constant_override("h_separation", 12); mrow.add_theme_constant_override("v_separation", 6); v.add_child(mrow)
 	_head_motif.append(_pair("graph", Kit.ident(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0), "StepLevel"))); mrow.add_child(_head_motif[-1])
@@ -127,6 +134,14 @@ func build() -> void:
 	_tab_changed()
 	if OS.get_environment("SP_AREC") != "": _start_record()
 
+## An instrument read of a prediction bet: each tab of this screen counts once (the bet's budget says how many are free).
+func _count_read() -> void:
+	if reads_label == null or task_id == "": return
+	Progress.dx_probe(task_id, "analysis", str(tab))
+	var st := Progress.dx_state(task_id); var d = Campaign.make(task_id)
+	var budget := int((d.diagnosis() as Dictionary).get("budget", 3)) if d != null and d.has_method("diagnosis") else 3
+	reads_label.text = "Instrument reads of this bet: %d, %d free. Each tab opened is one read." % [int(st["probes"]), budget]
+
 ## A label kept beside its control, so a wrapped row never leaves the label alone on a line.
 func _pair(text: String, ctl: Control) -> HBoxContainer:
 	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10)
@@ -143,6 +158,7 @@ func _sta_msg() -> String:
 	return "Press “Record”: the first cell of the population is driven by a Gaussian white-noise current for the length chosen (at most %d s; 10 s is usually plenty), and the current that came before each of its spikes is averaged, minus the average of the whole current." % STA_MAX_S
 
 func _tab_changed() -> void:
+	_count_read()
 	left_wrap.visible = tab <= 0; left.visible = tab <= 0; chart.visible = tab <= 0; panel.visible = tab > 0 and tab != 7; wbox.visible = tab == 7; stats_view.visible = tab != 7
 	for c in _head_motif: c.visible = tab <= 1
 	for c in _head_null: c.visible = tab == 0
@@ -690,7 +706,13 @@ class StatsView extends Control:
 		y += 8.0; draw_line(Vector2(16, y), Vector2(size.x - 16, y), Kit.LINE, 1.0); y += 24.0
 		draw_string(f, Vector2(16, y), "neuron", HORIZONTAL_ALIGNMENT_LEFT, 120, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(size.x - 190, y), "rate Hz", HORIZONTAL_ALIGNMENT_RIGHT, 80, fz, Kit.TEXT_SOFT); draw_string(f, Vector2(size.x - 90, y), "ISI CV", HORIZONTAL_ALIGNMENT_RIGHT, 74, fz, Kit.TEXT_SOFT); y += 8.0
 		var psth_h := 150.0
-		var show := mini(tele.n, int((size.y - y - psth_h - 24.0) / 26.0)); var mx := 1.0
+		# a short panel (a phone) has no room for the table and the rate plot together: the plot is left out there, and a line is kept for "+ N more neurons" below the rows
+		var avail := size.y - y - 8.0
+		var with_psth := avail > psth_h + 130.0
+		var rows_avail := int((avail - (psth_h + 16.0 if with_psth else 0.0)) / 26.0)
+		var show := mini(tele.n, maxi(rows_avail, 0))
+		if show < tele.n and rows_avail >= 1: show = mini(tele.n, rows_avail - 1)
+		var mx := 1.0
 		for i in tele.n: mx = maxf(mx, tele.rate_hz(i))
 		var pops: Array = circuit.get("populations", [])
 		for i in show:
@@ -702,8 +724,8 @@ class StatsView extends Control:
 			draw_string(f, Vector2(size.x - 190, yy), "%.1f" % r, HORIZONTAL_ALIGNMENT_RIGHT, 80, fz, Kit.TEXT)
 			var cv := tele.isi_cv(i); draw_string(f, Vector2(size.x - 90, yy), "%.2f" % cv if cv >= 0.0 else "-", HORIZONTAL_ALIGNMENT_RIGHT, 74, fz, Kit.TEXT)
 		var ptop := size.y - psth_h - 8.0
-		if show < tele.n: draw_string(f, Vector2(size.x - 220, ptop - 8.0), "+ %d more neurons" % (tele.n - show), HORIZONTAL_ALIGNMENT_RIGHT, 204, fz, Kit.TEXT_SOFT)
-		_psth(f, fz, Rect2(16, ptop + 22.0, size.x - 32.0, psth_h - 40.0), ptop)
+		if show < tele.n: draw_string(f, Vector2(16, y + float(show) * 26.0 + 18.0), "+ %d more neurons" % (tele.n - show), HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, fz, Kit.TEXT_SOFT)
+		if with_psth: _psth(f, fz, Rect2(16, ptop + 22.0, size.x - 32.0, psth_h - 40.0), ptop)
 
 	## Population PSTH of the last 4 s (mean rate per neuron, 40 ms bins).
 	func _psth(f: Font, fz: int, r: Rect2, ptop: float) -> void:

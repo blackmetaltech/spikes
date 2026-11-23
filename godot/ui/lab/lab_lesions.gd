@@ -8,6 +8,7 @@ var lab: LabScreen
 ## The lab opens after a pass: this circuit passed (now or earlier this session), it is the reference circuit, or the task has been passed before.
 func ok() -> bool:
 	if lab.task_id == "" or lab.tele == null or lab.tele.task == null: return false
+	if lab._is_bet(): return lab.lesion_on   # a prediction bet offers no lesion lab: the answer comes before the experiment
 	if lab.lesion_on or lab._is_reference() or lab._rec_pass or lab._is_dx(): return true
 	return bool(lab.tele.score.get("passed", false)) or bool(Progress.best(lab.task_id)["passed"])
 

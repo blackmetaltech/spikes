@@ -18,6 +18,7 @@ var submit_row: Control = null   # the Submit / Reveal row: the inspector pins i
 
 func setup(dx: Dictionary, state: Dictionary, note: Dictionary, lesion_lab_on: bool) -> DiagnosisPanel:
 	for c in get_children(): remove_child(c); c.queue_free()
+	if bool(dx.get("bet", false)): return _setup_bet(dx, state, note)   # a prediction bet (Atlas): the answer comes before the experiment
 	Kit.ident(self, "DxPanel")
 	add_theme_constant_override("separation", 6 if Layout.phone else 8)
 	var fs := 17 if not Layout.phone else 15
@@ -97,3 +98,69 @@ static func ordered(dx: Dictionary) -> Array:
 	return cands
 
 static func _cap(s: String) -> String: return s.substr(0, 1).to_upper() + s.substr(1)
+
+
+## The bet panel of a prediction bet (Task::diagnosis().bet: a_motif, a_predict). The situation, the instruments and what they cost, the candidates, "Commit the bet";
+## no lesion probes are offered. Committing sends the answer with a new run; the verdict is the engine's, in words, once the run has ended. A wrong bet can be followed
+## by another (each costs WRONG_COST points), up to REVEAL_AFTER wrong ones, after which the answer can be revealed. state adds {running: bool, committed: String}.
+const WRONG_COST := 15
+const READ_COST := 3
+func _setup_bet(dx: Dictionary, state: Dictionary, note: Dictionary) -> DiagnosisPanel:
+	Kit.ident(self, "DxPanel")
+	add_theme_constant_override("separation", 6 if Layout.phone else 8)
+	var fs := 17 if not Layout.phone else 15
+	var solved := bool(state.get("solved", false)); var done := solved or bool(state.get("gave_up", false))
+	var running := bool(state.get("running", false))
+	var tries := int(state.get("tries", 0)); var reads := int(state.get("probes", 0)); var budget := int(dx.get("budget", 3))
+	var answer := str(dx.get("answer", "")); var labels: Dictionary = dx.get("labels", {}); var explain: Dictionary = dx.get("explain", {})
+	var wrong: Array = state.get("wrong", [])
+	var sc := PanelContainer.new(); sc.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.AMBER, 1, 10, 10, false)); add_child(sc)
+	var sv := VBoxContainer.new(); sv.add_theme_constant_override("separation", 2); sc.add_child(sv)
+	sv.add_child(Kit.chip("PREDICTION BET", Kit.AMBER, 14))
+	sv.add_child(Kit.label(str(dx.get("symptoms", "")), fs, Kit.TEXT, true))
+	if not done:
+		add_child(Kit.ident(Kit.label("Instruments: the scopes, and Analysis in the More menu. Reads so far: %d of %d free; each read beyond that costs %d points. Each wrong bet costs %d points (wrong so far: %d)." % [reads, budget, READ_COST, WRONG_COST, tries], fs - 1, Kit.AMBER, true), "DxUsed"))
+		if bool(state.get("revealed", false)):
+			add_child(Kit.ident(Kit.label("You have already seen the answer to this level, so it can earn one star at most.", fs - 1, Kit.AMBER, true), "DxRevealedNote"))
+		add_child(Kit.label("Commit to one answer. The run then shows whether you were right." if tries == 0 else "Not that one. Commit to another answer, or look at the wiring again first.", fs, Kit.TEXT, true))
+	for cand in ordered(dx):
+		var cs := str(cand)
+		var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 8); add_child(row)
+		var is_pick := str(state.get("picked", "")) == cs
+		var kind := "panel"
+		if done and cs == answer: kind = "green"
+		elif is_pick: kind = "amber"
+		var plain := str(labels.get(cs, ""))
+		var b := Kit.btn(_cap(plain) if plain != "" else _cap(Circuits.candidate_text(cs)), func(): picked.emit(cs), kind, 17); Kit.ident(b, "Cand_" + cs); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.disabled = running or (done and cs != answer and not is_pick) or (not done and wrong.has(cs))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT; row.add_child(b)
+	if not done:
+		var br := HFlowContainer.new(); br.add_theme_constant_override("h_separation", 8); add_child(br); submit_row = br
+		var cb := Kit.btn("Commit the bet", func(): state["last_submitted"] = str(state.get("picked", "")); submit_pressed.emit(), "green", 20)
+		cb.disabled = running or str(state.get("picked", "")) == ""; br.add_child(cb)
+		if tries >= REVEAL_AFTER and not running: br.add_child(Kit.btn("REVEAL ANSWER", func(): reveal_pressed.emit(), "panel", 18))
+		if running: add_child(Kit.ident(Kit.label("The experiment is running. Watch the bench; the verdict comes when it ends.", fs, Kit.TEXT_SOFT, true), "DxRunning"))
+		elif tries >= 1 and str(state.get("verdict", "")) != "": add_child(Kit.ident(Kit.label(str(state["verdict"]), fs, Kit.RED, true), "DxResult"))
+		return self
+	var rc := PanelContainer.new(); rc.add_theme_stylebox_override("panel", Kit.sb(Kit.PANEL_HI, Kit.GREEN if solved else Kit.AMBER, 1, 10, 12, false)); add_child(rc)
+	var rv := VBoxContainer.new(); rv.add_theme_constant_override("separation", 4); rc.add_child(rv)
+	rv.add_child(Kit.shout("CORRECT" if solved else "THE ANSWER", 28 if not Layout.phone else 22, Kit.GREEN if solved else Kit.AMBER))
+	rv.add_child(Kit.label("The answer: %s." % (str(labels.get(answer, "")) if str(labels.get(answer, "")) != "" else Circuits.candidate_text(answer)), fs, Kit.TEXT, true))
+	var tally := "Reads: %d (%d free), wrong bets: %d." % [reads, budget, tries]
+	if solved: tally = "Score %d of 100.  " % int(roundf(float(state.get("score", 0.0)))) + tally
+	rv.add_child(Kit.ident(Kit.label(tally, fs, Kit.AMBER, true), "DxTally"))
+	if str(state.get("verdict", "")) != "": rv.add_child(Kit.ident(Kit.label(str(state["verdict"]), fs, Kit.TEXT_SOFT, true), "DxResult"))
+	if str(explain.get(answer, "")) != "" and (not solved or str(state.get("verdict", "")) == ""): rv.add_child(Kit.label(str(explain[answer]), fs, Kit.TEXT_SOFT, true))
+	var others := []
+	for cand in dx.get("candidates", []):
+		if str(cand) != answer and str(explain.get(str(cand), "")) != "": others.append(str(cand))
+	if not others.is_empty():
+		rv.add_child(Kit.label("The other answers", fs, Kit.TEXT))
+		for cs in others:
+			var pl := str(labels.get(cs, "")); var nm := _cap(pl) if pl != "" else _cap(Circuits.candidate_text(cs))
+			rv.add_child(Kit.label("%s: %s" % [nm, str(explain[cs])], fs - 1, Kit.TEXT_SOFT, true))
+	if str(note.get("text", "")) != "":
+		rv.add_child(Kit.label(str(note.get("title", "")), fs, Kit.TEXT))
+		rv.add_child(Kit.label(str(note["text"]), fs, Kit.TEXT_SOFT, true))
+		if str(note.get("citation", "")) != "": rv.add_child(Kit.label(str(note["citation"]), fs - 1, Kit.TEXT_SOFT, true))
+	return self
