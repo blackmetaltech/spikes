@@ -122,6 +122,9 @@ func build() -> void:
 	_build_inspector()
 	play.hint_btn_sync()
 	if OS.get_environment("SP_ADV") != "": _adv_open = true
+	if app != null and app.lab_select != "":   # a cell type tapped in the Analysis wiring matrix
+		if Circuits.pop_index(circuit, app.lab_select) >= 0: editor.select({"t": "pop", "id": app.lab_select})
+		app.lab_select = ""
 	if OS.get_environment("SP_SEL") != "": _select_env(OS.get_environment("SP_SEL"))
 	if OS.get_environment("SP_MENU") != "": layout.open_menu()
 	if OS.get_environment("SP_PARTS") != "": layout.open_parts()

@@ -369,7 +369,9 @@
     "StepTab",
     "StepLevel",
     "StepSign",
-    "StepNull"
+    "StepNull",
+    "StepNullModel",
+    "StepMotif"
    ],
    "back": {
     "control": "BtnBack",
@@ -447,6 +449,22 @@
     "StepPop",
     "StepRec",
     "BtnRecord"
+   ],
+   "state_of": "analysis"
+  },
+  "analysis.wiring": {
+   "kind": "tab",
+   "label": "Analysis, wiring tab (matrix, path finder)",
+   "detect": {
+    "screen": "analysis",
+    "tab": 7
+   },
+   "controls": [
+    "StepOrder",
+    "StepWiringLevel",
+    "StepFrom",
+    "StepTo",
+    "StepWithout"
    ],
    "state_of": "analysis"
   },
@@ -2329,6 +2347,18 @@
    "id": "tab:analysis.sta",
    "from": "analysis.energy",
    "to": "analysis.sta",
+   "control": "StepTab",
+   "action": "step",
+   "setup": {
+    "unlock_all": true,
+    "mode": "guided"
+   },
+   "needs_reference": true
+  },
+  {
+   "id": "tab:analysis.wiring",
+   "from": "analysis.sta",
+   "to": "analysis.wiring",
    "control": "StepTab",
    "action": "step",
    "setup": {
