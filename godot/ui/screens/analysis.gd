@@ -23,6 +23,7 @@ var chart: MotifChart
 var panel: SeriesPanel
 var stats_view: StatsView
 const TABS := [[0, "3-node"], [1, "4-node"], [2, "HRV"], [3, "PRC"], [4, "bursts"], [5, "energy"], [6, "STA"], [7, "wiring"]]
+const CAPTION_IDLE := "Point at a mark, or tap it, to read it."
 const RECORDS := [[10, "10 s"], [30, "30 s"], [60, "60 s"], [0, "full"]]
 const BEAT_GAP_MS := 150.0
 const MOTIF4_MAX_WORK := 5.0e7
@@ -38,6 +39,7 @@ var null_model := 1       # 0 same number of edges, 1 same degrees (the original
 var motif_sel := Wiring.DEFAULT_MOTIF
 var strip: Wiring.Strip
 var left: VBoxContainer
+var left_wrap: Control
 var _head_null: Array = []
 var _head_wiring: Array = []
 var wiring_order := 0
@@ -48,7 +50,7 @@ var w_ban := -1           # cell type silenced for the path query (-1 = none)
 var wmodel: Wiring = null
 var wlay := {}
 var wpath := {}
-var wbox: VBoxContainer
+var wbox: HBoxContainer
 var wview: Wiring.View
 var wresult: Label
 var wcaption: Label
@@ -60,6 +62,7 @@ func default_focus() -> Control: return back_btn
 
 func build() -> void:
 	var f := f(); var phone := Layout.phone
+	if OS.get_environment("SP_ATAB") != "": tab = int(OS.get_environment("SP_ATAB"))   # screenshot hook: open on a tab (set before the tab stepper is built)
 	if circuit.is_empty() and app != null: circuit = app.analysis_circuit; tele = app.analysis_tele; task_id = app.analysis_task
 	add_child(Kit.bench())
 	var margin := MarginContainer.new(); margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -72,68 +75,75 @@ func build() -> void:
 	var ttl := Kit.display("Analysis", int(46 * f) if not phone else 28, Kit.TEXT); ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL; ttl.size_flags_vertical = Control.SIZE_SHRINK_CENTER; head.add_child(ttl)
 	head.add_child(Kit.ident(Kit.stepper(TABS, str(tab), func(i): tab = int(i); _tab_changed(), 380.0 if not phone else 260.0, 20 if not phone else 18), "StepTab"))
 	var mrow := HFlowContainer.new(); mrow.add_theme_constant_override("h_separation", 12); mrow.add_theme_constant_override("v_separation", 6); v.add_child(mrow)
-	_head_motif.append(Kit.italic("graph", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.ident(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0), "StepLevel")); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.italic("edges", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.ident(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0), "StepSign")); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.italic("nulls", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_motif[-1])
-	_head_motif.append(Kit.ident(Kit.stepper([[20, "20"], [100, "100"], [500, "500"]], str(null_n), func(i): null_n = int(i); compute(), 80.0), "StepNull")); mrow.add_child(_head_motif[-1])
-	_head_null.append(Kit.italic("null model", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_null[-1])
-	_head_null.append(Kit.ident(Kit.stepper(Wiring.NULLS, str(null_model), func(i): null_model = int(i); compute(), 330.0 if not phone else 230.0, 18), "StepNullModel")); mrow.add_child(_head_null[-1])
-	_head_null.append(Kit.italic("motif", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_null[-1])
+	_head_motif.append(_pair("graph", Kit.ident(Kit.stepper([[0, "populations"], [1, "neurons"]], str(level_idx), func(i): level_idx = int(i); compute(), 170.0 if not phone else 130.0), "StepLevel"))); mrow.add_child(_head_motif[-1])
+	_head_motif.append(_pair("edges", Kit.ident(Kit.stepper([[0, "all"], [1, "excitatory"], [2, "inhibitory"]], str(sign_idx), func(i): sign_idx = int(i); compute(), 190.0 if not phone else 130.0), "StepSign"))); mrow.add_child(_head_motif[-1])
+	_head_motif.append(_pair("nulls", Kit.ident(Kit.stepper([[20, "20"], [100, "100"], [500, "500"]], str(null_n), func(i): null_n = int(i); compute(), 80.0), "StepNull"))); mrow.add_child(_head_motif[-1])
+	_head_null.append(_pair("null model", Kit.ident(Kit.stepper(Wiring.NULLS, str(null_model), func(i): null_model = int(i); compute(), 330.0 if not phone else 230.0, 18), "StepNullModel"))); mrow.add_child(_head_null[-1])
 	var mopts := []
 	for mi in Wiring.MOTIFS.size(): mopts.append([mi, Wiring.MOTIFS[mi]])
-	_head_null.append(Kit.ident(Kit.stepper(mopts, str(motif_sel), func(i): motif_sel = int(i); _update_strip(), 280.0 if not phone else 200.0, 18), "StepMotif")); mrow.add_child(_head_null[-1])
+	_head_null.append(_pair("motif", Kit.ident(Kit.stepper(mopts, str(motif_sel), func(i): motif_sel = int(i); _update_strip(), 280.0 if not phone else 200.0, 18), "StepMotif"))); mrow.add_child(_head_null[-1])
 	var pops: Array = circuit.get("populations", [])
 	if pops.size() > 0:
 		pop_idx = _default_pop()
-		_head_rec.append(Kit.italic("population", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
 		var popts := []
 		for i in pops.size(): popts.append([i, str(pops[i].get("id", i))])
-		_head_rec.append(Kit.ident(Kit.stepper(popts, str(pop_idx), func(i): pop_idx = int(i); compute(), 200.0 if not phone else 150.0), "StepPop")); mrow.add_child(_head_rec[-1])
-	_head_rec.append(Kit.italic("record", 20, Kit.TEXT_SOFT)); mrow.add_child(_head_rec[-1])
-	_head_rec.append(Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")); mrow.add_child(_head_rec[-1]); _rec_step = _head_rec[-1]
+		_head_rec.append(_pair("population", Kit.ident(Kit.stepper(popts, str(pop_idx), func(i): pop_idx = int(i); compute(), 200.0 if not phone else 150.0), "StepPop"))); mrow.add_child(_head_rec[-1])
+	var rec_st: Kit.Stepper = Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")
+	_head_rec.append(_pair("record", rec_st)); mrow.add_child(_head_rec[-1]); _rec_step = rec_st
 	_head_rec.append(Kit.btn("RECORD", func(): _start_record(), "green", 20, Vector2(120, 0))); mrow.add_child(_head_rec[-1])
-	if pops.size() > 0:
-		var wrow := HFlowContainer.new(); wrow.add_theme_constant_override("h_separation", 12); wrow.add_theme_constant_override("v_separation", 6); v.add_child(wrow)
-		var popt := []; var bopt := [[-1, "nothing"]]
-		for i in pops.size(): popt.append([i, str(pops[i].get("id", i))]); bopt.append([i, str(pops[i].get("id", i))])
-		w_from = 0; w_to = pops.size() - 1
-		var sw := 150.0 if not phone else 110.0
-		_head_wiring.append(Kit.italic("order", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.ident(Kit.stepper(Wiring.ORDERS, str(wiring_order), func(i): wiring_order = int(i); _compute_wiring(), 200.0 if not phone else 150.0, 18), "StepOrder")); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.italic("level", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.ident(Kit.stepper(Wiring.LEVELS, str(wiring_level), func(i): wiring_level = int(i); _compute_wiring(), 150.0 if not phone else 120.0, 18), "StepWiringLevel")); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.italic("path from", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.ident(Kit.stepper(popt, str(w_from), func(i): w_from = int(i); _wiring_path(), sw, 18), "StepFrom")); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.italic("to", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.ident(Kit.stepper(popt, str(w_to), func(i): w_to = int(i); _wiring_path(), sw, 18), "StepTo")); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.italic("without", 20, Kit.TEXT_SOFT)); wrow.add_child(_head_wiring[-1])
-		_head_wiring.append(Kit.ident(Kit.stepper(bopt, str(w_ban), func(i): w_ban = int(i); _wiring_path(), sw, 18), "StepWithout")); wrow.add_child(_head_wiring[-1])
 	var cols := HBoxContainer.new(); cols.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_theme_constant_override("separation", int(16 * f)); v.add_child(cols)
-	left = VBoxContainer.new(); left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left.size_flags_stretch_ratio = 1.5; left.size_flags_vertical = Control.SIZE_EXPAND_FILL; left.add_theme_constant_override("separation", int(10 * f)); cols.add_child(left)
+	left = VBoxContainer.new(); left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left.size_flags_vertical = Control.SIZE_EXPAND_FILL; left.add_theme_constant_override("separation", int(10 * f))
 	chart = MotifChart.new(); chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL; chart.size_flags_vertical = Control.SIZE_EXPAND_FILL; left.add_child(chart)
-	strip = Wiring.Strip.new(); strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL; strip.custom_minimum_size = Vector2(300, 190 if not phone else 230); left.add_child(strip)
+	strip = Wiring.Strip.new(); strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL; strip.custom_minimum_size = Vector2(300, 230 if not phone else 260); left.add_child(strip)
+	left_wrap = left
+	if phone: left_wrap = _scrolled(left)   # on a phone the census and its strip do not fit one screen: the column scrolls inside itself
+	left_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL; left_wrap.size_flags_stretch_ratio = 1.5; left_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(left_wrap)
+	if phone: chart.custom_minimum_size = Vector2(300, 330)
 	panel = SeriesPanel.new(); panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; panel.size_flags_stretch_ratio = 1.5; panel.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(panel)
 	stats_view = StatsView.new(); stats_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL; stats_view.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_child(stats_view)
 	stats_view.tele = tele; stats_view.circuit = circuit
-	wbox = VBoxContainer.new(); wbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL; wbox.size_flags_vertical = Control.SIZE_EXPAND_FILL; wbox.add_theme_constant_override("separation", int(8 * f)); cols.add_child(wbox)
-	wview = Wiring.View.new(); wview.size_flags_horizontal = Control.SIZE_EXPAND_FILL; wview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wbox = HBoxContainer.new(); wbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL; wbox.size_flags_vertical = Control.SIZE_EXPAND_FILL; wbox.add_theme_constant_override("separation", int(16 * f)); cols.add_child(wbox)
+	wview = Wiring.View.new(); wview.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN; wview.size_flags_vertical = Control.SIZE_EXPAND_FILL   # as wide as it is tall (View sizes itself)
 	wview.on_caption = func(t: String): _set_caption(t)
 	wview.on_pick = func(id: String): pick_pop(id)
 	wbox.add_child(wview)
-	wresult = Kit.label("", 20 if not phone else 16, Kit.TEXT, true); wbox.add_child(wresult)
-	wcaption = Kit.label("Point at a mark, or tap it, to read it.", 18 if not phone else 15, Kit.TEXT_SOFT, true); wbox.add_child(wcaption)
-	wnote = Kit.italic("", 16 if not phone else 14, Kit.TEXT_SOFT, true); wbox.add_child(wnote)
-	if OS.get_environment("SP_ATAB") != "": tab = int(OS.get_environment("SP_ATAB"))   # screenshot hooks: open on a tab, and press Record
+	var rcol := VBoxContainer.new(); rcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rcol.add_theme_constant_override("separation", int(8 * f))
+	var rscroll := _scrolled(rcol); rscroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL; rscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; wbox.add_child(rscroll)
+	if pops.size() > 0:
+		var popt := []; var bopt := [[-1, "nothing"]]
+		for i in pops.size(): popt.append([i, str(pops[i].get("id", i))]); bopt.append([i, str(pops[i].get("id", i))])
+		w_from = 0; w_to = pops.size() - 1
+		var wrow := HFlowContainer.new(); wrow.add_theme_constant_override("h_separation", 12); wrow.add_theme_constant_override("v_separation", 6); rcol.add_child(wrow)
+		var sw := 150.0 if not phone else 110.0
+		_head_wiring.append(_pair("order", Kit.ident(Kit.stepper(Wiring.ORDERS, str(wiring_order), func(i): wiring_order = int(i); _compute_wiring(), 200.0 if not phone else 150.0, 18), "StepOrder"))); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(_pair("level", Kit.ident(Kit.stepper(Wiring.LEVELS, str(wiring_level), func(i): wiring_level = int(i); _compute_wiring(), 150.0 if not phone else 120.0, 18), "StepWiringLevel"))); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(_pair("path from", _raw(Kit.ident(Kit.stepper(popt, str(w_from), func(i): w_from = int(i); _wiring_path(), sw, 18), "StepFrom")))); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(_pair("to", _raw(Kit.ident(Kit.stepper(popt, str(w_to), func(i): w_to = int(i); _wiring_path(), sw, 18), "StepTo")))); wrow.add_child(_head_wiring[-1])
+		_head_wiring.append(_pair("without", _raw(Kit.ident(Kit.stepper(bopt, str(w_ban), func(i): w_ban = int(i); _wiring_path(), sw, 18), "StepWithout")))); wrow.add_child(_head_wiring[-1])
+	wresult = Kit.label("", 22 if not phone else 17, Kit.TEXT, true); rcol.add_child(wresult)
+	wcaption = Kit.label(CAPTION_IDLE, 18 if not phone else 15, Kit.TEXT_SOFT, true); rcol.add_child(wcaption)
+	rcol.add_child(Kit.italic(Wiring.View.LEGEND, 16 if not phone else 14, Kit.TEXT_SOFT, true))
+	wnote = Kit.italic("", 16 if not phone else 14, Kit.TEXT_SOFT, true); rcol.add_child(wnote)
 	_tab_changed()
 	if OS.get_environment("SP_AREC") != "": _start_record()
+
+## A label kept beside its control, so a wrapped row never leaves the label alone on a line.
+func _pair(text: String, ctl: Control) -> HBoxContainer:
+	var h := HBoxContainer.new(); h.add_theme_constant_override("separation", 10)
+	var l := Kit.italic(text, 20, Kit.TEXT_SOFT); l.size_flags_vertical = Control.SIZE_SHRINK_CENTER; h.add_child(l); h.add_child(ctl); return h
+
+## A stepper that shows its option names exactly as written (cell type ids).
+func _raw(st: Kit.Stepper) -> Kit.Stepper:
+	st.raw = true; st.val.text = str(st.opts[st.idx][1]); return st
+
+func _scrolled(c: Control) -> ScrollContainer:
+	var sc := ScrollContainer.new(); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; c.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sc.add_child(c); return sc
 
 func _sta_msg() -> String:
 	return "Press “Record”: the first cell of the population is driven by a Gaussian white-noise current for the length chosen (at most %d s; 10 s is usually plenty), and the current that came before each of its spikes is averaged, minus the average of the whole current." % STA_MAX_S
 
 func _tab_changed() -> void:
-	left.visible = tab <= 0; chart.visible = tab <= 0; panel.visible = tab > 0 and tab != 7; wbox.visible = tab == 7; stats_view.visible = tab != 7
+	left_wrap.visible = tab <= 0; left.visible = tab <= 0; chart.visible = tab <= 0; panel.visible = tab > 0 and tab != 7; wbox.visible = tab == 7; stats_view.visible = tab != 7
 	for c in _head_motif: c.visible = tab <= 1
 	for c in _head_null: c.visible = tab == 0
 	for c in _head_wiring: c.visible = tab == 7
@@ -229,7 +239,7 @@ func _wiring_path() -> void:
 	wview.queue_redraw()
 
 func _set_caption(t: String) -> void:
-	if wcaption != null: wcaption.text = t if t != "" else "Point at a mark, or tap it, to read it."
+	if wcaption != null: wcaption.text = t if t != "" else CAPTION_IDLE
 
 ## A cell type name was tapped in the matrix: back to the lab with that cell type selected on the bench.
 func pick_pop(id: String) -> void:

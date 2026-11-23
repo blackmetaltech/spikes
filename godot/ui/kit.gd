@@ -510,6 +510,7 @@ class Stepper extends HBoxContainer:
 	var val: Label
 	var left: Button
 	var right: Button
+	var raw := false   # show the option names exactly as given (ids such as "ALM"), not in sentence case
 	func setup(options: Array, selected: String, on_change: Callable, width := 240.0, fsize := 22, aw := 54.0) -> Stepper:
 		opts = options; cb = on_change
 		for i in opts.size():
@@ -538,7 +539,7 @@ class Stepper extends HBoxContainer:
 			b.add_theme_stylebox_override(n, s)
 	func step(d: int) -> void:
 		if opts.is_empty(): return
-		idx = posmod(idx + d, opts.size()); val.text = Kit.label_case(str(opts[idx][1])); cb.call(opts[idx][0])
+		idx = posmod(idx + d, opts.size()); val.text = str(opts[idx][1]) if raw else Kit.label_case(str(opts[idx][1])); cb.call(opts[idx][0])
 	func _gui_input(e: InputEvent) -> void:
 		if not has_focus(): return
 		if e.is_action_pressed("ui_left"): step(-1); accept_event()
