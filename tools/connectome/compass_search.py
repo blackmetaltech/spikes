@@ -20,6 +20,18 @@ def draw(rng, fixed):
     return p
 
 
+PAIRS = ["EPG_EPG", "EPG_PENa", "EPG_PENb", "EPG_D7", "EPG_PEG", "PENa_EPG", "PENb_EPG", "D7_EPG", "D7_PENa", "D7_PENb", "D7_D7", "D7_PEG", "PEG_EPG", "PEG_PENa", "PEG_PENb", "PENa_PENa", "PENb_PENb", "PENa_PENb", "PENb_PENa"]
+
+
+def draw_pairs(rng, fixed):
+    """Second search: one scale per type pair (19 of them), I_e per population."""
+    p = draw(rng, {})
+    for k in PAIRS: p["w_" + k] = round(10 ** rng.uniform(-2.3, 0), 4)
+    for pid in ("EPG", "PENa", "PENb", "PEG", "D7"): p["I_e_" + pid] = round(rng.uniform(150, 360), 1)
+    p.update(fixed)
+    return p
+
+
 def stage1(p):
     return p, [ct.held(ct.trial(p, c, 7)) for c in (2, 10)]
 
@@ -34,9 +46,10 @@ if __name__ == "__main__":
     fixed = {}
     for kv in sys.argv[3:]:
         if "=" in kv:
-            k, v = kv.split("="); fixed[k] = type(cc.DEFAULTS[k])(v)
+            k, v = kv.split("="); fixed[k] = 1 if k == 'pairs' else type(cc.DEFAULTS[k])(v)
     rng = random.Random(seed)
-    ps = [draw(rng, fixed) for _ in range(n)]
+    dr = draw_pairs if fixed.pop('pairs', None) else draw
+    ps = [dr(rng, fixed) for _ in range(n)]
     with Pool(12) as pool:
         r1 = pool.map(stage1, ps, chunksize=4)
         good = [p for p, h in r1 if all(h)]
