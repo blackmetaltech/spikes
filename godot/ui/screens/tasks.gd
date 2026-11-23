@@ -7,8 +7,8 @@ extends Screen
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
 ## What each row of chapter tabs is (the second line of its label); the Theory row says it opens after chapter I.
-const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, after chapter I"}
-const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics", "rates": "Rates", "memory": "Memory", "tuning": "Tuning"}
+const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, after chapter I", "atlas": "real wiring, after chapter I"}
+const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics", "rates": "Rates", "memory": "Memory", "tuning": "Tuning", "a_worm": "Worm wiring"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
 var first: Control
@@ -75,7 +75,7 @@ func _default_chapter() -> String:
 ## The chapter tabs: a wing selector (Body / Bestiary / Theory) and ONE row with the chapters of the current wing (three rows of sixteen equal tabs took a
 ## quarter of the screen), and "Continue: <next level>" at the right. Phone: the wing switch over a sideways strip of the wing's chapters, whose right
 ## edge fades when more chapters are off screen.
-const WINGS := [["body", "Body"], ["bestiary", "Bestiary"], ["theory", "Theory"]]
+const WINGS := [["body", "Body"], ["bestiary", "Bestiary"], ["theory", "Theory"], ["atlas", "Atlas"]]
 var wing := ""
 var _wing_btns := {}
 var _chapter_row: HBoxContainer
@@ -216,6 +216,9 @@ func _chips_row(label: String, items: Array, col: Color, f: float, phone: bool, 
 ## Star 2 is the five worlds of CHECK; star 3 is the level's own challenge, with its text (Progress.challenge), never an unstated budget. Guided stops at two stars.
 func _star_tiers(par: int, diagnosis := false, tid := "") -> Array:
 	var m := Progress.mode()
+	if diagnosis and tid != "" and Campaign.is_bet(tid):   # a prediction bet is a pass by committing a right answer before the run
+		return [["Commit a bet that the run bears out", 1], ["Be right on the first bet (no wrong bets)", 2], ["Right on the first bet, within the free instrument reads", 3]] if m != "guided" \
+			else [["Commit a bet that the run bears out", 1], ["Be right on the first bet (no wrong bets)", 2]]
 	if diagnosis:   # a diagnosis case is a pass by naming the cause: the second star is a right first answer, the third one after a probe that tells the candidates apart
 		return [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2], ["First try, after at least one probe that tells the candidates apart, and few probes", 3]] if m != "guided" \
 			else [["Name the cause", 1], ["Name it on the first try (no wrong answers)", 2]]
@@ -241,7 +244,7 @@ func _fill_detail() -> void:
 		detail_box.add_child(Kit.label(str(cd["blurb"]), small, Kit.TEXT_SOFT, true)); return
 	var tid := str(node["task"]); var kind := str(node["kind"]); var is_var := kind == "variant"
 	var info := Campaign.info(tid) if node["installed"] else {}
-	var kicker := Kit.small_caps("%s  ·  %s" % [str(cd["title"]), str(KIND_NAME.get(kind, "TASK"))], int(16 * f) if not phone else 15, Kit.MOTOR)
+	var kicker := Kit.small_caps("%s  ·  %s" % [str(cd["title"]), "BET" if kind == "diagnosis" and Campaign.is_bet(tid) else str(KIND_NAME.get(kind, "TASK"))], int(16 * f) if not phone else 15, Kit.MOTOR)
 	kicker.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; kicker.custom_minimum_size.x = 80; detail_box.add_child(kicker)
 	detail_box.add_child(Kit.display(str(node["title"]), int(36 * f) if not phone else 24, Kit.TEXT))
 	if not node["installed"]:

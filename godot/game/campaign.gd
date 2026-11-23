@@ -33,6 +33,8 @@ const CHAPTERS := [
 	{"id": "rates", "title": "Theory: Rate models", "organ": "bestiary", "wing": "theory", "blurb": "A population as one number: the Wilson-Cowan excitatory-inhibitory pair that oscillates, two populations that compete, and the mean field of a spiking network, so you can see when the shortcut holds."},
 	{"id": "memory", "title": "Theory: Attractor memory", "organ": "bestiary", "wing": "theory", "blurb": "Hopfield's idea in spiking cells: a partial cue recalls a whole pattern, two patterns without blends, and a pattern written by spike-timing-dependent plasticity during an exposure."},
 	{"id": "tuning", "title": "Theory: Tuning and decoding", "organ": "bestiary", "wing": "theory", "blurb": "Cells tuned to an orientation or a direction: a tuned cell built by convergence, tuning sharpened by inhibition, and a direction decoded from a whole population with the population vector."}]
+	# v0.6 Atlas wing (docs/ROADMAP-CONNECTOME.md): real wiring is given and the player reads it. Opens after the chapter I spine like the other wings.
+	{"id": "a_worm", "title": "Reading wiring", "organ": "bestiary", "wing": "atlas", "blurb": "The measured touch circuit of the worm: find the shortest route from a touch on the head to the backward muscles and test it by silencing, test a pattern in the wiring against chance, and bet on a lesion before you make it."},
 
 ## Planned lineup per chapter: [id, title, node centre on the map (0..1, 0..1)].
 const PLANNED := {
@@ -51,6 +53,7 @@ const PLANNED := {
 	"rates": [["r_oscillate", "Two populations that make a rhythm", Vector2(0.2, 0.62)], ["r_choose", "Two populations, one winner", Vector2(0.5, 0.36)], ["r_meanfield", "The network and its mean field", Vector2(0.8, 0.62)]],
 	"memory": [["h_complete", "Recalling a whole from a part", Vector2(0.2, 0.62)], ["h_two", "Two memories, no blends", Vector2(0.5, 0.36)], ["h_learn", "Writing a memory with plasticity", Vector2(0.8, 0.62)]],
 	"tuning": [["t_tuned", "A cell tuned by its inputs", Vector2(0.2, 0.62)], ["t_sharpen", "Sharpening a tuning curve", Vector2(0.5, 0.36)], ["t_decode", "Reading a direction from a crowd", Vector2(0.8, 0.62)]],
+	"a_worm": [["a_path", "A route on paper", Vector2(0.2, 0.62)], ["a_motif", "Over-represented, but against what?", Vector2(0.5, 0.36)], ["a_predict", "Bet on a lesion", Vector2(0.8, 0.62)], ["dx_a_worm", "The worm that does not back up", Vector2(0.64, 0.86)]],
 	"crab": [["s_pacemaker", "A pacemaker kernel", Vector2(0.2, 0.62)], ["s_phase", "Phase from rebound", Vector2(0.5, 0.36)], ["crab_pyloric", "The pyloric rhythm", Vector2(0.8, 0.62)]]}
 
 ## Extra slots for engine tasks that are not in PLANNED.
@@ -77,6 +80,9 @@ const CONCEPTS := {
 	"timed_bursts": ["Timed bursts (pattern generator)", "A chain of cells that fire in a fixed order and for fixed durations produces a movement without any sensory input: a central pattern generator.", "Marder E, Bucher D (2001) Curr Biol 11:R986, doi:10.1016/s0960-9822(01)00581-4"],
 	"rhythm_gating": ["Rhythm and sensory gating", "A rhythm generator keeps the beat, and sensory input such as CO2 tunes its rate and amplitude without having to create it.", "Smith JC et al. (1991) Science 254:726, doi:10.1126/science.1683005; Feldman JL, Del Negro CA (2006) Nat Rev Neurosci 7:232, doi:10.1038/nrn1871"],
 	"travelling_waves": ["Travelling waves and polarity", "Excitation behind and inhibition ahead make activity move in one direction along a chain of segments, as in gut peristalsis.", "Bayliss WM, Starling EH (1899) J Physiol 24:99"],
+	"pathway": ["Pathway", "A route through the wiring from a sense to a muscle, found on a diagram. The shortest route on paper is a hypothesis: whether it carries the response has to be tested by silencing the cells off it.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
+	"prediction": ["Prediction before the experiment", "You commit to an answer first, then the experiment is run. A wrong bet costs something, so look at the wiring before you commit, and be ready to be wrong."],
+	"null_model": ["Null model", "A pattern in a wiring diagram means little until you say what chance would give. Counting a motif in random graphs with the same number of edges, the same degrees, or the same degrees and cell-type blocks can give three different answers.", "Milo R et al. (2002) Science 298:824, doi:10.1126/science.298.5594.824"],
 	"diagnosis": ["Diagnosis: from symptom to lesion", "Working backwards. The symptoms tell you what the circuit stopped doing; probing it with the scopes and lesions tells you where it was damaged.", "Rorden C, Karnath HO (2004) Nat Rev Neurosci 5:813, doi:10.1038/nrn1521"],
 	"persistence": ["Persistence: positive feedback holds a state", "Cells that excite each other keep each other firing after the input that started them has gone. A brief touch can start a state, a reversal for instance, that holds itself until something inhibits it.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
 	"command_switch": ["Command switch (winner takes all)", "Two command groups that inhibit each other cannot both be active. Each is driven by its own inputs, and when both are driven the stronger wins and silences the other: forward or backward, never both.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
@@ -133,6 +139,17 @@ static func mock_has(id: String) -> bool: return mock_on() and (_mc("DEF") as Di
 const DEV_IDS := ["atlas_probe"]
 static func atlas_dev() -> bool: return OS.get_environment("SP_ATLAS") != "" and mock_script() != null
 static func is_dev(id: String) -> bool: return DEV_IDS.has(task_of(id))
+## A prediction bet (Task::diagnosis().bet): a level of kind "diagnosis" whose answer is committed BEFORE the run and judged on what the run measures (a_motif, a_predict).
+## Everything that treats "a diagnosis level" as a case with a stored answer asks this too.
+static var _bets := {}
+static func is_bet(id: String) -> bool:
+	id = task_of(id)
+	if _bets.has(id): return bool(_bets[id])
+	var r := false
+	if str(info(id).get("kind", "")) == "diagnosis":
+		var t = make(id)
+		if t != null and t.has_method("diagnosis"): r = bool((t.diagnosis() as Dictionary).get("bet", false))
+	_bets[id] = r; return r
 static func ext_ok() -> bool: return ClassDB.class_exists("SpikeTask")
 ## The engine's task ids whose circuits this build holds: all of them in a development build; a release export leaves the development-only levels out
 ## (export_presets.cfg and the package scripts do not pack their circuit files), so the smoke run of an exported build does not ask for them.
@@ -390,7 +407,7 @@ static func star_total(ch: String) -> Vector2i:
 static func _playable_chapters() -> Array:
 	var out := []
 	for c in CHAPTERS:
-		if is_wing(str(c["id"])): continue   # the Bestiary and Theory wings are outside the body chapters' unlock chain
+		if is_wing(str(c["id"])): continue   # the Bestiary, Theory and Atlas wings are outside the body chapters' unlock chain
 		if installed_count(str(c["id"])) > 0: out.append(str(c["id"]))
 	return out
 
@@ -398,9 +415,11 @@ static func _playable_chapters() -> Array:
 static func is_bestiary(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "bestiary"
 ## v0.6: the Theory wing (dynamics, rates, memory, tuning): open after the chapter I spine as well.
 static func is_theory(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "theory"
-static func is_wing(ch: String) -> bool: return is_bestiary(ch) or is_theory(ch)
-## "body", "bestiary" or "theory": the row of the campaign map the chapter's tab sits in.
-static func wing_of(ch: String) -> String: return "theory" if is_theory(ch) else ("bestiary" if is_bestiary(ch) else "body")
+## v0.6: the Atlas wing (reading real wiring): open after the chapter I spine as well.
+static func is_atlas(ch: String) -> bool: return str(chapter_def(ch).get("wing", "")) == "atlas"
+static func is_wing(ch: String) -> bool: return is_bestiary(ch) or is_theory(ch) or is_atlas(ch)
+## "body", "bestiary", "theory" or "atlas": the row of the campaign map the chapter's tab sits in.
+static func wing_of(ch: String) -> String: return "theory" if is_theory(ch) else ("atlas" if is_atlas(ch) else ("bestiary" if is_bestiary(ch) else "body"))
 
 ## The Bestiary and Theory wings open once the chapter I spine (Invertebrates) is passed, and inside the wings a chapter may wait for a level or a chapter it
 ## builds on (WING_GATES). Guided mode drops the in-wing prerequisites (it keeps the chapter I gate): a Guided player may wander, and the "Needs" chips on

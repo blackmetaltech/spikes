@@ -41,6 +41,7 @@ flowchart LR
   campaign_chapter_rates("Campaign chapter tab: Theory: Rate models")
   campaign_chapter_memory("Campaign chapter tab: Theory: Attractor memory")
   campaign_chapter_tuning("Campaign chapter tab: Theory: Tuning and decoding")
+  campaign_chapter_a_worm("Campaign chapter tab: Atlas: Reading wiring")
   parts["Parts bin (browse the catalogue)"]
   notebook["Lab notebook, Notes tab"]
   notebook_concepts("Notebook, Concepts tab (glossary)")
@@ -133,7 +134,7 @@ flowchart LR
   title["Title (Plate I)"]
   campaign["Campaign map (default chapter)"]
   analysis["Analysis, 3-node motifs"]
-  lab_atlas["Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections"]
+  lab_atlas["Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper, or an active / silenced switch for a cell type that can be switched off), no way to add or delete cells and connections"]
   lab_sandbox["Sandbox (free bench, no task)"]
   lab_task["Lab on a level"]
   lab_dx["Lab on a diagnosis case (read-only patient circuit)"]
@@ -289,6 +290,7 @@ flowchart LR
 | `campaign.chapter.rates` | tab | Campaign chapter tab: Theory: Rate models |  |
 | `campaign.chapter.memory` | tab | Campaign chapter tab: Theory: Attractor memory |  |
 | `campaign.chapter.tuning` | tab | Campaign chapter tab: Theory: Tuning and decoding |  |
+| `campaign.chapter.a_worm` | tab | Campaign chapter tab: Atlas: Reading wiring |  |
 | `parts` | screen | Parts bin (browse the catalogue) | `BtnBack`, `BtnSandbox`, `PartsBin` |
 | `notebook` | screen | Lab notebook, Notes tab | `BtnBack`, `BtnWhatIsReal`, `TabNotes`, `TabConcepts` |
 | `notebook.concepts` | tab | Notebook, Concepts tab (glossary) |  |
@@ -307,7 +309,7 @@ flowchart LR
 | `analysis.sta` | tab | Analysis, spike-triggered average tab | `StepPop`, `StepRec`, `BtnRecord` |
 | `analysis.wiring` | tab | Analysis, wiring tab (matrix, path finder) | `StepOrder`, `StepWiringLevel`, `StepFrom`, `StepTo`, `StepWithout` |
 | `lab` | frame | Lab frame: top bar, add-neuron palette, circuit editor (present in every lab state) | `BtnBack`, `BtnRun`, `BtnReset`, `BtnMore`, `Editor`, `BtnConnect?`, `BtnExcitatory?`, `BtnUndo?`, `BtnRedo?` |
-| `lab.atlas` | frame | Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper), no way to add or delete cells and connections | `StepSign_*?`, `BtnScaleDown_*?`, `BtnScaleUp_*?` |
+| `lab.atlas` | frame | Locked-wiring level (the development-only Atlas probe, SP_ATLAS in a debug build): engraved given wiring, one cell-type card per group in the inspector (sign toggle, scale stepper, or an active / silenced switch for a cell type that can be switched off), no way to add or delete cells and connections | `StepSign_*?`, `BtnScaleDown_*?`, `BtnScaleUp_*?`, `StepActive_*?` |
 | `lab.sandbox` | screen | Sandbox (free bench, no task) | `BtnParts`, `BtnInhibitory`, `BtnNoise`, `BtnConnect`, `BtnExcitatory` |
 | `lab.task` | screen | Lab on a level | `BtnCheck`, `BtnConnect`, `BtnExcitatory`, `BtnHint?`, `BtnBrief?`, `BtnTestX5?`, `BtnParts?`, `BtnInhibitory?`, `BtnDetails?`, `BtnOpenNotebook?` |
 | `lab.dx` | screen | Lab on a diagnosis case (read-only patient circuit) | `BtnCase`, `BtnHint?` |
@@ -359,5 +361,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 73 nodes, 156 edges, 8 guard checks.
+Counts: 74 nodes, 157 edges, 8 guard checks.
 <!-- END GENERATED -->
