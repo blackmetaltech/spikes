@@ -429,6 +429,9 @@ void test_dx()
       const Res r = run( "dx_a_worm", c, seed, false, "standard", "", true );
       CHECK_MSG( r.loaded, r.error );
       by[ lesion ].push_back( r.class_hz );
+      std::printf( "    %-4s seed %3d:", lesion, static_cast< int >( seed ) );
+      for ( const char* k : { "ALM", "AVM", "AVA", "AVB", "AVD", "AVE", "PVC", "DA", "VA", "DB", "VB" } ) std::printf( " %s %.1f", k, r.class_hz.count( k ) ? r.class_hz.at( k ) : 0.0 );
+      std::printf( "\n" );
     }
   for ( const auto& [ lesion, rows ] : by )
   {
