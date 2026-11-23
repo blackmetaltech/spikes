@@ -40,8 +40,9 @@
 .annot-img { position: relative; }
 .pin { position: absolute; transform: translate(-50%, -50%); width: 2.1rem; height: 2.1rem; border-radius: 50%; display: grid; place-items: center;
   font: italic 700 1.15rem/1 var(--display); color: var(--ink); background: var(--raised); border: 1.5px solid var(--ink); box-shadow: 2px 2px 0 var(--sienna); }
-.legend { columns: 2 22rem; column-gap: 3rem; padding: 0; margin: 0; list-style: none; counter-reset: lg; }
-.legend li { break-inside: avoid; counter-increment: lg; position: relative; padding: 0 0 .9rem 2.6rem; color: var(--soft); }
+.legend { display: grid; gap: 0 3rem; padding: 0; margin: 0; list-style: none; counter-reset: lg; }
+@media (min-width: 900px) { .legend { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, auto); grid-auto-flow: column; } }
+.legend li { counter-increment: lg; position: relative; padding: 0 0 .9rem 2.6rem; color: var(--soft); }
 .legend li::before { content: counter(lg, upper-alpha); position: absolute; left: 0; top: -.1rem; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font: italic 700 1rem/1 var(--display); color: var(--ink); background: var(--raised); }
 .legend b { color: var(--ink); font-family: var(--display); font-weight: 650; font-size: 1.05em; }
 @media (max-width: 700px) { .pin { width: 1.5rem; height: 1.5rem; font-size: .85rem; box-shadow: 1px 1px 0 var(--sienna); } }
@@ -115,7 +116,8 @@
 
 /* ---- VIII. download ---- */
 .dl { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; }
-.dlcard { display: grid; gap: .3rem; padding: 1.4rem 1.6rem; text-decoration: none; max-width: 30rem; margin: .4rem 0 1.4rem; transition: transform .1s ease, box-shadow .1s ease; }
+.dlcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; margin: .4rem 0 1.4rem; }
+.dlcard { display: grid; gap: .3rem; padding: 1.2rem 1.4rem; text-decoration: none; transition: transform .1s ease, box-shadow .1s ease; }
 .dlcard:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); color: var(--ink); }
 .dlcard .os { font: 700 2rem/1 var(--display); }
 .dlcard .os::after { content: " \2192"; color: var(--sienna); }

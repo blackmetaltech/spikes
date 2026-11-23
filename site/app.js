@@ -1,7 +1,7 @@
 // Spike site: header menu, the inked Golgi cells behind the hero, clips that play while on screen, the lightbox, and the latest release.
 // No dependencies. Everything degrades: without JS the clips have native controls, the zoom buttons do nothing, the download links go to Releases.
 (() => {
-  const REPO = "ixaxaar/spikes";
+  const REPO = "blackmetaltech/spikes";
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 
   // ---- header menu (phones) ----
@@ -140,21 +140,23 @@
     lb.addEventListener("close", () => { img.src = "data:,"; opener && opener.focus(); });
   }
 
-  // ---- the latest release: version, size and a direct link to the Linux zip ----
-  const card = document.getElementById("dl-linux"), size = document.getElementById("dl-size"), ver = document.getElementById("ver"), main = document.getElementById("dl-main");
-  if (card && window.fetch) {
+  // ---- the latest release: version, and per platform a direct link to its zip with its size ----
+  const cards = [...document.querySelectorAll(".dlcard[data-os]")], ver = document.getElementById("ver"), main = document.getElementById("dl-main");
+  const ua = navigator.userAgent || "", mine = /Mac/i.test(ua) ? "macos" : /Win/i.test(ua) ? "windows" : "linux";
+  const label = { linux: "Linux", macos: "macOS", windows: "Windows" };
+  if (main && cards.some((c) => c.dataset.os === mine)) main.firstChild.textContent = `Download for ${label[mine]} `;
+  if (cards.length && window.fetch) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);
     fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: "application/vnd.github+json" }, signal: ctl.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((rel) => {
-        const a = (rel.assets || []).find((x) => /linux/i.test(x.name) && /x86_64|amd64/i.test(x.name) && /\.(zip|tar\.gz)$/i.test(x.name));
         const date = rel.published_at ? new Date(rel.published_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
         if (ver) ver.innerHTML = `Latest: <a href="${rel.html_url}">${rel.tag_name}</a>${date ? ", " + date : ""}. Older builds are on <a href="https://github.com/${REPO}/releases">Releases</a>.`;
-        if (a) {
-          card.href = a.browser_download_url; if (main) main.href = a.browser_download_url;
-          if (size) size.textContent = `${a.name} · ${(a.size / 1048576).toFixed(0)} MB`;
-          const sum = (rel.assets || []).find((x) => x.name === a.name + ".sha256"), sha = document.getElementById("dl-sha");
-          if (sum && sha) sha.href = sum.browser_download_url;
+        for (const card of cards) {
+          const os = card.dataset.os, a = (rel.assets || []).find((x) => x.name.toLowerCase().includes("-" + os + "-") && /\.zip$/i.test(x.name));
+          if (!a) continue;   // not in this release: the card keeps its link to the release page
+          card.href = a.browser_download_url; if (main && os === mine) main.href = a.browser_download_url;
+          const sz = card.querySelector(".sz"); if (sz) sz.textContent = `${a.name} · ${(a.size / 1048576).toFixed(0)} MB`;
         }
       })
       .catch(() => {})

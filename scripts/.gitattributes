@@ -1,0 +1,3 @@
+# LF on every platform: MSYS2 bash cannot run a CRLF script and git apply cannot match a CRLF patch
+*.sh text eol=lf
+patches/*.patch text eol=lf

@@ -53,6 +53,24 @@ About 12 levels and 3 cases. The compass and mushroom-body chapters replace noth
 | A4 | Mushroom-body chapter | the real fan-in statistics are reported with the null model; sparse code scored | planned |
 | A5 | Degeneracy chapter, feeding boss, Atlas map plate, wiki, release 0.6 | full CI; CHANGELOG; release | planned |
 
+## Benchmark (A1: scale)
+`python3 tools/bench/scale.py` builds random circuits with explicit `edges` projections and runs them through `build/engine/spike-run`: 80 % excitatory and 20 % inhibitory `iaf_psc_alpha` cells, in-degree 50 (40 from excitatory, 10 from inhibitory cells), delay 1.5 ms, a Poisson drive (3,000 Hz at 18.5 pA to every cell) that holds the cells at about 4 Hz, resolution 0.1 ms, one engine thread. Load time is the wall time of a 1 ms run (process start, NEST start, circuit build). Time per simulated second is a 2 s run minus the load time. Best of 3 runs. Output of the script, 2026-11-22.
+
+Machine: AMD Ryzen 9 9900X (12 cores, 24 logical CPUs), load average about 10 while the runs were made (other jobs were running, so these numbers are pessimistic). The NEST in this build does not support multiple threads (`--threads 4` is refused), and the game does not set a thread count, so one thread is what the game gets.
+
+| cells | connections | load (s) | wall seconds per simulated second | real-time factor | mean rate (Hz) |
+|---|---|---|---|---|---|
+| 500 | 25,000 | 0.05 | 0.23 | 4.3 | 3.7 |
+| 1,000 | 50,000 | 0.09 | 0.47 | 2.1 | 3.8 |
+| 1,500 | 75,000 | 0.12 | 0.69 | 1.4 | 3.9 |
+| 2,000 | 100,000 | 0.16 | 0.92 | 1.1 | 4.1 |
+| 3,000 | 150,000 | 0.23 | 1.45 | 0.69 | 3.9 |
+| 10,000 | 500,000 | 0.72 | 4.99 | 0.20 | 4.0 |
+
+Real-time factor is simulated seconds per wall second; below 1 the lab view runs slower than the clock. The cost grows in proportion to the number of cells. It is not the spikes: 10,000 cells with almost no drive (0.01 Hz, silent) took about 3.8 s per simulated second, against 5.0 s at 4 Hz. Most of the time is the per-step update of every cell at 0.1 ms. One quick, single run of the 10,000-cell circuit at `resolution_ms` 0.2 gave about half the time, and at 0.5 about a third; this was not repeated and the levels' timing needs 0.1 ms, so it is a lead, not a result.
+
+**Recommendation.** Cap an Atlas level at **2,000 cells** (about 100,000 connections) for the live lab view: it runs at about real time (1.1) on this loaded machine and faster on an idle one. Up to 1,000 cells it runs at 2 times real time or more, which suits levels that are played with sliders. 3,000 cells (0.7 times real time) is acceptable only for a batch check or a run that shows a progress bar; 10,000 cells (0.2) is not interactive. Excerpts of the compass (148 cells) and the mushroom body (about 2,200 cells with all Kenyon cells, about 400 with a subset) fit; the larval fly (about 3,000 neurons) and the whole-brain excerpt need a smaller excerpt or a non-live run.
+
 ## Risks
 | Risk | Answer |
 |---|---|

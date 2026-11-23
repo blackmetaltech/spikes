@@ -2,12 +2,12 @@
 title: Architecture
 section: Under the hood
 order: 84
-summary: How the game, the engine, NEST and the Python package fit together, and what happens in each millisecond of a run.
+summary: How the game, engine, NEST and Python package fit together, and what happens in each millisecond of a run.
 ---
 
 # Architecture
 
-This page is a tour of how Spike is built, for people who want to read or change the code. You do not need it to play.
+A tour of how Spike is built, for people who want to read or change the code. You do not need it to play.
 
 ## The big picture
 
@@ -35,11 +35,11 @@ This page is a tour of how Spike is built, for people who want to read or change
  python/   the spike package: the same circuit JSON in PyNEST, plus analysis
 ```
 
-Each box has a job and little else. The engine knows nothing about Godot. The game knows nothing about NEST except through the engine. The Python package shares only the circuit file and the analysis maths.
+Each box has one job. The engine knows nothing about Godot. The game reaches NEST only through the engine. The Python package shares only the circuit file and the analysis maths.
 
 ## NEST, built in
 
-NEST is the neural simulator behind most published spiking-network research. Spike pins one commit of it (`NEST_REF` in `scripts/build-nest.sh`) and builds it as static libraries, so the game is one self-contained program with no Python at run time. The game uses NEST's own models, names and units. That is the point of the project: when you wire two `iaf_psc_alpha` cells, a researcher gets the same behaviour from the same file in PyNEST. See [what is real](what-is-real.html).
+NEST is the neural simulator behind most published spiking-network research. Spike pins one commit of it (`NEST_REF` in `scripts/build-nest.sh`) and builds it as static libraries. The game is one self-contained program with no Python at run time. It uses NEST's own models, names and units. That is the point of the project: wire two `iaf_psc_alpha` cells and a researcher gets the same behaviour from the same file in PyNEST. See [what is real](what-is-real.html).
 
 Custom cells that NEST does not ship are written in NESTML and compiled in. See [make it yours](make-it-yours.html).
 
@@ -47,11 +47,11 @@ GSL (the GNU Scientific Library, which NEST uses to integrate some models) is li
 
 ## The engine
 
-`libspike` is the C++ library. The header `engine/include/spike/engine.h` is the contract shared by the game, the tasks and the tests. It is kept stable, and new features are only added.
+`libspike` is the C++ library. The header `engine/include/spike/engine.h` is the contract shared by the game, the tasks and the tests. It stays stable. New features are only added.
 
 What it does:
 
-- **Loads a circuit.** `circuit.cpp` reads the JSON and validates every field (unknown keys, weight limits, synapse rules, sizes and budgets); `engine.cpp` then creates the NEST nodes and connections. See [a circuit is data](circuit-is-data.html) and [safety limits](#safety-limits) below.
+- **Loads a circuit.** `circuit.cpp` reads the JSON and validates every field (unknown keys, weight limits, synapse rules, sizes and budgets). `engine.cpp` then creates the NEST nodes and connections. See [a circuit is data](circuit-is-data.html) and [safety limits](#safety-limits) below.
 - **Steps in a closed loop.** The engine advances NEST in slices and exchanges data with the world between slices.
 - **Reports structure.** `Engine::structure()` lists populations and projections with their connection counts, mean weights and signs, read from the live NEST connections. `has_path`, `has_loop` and `has_loop_via` answer "is there a path from A to B?" and "is there a feedback loop through this group?". Tasks use these to check that a circuit uses the mechanism a level teaches. See `docs/ENGINE-STRUCTURE.md`.
 - **Reads and sets.** Spikes (`drain_spikes`), output rates and counts, input levels, neuromodulator levels, single weights (this is what a lesion does) and cell state.
@@ -69,15 +69,15 @@ A level is a conversation between the world and the circuit. Every 1 ms of model
 
 The loop is deterministic for a given NEST build, thread count and seed. The tests check it with golden spike checksums (a hash over every spike), per build rather than across compilers.
 
-The bodies are not NEST. The muscle, joint, heart and circulation, lungs, eye and gut are small deterministic C++ models in `engine/src/body/`, documented in `docs/body/`. See [bodies](bodies.html). The same state also feeds the picture the game draws.
+The bodies are not NEST. The muscle, joint, heart and circulation, lungs, eye and gut are small deterministic C++ models in `engine/src/body/`, documented in `docs/body/`. See [bodies](bodies.html). The same state feeds the picture the game draws.
 
 ## Tasks
 
-Each level is one C++ file in `engine/src/tasks/` that registers itself with `SPIKE_REGISTER_TASK(id, order, circuit, factory)`. It defines the world, the scoring, the verdicts and the three-tier hints, the notebook entry, the challenge variants and the difficulty modes. The registry order is the campaign play order. See [make it yours](make-it-yours.html) for the contract and the tests every level must pass. There are 79 registered levels in this build: 20 micro-puzzles, 14 tasks, 2 bosses and 6 body diagnosis cases, the Bestiary (18 levels and 7 diagnosis cases) and the Theory wing (12). `spike-run --list-tasks` prints them all.
+Each level is one C++ file in `engine/src/tasks/` that registers itself with `SPIKE_REGISTER_TASK(id, order, circuit, factory)`. It defines the world, the scoring, the verdicts and the three-tier hints, the notebook entry, the challenge variants and the difficulty modes. The registry order is the campaign play order. See [make it yours](make-it-yours.html) for the contract and the tests every level must pass. This build registers 79 levels: 20 micro-puzzles, 14 tasks, 2 bosses and 6 body diagnosis cases, the Bestiary (18 levels and 7 diagnosis cases) and the Theory wing (12). `spike-run --list-tasks` prints them all.
 
 ## Safety limits {#safety-limits}
 
-A circuit file is untrusted input: it can come from a download, a paste or a damaged save. The engine therefore refuses, before it builds anything, a circuit that is too big or has numbers that would break NEST: more than 20000 cells or about 2 million connections, delays above 1000 ms, rates above 100000 Hz, currents above 100000 pA, weights beyond the ceilings of the cell type, JSON nested deeper than 32 levels. The exact table is in [a circuit is data](circuit-is-data.html#limits-and-errors). The refusal is a plain message that names the place in the file, and the game shows it as a banner. The same ceilings apply when a weight or an input is changed while a circuit runs.
+A circuit file is untrusted input. It can come from a download, a paste or a damaged save. Before it builds anything, the engine refuses a circuit that is too big or has numbers that would break NEST: more than 20000 cells or about 2 million connections, delays above 1000 ms, rates above 100000 Hz, currents above 100000 pA, weights beyond the ceilings of the cell type, JSON nested deeper than 32 levels. The exact table is in [a circuit is data](circuit-is-data.html#limits-and-errors). The refusal is a plain message that names the place in the file, and the game shows it as a banner. The same ceilings apply when a weight or an input changes while a circuit runs.
 
 If a cell still blows up while running, the step ends with an error and the engine refuses further steps until the circuit is loaded again. A step-count guard in the custom cells and a wall-clock watchdog turn a stalled integral into an error. GSL's own error handler is switched off, so a failed integral can never abort the whole program. Tests feed the engine a corpus of hostile circuits to check this (`fuzz_circuits`, `test_hardening`).
 
@@ -90,7 +90,7 @@ If a cell still blows up while running, the step ends with an error and the engi
 - `SpikeSim`: a circuit loaded into the engine, with run, step, spikes, inputs, modulators, analysis calls (bursts, HRV, PRC, motifs, spike-triggered average) and so on.
 - `SpikeTask`: a level, as the game sees it: its brief, channels, timeline, bands, hints, notebook entry and scoring, plus headless scoring (it starts a `spike-run` child process and returns a job number the game polls).
 
-The engine can host only one NEST instance per process. That is why the Check button runs `spike-run` as a separate process, and why seeds can run in parallel child processes.
+The engine can host only one NEST instance per process. So the Check button runs `spike-run` as a separate process, and seeds can run in parallel child processes.
 
 ## The game
 
@@ -112,22 +112,22 @@ Layouts adapt: desktop, handheld (Steam Deck sized) and phone. The look is the "
 
 Everything the game keeps for you (progress, settings, goals, the play log, and every circuit on a bench) goes through one layer, `godot/game/save_io.gd`, in Godot's per-user data folder.
 
-- **Atomic writes.** A file is written to a temporary name, read back, and renamed over the old one, so a crash or a power cut leaves the old file or the new one, never half of one.
+- **Atomic writes.** A file is written to a temporary name, read back, and renamed over the old one. A crash or a power cut leaves the old file or the new one, never half of one.
 - **Backups.** Each file keeps three rotating backups (`.bak1` to `.bak3`).
-- **Damaged files.** A file that does not parse or is cut short is moved aside as `<name>.corrupt-<time>`, the newest good backup is used instead, and a notice on the title screen says what happened. If there is no good backup, the damaged file stays where it was moved and saving to that name is switched off for the session, so nothing is overwritten.
-- **Versions.** A save made by a newer game is read but never written. The save is at version 2; a version 1 file is migrated on load. A read-only or full disk is reported once, with the path.
-- **Export and import.** Settings, Game tab, has Export save and Import save. The export is one zip holding progress, settings, goals, the play log, every `last_<level>` autosave and the solution slots. Import checks every file in the zip first, and replaces your save only if all of them are sound; the files it replaces keep their backups.
+- **Damaged files.** A file that does not parse or is cut short is moved aside as `<name>.corrupt-<time>`. The newest good backup is used instead, and a notice on the title screen says what happened. If there is no good backup, the damaged file stays where it was moved and saving to that name is switched off for the session, so nothing is overwritten.
+- **Versions.** A save made by a newer game is read but never written. The save is at version 2. A version 1 file is migrated on load. A read-only or full disk is reported once, with the path.
+- **Export and import.** Settings, Game tab, has Export save and Import save. The export is one zip holding progress, settings, goals, the play log, every `last_<level>` autosave and the solution slots. Import checks every file in the zip first and replaces your save only if all are sound. The files it replaces keep their backups.
 - **Log.** The game writes `logs/spike.log` in the same folder and keeps the last three starts (`spike.1.log`, `spike.2.log`). Settings has an Open log folder button. Attach the log to a bug report.
 
 Test runs and the developer hooks never write into your real save. The `save_io` test covers all of this. See [settings and performance](settings-and-performance.html) for the player's view.
 
 ## The Python package
 
-`python/spike/` builds the same circuit in PyNEST and analyses spikes. It does not run tasks, and it does not build the Theory wing's rate populations or its `rate_drive` and `tuned_poisson` inputs. Parity tests check that its spikes equal the engine's for the same circuit. See [Use your circuit in Python](python.html).
+`python/spike/` builds the same circuit in PyNEST and analyses spikes. It does not run tasks. It does not build the Theory wing's rate populations or its `rate_drive` and `tuned_poisson` inputs. Parity tests check that its spikes equal the engine's for the same circuit. See [Use your circuit in Python](python.html).
 
 ## The website and this wiki
 
-The public site is https://spike.blackmetal.tech/. It is the static folder `site/` (a landing page with no framework) plus this wiki, which is built from the Markdown files in `site/wiki-src/` by `tools/site/build.py`, a script that needs only the Python standard library. `python3 tools/site/build.py --check` builds the pages, the search index and the sitemap, and fails on a broken link, anchor or image. The Pages workflow (`.github/workflows/pages.yml`) runs that check and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow itself. The clips and screenshots are committed and made from the exported game by `scripts/site-media.sh`. How to write a page is in `site/wiki-src/README.md` in the repository.
+The public site is https://spike.blackmetal.tech/. It is the static folder `site/` (a landing page with no framework) plus this wiki. `tools/site/build.py` builds the wiki from the Markdown files in `site/wiki-src/` and needs only the Python standard library. `python3 tools/site/build.py --check` builds the pages, the search index and the sitemap, and fails on a broken link, anchor or image. The Pages workflow (`.github/workflows/pages.yml`) runs that check and deploys `site/` on every push to master that touches `site/`, `tools/site/` or the workflow itself. The clips and screenshots are committed and made from the exported game by `scripts/site-media.sh`. How to write a page is in `site/wiki-src/README.md` in the repository.
 
 ## Data flow of a Check
 
@@ -143,7 +143,7 @@ The headless score and a live run agree because they use the same task code and 
 
 The engine tests include golden spike traces, the closed loop, body physics, the cheap-circuit tables, every task's reference circuit, hostile-circuit fuzzing and parity with PyNEST. The Godot side has a graph test that walks every screen and control, and tests for the save layer, the editor and the tutorial. See [building from source](building-from-source.html).
 
-> **Note:** The interaction-graph rule: any UI change updates `godot/tests/interaction_graph.json` in the same commit. A test starts the real game headless and presses every control, and fails if a visible control is not listed. This is why the game's controls are documented in one place. See [controls](controls.html).
+> **Note:** The interaction-graph rule: any UI change updates `godot/tests/interaction_graph.json` in the same commit. A test starts the real game headless, presses every control, and fails if a visible control is not listed. That is why the game's controls are documented in one place. See [controls](controls.html).
 
 ## Related pages
 

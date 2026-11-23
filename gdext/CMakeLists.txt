@@ -31,3 +31,8 @@ set_target_properties(spike_gd PROPERTIES
 # the extension finds sibling libraries next to itself; spike-run is installed beside it (see engine/CMakeLists.txt)
 set_target_properties(spike_gd PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
 install(TARGETS spike_gd LIBRARY DESTINATION bin COMPONENT game)
+if(WIN32)
+  # MinGW: spike_gd.dll (no "lib" prefix) lands in gd-out like the .so does on Linux, and carries its own C++ runtime and winpthread
+  set_target_properties(spike_gd PROPERTIES PREFIX "" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/gd-out)
+  target_link_options(spike_gd PRIVATE -static -static-libgcc -static-libstdc++)
+endif()

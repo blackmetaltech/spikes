@@ -141,7 +141,11 @@ void parse_selector( const CircuitSpec& c, const json& s, const std::string& pat
     const json& e = ( *idx )[ k ];
     if ( not e.is_number_integer() )
       fail( at( sub( path, "idx" ), k ), "must be an integer" );
+#ifdef _WIN32
+    long long v = e.get< long long >();  // long is 32 bits here: a huge index must not wrap into range
+#else
     long v = e.get< long >();
+#endif
     if ( v < 0 or v >= ps.n )
       fail( at( sub( path, "idx" ), k ), "index " + std::to_string( v ) + " out of range for population '" + pid + "' (n=" + std::to_string( ps.n ) + ")" );
     out.push_back( ps.first + static_cast< int32_t >( v ) );
@@ -693,11 +697,29 @@ bool parse_circuit( const std::string& text, CircuitSpec& c, std::string& error 
     try
     {
       // depth guard first: deeply nested values would overflow the stack of every recursive walk over the document
+#ifdef _WIN32
+      // Same guard. `long` is 32 bits on Windows, so every get< long >() below would wrap an integer beyond 2^31 (a population size of 4294967298 would
+      // become 2 and pass the size limit): such a value becomes a floating-point number, which "must be an integer" checks refuse, as Linux's range
+      // checks refuse it. The top-level "seed" (depth 1, read as unsigned long long) keeps its full range.
+      j = json::parse( text, [ & ]( int depth, json::parse_event_t ev, json& parsed ) {
+        if ( ( ev == json::parse_event_t::object_start or ev == json::parse_event_t::array_start ) and depth >= kMaxJsonDepth )
+          fail( "$", "JSON is nested deeper than " + std::to_string( kMaxJsonDepth ) + " levels" );
+        if ( ev == json::parse_event_t::value and depth >= 2 and parsed.is_number_integer() )
+        {
+          const bool fits = parsed.is_number_unsigned() ? parsed.get< unsigned long long >() <= 2147483647ULL
+                                                        : ( parsed.get< long long >() >= -2147483648LL and parsed.get< long long >() <= 2147483647LL );
+          if ( not fits )
+            parsed = parsed.is_number_unsigned() ? static_cast< double >( parsed.get< unsigned long long >() ) : static_cast< double >( parsed.get< long long >() );
+        }
+        return true;
+      } );
+#else
       j = json::parse( text, [ & ]( int depth, json::parse_event_t ev, json& ) {
         if ( ( ev == json::parse_event_t::object_start or ev == json::parse_event_t::array_start ) and depth >= kMaxJsonDepth )
           fail( "$", "JSON is nested deeper than " + std::to_string( kMaxJsonDepth ) + " levels" );
         return true;
       } );
+#endif
     }
     catch ( const json::parse_error& e )
     {

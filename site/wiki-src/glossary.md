@@ -7,15 +7,15 @@ summary: Every concept and lab term the game uses, alphabetical, one plain line 
 
 # Glossary
 
-Every term the game and this wiki use, in alphabetical order. Concept entries (marked with the level that teaches them) match the Concepts tab of [the notebook](notebook.html). Lab terms are the words on the building screen.
+Every term the game and this wiki use, in alphabetical order. Concept entries name the level that teaches them and match the Concepts tab of [the notebook](notebook.html). Lab terms are the words on the building screen.
 
 ## A
 
 **ACh (acetylcholine).** A neuromodulator. In the heart levels it carries the vagus nerve's slowing signal. It is one of three global modulator levels, with NE and DA.
 
-**Adaptation.** Under a steady push, a neuron fires a burst and then slows as a slow current builds up. It reports change more than level. Taught in the Adaptation micro-puzzle.
+**Adaptation.** Under a steady push, a neuron fires a burst, then slows as a slow current builds up. It reports change more than level. Taught in the Adaptation micro-puzzle.
 
-**Advanced.** A button in the inspector that shows a cell model's parameters as sliders with units, and the rows for how it responds to modulators.
+**Advanced.** Inspector button. It shows a cell model's parameters as sliders with units, plus the rows for how it responds to modulators.
 
 **Afferent.** A nerve fibre that carries signals toward the centre, for instance from the skin or a muscle. In the game, a sensor stands for a bundle of afferents.
 
@@ -29,11 +29,11 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Bench.** The circuit editor, where neurons and connections are drawn.
 
-**Bench history.** The newest ten benches that Reference, Empty bench, Load, a slot, Paste circuit JSON or the tutorial replaced, kept per level. More, Restore previous bench brings the newest back.
+**Bench history.** The newest ten benches that Reference, Empty bench, Load, a slot, Paste circuit JSON or the tutorial replaced, kept per level. More, Restore previous bench brings back the newest.
 
 **Bestiary.** The wing of the campaign with one chapter per model animal. See [the Bestiary](campaign-bestiary.html).
 
-**Bias current (tonic drive).** A steady current of a cell's own (the parameter I_e in its advanced parameters) that holds it near or just over threshold, so it fires or is ready to fire with no input. A cell with a bias can signal "less" as well as "more". Taught in the Tonic drive micro-puzzle; used by posture, the pupil, the autonomic heart and the fly compass.
+**Bias current (tonic drive).** A steady current of a cell's own (the parameter I_e in its advanced parameters). It holds the cell near or just over threshold, so it fires or is ready to fire with no input. A cell with a bias can signal "less" as well as "more". Taught in the Tonic drive micro-puzzle; used by posture, the pupil, the autonomic heart and the fly compass.
 
 **Bistability.** One cell and one current with two stable states, rest and repetitive firing. A brief pulse can flip between them. Taught in A neuron that remembers a pulse.
 
@@ -41,15 +41,15 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Burst.** A group of spikes close together with silent gaps around it. See [the analysis tools](lesion-lab-and-analysis.html).
 
-**Bursting.** A cell turns steady input into bursts with silent gaps because a slow variable builds up during a burst and decays during the gap. Taught in Leech: a cell that bursts.
+**Bursting.** A cell turns steady input into bursts with silent gaps. A slow variable builds up during a burst and decays during the gap. Taught in Leech: a cell that bursts.
 
 **Bus card.** One card on the bench for a run of four or more numbered sensors or motors of one kind (cue0 to cue15 read "cue ×16"). Click it to open it into one card per channel.
 
 ## C
 
-**Challenge.** The optional goal of a level, written on its card, that the third star asks for: by default a neuron par, on some levels also an energy ceiling or no modulator.
+**Challenge.** The optional goal on a level's card. The third star asks for it: by default a neuron par, on some levels also an energy ceiling or no modulator.
 
-**Check.** The button that scores your circuit headless, in the background, on five random worlds with the level's quick episode. Passing all five earns the second star.
+**Check.** The button that scores your circuit in the background on five random worlds, with the level's quick episode. Pass all five for the second star.
 
 **Class I and class II (excitability class).** How a cell starts to fire as the current grows. Class I fires slowly at first and speeds up smoothly. Class II starts at a clear rate at once. Taught in Where firing starts.
 
@@ -89,7 +89,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Episode.** One run of a level, from time zero to the level's duration.
 
-**Escape or release.** Two cells that inhibit each other can take turns in two ways. In release the active cell tires and lets go. In escape the silenced cell recovers by itself and breaks away while the other is still firing. The bursts look alike; the response of the cycle to driving one cell harder tells them apart. Taught in Leech: the heartbeat.
+**Escape or release.** Two cells that inhibit each other can take turns in two ways. In release the active cell tires and lets go. In escape the silenced cell recovers by itself and breaks away while the other is still firing. The bursts look alike. Driving one cell harder tells them apart: watch how the cycle responds. Taught in Leech: the heartbeat.
 
 **Excitation.** An excitatory synapse pushes the next cell toward threshold. Its weight sets how far, its delay how late. Taught in Excitation: weight and delay.
 
@@ -107,7 +107,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Gap junction.** An electrical connection between two cells that passes current directly. The engine couples electrically only the models that are made for it.
 
-**Guided.** The easiest mode: the recipe is printed, hints are free, and a level earns at most two stars. See [modes](modes.html).
+**Guided.** The easiest mode. The recipe is printed, hints are free, and a level earns at most two stars. See [modes](modes.html).
 
 ## H
 
@@ -143,7 +143,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 ## M
 
-**Mean field.** For a large sparse network of integrate-and-fire cells the input to a cell is the sum of many weak independent inputs, so its mean and variance fix its rate. A single unit applying the formula stands for a whole population. Taught in The network and its mean field.
+**Mean field.** In a large sparse network of integrate-and-fire cells, a cell's input is the sum of many weak independent inputs, so its mean and variance fix its rate. A single unit applying the formula stands for a whole population. Taught in The network and its mean field.
 
 **Micro-puzzle.** A short level of one to a few cells, one concept, a few seconds.
 
@@ -157,7 +157,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **NE (noradrenaline).** A neuromodulator. In the heart and fight-or-flight levels it carries the sympathetic nerve's speeding-up signal. In the Aplysia levels the same channel is shown as serotonin.
 
-**Needs.** The red chips on a level card that name concepts the level uses and another level teaches, when you have not passed that level. Advice, not a lock.
+**Needs.** Red chips on a level card. They name concepts the level uses and another level teaches, until you pass that level. Advice, not a lock.
 
 **NESTML.** A language for writing neuron models that NEST compiles. The game's special cells are written in it.
 
@@ -209,7 +209,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Reference circuit.** The level's own solution. It earns no stars.
 
-**Researcher.** The hardest mode: no recipe, no hints, a pass needs all five worlds under physiological noise and tight bands. A pass earns the seal.
+**Researcher.** The hardest mode. No recipe, no hints. A pass needs all five worlds under physiological noise and tight bands, and earns the seal.
 
 **Rheobase.** The smallest steady current that makes a cell fire. Taught in Threshold.
 
@@ -229,7 +229,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Solution slot.** One of three saved circuits per level (A, B, C), kept across restarts. More, Save to A and Load A.
 
-**Sparse coding.** Each Kenyon cell listens to a few inputs and fires only when several are active, and a giant inhibitory neuron keeps the number of active cells down. An odour becomes a small subset of cells. Taught in Fly: a sparse odour code.
+**Sparse coding.** Each Kenyon cell listens to a few inputs and fires only when several are active. A giant inhibitory neuron keeps the number of active cells down. An odour becomes a small subset of cells. Taught in Fly: a sparse odour code.
 
 **Spike.** The short electrical pulse a neuron fires.
 
@@ -243,7 +243,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 **Stable fixed point (phasic firing).** If the resting state is still stable at the new current, a kicked cell falls back and falls silent although the current stays on. It reports change. Taught in Only the change counts.
 
-**Standard.** The default mode: the recipe is behind a button that costs the third star, and hints open after two missed runs.
+**Standard.** The default mode. The recipe is behind a button that costs the third star. Hints open after two missed runs.
 
 **Subtraction.** Excitation from one source and inhibition from another give a cell that reports the difference. Taught in Subtraction.
 
@@ -253,7 +253,7 @@ Every term the game and this wiki use, in alphabetical order. Concept entries (m
 
 ## T
 
-**Test x5.** The button that runs the full episode on the same five worlds as Check, live. All five passing earns the second star.
+**Test x5.** The button that runs the full episode live on the same five worlds as Check. Pass all five for the second star.
 
 **Threshold.** A neuron fires when its voltage reaches threshold. Taught in Threshold.
 
