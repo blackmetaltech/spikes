@@ -88,7 +88,7 @@ func build() -> void:
 		var popts := []
 		for i in pops.size(): popts.append([i, str(pops[i].get("id", i))])
 		_head_rec.append(_pair("population", Kit.ident(Kit.stepper(popts, str(pop_idx), func(i): pop_idx = int(i); compute(), 200.0 if not phone else 150.0), "StepPop"))); mrow.add_child(_head_rec[-1])
-	var rec_st := Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")
+	var rec_st: Kit.Stepper = Kit.ident(Kit.stepper(RECORDS, str(rec_s), func(i): rec_s = int(i), 150.0 if not phone else 120.0), "StepRec")
 	_head_rec.append(_pair("record", rec_st)); mrow.add_child(_head_rec[-1]); _rec_step = rec_st
 	_head_rec.append(Kit.btn("RECORD", func(): _start_record(), "green", 20, Vector2(120, 0))); mrow.add_child(_head_rec[-1])
 	var cols := HBoxContainer.new(); cols.size_flags_vertical = Control.SIZE_EXPAND_FILL; cols.add_theme_constant_override("separation", int(16 * f)); v.add_child(cols)
