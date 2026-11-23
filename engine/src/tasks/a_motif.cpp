@@ -87,7 +87,7 @@ public:
   {
     Info i;
     i.id = "a_motif";
-    i.title = "Atlas: chance or design?";
+    i.title = "Chance or design?";
     i.chapter = "a_worm";
     i.view = "dashboard";
     i.duration_ms = 4000;   // nothing is driven: the circuit is only read

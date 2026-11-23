@@ -34,7 +34,7 @@ public:
 
   static Info info()
   {
-    Info i = world( "a_predict", "Atlas: bet on a silencing" );
+    Info i = world( "a_predict", "Bet on a silencing" );
     i.brief = "Five interneuron classes sit between the touch cells and the motor neurons of the worm. Silence any one of them and, in some cases, the worm no longer backs up when its head is touched. "
               "Which one class can be silenced without losing the backward response? Four are offered: AVA, AVD, AVE and PVC. Commit to one class first. Then the level silences it, touches the head, and tells you what happened. "
               "A committed prediction earns more than finding it by trial and error.";
@@ -133,10 +133,10 @@ public:
     {
       s.passed = true;
       s.value = bet_value( commit_.wrong, commit_.probes, 3 );
-      s.verdict = "Correct: with " + commit_.cand + " silenced the worm still backs up. " + outcome() + " In this model the response does not need this class.";
+      s.verdict = "Correct: " + commit_.cand + " can be lost. " + outcome() + " In this model the response does not need this class.";
     }
     else
-      s.verdict = "Not " + commit_.cand + ". With it silenced the worm does not back up: " + outcome() + " In this model the response needs this class.";
+      s.verdict = "Not " + commit_.cand + ". " + outcome() + " In this model the response needs this class.";
     return s;
   }
 

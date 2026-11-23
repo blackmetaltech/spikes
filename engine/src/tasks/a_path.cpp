@@ -25,11 +25,12 @@ public:
 
   static Info info()
   {
-    Info i = world( "a_path", "Atlas: test the shortest route" );
+    Info i = world( "a_path", "Test the shortest route" );
+    i.bands[ 0 ] = { "reverse_hz", "Hz", 0, 600 };   // this level does not ask for the response, it reports what the run showed: the gauge has no band to miss
     i.brief = "The path finder gives the shortest route from a touch on the head to the backward motor neurons. A route on a wiring diagram is a claim; test it. "
               "The wiring is given and cannot be edited. Each of the five interneuron classes has a card with a scale, from zero (silenced) to one (kept). Silence every "
               "interneuron class that is not on your route, keep the classes of the route, and run the touch. The level checks that the classes you kept are exactly those of one "
-              "shortest route and that you ran the touch. Then it tells you what the run showed.";
+              "shortest route and that you ran the touch, and then says what the run showed.";
     i.concepts_new = { "pathway" };
     i.concepts_used = { "excitation" };
     i.recipe = "Ask the path finder from the head touch cells (ALM, AVM) to the backward motor neurons (DA, VA). Set the scale of every interneuron class that is not on the route to zero "
