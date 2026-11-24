@@ -4,7 +4,7 @@ carry the bump (the task's 'strength' alone cannot tell one bump from one satura
 
 A trial: a landmark cue at ring position `cue` for CUE_MS (spike_generator at 300 Hz onto the E-PG cells of that position), then nothing. Both turn sensors are constant
 (BASE units each, times turn_w pA); `asym` units are added to one side and removed from the other for the whole trial.
-Measures (E-PG spikes only, ring position r at 22.5 r degrees):
+Measures (E-PG spikes only, heading h at 22.5 h degrees):
   window means of the rate per ring position, the population-vector angle and strength, the share of spikes within +-2 positions of the peak, the number of active positions.
 """
 import json, math, os, random, subprocess, sys, tempfile
@@ -17,7 +17,7 @@ BIN = os.environ.get("SPIKE_RUN") or next((b for b in (os.path.join(ROOT, "build
 CUE_MS, BASE = 500.0, 40.0
 DATA = cc.load()
 EPG = [i for i, n in enumerate(DATA["neurons"]) if n["type"] == "EPG"]
-RING_OF_EPG = [DATA["neurons"][i]["ring"] for i in EPG]   # circuit-level neuron index of EPG k is k (EPG is the first population)
+RING_OF_EPG = [DATA["neurons"][i]["heading"] for i in EPG]   # heading of each E-PG cell (the variable name is from the bridge-coordinate probe)   # circuit-level neuron index of EPG k is k (EPG is the first population)
 
 
 def circuit(params, cue, asym=0.0, seed=7, cue_rate=300.0):

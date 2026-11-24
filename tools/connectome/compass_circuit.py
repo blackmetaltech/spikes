@@ -11,9 +11,9 @@ What the data do not give, and this script has to assume (all are parameters):
     (optional, used in the second search: a scale for one type pair, parameter w_<pre>_<post>, for example w_EPG_D7; and I_e_<pop> for one population's background current)
   - norm (0 default): homeostatic normalisation of the synapse counts before the scales are applied, see normalise() for exactly what is rescaled
   - the cell model and its constants (iaf_psc_alpha, tau_syn_ex / tau_syn_in), a background current I_e (a stand-in for everything the cells receive that the table does not hold)
-  - how the task's input reaches the cells: the landmark (cue k) reaches the E-PG cells at ring position k; the two turn sensors reach the P-EN cells of one side each
-    (the left bridge half pushes the bump towards higher ring positions: see "shift" in research/atlas-a.md). Gains are parameters.
-  - the readout: 'heading' reads the 46 E-PG cells as a population vector, in ring order (the engine puts neuron k of 46 at 360 k / 46 degrees, while ring position r is at 22.5 r degrees; the two differ by up to about 10 degrees).
+  - how the task's input reaches the cells: the landmark (cue k) reaches the E-PG cells with heading k-1, k, k+1 (the `heading` field of compass.json, fitted to the wiring: see research/atlas-a.md 4c; both bridge halves, they interleave); the two turn sensors reach the P-EN cells of one side each
+    (measured by tools/connectome/compass_heading.py: the P-EN cells of the left half of the bridge move the bump towards higher heading, +0.63 headings on average, the right half towards lower, -0.6). Gains are parameters.
+  - the readout: 'heading' reads the 46 E-PG cells as a population vector, in heading order (the engine puts neuron k of 46 at 360 k / 46 degrees, while heading h is at 22.5 h degrees; the two differ by up to about 10 degrees).
 
 Usage:  python3 tools/connectome/compass_circuit.py out.json [--scale-EPG 0.3 ...]      (see DEFAULTS)
 """
@@ -25,7 +25,8 @@ POP = {"EPG": "EPG", "PEN_a(PEN1)": "PENa", "PEN_b(PEN2)": "PENb", "PEG": "PEG",
 SIGN = {"EPG": 1, "PENa": 1, "PENb": 1, "PEG": 1, "D7": -1}
 DEFAULTS = dict(scale_EPG=0.3, scale_PENa=0.3, scale_PENb=0.3, scale_PEG=0.3, scale_D7=0.3,   # pA per synapse
                 I_e=300.0, tau_syn_ex=5.0, tau_syn_in=5.0, delay=2.0,
-                cue_w=400.0, turn_w=3.0, turn_to="PEN",   # pA per spike (cue), pA per unit of turn sensor
+                cue_w=400.0, cue_width=1,   # cue_width: the cue for heading k drives the E-PG cells with heading within +-cue_width of k (both bridge halves)
+                 turn_w=3.0, turn_to="PEN",   # pA per spike (cue), pA per unit of turn sensor
                 sign_D7=-1, sign_PEN=1, sign_PEG=1, sign_EPG=1,
                 norm=0)   # 0 none, 1 incoming totals equalised, 2 outgoing totals equalised, 3 both (see normalise)
 WEDGES = 16
@@ -75,7 +76,7 @@ def build(p=None, data=None):
     epg = [i for i, n in enumerate(ns) if n["type"] == "EPG"]
     inputs = []
     for k in range(WEDGES):
-        idx = [local[i] for i in epg if ns[i]["ring"] == k]
+        idx = [local[i] for i in epg if abs((ns[i]["heading"] - k + 8) % 16 - 8) <= q["cue_width"]]
         inputs.append({"name": "cue%d" % k, "kind": "poisson", "targets": [{"pop": "EPG", "idx": idx}], "weight": q["cue_w"], "value": 0.0})
     def side_targets(side):
         t = []
@@ -83,10 +84,10 @@ def build(p=None, data=None):
             idx = [local[i] for i, n in enumerate(ns) if n["type"] == ty and n["side"] == side]
             t.append({"pop": pid, "idx": idx})
         return t
-    # the left half of the bridge: PEN > EPG goes to higher ring positions (see research/atlas-a.md), so turn_right (bump towards higher positions) drives the left cells
+    # the left half of the bridge: PEN > EPG goes to higher headings (compass_heading.py), so turn_right (bump towards higher positions) drives the left cells
     inputs.append({"name": "turn_left", "kind": "dc", "targets": side_targets("R"), "weight": q["turn_w"], "value": 0.0})
     inputs.append({"name": "turn_right", "kind": "dc", "targets": side_targets("L"), "weight": q["turn_w"], "value": 0.0})
-    epg_local = [local[i] for i in epg]   # data order = ring order (sorted by ring, side, id)
+    epg_local = [local[i] for i in epg]   # data order = heading order (sorted by heading, side, id)
     outputs = [{"name": "heading", "kind": "population_vector", "neurons": [{"pop": "EPG", "idx": epg_local}]}]
     return {"schema_version": 1, "name": "Fly compass from hemibrain v1.2 wiring (probe)", "resolution_ms": 0.1, "seed": 7, "populations": pops, "projections": proj,
             "inputs": inputs, "outputs": outputs, "record": {"spikes": "all"},

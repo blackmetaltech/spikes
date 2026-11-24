@@ -118,6 +118,17 @@ def ring_index(side, glom):
     return (8 - glom) % 16 if side == "L" else (7 + glom) % 16
 
 
+HEADING_SIGN, HEADING_OFFSET = -1, 3
+
+
+def heading_index(side, glom):
+    """Heading 0..15 (one step 22.5 deg) of a cell in bridge glomerulus (side, glom): right glomerulus g -> 2g, left glomerulus g -> (-2g + 3), both mod 16.
+    FITTED, not read from a paper: of the 32 mappings h_R = 2g, h_L = (s*2g + o) mod 16 (s = +-1, o = 0..15), this one has the highest synapse-weighted mean cosine of the heading
+    difference over E-PG > E-PG plus E-PG <> PEG connections (tools/connectome/compass_heading.py prints the scan). The two halves of the bridge then each cover the whole ring,
+    mirrored and interleaved (right: even headings, left: odd). The mirror direction and the zero of heading are arbitrary."""
+    return (2 * glom) % 16 if side == "R" else (HEADING_SIGN * 2 * glom + HEADING_OFFSET) % 16
+
+
 def extract_compass(neurons):
     ids = sorted(b for b, (t, _) in neurons.items() if t in COMPASS_TYPES)
     ns = []
@@ -126,11 +137,11 @@ def extract_compass(neurons):
         n = {"id": b, "type": t, "instance": inst}
         p = parse_pb(inst)
         if "glom" in p:
-            n["side"] = p["side"]; n["glomerulus"] = p["glom"]; n["ring"] = ring_index(p["side"], p["glom"])
+            n["side"] = p["side"]; n["glomerulus"] = p["glom"]; n["ring"] = ring_index(p["side"], p["glom"]); n["heading"] = heading_index(p["side"], p["glom"])
         else:
             n["soma_side"] = p["soma"]; n["glomeruli"] = p["glomeruli"]
         ns.append(n)
-    ns.sort(key=lambda n: (COMPASS_TYPES.index(n["type"]), n.get("ring", -1), n.get("side", ""), n["id"]))
+    ns.sort(key=lambda n: (COMPASS_TYPES.index(n["type"]), n.get("heading", -1), n.get("side", ""), n["id"]))
     index = {n["id"]: i for i, n in enumerate(ns)}
     conns = read_connections(set(index))
     conns = sorted((index[a], index[b], w) for a, b, w in conns)
@@ -211,8 +222,9 @@ def build(download=True):
     neurons = read_neurons()
     comp = extract_compass(neurons)
     mb = extract_mb(neurons)
-    ctab = {"source": source(sha, date), "format": "connections are [pre_index, post_index, synapse_count] into neurons; neurons sorted by (type, ring, side, id)",
-            "ring_note": "ring = 0..15 position along the protocerebral bridge, left to right (L g: 8-g, R g: 7+g, mod 16), one step 22.5 deg if the 16 glomeruli are the 16 ring positions; derived from the instance names, see ring_index() in tools/connectome/hemibrain.py",
+    ctab = {"source": source(sha, date), "format": "connections are [pre_index, post_index, synapse_count] into neurons; neurons sorted by (type, heading, side, id)",
+            "ring_note": "ring = 0..15 position along the protocerebral bridge, left to right (L g: 8-g, R g: 7+g, mod 16), one step 22.5 deg if the 16 glomeruli are the 16 ring positions; derived from the instance names, see ring_index() in tools/connectome/hemibrain.py; it is NOT the ring of headings (see heading_note)",
+            "heading_note": "heading = 0..15 (22.5 deg each), fitted to the wiring: right glomerulus g -> 2g, left glomerulus g -> (3 - 2g), mod 16; the scan over 32 mappings is tools/connectome/compass_heading.py; not taken from a paper; mirror direction and zero are arbitrary; ring (position along the bridge) is kept",
             "types": COMPASS_TYPES, "counts": counts(comp["neurons"], "type"), "n_connections": len(comp["connections"]),
             "neurons": comp["neurons"], "connections": comp["connections"]}
     mtab = {"source": source(sha, date), "format": "connections are [pre_index, post_index, synapse_count] into neurons; neurons sorted by (role, type, id); right hemisphere only (instance ends _R)",
@@ -257,7 +269,7 @@ The script is deterministic: neurons and connections are sorted, nothing random.
 ## compass.json: the head-direction circuit
 - Neurons: all neurons whose `type` is exactly one of: `EPG`, `PEN_a(PEN1)`, `PEN_b(PEN2)`, `PEG`, `Delta7` (the type strings of the file; the file also has `EPGt`, 4 neurons, which are not included).
 - Connections: every connection of the file with both ends in this set, with its synapse count. No threshold. {ctab["n_connections"]} connections.
-- Each neuron has body id, type, instance name. Instances look like `EPG(PB08)_L3` (type, tract, protocerebral-bridge glomerulus: side L or R and number), `Delta7(PB15)_L6R3_L` (glomeruli it covers, then the soma side). `ring` is the position along the protocerebral bridge from left to right, 0 to 15: left glomerulus g is at 8 - g, right glomerulus g at 7 + g, modulo 16 (E-PG sit in glomeruli 1 to 8 on each side, 16 in all; P-EN cells also sit in glomerulus 9, which wraps to the neighbour of the eighth glomerulus of the other side). The sixteen positions are taken as the sixteen ring positions (22.5 degrees each). The instance carries no ellipsoid-body wedge, so this order is derived by the script, not a field of the data. Support from the data: every Delta7 instance name lists glomeruli exactly eight positions apart (for example `L2R7` is positions 6 and 14), which is half a ring. Direction (clockwise or not) is arbitrary.
+- Each neuron has body id, type, instance name. Instances look like `EPG(PB08)_L3` (type, tract, protocerebral-bridge glomerulus: side L or R and number), `Delta7(PB15)_L6R3_L` (glomeruli it covers, then the soma side). `ring` is the position along the protocerebral bridge from left to right, 0 to 15: left glomerulus g is at 8 - g, right glomerulus g at 7 + g, modulo 16 (E-PG sit in glomeruli 1 to 8 on each side, 16 in all; P-EN cells also sit in glomerulus 9, which wraps to the neighbour of the eighth glomerulus of the other side). This is a position along the bridge and NOT the ring of headings: the E-PG to E-PG wiring has no ring structure in it (synapse-weighted mean cosine of the position difference -0.012). `heading` (0 to 15, 22.5 degrees each) is the ring coordinate: right glomerulus g is heading 2g, left glomerulus g is heading 3 - 2g, modulo 16, so each half of the bridge covers the whole ring, the two halves are mirrored and interleaved. The mapping is FITTED to the wiring, not taken from a paper: of the 32 mappings with right 2g and left s*2g + o, it has the highest mean cosine summed over E-PG to E-PG and E-PG to/from PEG (0.895 and 0.859; the scan is printed by `tools/connectome/compass_heading.py`). The instance carries no ellipsoid-body wedge. Mirror direction and the zero of heading are arbitrary. Neurons are sorted by (type, heading, side, id), so the E-PG cells are in heading order. The committed `compass.json` was rewritten from its own fields by `tools/connectome/add_heading.py` (adds `heading`, re-sorts, renumbers the connections); `hemibrain.py --check` against the raw export was NOT re-run after this change.
 
 | type | neurons |
 |---|---|
