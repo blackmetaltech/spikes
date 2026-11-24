@@ -414,6 +414,93 @@ With the synapse floor 3 the shortest class-level routes from the head touch cel
 
 The B-type rate is 0 in every run. The outcome for AVB is not clear-cut and the gap between AVB (up to 5.78 Hz) and AVE (down to 7.14 Hz) is too narrow for a threshold between them, so `a_predict` offers four classes and leaves AVB out, and says so. The reference of `a_path` passes on 60 of 60 seeds.
 
+## 4c. Directed search and normalisation (A3)
+
+Question: is the failure of section 4 a drift to a preferred place, does a parameter-free normalisation of the wiring rescue the bump, and does a directed search find a setting that holds? Tools: `compass_circuit.py` (option `norm`), `compass_drift.py`, `compass_opt.py`, `compass_summary.py`. Runs on GitHub runners: 45276642579 (drift test and three random searches with normalisation) and 45279671084 (evolution strategy, 20 jobs). The tables are printed by those scripts.
+
+### Drift test
+
+The search of section 4 (`pairs=1`, rng seeds 200 to 207, 1,000 draws each) was re-created; per seed the three draws with the strongest late bump inside the rate band (cue at position 10) were kept, 24 draws in all (the brief asked for 20). Each was run at all 16 cue positions for 6,000 ms. Table: the angle of the E-PG population vector in 5,500 to 6,000 ms, in degrees, for cues 0 to 15 (- = silent); then R (length of the mean vector of the angles over the cues: 1 means one place for every cue) and the number of cues whose angle is within 30 degrees of the cue, in the windows cue (300-500 ms), 700-1000, 1500-2000, 3000-3500, 5500-6000; then the mean of the late angles and the mean late strength.
+
+```
+id  seed  | late (5500-6000) angle by cue 0..15 | R and follow per window: cue, 700, 1500, 3000, 5500   | late mean-angle  late-strength
+0   200   | 163 163 164 164 163 163 163 163 163 164 164 163 163 163 164 164 | 0.14/16 1.00/3 1.00/3 1.00/3 1.00/3 | 163 0.99
+1   200   | 174 174 174 175 174 174 174 174 174 174 174 174 174 174 174 174 | 0.05/16 1.00/3 1.00/3 1.00/3 1.00/3 | 174 0.93
+2   200   | 183 183 183 183 183 183 184 183 184 183 183 183 184 183 182 182 | 0.23/15 1.00/3 1.00/3 1.00/3 1.00/3 | 183 0.76
+3   201   | 168 168 168   - 168 168 168 168 168 168 168 168 168 168 168 168 | 0.00/16 0.94/4 1.00/3 1.00/2 1.00/2 | 168 0.92
+4   201   | 181 181 181 182 181 181 180 180 181 182 181 181 181 180 181 180 | 0.09/16 1.00/3 1.00/3 1.00/3 1.00/3 | 181 0.82
+5   201   | 193 189 193 198 196 197 193 182 182 184 176 175 187 194 187 192 | 0.19/16 1.00/2 0.99/3 1.00/3 0.99/3 | 189 0.59
+6   202   | 169 164 178 170 164 175 179 178 176 179 169 173 176 179 178 172 | 0.22/16 1.00/3 0.99/3 0.99/2 1.00/3 | 174 0.88
+7   202   | 184 183 184 180 182 183 180 181 180 182 183 184 181 182 182 180 | 0.06/16 1.00/3 1.00/3 1.00/3 1.00/3 | 182 0.78
+8   202   | 180 180 180 180 180 180 181 181 180 180 180 180 180 180 180 181 | 0.06/16 1.00/3 1.00/3 1.00/3 1.00/3 | 180 0.88
+9   203   | 190 190 190 189 190 190 190 190 190 191 190 191 190 190 190 190 | 0.11/16 1.00/2 1.00/2 1.00/2 1.00/2 | 190 0.60
+10  203   | 168 167 170 169 168 168 167 167 168 166 170 168 167 168 168 167 | 0.01/16 1.00/2 1.00/2 1.00/2 1.00/2 | 168 0.58
+11  203   | 194 193 194 194 194 194 193 194 194 193 194 193 193 194 194 193 | 0.24/16 1.00/2 1.00/2 1.00/2 1.00/2 | 194 0.46
+12  204   | 167 167 167 167 167 167 167 167 167 167 167 167 167 167 167 167 | 0.09/16 0.99/3 1.00/2 1.00/2 1.00/2 | 167 0.98
+13  204   | 168 168 168 168 168 168 168 168 168 168 168 168 168 168 168 168 | 0.01/16 1.00/2 1.00/2 1.00/2 1.00/2 | 168 0.98
+14  204   | 174 174 177 174 179 173 174 172 177 176 170 175 178 175 174 174 | 0.04/16 1.00/2 1.00/3 1.00/3 1.00/3 | 175 0.90
+15  205   | 167 167 165 166 165 167 167 167 166 167 168 168 166 168 168 167 | 0.05/16 1.00/2 1.00/2 1.00/2 1.00/2 | 167 0.84
+16  205   | 179 187 184 187 179 187 189 180 182 182 185 190 184 187 185 184 | 0.19/16 1.00/3 1.00/3 1.00/3 1.00/3 | 184 0.77
+17  205   | 180 179 180 178 180 180 179 180 180 180 180 181 180 180 181 180 | 0.00/16 1.00/3 1.00/3 1.00/3 1.00/3 | 180 0.77
+18  206   | 167 167 167 167 167 167 167 167 168 167 167 167 167 167 167 167 | 0.11/16 1.00/2 1.00/2 1.00/2 1.00/2 | 167 0.98
+19  206   | 171 171 171 172 170 171 170 171   -   - 171 171 171 172 171 170 | 0.01/16 1.00/1 1.00/1 1.00/1 1.00/1 | 171 0.82
+20  206   | 188 184 184 183 182 180 186 186 182 183 183 181 181 184 186 183 | 0.14/16 1.00/2 1.00/3 1.00/3 1.00/3 | 183 0.78
+21  207   | 178 179 179 179 179 180 178 179 178 179 178 178 179 178 178 180 | 0.07/16 1.00/3 1.00/3 1.00/3 1.00/3 | 179 0.89
+22  207   | 167 167 167 168 168 168 167 168 167 168 167 167 168 168 167 167 | 0.00/16 1.00/2 1.00/2 1.00/2 1.00/2 | 168 0.83
+23  207   | 183 185 186 181 180 181 176 184 183 183 182 185 182 184 179 182 | 0.06/16 1.00/3 1.00/3 1.00/3 1.00/3 | 182 0.81
+```
+
+Means over the draws: cue    R 0.09  follow 16.0; w700   R 1.00  follow 2.5; w1500  R 1.00  follow 2.6; w3000  R 1.00  follow 2.5; w5500  R 1.00  follow 2.5. Late angles binned to the 16 ring positions: 22 of 24 draws use one position for all active cues, 2 use two; the position is 7 (ring angle 157.5 degrees), 8 (180) or, once, 9 (202.5). Moves:
+
+```
+drift test, 24 draws x 16 cues: mean move cue window (300-500 ms) to 700-1000 ms: 84.2 deg (largest single 179.8 deg), over 0.45 s between window centres = 187 deg/s; mean move 700-1000 ms to 5500-6000 ms: 3.88 deg
+```
+
+So the bump goes to one resting place within a few hundred ms after the cue ends and stays there (about 4 degrees of further movement from 0.7 to 5.5 s). The cue only decides it when it happens to be put at the resting place (2 or 3 of 16 cues). The resting place is ring positions 7 to 8, the two glomeruli next to the midline of the bridge in the derived ring order.
+
+### Normalisation
+
+`norm=1`: for each ordered pair of cell types, the incoming synapse counts of each post cell are rescaled so that every post cell of that type receives the same total from that pre type (the mean over cells that receive any); `norm=2`: the same for the outgoing totals per pre cell; `norm=3`: the two alternated 30 times. The sum over the pair and the set of connected cells are unchanged. The table of counts has ratios of largest to smallest incoming total per pair up to 29 (outgoing 27); after `norm=1` incoming 1.0 (outgoing 19.5), `norm=2` outgoing 1.0 (incoming 16.5), `norm=3` outgoing 1.0 and incoming up to 6.0.
+
+Random search as in section 4 (`pairs=1`, 4,000 draws per setting, cues 2 and 10, circuit seed 7; draws passing both go to 4 cues x 2 seeds; none did):
+
+```
+norm    draws   trials   silent  in band   satur.  band,str>.5 band,err<30  held both  held one
+norm1    4000     8000   0.8020   0.0495   0.1485            0         77          0         0
+norm2    4000     8000   0.8000   0.0470   0.1530           30         54          0         0
+norm3    4000     8000   0.8001   0.0456   0.1542            0         47          0         0
+```
+
+Without normalisation the same search found 79.3 per cent silent, 15.0 per cent saturated, 5.7 per cent in band (section 4); normalisation changes none of these shares by more than about one point. No draw held a bump at both cues, with any of the three.
+
+### Directed search
+
+`compass_opt.py`: (mu + lambda) evolution strategy, mu 8, lambda 32, start from the best 32 of 128 random draws, self-adapted log-normal steps on the 19 pair scales and 5 population currents, 42 minutes per job (102 to 271 generations), five seeds for each of norm 0 to 3. Score as in the docstring (1.0 perfect; rate in band, strength, spikes near the peak, angular error, over cues 2, 6, 10, 14). Individuals with all four cues held on seed 7 are re-run on seed 8; the best three of each run were then checked on circuit seeds 101 to 105 and all 16 cues.
+
+```
+evolution runs (5 seeds per norm; (mu + lambda) = 8 + 32; 42 min each). best score by generation, then the check of the best three of each seed
+norm  seeds best score gen 0 (min-max)   best score last gen (min-max) gens     max cues held of 16 (one seed), best three of every seed
+0         5 0.443 - 0.707             0.770 - 0.811             143-271   3 (mean 1.60)
+1         5 0.449 - 0.523             0.586 - 0.820             190-249   3 (mean 0.08)
+2         5 0.416 - 0.640             0.784 - 0.818             146-258   3 (mean 1.92)
+3         5 0.379 - 0.479             0.549 - 0.809             102-203   2 (mean 0.35)
+
+```
+
+No individual in any of the 20 runs held at all four cues on seed 7 (so none reached the two-seed test). The scores plateau near 0.81 for norm 0 and 2 (and for single runs of norm 1 and 3), which is what a bump that is in band, strong and compact but at the cue for only part of the cues gives. On the 16-cue check the best individuals held 2 or 3 of 16 cues per seed, the cues next to the resting place. Nothing passes on seeds 101 to 105, so no parameter file was saved to `data/connectome/hemibrain/`.
+
+### Conclusion
+
+(a) Yes, the failure is a drift to a preferred place. For 24 of the best draws of the previous search, every cue ends within about 20 degrees of one angle (163 to 194 degrees), and the move from the cue's position happens within about 0.5 s of the cue (mean 84 degrees, up to 180); afterwards it hardly moves (3.9 degrees mean from 0.7 to 5.5 s). The resting place is at the bridge midline, ring positions 7 to 8.
+
+(b) No. Equalising incoming totals (norm 1), outgoing totals (norm 2) or both (norm 3) leaves the shares of silent, in-band and saturated trials where they were and no draw holds at two cues (12,000 draws). The evolution strategy with norm 2 reaches the same plateau as without, with norm 1 or 3 it is worse in most runs. The assumption that rescales the counts is therefore not enough; whether the resting place is a property of the derived ring order, of the cell counts per position (46 E-PG cells over 16 positions) or of the missing cell-level inputs is not separated here.
+
+(c) The best setting found holds a bump at 2 or 3 of 16 cues; it does not pass on seeds 101 to 105 and is not saved.
+
+(d) Recommendation: do not build the A3 compass level on the claim that the measured wiring holds a heading. Build it on the drift: the player sees that the measured wiring forms one bump and lets it slide to one place, and the level's task is what has to be added to hold it (the open list says what the table lacks). Within the limits below.
+
+Not tested: other cell models or synaptic dynamics (conductance-based, long synaptic time constants beyond 15 ms); signs other than the assumed ones; a different ring order, a per-cell background current, or noise; cue strength and duration; longer evolution runs or a different optimiser; a per-cell gene set (only 19 pair scales and 5 currents were free). The drift test used 24 draws, one per cue and seed, with a 500 ms cue; the drift speed of 187 degrees per second is a mean over the cue-to-window move and a lower bound on the move speed, since the bump may arrive earlier than 700 ms.
+
 ## 5. Sources
 
 Only the eleven verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.
@@ -438,5 +525,6 @@ The record of each paper in the PubMed database was read on 2026-11-23 (PMIDs 32
 
 - Transmitter and sign of E-PG, P-EN, P-EG and Delta7 (the script assumes the first three excitatory and Delta7 inhibitory): the abstracts of the verified papers do not state them; the full text of Turner-Evans et al. 2020 may.
 - Which half of the bridge moves the bump in which direction for a given turn: no abstract states it.
-- Whether the late bump of the compass probe rests at one fixed place for every cue (section 4): not tested directly.
+- Whether the resting place of the late bump (ring positions 7 to 8, section 4c) is a property of the real circuit or of the derived ring order, the cell counts per position and the missing inputs: not separated.
+- Which input, absent from the wiring table (a per-cell background, a cue-dependent gain, a different cell model), would let the measured wiring hold a bump: not found by 20 evolution runs and 12,000 normalised draws.
 - That the derived ring order (bridge position as the ring) corresponds to the physiological ring: the table supports only the half-ring spacing of Delta7 glomeruli.
