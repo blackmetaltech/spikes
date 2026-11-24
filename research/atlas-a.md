@@ -297,6 +297,8 @@ Also not in the tables: the ellipsoid-body wedge of each cell (the ring order is
 
 ## 4. Feasibility probe of the compass on real wiring (iteration A1)
 
+**Superseded in part: the ring coordinate used in this section (bridge position) is wrong; see the coordinate finding in 4c. The results below were made in that coordinate and are kept for the record, not as evidence about the wiring.**
+
 Question: does the measured compass wiring hold a bump where a cue put it, when the circuit is given one sign per cell type and gains per type or per type pair?
 
 Answer so far: no. Two random searches found no setting that does. The wiring does form a compact bump, but the bump does not stay where the cue put it.
@@ -416,9 +418,139 @@ The B-type rate is 0 in every run. The outcome for AVB is not clear-cut and the 
 
 ## 4c. Directed search and normalisation (A3)
 
-Question: is the failure of section 4 a drift to a preferred place, does a parameter-free normalisation of the wiring rescue the bump, and does a directed search find a setting that holds? Tools: `compass_circuit.py` (option `norm`), `compass_drift.py`, `compass_opt.py`, `compass_summary.py`. Runs on GitHub runners: 45276642579 (drift test and three random searches with normalisation) and 45279671084 (evolution strategy, 20 jobs). The tables are printed by those scripts.
+### The coordinate finding
 
-### Drift test
+The probe of section 4 and the first runs of this section took the 16 glomeruli of the protocerebral bridge, left to right, as 16 ring positions (`ring` in `compass.json`). That coordinate is wrong for the wiring: it gives the E-PG to E-PG connections no ring structure. `tools/connectome/compass_heading.py` scores a coordinate by the synapse-weighted mean of cos(22.5 degrees x heading difference) over connections (1 = synapses join cells of equal heading, about 0 = unrelated) and scans 32 mappings: right glomerulus g to heading 2g, left glomerulus g to (s*2g + o) mod 16, s = +1 or -1, o = 0 to 15. Delta7 cells have two glomeruli and are left out. Rule: the highest E-PG>E-PG plus E-PG<>PEG. Printed:
+
+```
+s   o    EPG>EPG  EPG<>PEG  EPG>PEN      rule
++1  0      0.391     0.780    0.452     1.171
++1  1      0.391     0.780    0.452     1.171
++1  2      0.396     0.777    0.455     1.173
++1  3      0.403     0.771    0.461     1.175
++1  4      0.413     0.765    0.469     1.177
++1  5      0.422     0.758    0.479     1.180
++1  6      0.431     0.751    0.488     1.182
++1  7      0.437     0.747    0.495     1.184
++1  8      0.440     0.745    0.499     1.185
++1  9      0.440     0.745    0.499     1.185
++1  10     0.435     0.748    0.496     1.184
++1  11     0.428     0.754    0.490     1.182
++1  12     0.419     0.760    0.482     1.179
++1  13     0.409     0.767    0.472     1.176
++1  14     0.400     0.774    0.463     1.174
++1  15     0.394     0.778    0.456     1.172
+-1  0      0.592     0.775    0.269     1.368
+-1  1      0.750     0.812    0.389     1.562
+-1  2      0.856     0.841    0.522     1.697
+-1  3      0.895     0.859    0.648     1.754
+-1  4      0.862     0.861    0.747     1.723
+-1  5      0.760     0.849    0.806     1.609
+-1  6      0.606     0.823    0.813     1.429
+-1  7      0.423     0.789    0.770     1.212
+-1  8      0.239     0.750    0.681     0.989
+-1  9      0.081     0.713    0.562     0.795
+-1  10    -0.025     0.684    0.429     0.659
+-1  11    -0.064     0.667    0.303     0.602
+-1  12    -0.030     0.664    0.204     0.633
+-1  13     0.071     0.676    0.145     0.747
+-1  14     0.225     0.702    0.138     0.927
+-1  15     0.408     0.736    0.181     1.145
+current `ring` (position along the bridge): EPG>EPG -0.012  EPG<>PEG 0.751  EPG>PEN 0.346  rule 0.739
+best by the rule: s=-1 o=3 (1.754); next: s=-1 o=4 (1.723); best with s=+1: o=8 (1.185)
+
+```
+
+The mapping chosen is s = -1, o = 3: right glomerulus g is heading 2g, left glomerulus g is heading 3 - 2g (mod 16). Each half of the bridge then covers the whole ring, the two halves are mirrored and interleaved (right: even headings, left: odd). Every mapping with s = +1 scores at most 1.185 on the rule, against 1.754. The mapping is fitted to the wiring, not taken from a paper; its mirror direction and its zero are arbitrary. `compass.json` now has a `heading` field and is sorted by heading (so the E-PG cells are in heading order); `ring` is kept and is the position along the bridge (`PROVENANCE.md`). `hemibrain.py --check` against the raw export was not re-run.
+
+**Turn shifts**, from the same script (for each P-EN cell: the weighted circular mean heading of its E-PG targets minus that of its E-PG inputs, in headings of 22.5 degrees, mean over the cells of the group):
+
+```
+turn shifts under the chosen mapping (s=-1, o=3); a positive shift moves the bump to higher heading indices
+type         side  cells   mean shift      range
+PEN_a(PEN1)  L        10     +0.63 hd  +0.1..+1.1
+PEN_a(PEN1)  R        10     -0.58 hd  -0.8..-0.0
+PEN_b(PEN2)  L        11     +0.63 hd  +0.1..+1.0
+PEN_b(PEN2)  R        11     -0.61 hd  -0.9..-0.0
+```
+
+The P-EN cells of the left half of the bridge move the bump towards higher heading (+0.63 headings, about 14 degrees), those of the right half towards lower (-0.6), for both P-EN types. That is the direction the probe already assumed (`turn_right` drives the left cells), so the turn wiring is unchanged; it now rests on this table. What a turn does to the physiological heading is still not read from a paper.
+
+The probe was reworked on the heading: the cue for heading k drives the E-PG cells with heading k-1, k, k+1 (8 to 9 cells, both halves), and the readout bins E-PG spikes by heading.
+
+### Results on the heading coordinate
+
+Runs 45305060631 (searches and evolution), 45309446774 (16-cue checks of 11 settings), 45309843671 (turn-gain sweeps). Printed by `compass_summary2.py`:
+
+```
+random searches (stage 1: cues 2 and 10, circuit seed 7)
+search          draws  silent    band   satur.  held 2 held 1 cue   stage 2
+scale per type   8000   0.757   0.066    0.177       0          7         0
+scale per pair   8000   0.788   0.056    0.156       0         12         0
+
+evolution strategy (mu + lambda = 8 + 32, 30 min per run)
+run             gens best score first->last held 4 cues  held 8 of 8
+opt_n0_12        140 0.516 -> 0.926               no           no
+opt_n0_13        184 0.517 -> 0.810               no           no
+opt_n0_14         96 0.576 -> 0.956              yes       gen 29
+opt_n0_15        153 0.464 -> 0.896               no           no
+opt_n2_16        170 0.000 -> 0.812               no           no
+opt_n2_17        133 0.419 -> 0.939              yes       gen 62
+opt_n2_18        107 0.446 -> 0.946              yes        gen 7
+opt_n2_19        145 0.481 -> 0.938               no           no
+```
+
+Random search finds no setting that holds at two cues in the heading coordinate either: the shares of silent, in-band and saturated trials are about what they were, and 7 and 12 draws held at one cue. The evolution strategy does: three of eight runs produced individuals that hold at all four cues on circuit seeds 7 and 8, the first one at generation 7, 29 and 62. The best and the individuals holding at 8 of 8 trials of each run were then checked (`compass_final.py`; `tools/connectome/compass_candidates.jsonl` holds their parameters):
+
+```
+finalists: held of 16 cues on circuit seeds 101..105; places = distinct late angles (rounded to 10 deg, cue-independent bumps) over the 16 cues at seed 101; drift; turn effect (deg/s; right sign: -20 negative, +20 positive)
+ 1 opt_n0_14.jsonl best score of the run                score 0.956  held [13, 11, 12, 11, 11] (58 of 80)  failing cues [7, 8, 9, 10, 11, 12]  places [40, 80, 130, 230, 300, 350]  drift -1.54 deg/s (mean |v| 1.57)
+ 2 opt_n0_14.jsonl best of the individuals held at 8 of 8 trials score 0.956  held [12, 13, 12, 13, 12] (62 of 80)  failing cues [8, 9, 10, 11]  places [40, 80, 130, 300, 350]  drift -0.51 deg/s (mean |v| 0.55)
+ 3 opt_n2_18.jsonl best score of the run                score 0.946  held [10, 11, 11, 11, 10] (53 of 80)  failing cues [3, 7, 8, 12, 13, 14]  places [0, 40, 110, 230]  drift -0.03 deg/s (mean |v| 0.10)
+ 4 opt_n2_18.jsonl best of the individuals held at 8 of 8 trials score 0.946  held [11, 11, 11, 11, 10] (54 of 80)  failing cues [3, 7, 8, 12, 13, 14]  places [0, 40, 110, 120, 230, 310]  drift -0.01 deg/s (mean |v| 0.10)
+ 5 opt_n2_17.jsonl best score of the run                score 0.939  held [11, 12, 12, 12, 12] (59 of 80)  failing cues [1, 2, 9, 13, 14]  places [90, 130, 170, 250, 340]  drift 0.67 deg/s (mean |v| 0.69)
+ 6 opt_n2_19.jsonl best score of the run                score 0.938  held [11, 12, 12, 12, 12] (59 of 80)  failing cues [0, 12, 13, 14, 15]  places [30, 90, 130, 230]  drift 3.11 deg/s (mean |v| 3.25)
+ 7 opt_n2_17.jsonl best of the individuals held at 8 of 8 trials score 0.938  held [15, 14, 13, 15, 14] (71 of 80)  failing cues [2, 13, 14]  places [40, 90, 130, 170, 250, 340]  drift -0.03 deg/s (mean |v| 0.05)
+ 8 opt_n0_12.jsonl best score of the run                score 0.926  held [10, 11, 10, 11, 11] (53 of 80)  failing cues [5, 7, 8, 9, 10, 11]  places [40, 80, 130, 290, 340]  drift -0.00 deg/s (mean |v| 0.06)
+ 9 opt_n0_15.jsonl best score of the run                score 0.896  held [8, 8, 7, 7, 8] (38 of 80)  failing cues [0, 1, 2, 3, 4, 5, 9, 12, 15]  places [150, 160, 170, 220, 230, 300]  drift 0.42 deg/s (mean |v| 0.51)
+10 opt_n2_16.jsonl best score of the run                score 0.812  held [2, 3, 3, 3, 3] (14 of 80)  failing cues [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]  places [20, 30]  drift 0.01 deg/s (mean |v| 0.20)
+11 opt_n0_13.jsonl best score of the run                score 0.810  held [2, 2, 1, 2, 2] (9 of 80)  failing cues [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]  places [30]  drift -0.02 deg/s (mean |v| 0.12)
+```
+
+None holds at all 16 cues on all of seeds 101 to 105 (the best, no. 7, 71 of 80 trials, failing at cues 2, 13 and 14). The late angles of the finalists sit at a few places 40 to 80 degrees apart (the `places` column), and a cue is held when it lies within 30 degrees of one: the attractor is a set of discrete places, not a continuous ring. Drift is small (no. 7: -0.03 degrees per second, mean absolute 0.05, over 1.5 to 5.5 s at seed 101; the best five are under 1.6).
+
+**Turn.** Turn-gain sweeps (a constant turn current of turn_w pA per unit on the P-EN cells of one half of the bridge, 20 units, 6 s; the effect is the late angle minus the late angle without turn):
+
+```
+turn-gain sweeps (compass_turn.py; effect of asym -20 / +20 on the late angle in degrees at cues 2, 6, 10, 14; right sign: negative / positive)
+candidate 1 (opt_n0_14.jsonl best score of the run)
+turn_w  effect of -20 by cue 2,6,10,14 (deg) effect of +20 by cue 2,6,10,14 (deg) late strength / rate at asym 0, mean
+1       [-1, 0, -1, 0]                 [0, 0, 99, 0]                  0.92 / 19.5 Hz
+3       [-1, -2, -3, -1]               [2, 0, 99, 1]                  0.92 / 21.8 Hz
+10      [4, 1, 1, 2]                   [1, -32, -32, -19]             0.89 / 30.0 Hz
+30      [19, 19, 19, 155]              [159, -7, -8, -65]             0.84 / 42.7 Hz
+100     [41, 35, 35, 41]               [-95, -101, -100, -95]         0.38 / 69.4 Hz
+```
+
+Turning does not work in any setting found. At the evolved gain (1) the bump does not move (effects 0 to 3 degrees); at higher gains it either does not move, jumps by 30 to 100 degrees with signs that do not follow the turn, or, at gain 30 to 100, the activity saturates (rate 40 to 100 Hz) and loses its bump (strength down to 0.06). The evolution strategy had no turn term in its score and turn_w was fixed at 1.
+
+### Conclusion
+
+(a) The earlier failure was mainly the coordinate. The old runs are kept below for the record and are not evidence about the wiring. (That resting place at ring positions 7 to 8 may be the bump moving to one of the discrete places of the heading ring, read in the wrong coordinate; not tested.)
+
+(b) Normalisation was not needed: of the three runs that found holding individuals, two were without it (norm 0) and one with norm 2 (outgoing totals equalised per cell and type pair); the 16-cue results are no better with it (no. 7 uses norm 2; no. 2 with norm 0 holds 62 of 80). The random searches were run without normalisation. The exact assumption of the best setting (no. 7): norm 2, one scale per type pair, one current per population, turn_w 1; the parameters are in `compass_candidates.jsonl`.
+
+(c) The best setting holds at 71 of 80 (cue, seed) trials on seeds 101 to 105, not all 16 cues. It does not meet the exit criterion and no parameter file was saved to `data/connectome/hemibrain/`.
+
+(d) Recommendation: the measured wiring, in the heading coordinate, can hold a bump with fitted gains (drift well under 1 degree per second, at discrete places 40 to 80 degrees apart), but only after a directed search (no random draw of 16,000 did it), and it does not yet turn. A level can say that holding is a property of the gains and the wiring together; it should not offer turning from this wiring until a search that includes the turn (a turn term in the score and a free turn gain) has found a setting. That search is the next step.
+
+Not tested: a search with a turn term and a free turn gain; the evolved settings under a cue of other strength or length; other cell models; signs other than the assumed ones; a continuous attractor (the places are discrete here); `hemibrain.py --check` after the heading change; more than 8 evolution runs of 30 minutes.
+
+### 4c-old. Directed search and normalisation in the bridge coordinate (kept for the record)
+
+**These runs used the bridge position as the ring and so say nothing about the wiring (see the coordinate finding above).** Question: is the failure of section 4 a drift to a preferred place, does a parameter-free normalisation of the wiring rescue the bump, and does a directed search find a setting that holds? Tools: `compass_circuit.py` (option `norm`), `compass_drift.py`, `compass_opt.py`, `compass_summary.py`. Runs on GitHub runners: 45276642579 (drift test and three random searches with normalisation) and 45279671084 (evolution strategy, 20 jobs). The tables are printed by those scripts.
+
+#### Drift test
 
 The search of section 4 (`pairs=1`, rng seeds 200 to 207, 1,000 draws each) was re-created; per seed the three draws with the strongest late bump inside the rate band (cue at position 10) were kept, 24 draws in all (the brief asked for 20). Each was run at all 16 cue positions for 6,000 ms. Table: the angle of the E-PG population vector in 5,500 to 6,000 ms, in degrees, for cues 0 to 15 (- = silent); then R (length of the mean vector of the angles over the cues: 1 means one place for every cue) and the number of cues whose angle is within 30 degrees of the cue, in the windows cue (300-500 ms), 700-1000, 1500-2000, 3000-3500, 5500-6000; then the mean of the late angles and the mean late strength.
 
@@ -458,7 +590,7 @@ drift test, 24 draws x 16 cues: mean move cue window (300-500 ms) to 700-1000 ms
 
 So the bump goes to one resting place within a few hundred ms after the cue ends and stays there (about 4 degrees of further movement from 0.7 to 5.5 s). The cue only decides it when it happens to be put at the resting place (2 or 3 of 16 cues). The resting place is ring positions 7 to 8, the two glomeruli next to the midline of the bridge in the derived ring order.
 
-### Normalisation
+#### Normalisation
 
 `norm=1`: for each ordered pair of cell types, the incoming synapse counts of each post cell are rescaled so that every post cell of that type receives the same total from that pre type (the mean over cells that receive any); `norm=2`: the same for the outgoing totals per pre cell; `norm=3`: the two alternated 30 times. The sum over the pair and the set of connected cells are unchanged. The table of counts has ratios of largest to smallest incoming total per pair up to 29 (outgoing 27); after `norm=1` incoming 1.0 (outgoing 19.5), `norm=2` outgoing 1.0 (incoming 16.5), `norm=3` outgoing 1.0 and incoming up to 6.0.
 
@@ -473,7 +605,7 @@ norm3    4000     8000   0.8001   0.0456   0.1542            0         47       
 
 Without normalisation the same search found 79.3 per cent silent, 15.0 per cent saturated, 5.7 per cent in band (section 4); normalisation changes none of these shares by more than about one point. No draw held a bump at both cues, with any of the three.
 
-### Directed search
+#### Directed search
 
 `compass_opt.py`: (mu + lambda) evolution strategy, mu 8, lambda 32, start from the best 32 of 128 random draws, self-adapted log-normal steps on the 19 pair scales and 5 population currents, 42 minutes per job (102 to 271 generations), five seeds for each of norm 0 to 3. Score as in the docstring (1.0 perfect; rate in band, strength, spikes near the peak, angular error, over cues 2, 6, 10, 14). Individuals with all four cues held on seed 7 are re-run on seed 8; the best three of each run were then checked on circuit seeds 101 to 105 and all 16 cues.
 
@@ -489,7 +621,7 @@ norm  seeds best score gen 0 (min-max)   best score last gen (min-max) gens     
 
 No individual in any of the 20 runs held at all four cues on seed 7 (so none reached the two-seed test). The scores plateau near 0.81 for norm 0 and 2 (and for single runs of norm 1 and 3), which is what a bump that is in band, strong and compact but at the cue for only part of the cues gives. On the 16-cue check the best individuals held 2 or 3 of 16 cues per seed, the cues next to the resting place. Nothing passes on seeds 101 to 105, so no parameter file was saved to `data/connectome/hemibrain/`.
 
-### Conclusion
+#### Conclusion
 
 (a) Yes, the failure is a drift to a preferred place. For 24 of the best draws of the previous search, every cue ends within about 20 degrees of one angle (163 to 194 degrees), and the move from the cue's position happens within about 0.5 s of the cue (mean 84 degrees, up to 180); afterwards it hardly moves (3.9 degrees mean from 0.7 to 5.5 s). The resting place is at the bridge midline, ring positions 7 to 8.
 
@@ -524,7 +656,7 @@ The record of each paper in the PubMed database was read on 2026-11-23 (PMIDs 32
 ## Open: needs a source
 
 - Transmitter and sign of E-PG, P-EN, P-EG and Delta7 (the script assumes the first three excitatory and Delta7 inhibitory): the abstracts of the verified papers do not state them; the full text of Turner-Evans et al. 2020 may.
-- Which half of the bridge moves the bump in which direction for a given turn: no abstract states it.
-- Whether the resting place of the late bump (ring positions 7 to 8, section 4c) is a property of the real circuit or of the derived ring order, the cell counts per position and the missing inputs: not separated.
-- Which input, absent from the wiring table (a per-cell background, a cue-dependent gain, a different cell model), would let the measured wiring hold a bump: not found by 20 evolution runs and 12,000 normalised draws.
-- That the derived ring order (bridge position as the ring) corresponds to the physiological ring: the table supports only the half-ring spacing of Delta7 glomeruli.
+- Which half of the bridge moves the bump in which direction for a given turn: the wiring gives it (left half towards higher heading, section 4c); no verified paper statement.
+- The discrete places (40 to 80 degrees apart) of the held bump in section 4c: whether the real circuit has a continuous attractor that the fitted gains and the point neurons only approximate, or discrete places: not separated.
+- Which setting of the gains lets the measured wiring hold a bump at all 16 cues and turn it: the best found holds 71 of 80 (cue, seed) trials and does not turn; a search with a turn term is the next step.
+- The ring order is now answered by the scan of section 4c: the wiring supports the heading mapping right 2g, left 3 - 2g (mod 16), two interleaved mirrored copies. That this is the physiological ring is not claimed; the mirror direction and the absolute zero of heading are arbitrary.
