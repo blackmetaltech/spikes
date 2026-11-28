@@ -57,7 +57,7 @@ inline std::vector< int > cues_or( std::vector< int > def )
   return r;
 }
 inline const std::vector< int >& signs_cues() { static const std::vector< int > c = cues_or( { 4, 11, 6, 15, 8 } ); return c; }
-inline const std::vector< int >& gain_cues() { static const std::vector< int > c = cues_or( { 4, 11 } ); return c; }
+inline const std::vector< int >& gain_cues() { static const std::vector< int > c = cues_or( { 4, 12 } ); return c; }
 inline const std::vector< int >& places_cues()
 {
   static const std::vector< int > c = cues_or( { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 } );

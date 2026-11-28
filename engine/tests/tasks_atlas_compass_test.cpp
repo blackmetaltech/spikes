@@ -375,8 +375,8 @@ void test_places()
 }
 
 // ---------------------------------------------------------------- 5. a_gain
-/// What the measurements of research/atlas-a.md 4d say about the Delta7 scale at the cues of a_gain: the bump holds from 0.30 up to the top of the range, except in a narrow notch (0.48 to 0.52).
-bool gain_holds( double v ) { return v >= 0.30 - 1e-9 and not( v > 0.475 and v < 0.525 ); }
+/// What the measurements of research/atlas-a.md 4d say about the Delta7 scale at the cues of a_gain: the bump holds from 0.30 up to the top of the range, and from 0.25 down it does not.
+bool gain_holds( double v ) { return v >= 0.30 - 1e-9; }
 
 void test_gain()
 {
@@ -399,7 +399,7 @@ void test_gain()
       no_digit( "a_gain verdict", r.verdict );
       passes += r.passed ? 1 : 0;
       CHECK_MSG( r.passed == gain_holds( v ), "scale " + std::to_string( v ) + " seed " + std::to_string( seed ) + ": " + r.verdict );
-      if ( not r.passed ) CHECK_MSG( r.verdict.find( "outside the range" ) != std::string::npos, "the verdict says the inhibition is out of range: " + r.verdict );
+      if ( not r.passed ) CHECK_MSG( r.verdict.find( "too weak" ) != std::string::npos, "the verdict says the inhibition is too weak: " + r.verdict );
     }
     std::printf( "  scale %.2f: %d of %zu pass\n", v, passes, seeds.size() );
   }
