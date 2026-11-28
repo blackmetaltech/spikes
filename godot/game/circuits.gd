@@ -367,7 +367,7 @@ static func pop_n(p: Dictionary) -> int: return maxi(1, int(p.get("n", 1)))
 ## The sizes the "neurons in group" stepper offers. Every group size a reference circuit uses is in it (a ring of sixteen, the 200 Kenyon cells), so a player can build
 ## what the level asks for; godot/tests/test_editor.gd checks that against godot/circuits. A group whose size is not in the list (loaded from a file, pasted) keeps its size
 ## and the stepper shows it between its neighbours (see group_size_steps).
-const GROUP_SIZES := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 20, 24, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400]   # every size up to 14: the worm's cell classes have 7, 9, 11 and 13 cells
+const GROUP_SIZES := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 30, 40, 42, 46, 50, 60, 80, 100, 150, 200, 300, 400]   # every size up to 14: the worm's cell classes have 7, 9, 11 and 13 cells; 18, 22, 42 and 46 are the cell types of the fly compass
 ## [[value, label], ...] for Kit.stepper: GROUP_SIZES (up to the engine's neuron limit) plus the group's own size when it is not one of them.
 static func group_size_steps(current: int) -> Array:
 	var sizes := []
