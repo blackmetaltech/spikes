@@ -27,7 +27,7 @@ DEFAULTS = dict(scale_EPG=0.3, scale_PENa=0.3, scale_PENb=0.3, scale_PEG=0.3, sc
                 I_e=300.0, tau_syn_ex=5.0, tau_syn_in=5.0, delay=2.0,
                 cue_w=400.0, cue_width=1,   # cue_width: the cue for heading k drives the E-PG cells with heading within +-cue_width of k (both bridge halves)
                  turn_w=3.0, turn_to="PEN",   # pA per spike (cue), pA per unit of turn sensor
-                sign_D7=-1, sign_PEN=1, sign_PEG=1, sign_EPG=1,
+                sign_D7=-1, sign_PEN=1, sign_PEG=1, sign_EPG=1, sign_PENa=0, sign_PENb=0,   # sign_PENa / sign_PENb: 0 = use sign_PEN, else +1 or -1 for that P-EN type alone
                 norm=0)   # 0 none, 1 incoming totals equalised, 2 outgoing totals equalised, 3 both (see normalise)
 WEDGES = 16
 
@@ -65,7 +65,7 @@ def build(p=None, data=None):
     for pid in ids:
         local.append(count.get(pid, 0)); count[pid] = count.get(pid, 0) + 1
     order = ["EPG", "PENa", "PENb", "PEG", "D7"]
-    sign = {"EPG": q["sign_EPG"], "PENa": q["sign_PEN"], "PENb": q["sign_PEN"], "PEG": q["sign_PEG"], "D7": q["sign_D7"]}
+    sign = {"EPG": q["sign_EPG"], "PENa": q["sign_PENa"] or q["sign_PEN"], "PENb": q["sign_PENb"] or q["sign_PEN"], "PEG": q["sign_PEG"], "D7": q["sign_D7"]}
     pops = [{"id": pid, "model": "iaf_psc_alpha", "n": count[pid], "params": {"I_e": q.get("I_e_" + pid, q["I_e"]), "tau_syn_ex": q["tau_syn_ex"], "tau_syn_in": q["tau_syn_in"]}, "role": "neuron"} for pid in order]
     edges = {}
     conns = normalise(d["connections"], ids, int(q["norm"]))
