@@ -46,10 +46,10 @@ public:
     Given g;
     g.circuit = "a_signs_given.json";
     // printed by `spike-run --locked-digest circuits/a_signs_given.json`; tasks_atlas_compass_test checks that the given and the reference circuits both have exactly these
-    g.digest.pops = "";
-    g.digest.wiring = "";
-    g.digest.types = "";
-    g.digest.channels = "";
+    g.digest.pops = "fe6963039bfc82301f8be725d63ea5dc";
+    g.digest.wiring = "17f3c5dc11cc7c156bc681a04919aafc";
+    g.digest.types = "c266b127e5a48b5c047f5d964a1cc82a";
+    g.digest.channels = "ad2768fd684cc647b82ae1abd7d16b11";
     return g;
   }
 

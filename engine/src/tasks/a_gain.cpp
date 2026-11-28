@@ -45,10 +45,10 @@ public:
     Given g;
     g.circuit = "a_gain_given.json";
     // printed by `spike-run --locked-digest circuits/a_gain_given.json`
-    g.digest.pops = "";
-    g.digest.wiring = "";
-    g.digest.types = "";
-    g.digest.channels = "";
+    g.digest.pops = "fe6963039bfc82301f8be725d63ea5dc";
+    g.digest.wiring = "17f3c5dc11cc7c156bc681a04919aafc";
+    g.digest.types = "5d72f27991f4fad7b3825dc7ea03d250";
+    g.digest.channels = "ad2768fd684cc647b82ae1abd7d16b11";
     return g;
   }
 

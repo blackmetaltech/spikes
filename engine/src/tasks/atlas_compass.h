@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <set>
 #include "atlas_worm.h"
 
@@ -40,27 +39,13 @@ inline std::string number_word( int n )
   return n >= 0 && n <= 20 ? w[ n ] : "many";
 }
 
-/// The cues of the levels (headings; research/atlas-a.md 4d). a_signs and a_gain: cues at resting places that hold on every seed. a_places: all sixteen.
-/// MEASUREMENT HOOK (removed before the merge): SPIKE_A_CUES="3,7,..." replaces the cues of every level of the chapter, so the study of research/atlas-a.md 4d can run any cue on the
-/// level's own world.
-inline std::vector< int > cues_or( std::vector< int > def )
-{
-  const char* v = std::getenv( "SPIKE_A_CUES" );
-  if ( !v || !*v ) return def;
-  std::vector< int > r;
-  for ( const char* p = v; *p; )
-  {
-    r.push_back( std::atoi( p ) % kHeads );
-    while ( *p && *p != ',' ) ++p;
-    if ( *p == ',' ) ++p;
-  }
-  return r;
-}
-inline const std::vector< int >& signs_cues() { static const std::vector< int > c = cues_or( { 4, 11, 6, 15, 8 } ); return c; }
-inline const std::vector< int >& gain_cues() { static const std::vector< int > c = cues_or( { 4, 12 } ); return c; }
+/// The cues of the levels (headings; research/atlas-a.md 4d). a_signs: five resting places that hold on every seed, one of which (6) the wrong P-EG sign never holds. a_gain: 4 and 12, whose resting
+/// places do not move with the gain. a_places: all sixteen.
+inline const std::vector< int >& signs_cues() { static const std::vector< int > c = { 4, 11, 6, 15, 8 }; return c; }
+inline const std::vector< int >& gain_cues() { static const std::vector< int > c = { 4, 12 }; return c; }
 inline const std::vector< int >& places_cues()
 {
-  static const std::vector< int > c = cues_or( { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 } );
+  static const std::vector< int > c = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
   return c;
 }
 
