@@ -546,6 +546,146 @@ Turning does not work in any setting found. At the evolved gain (1) the bump doe
 
 Not tested: a search with a turn term and a free turn gain; the evolved settings under a cue of other strength or length; other cell models; signs other than the assumed ones; a continuous attractor (the places are discrete here); `hemibrain.py --check` after the heading change; more than 8 evolution runs of 30 minutes.
 
+### Turning, signs and places (second brief)
+
+Runs 46116624744 (turn-term evolution; hemibrain check; signs and check of the best holding setting), 46120236441 (checks and signs of the two settings that turn), 46120421868 (rotating-trial evolution) and 46123996065 (checks of its settings). Tables are printed by `compass_summary3.py`; tools `compass_opt2.py`, `compass_check.py`, `compass_signs.py`.
+
+**1. Turning.** The evolution strategy now has a turn term. A turn trial: cue, 1 s of settling, then 1 s (1,500 to 2,500 ms) of a 500 Hz spike train of `pulse_w` pA per spike onto the P-EN cells of one half of the bridge, the background current on both halves unchanged; the shift is the bump angle before (1,200-1,500 ms) against after (3,500-4,000 ms); a trial passes if the shift is 2 to 10 headings in the predicted direction (left half towards higher), the bump is the same at 2,700-3,200 and 3,500-4,000 ms (within one heading), and it is still compact and in the rate band. Genes: the 19 pair scales, the 5 currents, the background turn gain and `pulse_w`. The score is half hold (cues 2, 6, 10, 14), half turn (cue 2 up, cue 10 down, cue 10 up, cue 2 down); definitions in the docstring of `compass_opt2.py`. Start: the three settings that held (45 minutes, 12 runs).
+
+```
+TURN-TERM EVOLUTION (start: settings 2, 4, 7 of compass_candidates.jsonl, 3 per start; mu 4, lambda 16, 45 min; trials on seed 7 then 8: hold at cues 2, 6, 10, 14 and turn at (cue 2, +), (10, -), (10, +), (2, -))
+run      start   gens best first->last  hold       turn       shifts of best (headings)  4+4 on 7  4+4 on 7 and 8
+opt2_0   2        209 0.848 -> 0.852        0.95       0.75       [4.46, 3.95, 3.28, -4.43]  no        no
+opt2_1   4         97 0.727 -> 0.797        0.84       0.75       [6.23, 4.24, 2.0, 0.01]    no        no
+opt2_2   7        218 0.520 -> 0.600        0.93       0.27       [1.99, 0.09, 0.02, 0.08]   no        no
+opt2_3   2        212 0.723 -> 0.975        0.95       1.00       [2.01, 6.6, 3.07, 2.27]    yes       yes
+opt2_4   4        183 0.578 -> 0.791        0.84       0.74       [6.2, 4.27, 1.95, 0.0]     no        no
+opt2_5   7        212 0.471 -> 0.724        0.94       0.51       [2.14, 0.07, 2.02, -2.14]  no        no
+opt2_6   2        211 0.726 -> 0.854        0.95       0.75       [2.01, 4.4, 3.19, 0.03]    no        no
+opt2_7   4        178 0.676 -> 0.771        0.84       0.70       [6.13, 4.51, 1.62, -0.02]  no        no
+opt2_8   7        117 0.492 -> 0.810        0.85       0.77       [7.4, 6.26, 3.84, 0.21]    no        no
+opt2_9   2        112 0.603 -> 0.974        0.95       1.00       [2.03, 4.41, 3.07, 4.4]    yes       yes
+opt2_10  4        201 0.694 -> 0.771        0.85       0.69       [6.2, 4.64, 1.57, -0.0]    no        no
+opt2_11  7        209 0.597 -> 0.684        0.93       0.44       [2.09, -0.03, 1.5, -2.1]   no        no
+```
+
+Two of 12 runs (opt2_3 and opt2_9, both from setting 2) found individuals that hold at four cues and turn at four trials on both circuit seeds 7 and 8, with shifts of 2.0 to 6.6 headings. They do not hold up elsewhere. On circuit seeds 101 to 105 (all 16 cues, turn at cues 2, 6, 10, 14 in both directions):
+
+```
+SETTINGS THAT HOLD AND TURN ON SEEDS 7 AND 8 (compass_turners.jsonl), checked on seeds 101 to 105:
+setting 1:
+hold, 16 cues x seeds 101..105: {101: 11, 102: 11, 103: 11, 104: 12, 105: 11} total 56 of 80
+turn, 4 cues x 2 directions x seeds 101..105: passes by seed {101: 3, 102: 3, 103: 3, 104: 4, 105: 4} total 17 of 40; passes right half (towards higher): 10 of 20, left half (lower): 7 of 20
+turn shifts in the predicted direction, headings: mean 1.37, min -1.99, max 6.66 (n=40)
+resting headings of the late bump (nearest heading) over 80 active trials (16 cues x 5 seeds):
+heading  trials  cues that end here (cue: seeds)    of which held
+2        10      1:5 2:5                            10
+4        10      3:5 4:5                            10
+6        27      5:5 6:5 7:5 8:5 9:5 11:2           10
+10       6       10:5 11:1                          6
+13       22      11:2 12:5 13:5 14:5 15:5           15
+15       5       0:5                                5
+mean |cue heading - resting heading|: 1.06 headings (23.9 deg) over active trials, 0.55 headings (12.5 deg) over held trials; largest 5 headings
+distinct resting headings: 6
+
+sign assignments, top four:
+a=16 EPG=+ PENa=+ PENb=+ PEG=+ D7=- held 20 of 20
+a=18 EPG=+ PENa=- PENb=+ PEG=+ D7=- held 19 of 20
+a=24 EPG=+ PENa=+ PENb=+ PEG=- D7=- held 15 of 20
+a=26 EPG=+ PENa=- PENb=+ PEG=- D7=- held 14 of 20
+with >= 18 of 20: 2 
+
+setting 2:
+hold, 16 cues x seeds 101..105: {101: 11, 102: 11, 103: 11, 104: 11, 105: 12} total 56 of 80
+turn, 4 cues x 2 directions x seeds 101..105: passes by seed {101: 4, 102: 5, 103: 4, 104: 4, 105: 4} total 21 of 40; passes right half (towards higher): 10 of 20, left half (lower): 11 of 20
+turn shifts in the predicted direction, headings: mean 2.24, min -0.04, max 7.51 (n=40)
+resting headings of the late bump (nearest heading) over 80 active trials (16 cues x 5 seeds):
+heading  trials  cues that end here (cue: seeds)    of which held
+2        11      0:1 1:5 2:5                        10
+4        10      3:5 4:5                            10
+6        27      5:5 6:5 7:5 8:5 9:5 11:2           15
+10       6       10:5 11:1                          6
+13       26      0:4 11:2 12:5 13:5 14:5 15:5       15
+mean |cue heading - resting heading|: 1.18 headings (26.4 deg) over active trials, 0.55 headings (12.5 deg) over held trials; largest 5 headings
+distinct resting headings: 5
+
+sign assignments, top four:
+a=16 EPG=+ PENa=+ PENb=+ PEG=+ D7=- held 20 of 20
+a=24 EPG=+ PENa=+ PENb=+ PEG=- D7=- held 15 of 20
+a=18 EPG=+ PENa=- PENb=+ PEG=+ D7=- held 15 of 20
+a=26 EPG=+ PENa=- PENb=+ PEG=- D7=- held 15 of 20
+with >= 18 of 20: 1
+```
+
+That is 56 of 80 hold trials and 17 and 21 of 40 turn trials, against 71 of 80 hold trials for the best setting without a turn term, and the turn shifts at the cues not in the score (6, 14) are mostly zero or in jumps. A second round of evolution started from these two, with a new random set of hold cues, turn trials (any of 16 cues, both directions) and circuit seed 7 or 8 in each generation, then checked on 101 to 105:
+
+```
+ROTATING-TRIAL EVOLUTION (start: the two settings above, 6 runs each, 45 min, a new random trial set per generation on seeds 7 or 8), final settings checked on seeds 101 to 105:
+run   gens hold of 80   turn of 40 (right half, left half)
+1          49           16 of 40 (7, 9)
+2          44           20 of 40 (7, 13)
+3          41           26 of 40 (14, 12)
+4          54           24 of 40 (14, 10)
+5          50           20 of 40 (10, 10)
+6          38           23 of 40 (9, 14)
+7          45           26 of 40 (15, 11)
+8          30           20 of 40 (6, 14)
+9          55           15 of 40 (5, 10)
+10         40           18 of 40 (5, 13)
+11         48           18 of 40 (8, 10)
+12         45           10 of 40 (7, 3)
+```
+
+No setting holds and turns on seeds 101 to 105: the best reach 26 of 40 turn trials with 45 to 54 of 80 hold trials, and none is near 40 of 40 with 80 of 80. **Turning: yes on four trials of circuit seeds 7 and 8 that were in the score, no on seeds 101 to 105.** Not tested: whether more generations, a larger turn trial set or an extra turn gene per P-EN type would close the gap; the hold trials alone are limited by the discrete places (see 3).
+
+**2. Signs.** For the best holding setting (setting 7 of `compass_candidates.jsonl`: norm 2, scale per type pair, no turn term), every gain as fitted, all 32 assignments of the five type signs on cues 2, 6, 10, 14 and circuit seeds 101 to 105:
+
+```
+a = bit 1 EPG, 2 PEN_a, 4 PEN_b, 8 PEG, 16 Delta7 (1 = inhibitory); top eight rows, then counts:
+a=16 EPG=+ PENa=+ PENb=+ PEG=+ D7=- held 16 of 20
+a=18 EPG=+ PENa=- PENb=+ PEG=+ D7=- held 14 of 20
+a=20 EPG=+ PENa=+ PENb=- PEG=+ D7=- held 13 of 20
+a=22 EPG=+ PENa=- PENb=- PEG=+ D7=- held 12 of 20
+a=24 EPG=+ PENa=+ PENb=+ PEG=- D7=- held  5 of 20
+a=26 EPG=+ PENa=- PENb=+ PEG=- D7=- held  5 of 20
+a=28 EPG=+ PENa=+ PENb=- PEG=- D7=- held  1 of 20
+a= 0 EPG=+ PENa=+ PENb=+ PEG=+ D7=+ held  0 of 20
+assignments with >= 18 of 20: 0 ; with >= 1: 7 of 32
+```
+
+Seven of 32 assignments hold anything; 25 hold 0 of 20. All seven have E-PG excitatory and Delta7 inhibitory. The assumed assignment (Delta7 inhibitory only, a = 16) is the best at 16 of 20, but the best wrong assignment (P-EN_a also inhibitory) holds 14 of 20, so the margin is two trials; no assignment holds 18 or more. Two P-EN-flipped variants (a = 20, 22) hold 13 and 12. What is sharp: P-EG excitatory (flipping it drops 16 to 5 or less), E-PG excitatory and Delta7 inhibitory (any other value holds 0). What is not sharp in this setting: the signs of the two P-EN types. For the two settings that turn the same table has the assumed assignment at 20 of 20 with the best wrong one at 19 and 15 of 20 (setting 1 and 2); it does not separate the P-EN signs there either. A level that asks for exactly one assignment would have to count the P-EN signs as free, or use a setting in which they matter (a turn test would, since P-EN drives the turn; not run).
+
+**3. Places.** Same setting, seeds 101 to 105, all 16 cues:
+
+```
+hold, 16 cues x seeds 101..105: {101: 15, 102: 14, 103: 13, 104: 15, 105: 14} total 71 of 80
+resting headings of the late bump (nearest heading) over 80 active trials (16 cues x 5 seeds):
+heading  trials  cues that end here (cue: seeds)    of which held
+2        7       1:5 2:2                            7
+4        18      2:3 3:5 4:5 5:5                    15
+6        9       6:5 7:4                            9
+8        11      7:1 8:5 9:5                        11
+11       21      10:5 11:5 12:5 13:5 14:1           15
+15       14      0:5 14:4 15:5                      14
+mean |cue heading - resting heading|: 0.79 headings (17.7 deg) over active trials, 0.62 headings (13.9 deg) over held trials; largest 3 headings
+distinct resting headings: 6
+```
+
+The bump rests at six headings, 2, 4, 6, 8, 11 and 15, spaced 2 to 3 headings (45 to 67 degrees) apart, and a cue ends at the nearest of them: the mean absolute error between cue heading and resting heading is 0.79 headings (17.7 degrees) over all active trials and 0.62 headings (13.9 degrees) over the held ones, at most 3 headings. So this wiring holds a heading to about 45 to 67 degrees, not to 22.5; 6 places, not 16. The two settings that turn rest at 5 to 6 headings too (2, 4, 6, 10, 13 and 15, mean error 1.06 and 1.18 headings). A level has to state it as "about six directions".
+
+**Hemibrain check.** `hemibrain.py --check` runs on a runner (the public export is fetched there; the cache is downloaded first with `ensure_cache(True)`, because `--check` itself never downloads):
+
+```
+DIFFERENT: /src/data/connectome/hemibrain/PROVENANCE.md
+ok: /src/data/connectome/hemibrain/compass.json
+ok: /src/data/connectome/hemibrain/mushroom_body.json
+exit 1
+```
+
+`compass.json` and `mushroom_body.json` equal a fresh extraction byte for byte, so the heading change in `hemibrain.py` and the pass in `add_heading.py` agree. `PROVENANCE.md` differed; its cause was not inspected (the probable one is the download date line, which depends on the cache). `PROVENANCE.md` and the template in `hemibrain.py` have both since gained the paragraph on `compass_setting.json`, so the check is not re-run on them.
+
+**Saved setting.** `data/connectome/hemibrain/compass_setting.json` holds the best holding setting (71 of 80 trials on seeds 101 to 105, `"turns": false`), with a line in `PROVENANCE.md`.
+
 ### 4c-old. Directed search and normalisation in the bridge coordinate (kept for the record)
 
 **These runs used the bridge position as the ring and so say nothing about the wiring (see the coordinate finding above).** Question: is the failure of section 4 a drift to a preferred place, does a parameter-free normalisation of the wiring rescue the bump, and does a directed search find a setting that holds? Tools: `compass_circuit.py` (option `norm`), `compass_drift.py`, `compass_opt.py`, `compass_summary.py`. Runs on GitHub runners: 45276642579 (drift test and three random searches with normalisation) and 45279671084 (evolution strategy, 20 jobs). The tables are printed by those scripts.
@@ -658,5 +798,6 @@ The record of each paper in the PubMed database was read on 2026-11-23 (PMIDs 32
 - Transmitter and sign of E-PG, P-EN, P-EG and Delta7 (the script assumes the first three excitatory and Delta7 inhibitory): the abstracts of the verified papers do not state them; the full text of Turner-Evans et al. 2020 may.
 - Which half of the bridge moves the bump in which direction for a given turn: the wiring gives it (left half towards higher heading, section 4c); no verified paper statement.
 - The discrete places (40 to 80 degrees apart) of the held bump in section 4c: whether the real circuit has a continuous attractor that the fitted gains and the point neurons only approximate, or discrete places: not separated.
-- Which setting of the gains lets the measured wiring hold a bump at all 16 cues and turn it: the best found holds 71 of 80 (cue, seed) trials and does not turn; a search with a turn term is the next step.
+- A setting that holds at all 16 cues and turns both ways: none found; the best holds 71 of 80 trials on seeds 101 to 105 (six resting headings), and settings that turn hold 56 of 80 and turn in 17 to 26 of 40 trials (section 4c). More generations, a larger turn trial set, or a separate turn gain per P-EN type are not tried.
+- Which sign assignments hold: for the best holding setting only the signs of E-PG, P-EG and Delta7 matter (the assumed ones are the only family that holds); the P-EN signs change the count by 2 to 4 of 20 only. Functional sign data for the P-EN types would be needed, and the table cannot give it.
 - The ring order is now answered by the scan of section 4c: the wiring supports the heading mapping right 2g, left 3 - 2g (mod 16), two interleaved mirrored copies. That this is the physiological ring is not claimed; the mirror direction and the absolute zero of heading are arbitrary.

@@ -289,6 +289,9 @@ The script is deterministic: neurons and connections are sorted, nothing random.
 {table(mbr)}
 
 By type: see `counts_by_type` in `mushroom_body.json`.
+
+## compass_setting.json: the best holding setting of the compass probe
+Not hemibrain data. The parameters (one scale per type pair, one background current per population, norm 2) with which `tools/connectome/compass_circuit.py` makes the measured compass wiring hold a bump, found by `tools/connectome/compass_opt.py` and checked by `compass_check.py` and `compass_signs.py` on GitHub runners (2026-11-28): 71 of 80 trials (16 cues x circuit seeds 101 to 105) held; `"turns": false`, because no setting found holds and turns on those seeds (research/atlas-a.md section 4c). It uses the assumed signs (Delta7 inhibitory, the rest excitatory) and the fitted `heading` coordinate above.
 """
 
 
