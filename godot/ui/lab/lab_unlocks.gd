@@ -9,7 +9,7 @@ extends RefCounted
 
 const FEATURE_TEXT := {"inhibitory": "inhibitory neurons", "parts": "the parts bin", "analysis": "analysis", "loadsave": "load and save"}
 ## Chapters whose levels are about reading wiring: the Analysis screen is open in them whatever the campaign has reached (Analysis is their instrument).
-const INSTRUMENT_CHAPTERS := ["a_worm"]
+const INSTRUMENT_CHAPTERS := ["a_worm", "a_compass"]
 static var _first := {}   # feature -> index in Campaign.order() of the first level that needs it
 
 static func all_open(task_id: String) -> bool:

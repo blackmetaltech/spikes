@@ -38,4 +38,36 @@
     CHEAP_ROW_V( t, "tampered: the kept route's weights raised", "wiring", cheap::from_ref( t, scale_edges( "AVD", 2.0 ) ) );
     CHEAP_ROW_V( t, "tampered: a class made free to sign", "cell type", cheap::from_ref( t, group_free( "AVD", { "scale", "sign" } ) ) );
   }
+  // iteration A3, the compass chapter: a_signs (locked compass, a free sign on three cell types) and a_gain (a free Delta7 scale). The cheap bench, a dead wiring and every wrong way to set the cards must not pass.
+  auto set_sign = []( const std::string& id, int sign ) -> cheap::Mut {
+    return [ = ]( json& c ) { for ( auto& g : c[ "groups" ] ) if ( g[ "id" ] == id ) g[ "sign" ] = sign; };
+  };
+  auto set_scale = []( const std::string& id, double scale ) -> cheap::Mut {
+    return [ = ]( json& c ) { for ( auto& g : c[ "groups" ] ) if ( g[ "id" ] == id ) g[ "scale" ] = scale; };
+  };
+  auto scale_pre = []( const std::string& pre, double factor ) -> cheap::Mut {
+    return [ = ]( json& c ) {
+      for ( auto& p : c[ "projections" ] )
+        if ( p[ "pre" ] == pre )
+          for ( auto& e : p[ "edges" ] ) e[ 2 ] = e[ 2 ].get< double >() * factor;
+    };
+  };
+  {
+    const char* t = "a_signs";
+    CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
+    CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
+    CHEAP_ROW( t, "reference with every weight 0", cheap::zero_weights( t ) );
+    CHEAP_ROW_V( t, "everything excitatory (the given circuit)", "wrong", cheap::from_ref( t, set_sign( "D7", 1 ) ) );
+    CHEAP_ROW_V( t, "everything inhibitory", "wrong", cheap::from_ref( t, cheap::all( set_sign( "EPG", -1 ), set_sign( "PEG", -1 ), set_sign( "D7", -1 ) ) ) );
+    CHEAP_ROW_V( t, "Delta7 and E-PG inhibitory", "wrong", cheap::from_ref( t, set_sign( "EPG", -1 ) ) );
+    CHEAP_ROW_V( t, "tampered: the Delta7 weights doubled", "wiring", cheap::from_ref( t, scale_pre( "D7", 2.0 ) ) );
+  }
+  {
+    const char* t = "a_gain";
+    CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
+    CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
+    CHEAP_ROW( t, "reference with every weight 0", cheap::zero_weights( t ) );
+    CHEAP_ROW_V( t, "no inhibition at the lower end of the range", "range", cheap::from_ref( t, set_scale( "D7", 0.01 ) ) );
+    CHEAP_ROW_V( t, "tampered: the Delta7 weights doubled", "wiring", cheap::from_ref( t, scale_pre( "D7", 2.0 ) ) );
+  }
 }

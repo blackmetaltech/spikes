@@ -89,13 +89,13 @@ json set_group( json c, const std::string& id, const std::string& key, json v )
   return c;
 }
 double part( const Res& r, const std::string& k, double d = -99 ) { return r.parts.count( k ) ? r.parts.at( k ) : d; }
-std::string per_trial( const Res& r, const std::string& key, int prec )
+std::string per_trial( const Res& r, const std::string& key, int prec, const std::string& prefix = "" )
 {
   std::ostringstream o;
-  for ( int i = 0; i < static_cast< int >( part( r, "n_trials", 0 ) ); ++i )
+  for ( int i = 0; i < static_cast< int >( part( r, prefix + "n_trials", 0 ) ); ++i )
   {
     char b[ 32 ];
-    std::snprintf( b, sizeof b, "%.*f", prec, part( r, "t" + std::to_string( i ) + "_" + key ) );
+    std::snprintf( b, sizeof b, "%.*f", prec, part( r, prefix + "t" + std::to_string( i ) + "_" + key ) );
     o << ( i ? "," : "" ) << b;
   }
   return o.str();
@@ -105,8 +105,11 @@ std::string per_trial( const Res& r, const std::string& key, int prec )
 void measure_signs( int first, int n )
 {
   const json given = load_file( "a_signs_given.json" );
+  std::set< int > only;   // ATLAS_ONLY="2,4": just these assignments
+  if ( const char* o = std::getenv( "ATLAS_ONLY" ) ) { std::stringstream os( o ); for ( std::string tok; std::getline( os, tok, ',' ); ) only.insert( std::atoi( tok.c_str() ) ); }
   for ( int a = 0; a < 8; ++a )
   {
+    if ( !only.empty() && !only.count( a ) ) continue;
     json c = given;
     c = set_group( c, "EPG", "sign", a & 1 ? -1 : 1 );
     c = set_group( c, "PEG", "sign", a & 2 ? -1 : 1 );
@@ -156,8 +159,8 @@ void measure_dx( int first, int n )
         if ( p[ "pre" ] == lesion )
           for ( auto& e : p[ "edges" ] ) e[ 2 ] = 0.0;
       const Res r = run( "dx_a_compass", c, static_cast< uint64_t >( s ), false, "", true );
-      std::printf( "M dx lesion=%s seed=%d loaded=%d held=%s kind=%s hz=%s strength=%s near=%s", lesion, s, r.loaded, per_trial( r, "held", 0 ).c_str(), per_trial( r, "kind", 0 ).c_str(), per_trial( r, "hz", 1 ).c_str(),
-                   per_trial( r, "strength", 2 ).c_str(), per_trial( r, "near", 2 ).c_str() );
+      std::printf( "M dx lesion=%s seed=%d loaded=%d held=%s kind=%s hz=%s strength=%s near=%s", lesion, s, r.loaded, per_trial( r, "held", 0, "run_" ).c_str(), per_trial( r, "kind", 0, "run_" ).c_str(), per_trial( r, "hz", 1, "run_" ).c_str(),
+                   per_trial( r, "strength", 2, "run_" ).c_str(), per_trial( r, "near", 2, "run_" ).c_str() );
       for ( const char* w : { "cue", "mid", "late" } )
         for ( const char* p : { "EPG", "PENa", "PENb", "PEG", "D7" } ) std::printf( " %s_%s=%.1f", w, p, r.hz.count( w ) && r.hz.at( w ).count( p ) ? r.hz.at( w ).at( p ) : 0.0 );
       std::printf( " %s\n", r.error.c_str() );

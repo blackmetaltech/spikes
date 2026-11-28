@@ -223,6 +223,15 @@
    },
    "state_of": "campaign"
   },
+  "campaign.chapter.a_compass": {
+   "kind": "tab",
+   "label": "Campaign chapter tab: Atlas: A ring from wiring",
+   "detect": {
+    "screen": "tasks",
+    "chapter": "a_compass"
+   },
+   "state_of": "campaign"
+  },
   "parts": {
    "kind": "screen",
    "label": "Parts bin (browse the catalogue)",
@@ -1338,6 +1347,13 @@
    "to": "campaign.chapter.a_worm",
    "control": "Wing_atlas",
    "note": "The wing switch shows the Atlas chapter and opens it."
+  },
+  {
+   "id": "campaign.tab.a_compass",
+   "from": "campaign.chapter.a_worm",
+   "to": "campaign.chapter.a_compass",
+   "control": "Chapter_a_compass",
+   "note": "Within a wing, a chapter tab shows that chapter; locked chapters can be looked at."
   },
   {
    "id": "campaign.wing.body",

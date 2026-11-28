@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless checks of the Atlas worm chapter's game side (roadmap A2):
+## Headless checks of the Atlas wing's game side (roadmap A2, the worm chapter; A3, the compass chapter):
 ##   godot --headless --path godot -s tests/test_atlas.gd        prints "ATLAS OK" or "ATLAS FAIL: ..." (exit 1)   (scripts/atlas_test.sh, ctest `godot_atlas`)
 ## Needs the GDExtension (the tasks are the engine's); skips with a message when it is not loaded.
 ## wing and chapter gating, the glossary, the Analysis screen open in the chapter, the silencing control's rules (circuits.gd), the bet panel (a bet offers no lesion
@@ -22,6 +22,7 @@ func _init() -> void:
 	_silence()
 	_panel()
 	_bets()
+	_compass()
 	print("ATLAS OK (%d checks)" % checks if fails == 0 else "ATLAS FAILED: %d of %d" % [fails, checks])
 	quit(1 if fails > 0 else 0)
 
@@ -54,8 +55,14 @@ func _gating() -> void:
 	for id in Campaign.spine_ids("invertebrates"): Progress.record(str(id), 100.0, true, 3)
 	_check(Campaign.chapter_open("a_worm"), "the wing opens after the chapter I spine, as the Bestiary does")
 	_check(Campaign.unlocked("a_path") and not Campaign.unlocked("a_predict") and not Campaign.unlocked("dx_a_worm"), "inside the chapter the branches wait for a_path")
+	_check(Campaign.chapter_open("a_worm") and not Campaign.chapter_open("a_compass") and Campaign.chapter_lock_reason("a_compass") != "", "the compass chapter is closed until a_path is passed (%s)" % Campaign.chapter_lock_reason("a_compass"))
 	Progress.record("a_path", 100.0, true, 3)
 	_check(Campaign.unlocked("a_predict") and Campaign.unlocked("a_motif") and Campaign.unlocked("dx_a_worm"), "passing a_path opens the three branches")
+	_check(Campaign.chapter_open("a_compass") and Campaign.unlocked("a_signs") and not Campaign.unlocked("a_places") and not Campaign.unlocked("a_gain"), "passing a_path opens the compass chapter, a_signs only")
+	Progress.record("a_signs", 100.0, true, 3)
+	_check(Campaign.unlocked("a_places") and Campaign.unlocked("a_gain") and not Campaign.unlocked("dx_a_compass"), "passing a_signs opens a_places and a_gain")
+	Progress.record("a_gain", 100.0, true, 3)
+	_check(Campaign.unlocked("dx_a_compass"), "passing a_gain opens the case")
 
 func _concepts() -> void:
 	for c in ["pathway", "prediction", "null_model"]:
@@ -119,9 +126,9 @@ func _panel() -> void:
 	_check(q.find_child("BtnLesionLab", true, false) != null and q.find_child("BtnCommitTheBet", true, false) == null, "an ordinary case keeps its lesion lab and has no commit button")
 	_check(q.find_child("DxUsed", true, false) != null and (q.find_child("DxUsed", true, false) as Label).text.contains("the first 3 are free"), "an ordinary case keeps its probe rule text")
 
-func _run(task: String, answer: String) -> Dictionary:
+func _run(task: String, answer: String, as_given := false) -> Dictionary:
 	var tele := Telemetry.new(); tele.audio_on = false; tele.variant = answer
-	var c := _given(task); Circuits.ensure_pos(c)
+	var c := Circuits.parse(Circuits.read_reference(task + "_given.json")) if as_given else _given(task); Circuits.ensure_pos(c)
 	_check(tele.setup(c, task, true), "%s sets up (%s)" % [task, tele.error])
 	tele.speed = 100.0; var guard := 0
 	while not tele.finished and guard < 20000 and not tele.failed: tele.advance(0.1); guard += 1
@@ -140,4 +147,49 @@ func _bets() -> void:
 	_check(not bool(wrong.get("passed", true)) and str(wrong.get("verdict", "")).begins_with("Not AVA"), "a wrong bet does not pass and the verdict names it (got '%s')" % str(wrong.get("verdict", "")))
 	var again := _run("a_predict", "AVE@2:1")
 	_check(bool(again.get("passed", false)) and float(again.get("value", 100.0)) < float(right.get("value", 0.0)), "a right bet after a wrong one costs more (%s against %s)" % [str(again.get("value")), str(right.get("value"))])
+	Telemetry.budget_us = 9000
+
+## The compass chapter (A3): its place in the wing, its gating, its sign and scale cards, and the levels through the engine.
+func _compass() -> void:
+	var cd := Campaign.chapter_def("a_compass")
+	_check(str(cd.get("title", "")) == "A ring from wiring" and str(cd.get("wing", "")) == "atlas" and Campaign.is_atlas("a_compass") and TasksScreen.SHORT.has("a_compass"), "chapter a_compass is in the atlas wing with its tab label")
+	_check(LabUnlocks.has("a_signs", "analysis") and LabUnlocks.has("dx_a_compass", "analysis"), "the Analysis screen is open in the compass chapter")
+	var ids := []; var spine := []; var parents := {}
+	for n in Campaign.nodes("a_compass"):
+		if not bool(n["installed"]): continue
+		ids.append(str(n["id"])); if bool(n["spine"]): spine.append(str(n["id"]))
+		parents[str(n["id"])] = str(n["parent"])
+	_check(ids.size() == 4 and ids.has("a_signs") and ids.has("a_places") and ids.has("a_gain") and ids.has("dx_a_compass"), "the chapter has its four levels (got %s)" % str(ids))
+	_check(spine == ["a_signs", "a_gain"], "a_signs and a_gain are the spine (got %s)" % str(spine))
+	_check(parents.get("a_places", "") == "a_signs" and parents.get("dx_a_compass", "") == "a_gain", "a_places hangs off a_signs and dx_a_compass off a_gain")
+	_check(Campaign.is_bet("a_places") and not Campaign.is_bet("dx_a_compass") and not Campaign.is_bet("a_signs"), "a_places is a bet; the case and the atlas levels are not")
+	for c in ["synaptic_sign", "resting_places", "inhibition_balance"]:
+		_check(Campaign.concept_blurb(c) != "" and Campaign.concept_title(c) != c and not Campaign.concept_blurb(c).contains("!") and not Campaign.concept_blurb(c).contains("—"), "the glossary explains %s" % c)
+	# (the gating of the chapter is checked in _gating, where the progress is built up)
+	# the cards: three free signs in a_signs, one free scale in a_gain, nothing editable in a_places
+	var c := _given("a_signs")
+	_check(Circuits.validate(c) == "", "the given a_signs circuit validates")
+	var gs := Circuits.groups(c)
+	_check(gs.size() == 4, "a_signs has four cell-type cards (got %d)" % gs.size())
+	var free := {}
+	for g in gs: free[str(g["id"])] = Circuits.group_free(g, "sign")
+	_check(free.get("EPG", false) and free.get("PEG", false) and free.get("D7", false) and not free.get("PEN", true), "E-PG, P-EG and Delta7 have a free sign; P-EN has none (got %s)" % str(free))
+	var g2 := _given("a_gain"); var scale_free := {}
+	for g in Circuits.groups(g2): scale_free[str(g["id"])] = Circuits.group_free(g, "scale")
+	_check(scale_free.get("D7", false) and not scale_free.get("EPG", true) and not scale_free.get("PEG", true) and not scale_free.get("PEN", true), "only the Delta7 scale is free in a_gain (got %s)" % str(scale_free))
+	_check(Circuits.groups(_given("a_places")).is_empty(), "a_places has nothing to edit")
+	# through the engine: the given signs fail, the reference signs pass, a right and a wrong bet
+	Telemetry.budget_us = 1000000
+	var given_run := _run("a_signs", "", true)
+	_check(not bool(given_run.get("passed", true)) and str(given_run.get("verdict", "")) != "", "a_signs as given (everything excitatory) does not pass, and says why")
+	var ref_run := _run("a_signs", "")
+	_check(bool(ref_run.get("passed", false)), "a_signs with its reference signs passes (got '%s')" % str(ref_run.get("verdict", "")))
+	var gain_run := _run("a_gain", "")
+	_check(bool(gain_run.get("passed", false)), "a_gain with its reference scale passes (got '%s')" % str(gain_run.get("verdict", "")))
+	var none := _run("a_places", "")
+	_check(not bool(none.get("passed", true)) and str(none.get("verdict", "")).begins_with("No prediction"), "a_places with no commit: not passed, and the verdict asks for the bet")
+	var right := _run("a_places", "about6@0:0")
+	_check(bool(right.get("passed", false)) and str(right.get("verdict", "")).begins_with("Correct"), "a right bet on a_places passes (got '%s')" % str(right.get("verdict", "")))
+	var wrong := _run("a_places", "all16@0:0")
+	_check(not bool(wrong.get("passed", true)) and str(wrong.get("verdict", "")).begins_with("Not that count"), "a wrong bet on a_places does not pass (got '%s')" % str(wrong.get("verdict", "")))
 	Telemetry.budget_us = 9000
