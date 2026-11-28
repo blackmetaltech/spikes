@@ -146,7 +146,7 @@ void measure_gain( int first, int n )
     for ( int s = first; s < first + n; ++s )
     {
       const Res r = run( "a_gain", set_group( c, grp, "scale", sc ), static_cast< uint64_t >( s ) );
-      std::printf( "M gain group=%s scale=%g seed=%d loaded=%d passed=%d n_held=%g held=%s kind=%s hz=%s strength=%s near=%s rest=%s %s\n", sc, s, r.loaded, r.passed, part( r, "n_held" ), per_trial( r, "held", 0 ).c_str(), per_trial( r, "kind", 0 ).c_str(),
+      std::printf( "M gain group=%s scale=%g seed=%d loaded=%d passed=%d n_held=%g held=%s kind=%s hz=%s strength=%s near=%s rest=%s %s\n", grp.c_str(), sc, s, r.loaded, r.passed, part( r, "n_held" ), per_trial( r, "held", 0 ).c_str(), per_trial( r, "kind", 0 ).c_str(),
                    per_trial( r, "hz", 1 ).c_str(), per_trial( r, "strength", 2 ).c_str(), per_trial( r, "near", 2 ).c_str(), per_trial( r, "rest", 0 ).c_str(), r.error.c_str() );
     }
 }
