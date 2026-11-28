@@ -136,15 +136,17 @@ void measure_places( int first, int n )
 void measure_gain( int first, int n )
 {
   json c = load_file( "a_gain_given.json" );
-  c = set_group( c, "D7", "ranges", json{ { "scale", { 0.01, 8.0 } } } );
+  const std::string grp = std::getenv( "ATLAS_GROUP" ) ? std::getenv( "ATLAS_GROUP" ) : "D7";   // the group whose scale is swept (made free here; the others keep scale 1)
+  c = set_group( c, grp, "free", json::array( { "scale" } ) );
+  c = set_group( c, grp, "ranges", json{ { "scale", { 0.01, 8.0 } } } );
   std::vector< double > scales;
   std::stringstream ss( std::getenv( "ATLAS_SCALES" ) ? std::getenv( "ATLAS_SCALES" ) : "0.2,0.4,0.6,0.8,1.0,1.2,1.5,2,3" );
   for ( std::string tok; std::getline( ss, tok, ',' ); ) scales.push_back( std::atof( tok.c_str() ) );
   for ( double sc : scales )
     for ( int s = first; s < first + n; ++s )
     {
-      const Res r = run( "a_gain", set_group( c, "D7", "scale", sc ), static_cast< uint64_t >( s ) );
-      std::printf( "M gain scale=%g seed=%d loaded=%d passed=%d n_held=%g held=%s kind=%s hz=%s strength=%s near=%s rest=%s %s\n", sc, s, r.loaded, r.passed, part( r, "n_held" ), per_trial( r, "held", 0 ).c_str(), per_trial( r, "kind", 0 ).c_str(),
+      const Res r = run( "a_gain", set_group( c, grp, "scale", sc ), static_cast< uint64_t >( s ) );
+      std::printf( "M gain group=%s scale=%g seed=%d loaded=%d passed=%d n_held=%g held=%s kind=%s hz=%s strength=%s near=%s rest=%s %s\n", sc, s, r.loaded, r.passed, part( r, "n_held" ), per_trial( r, "held", 0 ).c_str(), per_trial( r, "kind", 0 ).c_str(),
                    per_trial( r, "hz", 1 ).c_str(), per_trial( r, "strength", 2 ).c_str(), per_trial( r, "near", 2 ).c_str(), per_trial( r, "rest", 0 ).c_str(), r.error.c_str() );
     }
 }
