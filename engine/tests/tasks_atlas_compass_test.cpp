@@ -137,6 +137,7 @@ void measure_gain( int first, int n )
 {
   json c = load_file( "a_gain_given.json" );
   const std::string grp = std::getenv( "ATLAS_GROUP" ) ? std::getenv( "ATLAS_GROUP" ) : "D7";   // the group whose scale is swept (made free here; the others keep scale 1)
+  if ( grp != "D7" ) c = set_group( c, "D7", "scale", 1.0 );   // the other groups are swept with the Delta7 gain at the reference value
   c = set_group( c, grp, "free", json::array( { "scale" } ) );
   c = set_group( c, grp, "ranges", json{ { "scale", { 0.01, 8.0 } } } );
   std::vector< double > scales;
