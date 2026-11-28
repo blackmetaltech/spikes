@@ -56,8 +56,8 @@ public:
   std::vector< Hint > hints() const override
   {
     return { { 1, "A ring that holds one bump of activity needs two things: cells that excite their neighbours, so the bump keeps itself going, and cells that inhibit the ring as a whole, so there is only one bump. The wiring does not say which cells do which.", "" },
-      { 2, "Look at the cell type that connects to the whole ring, the Delta seven cells, and at the cells that make up the ring itself. Each card has a sign. Run a cue and watch whether the activity dies out or spreads.", "D7" },
-      { 3, "Compass cells and P-EG cells excite the cells they connect to. The Delta seven cells inhibit them. Set the three signs and run the cues again.", "D7" } };
+      { 2, "Look at the cell type that connects to the whole ring, the Delta seven cells, and at the cells that make up the ring itself. Each card has a sign. Run a cue and watch whether the activity dies out or spreads.", "DELTA" },
+      { 3, "Compass cells and P-EG cells excite the cells they connect to. The Delta seven cells inhibit them. Set the three signs and run the cues again.", "DELTA" } };
   }
 
   std::map< std::string, Metric > metrics() const override { return { { "cues_held", { static_cast< double >( held_count() ), "cues", false } } }; }
@@ -76,7 +76,7 @@ public:
 protected:
   void inspect( Engine& ) override
   {
-    if ( sign_of( "EPG" ) == 0 || sign_of( "PEG" ) == 0 || sign_of( "D7" ) == 0 ) mech_ = "The cell-type cards are missing: load the given circuit again.";
+    if ( sign_of( "EPG" ) == 0 || sign_of( "PEG" ) == 0 || sign_of( "DELTA" ) == 0 ) mech_ = "The cell-type cards are missing: load the given circuit again.";
   }
 
 private:

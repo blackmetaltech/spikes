@@ -57,17 +57,17 @@
     CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
     CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
     CHEAP_ROW( t, "reference with every weight 0", cheap::zero_weights( t ) );
-    CHEAP_ROW_V( t, "everything excitatory (the given circuit)", "wrong", cheap::from_ref( t, set_sign( "D7", 1 ) ) );
-    CHEAP_ROW_V( t, "everything inhibitory", "wrong", cheap::from_ref( t, cheap::all( set_sign( "EPG", -1 ), set_sign( "PEG", -1 ), set_sign( "D7", -1 ) ) ) );
+    CHEAP_ROW_V( t, "everything excitatory (the given circuit)", "wrong", cheap::from_ref( t, set_sign( "DELTA", 1 ) ) );
+    CHEAP_ROW_V( t, "everything inhibitory", "wrong", cheap::from_ref( t, cheap::all( set_sign( "EPG", -1 ), set_sign( "PEG", -1 ), set_sign( "DELTA", -1 ) ) ) );
     CHEAP_ROW_V( t, "Delta7 and E-PG inhibitory", "wrong", cheap::from_ref( t, set_sign( "EPG", -1 ) ) );
-    CHEAP_ROW_V( t, "tampered: the Delta7 weights doubled", "wiring", cheap::from_ref( t, scale_pre( "D7", 2.0 ) ) );
+    CHEAP_ROW_V( t, "tampered: the Delta7 weights doubled", "wiring", cheap::from_ref( t, scale_pre( "DELTA", 2.0 ) ) );
   }
   {
     const char* t = "a_gain";
     CHEAP_ROW( t, "empty bench", cheap::empty( t ) );
     CHEAP_ROW( t, "one cell, first-connect weights", cheap::single_cell( t ) );
     CHEAP_ROW( t, "reference with every weight 0", cheap::zero_weights( t ) );
-    CHEAP_ROW_V( t, "no inhibition at the lower end of the range", "range", cheap::from_ref( t, set_scale( "D7", 0.01 ) ) );
-    CHEAP_ROW_V( t, "tampered: the Delta7 weights doubled", "wiring", cheap::from_ref( t, scale_pre( "D7", 2.0 ) ) );
+    CHEAP_ROW_V( t, "no inhibition at the lower end of the range", "range", cheap::from_ref( t, set_scale( "DELTA", 0.05 ) ) );
+    CHEAP_ROW_V( t, "tampered: the Delta7 weights doubled", "wiring", cheap::from_ref( t, scale_pre( "DELTA", 2.0 ) ) );
   }
 }

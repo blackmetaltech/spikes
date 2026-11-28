@@ -167,7 +167,7 @@
    ]
   },
   {
-   "id": "D7",
+   "id": "DELTA",
    "model": "iaf_psc_alpha",
    "n": 42,
    "params": {
@@ -1952,7 +1952,7 @@
   },
   {
    "pre": "EPG",
-   "post": "D7",
+   "post": "DELTA",
    "edges": [
     [0, 0, 20.0731, 2.0],
     [0, 1, 44.1609, 2.0],
@@ -4707,7 +4707,7 @@
   },
   {
    "pre": "PENa",
-   "post": "D7",
+   "post": "DELTA",
    "edges": [
     [1, 9, 0.45, 2.0],
     [3, 8, 0.45, 2.0],
@@ -5660,7 +5660,7 @@
   },
   {
    "pre": "PENb",
-   "post": "D7",
+   "post": "DELTA",
    "edges": [
     [1, 4, 0.4385, 2.0],
     [4, 8, 0.2192, 2.0],
@@ -6150,7 +6150,7 @@
   },
   {
    "pre": "PEG",
-   "post": "D7",
+   "post": "DELTA",
    "edges": [
     [0, 18, 0.2222, 2.0],
     [0, 31, 0.2222, 2.0],
@@ -6179,7 +6179,7 @@
    "locked": true
   },
   {
-   "pre": "D7",
+   "pre": "DELTA",
    "post": "EPG",
    "edges": [
     [0, 2, 5.7343, 2.0],
@@ -7176,7 +7176,7 @@
    "locked": true
   },
   {
-   "pre": "D7",
+   "pre": "DELTA",
    "post": "PENa",
    "edges": [
     [0, 0, 0.6216, 2.0],
@@ -7484,7 +7484,7 @@
    "locked": true
   },
   {
-   "pre": "D7",
+   "pre": "DELTA",
    "post": "PENb",
    "edges": [
     [0, 6, 0.0973, 2.0],
@@ -7830,7 +7830,7 @@
    "locked": true
   },
   {
-   "pre": "D7",
+   "pre": "DELTA",
    "post": "PEG",
    "edges": [
     [0, 0, 2.5158, 2.0],
@@ -8233,8 +8233,8 @@
    "locked": true
   },
   {
-   "pre": "D7",
-   "post": "D7",
+   "pre": "DELTA",
+   "post": "DELTA",
    "edges": [
     [0, 1, 0.0626, 2.0],
     [0, 2, 0.0804, 2.0],
@@ -10172,7 +10172,7 @@
      "pop": "PEG"
     },
     {
-     "pop": "D7"
+     "pop": "DELTA"
     }
    ],
    "weight": -1000.0,
@@ -10417,10 +10417,10 @@
    ]
   },
   {
-   "id": "D7",
+   "id": "DELTA",
    "label": "Delta7 cells (ring-wide)",
    "pops": [
-    "D7"
+    "DELTA"
    ],
    "sign": 1,
    "scale": 1.0,

@@ -270,9 +270,9 @@ protected:
     s.parts[ "places" ] = places();
     s.parts[ "sign_EPG" ] = sign_of( "EPG" );
     s.parts[ "sign_PEG" ] = sign_of( "PEG" );
-    s.parts[ "sign_D7" ] = sign_of( "D7" );
+    s.parts[ "sign_DELTA" ] = sign_of( "DELTA" );
     for ( const auto& g : g_.st.groups )
-      if ( g.id == "D7" ) s.parts[ "scale_D7" ] = g.scale;
+      if ( g.id == "DELTA" ) s.parts[ "scale_DELTA" ] = g.scale;
   }
 
   std::vector< int > cues_;

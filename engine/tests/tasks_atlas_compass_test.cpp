@@ -113,7 +113,7 @@ void measure_signs( int first, int n )
     json c = given;
     c = set_group( c, "EPG", "sign", a & 1 ? -1 : 1 );
     c = set_group( c, "PEG", "sign", a & 2 ? -1 : 1 );
-    c = set_group( c, "D7", "sign", a & 4 ? -1 : 1 );
+    c = set_group( c, "DELTA", "sign", a & 4 ? -1 : 1 );
     for ( int s = first; s < first + n; ++s )
     {
       const Res r = run( "a_signs", c, static_cast< uint64_t >( s ) );
@@ -136,8 +136,8 @@ void measure_places( int first, int n )
 void measure_gain( int first, int n )
 {
   json c = load_file( "a_gain_given.json" );
-  const std::string grp = std::getenv( "ATLAS_GROUP" ) ? std::getenv( "ATLAS_GROUP" ) : "D7";   // the group whose scale is swept (made free here; the others keep scale 1)
-  if ( grp != "D7" ) c = set_group( c, "D7", "scale", 1.0 );   // the other groups are swept with the Delta7 gain at the reference value
+  const std::string grp = std::getenv( "ATLAS_GROUP" ) ? std::getenv( "ATLAS_GROUP" ) : "DELTA";   // the group whose scale is swept (made free here; the others keep scale 1)
+  if ( grp != "DELTA" ) c = set_group( c, "DELTA", "scale", 1.0 );   // the other groups are swept with the Delta7 gain at the reference value
   c = set_group( c, grp, "free", json::array( { "scale" } ) );
   c = set_group( c, grp, "ranges", json{ { "scale", { 0.01, 8.0 } } } );
   std::vector< double > scales;
@@ -154,7 +154,7 @@ void measure_gain( int first, int n )
 void measure_dx( int first, int n )
 {
   const json base = load_file( "a_places_given.json" );   // every cell and connection with its weight and sign, nothing silenced
-  for ( const char* lesion : { "none", "EPG", "PENa", "PENb", "PEG", "D7" } )
+  for ( const char* lesion : { "none", "EPG", "PENa", "PENb", "PEG", "DELTA" } )
     for ( int s = first; s < first + n; ++s )
     {
       json c = base;
@@ -165,7 +165,7 @@ void measure_dx( int first, int n )
       std::printf( "M dx lesion=%s seed=%d loaded=%d held=%s kind=%s hz=%s strength=%s near=%s", lesion, s, r.loaded, per_trial( r, "held", 0, "run_" ).c_str(), per_trial( r, "kind", 0, "run_" ).c_str(), per_trial( r, "hz", 1, "run_" ).c_str(),
                    per_trial( r, "strength", 2, "run_" ).c_str(), per_trial( r, "near", 2, "run_" ).c_str() );
       for ( const char* w : { "cue", "mid", "late" } )
-        for ( const char* p : { "EPG", "PENa", "PENb", "PEG", "D7" } ) std::printf( " %s_%s=%.1f", w, p, r.hz.count( w ) && r.hz.at( w ).count( p ) ? r.hz.at( w ).at( p ) : 0.0 );
+        for ( const char* p : { "EPG", "PENa", "PENb", "PEG", "DELTA" } ) std::printf( " %s_%s=%.1f", w, p, r.hz.count( w ) && r.hz.at( w ).count( p ) ? r.hz.at( w ).at( p ) : 0.0 );
       std::printf( " %s\n", r.error.c_str() );
     }
 }
@@ -195,7 +195,7 @@ json with_signs( json c, int epg, int peg, int d7 )
 {
   c = set_group( c, "EPG", "sign", epg );
   c = set_group( c, "PEG", "sign", peg );
-  return set_group( c, "D7", "sign", d7 );
+  return set_group( c, "DELTA", "sign", d7 );
 }
 bool spike_run( const std::string& args, json& out )
 {
@@ -241,10 +241,10 @@ void test_digests()
     const bool sign_free = g[ "id" ] != "PEN";
     CHECK_MSG( g[ "free" ] == ( sign_free ? json::array( { "sign" } ) : json::array() ) and g[ "scale" ] == 1.0, "a_signs: the cards: " + g[ "id" ].get< std::string >() );
   }
-  for ( const auto& g : gain[ "groups" ] ) CHECK_MSG( g[ "free" ] == ( g[ "id" ] == "D7" ? json::array( { "scale" } ) : json::array() ) and g[ "sign" ] == ( g[ "id" ] == "D7" ? -1 : 1 ), "a_gain: the cards" );
+  for ( const auto& g : gain[ "groups" ] ) CHECK_MSG( g[ "free" ] == ( g[ "id" ] == "DELTA" ? json::array( { "scale" } ) : json::array() ) and g[ "sign" ] == ( g[ "id" ] == "DELTA" ? -1 : 1 ), "a_gain: the cards" );
   // the given signs are the wrong ones, the reference the right ones
   for ( const auto& g : signs[ "groups" ] ) CHECK( g[ "sign" ] == 1 );
-  for ( const auto& g : load_file( "a_signs.json" )[ "groups" ] ) CHECK( g[ "sign" ] == ( g[ "id" ] == "D7" ? -1 : 1 ) );
+  for ( const auto& g : load_file( "a_signs.json" )[ "groups" ] ) CHECK( g[ "sign" ] == ( g[ "id" ] == "DELTA" ? -1 : 1 ) );
 }
 
 // ---------------------------------------------------------------- 2. tampering
@@ -261,7 +261,7 @@ void test_tampering()
   { json c = ref; c[ "projections" ][ 3 ].erase( "locked" ); expect_rejected( t, c, "the locked flag removed from a projection", wiring ); }
   { json c = ref; c[ "projections" ].erase( 5 ); expect_rejected( t, c, "a projection removed", wiring ); }
   { json c = ref; c[ "populations" ][ 4 ][ "params" ][ "I_e" ] = 100.0; expect_rejected( t, c, "a locked population given another background current", cells ); }
-  { json c = ref; c[ "populations" ][ 4 ][ "n" ] = 10; c[ "populations" ][ 4 ].erase( "pos" ); expect_rejected( t, c, "a locked population resized", cells ); }
+  { json c = ref; c[ "populations" ][ 4 ][ "n" ] = c[ "populations" ][ 4 ][ "n" ].get< int >() + 1; c[ "populations" ][ 4 ].erase( "pos" ); expect_rejected( t, c, "a locked population resized", cells ); }
   { json c = ref; c[ "populations" ].push_back( { { "id", "X" }, { "model", "iaf_psc_alpha" }, { "n", 1 } } ); expect_rejected( t, c, "a population added", cells ); }
   { json c = set_group( ref, "PEN", "sign", -1 ); expect_rejected( t, c, "the P-EN sign flipped (not free)", type ); }
   { json c = set_group( ref, "PEN", "free", { "sign" } ); expect_rejected( t, c, "P-EN made free to sign", type ); }
@@ -281,10 +281,10 @@ void test_tampering()
     CHECK_MSG( r.loaded and not rejected( r ), "positions, name and seed are free: " + r.verdict ); }
   // a_gain: the sign of every card is fixed, the scale of one is free inside its range only
   const json gref = load_file( "a_gain.json" );
-  { json c = set_group( gref, "D7", "sign", 1 ); expect_rejected( "a_gain", c, "a_gain: the Delta7 sign flipped (not free)", type ); }
-  { json c = set_group( gref, "D7", "scale", 99.0 ); expect_rejected( "a_gain", c, "a_gain: the scale above its range", "range" ); }
-  { json c = set_group( gref, "D7", "scale", 0.0001 ); expect_rejected( "a_gain", c, "a_gain: the scale below its range", "range" ); }
-  { json c = set_group( gref, "D7", "ranges", { { "scale", { 0.01, 99.0 } } } ); expect_rejected( "a_gain", c, "a_gain: the range widened", type ); }
+  { json c = set_group( gref, "DELTA", "sign", 1 ); expect_rejected( "a_gain", c, "a_gain: the Delta7 sign flipped (not free)", type ); }
+  { json c = set_group( gref, "DELTA", "scale", 2.5 ); expect_rejected( "a_gain", c, "a_gain: the scale above its range", "range" ); }
+  { json c = set_group( gref, "DELTA", "scale", 0.05 ); expect_rejected( "a_gain", c, "a_gain: the scale below its range", "range" ); }
+  { json c = set_group( gref, "DELTA", "ranges", { { "scale", { 0.01, 99.0 } } } ); expect_rejected( "a_gain", c, "a_gain: the range widened", type ); }
   { json c = set_group( gref, "PEN", "free", { "scale" } ); c = set_group( c, "PEN", "ranges", { { "scale", { 0.5, 2.0 } } } ); expect_rejected( "a_gain", c, "a_gain: another cell type made free", type ); }
   { json c = gref; c[ "projections" ][ 3 ][ "edges" ][ 0 ][ 2 ] = c[ "projections" ][ 3 ][ "edges" ][ 0 ][ 2 ].get< double >() * 1.5; expect_rejected( "a_gain", c, "a_gain: an edge re-weighted", wiring ); }
   // a_places: nothing is free
@@ -323,7 +323,7 @@ void test_signs()
     std::printf( "  E-PG %c P-EG %c Delta7 %c: %d of %zu pass\n", epg > 0 ? '+' : '-', peg > 0 ? '+' : '-', d7 > 0 ? '+' : '-', passes, seeds.size() );
   }
   const Res r = run( "a_signs", given );
-  CHECK( r.hints.size() == 3 and r.hints[ 1 ].target == "D7" );
+  CHECK( r.hints.size() == 3 and r.hints[ 1 ].target == "DELTA" );
   for ( const auto& h : r.hints ) no_digit( "a_signs hint " + std::to_string( h.tier ), h.text );
 }
 
@@ -387,14 +387,14 @@ void test_gain()
   if ( not std::getenv( "ATLAS_SEEDS" ) ) seeds.resize( 3 );
   std::printf( "a_gain: every value of the stepper (steps of 0.05 from the bottom to the top of the range) on %zu seeds\n", seeds.size() );
   double lo = 0, hi = 0;
-  for ( const auto& g : given[ "groups" ] ) if ( g[ "id" ] == "D7" ) { lo = g[ "ranges" ][ "scale" ][ 0 ].get< double >(); hi = g[ "ranges" ][ "scale" ][ 1 ].get< double >(); }
+  for ( const auto& g : given[ "groups" ] ) if ( g[ "id" ] == "DELTA" ) { lo = g[ "ranges" ][ "scale" ][ 0 ].get< double >(); hi = g[ "ranges" ][ "scale" ][ 1 ].get< double >(); }
   CHECK_MSG( lo > 0 and hi > lo, "the range of the Delta7 scale" );
   for ( double v = lo; v <= hi + 1e-9; v += 0.05 )
   {
     int passes = 0;
     for ( uint64_t seed : seeds )
     {
-      const Res r = run( "a_gain", set_group( ref, "D7", "scale", v ), seed );
+      const Res r = run( "a_gain", set_group( ref, "DELTA", "scale", v ), seed );
       CHECK_MSG( r.loaded and not rejected( r ), r.error + r.verdict );
       no_digit( "a_gain verdict", r.verdict );
       passes += r.passed ? 1 : 0;
@@ -408,7 +408,7 @@ void test_gain()
   { const Res r = run( "a_gain", ref, 1 );   // the reference passes in full
     CHECK_MSG( r.passed and r.value == 100.0 and r.parts.at( "n_held" ) == r.parts.at( "n_trials" ), "the reference passes: " + r.verdict ); }
   const Res r = run( "a_gain", given, 1, true, "", false, true, 100 );
-  CHECK( r.hints.size() == 3 and r.hints[ 1 ].target == "D7" );
+  CHECK( r.hints.size() == 3 and r.hints[ 1 ].target == "DELTA" );
   for ( const auto& h : r.hints ) no_digit( "a_gain hint " + std::to_string( h.tier ), h.text );
 }
 
@@ -420,7 +420,7 @@ void test_dx()
   const auto d = t->diagnosis();
   std::printf( "dx_a_compass: the five lesions by what the scopes show\n" );
   CHECK( t->level_kind() == "diagnosis" and not t->on_spine() and t->parent() == "a_gain" and t->chapter() == "a_compass" and d.circuit == "dx_a_compass.json" );
-  CHECK( d.candidates.size() == 5 and d.answer == "pop:D7" and d.candidates.front() != d.answer and not d.bet );
+  CHECK( d.candidates.size() == 5 and d.answer == "pop:DELTA" and d.candidates.front() != d.answer and not d.bet );
   CHECK( d.probes.size() >= 1 and d.probes.size() <= 2 );
   for ( const auto& c : d.candidates ) CHECK( d.labels.count( c ) and d.explain.count( c ) and t->brief().find( c ) != std::string::npos );
   for ( const auto& [ k, v ] : d.explain ) no_digit( "dx explain", v );
@@ -439,13 +439,13 @@ void test_dx()
     return w;
   };
   CHECK( patient[ "projections" ].size() == healthy[ "projections" ].size() and patient[ "populations" ].size() == healthy[ "populations" ].size() );
-  for ( const char* k : { "EPG", "PENa", "PENb", "PEG", "D7" } )
+  for ( const char* k : { "EPG", "PENa", "PENb", "PEG", "DELTA" } )
     CHECK_MSG( ( weight_out( patient, k ) == 0.0 ) == ( "pop:" + std::string( k ) == d.answer ) and ( weight_out( patient, k ) == 0.0 or std::fabs( weight_out( patient, k ) - weight_out( healthy, k ) ) < 1e-6 ),
                std::string( "only the answer's outputs are silent: " ) + k );
   // the signature: mean Hz per cell in the windows after the first cue (cue 200-700 ms; "late" = 3200-3700 ms)
   auto seeds = seed_list();
   if ( not std::getenv( "ATLAS_SEEDS" ) ) seeds.resize( 3 );
-  for ( const char* lesion : { "none", "EPG", "PENa", "PENb", "PEG", "D7" } )
+  for ( const char* lesion : { "none", "EPG", "PENa", "PENb", "PEG", "DELTA" } )
     for ( uint64_t seed : seeds )
     {
       json c = healthy;
@@ -456,18 +456,18 @@ void test_dx()
       CHECK_MSG( r.loaded, r.error );
       auto hz = [ & ]( const char* pop ) { return r.hz.count( "late" ) && r.hz.at( "late" ).count( pop ) ? r.hz.at( "late" ).at( pop ) : 0.0; };
       const double held = r.parts.count( "run_n_held" ) ? r.parts.at( "run_n_held" ) : -1.0;
-      std::printf( "    %-4s seed %3d: held %g of 2, late Hz EPG %.1f PENa %.1f PENb %.1f PEG %.1f D7 %.1f\n", lesion, static_cast< int >( seed ), held, hz( "EPG" ), hz( "PENa" ), hz( "PENb" ), hz( "PEG" ), hz( "D7" ) );
+      std::printf( "    %-4s seed %3d: held %g of 2, late Hz EPG %.1f PENa %.1f PENb %.1f PEG %.1f D7 %.1f\n", lesion, static_cast< int >( seed ), held, hz( "EPG" ), hz( "PENa" ), hz( "PENb" ), hz( "PEG" ), hz( "DELTA" ) );
       const std::string l = lesion;
-      if ( l == "D7" )
+      if ( l == "DELTA" )
       {
-        CHECK_MSG( held == 0.0 and hz( "EPG" ) > 150.0 and hz( "D7" ) > 150.0, "Delta7 silenced: the compass cells over-active, the Delta7 cells fire" );
+        CHECK_MSG( held == 0.0 and hz( "EPG" ) > 150.0 and hz( "DELTA" ) > 150.0, "Delta7 silenced: the compass cells over-active, the Delta7 cells fire" );
         CHECK_MSG( r.parts.at( "run_passed" ) == 0.0, "the patient fails its world" );
       }
-      else if ( l == "EPG" ) CHECK_MSG( held == 0.0 and hz( "PEG" ) < 0.5 and hz( "D7" ) < 0.5 and hz( "EPG" ) > 10.0 and hz( "EPG" ) < 100.0, "E-PG silenced: P-EG and Delta7 silent, the compass cells not over-active" );
-      else CHECK_MSG( held == 2.0 and hz( "EPG" ) > 10.0 and hz( "EPG" ) < 40.0 and hz( "D7" ) > 40.0, l + " silenced: the ring still holds its bump at an ordinary rate" );
+      else if ( l == "EPG" ) CHECK_MSG( held == 0.0 and hz( "PEG" ) < 0.5 and hz( "DELTA" ) < 0.5 and hz( "EPG" ) > 10.0 and hz( "EPG" ) < 100.0, "E-PG silenced: P-EG and Delta7 silent, the compass cells not over-active" );
+      else CHECK_MSG( held == 2.0 and hz( "EPG" ) > 10.0 and hz( "EPG" ) < 40.0 and hz( "DELTA" ) > 40.0, l + " silenced: the ring still holds its bump at an ordinary rate" );
     }
   { const Res r = run( "dx_a_compass", patient, 1, false, "", true );   // the patient itself
-    CHECK_MSG( r.loaded and r.parts.at( "run_n_held" ) == 0.0 and r.hz.at( "late" ).at( "EPG" ) > 150.0 and r.hz.at( "late" ).at( "D7" ) > 150.0, "the patient: compass cells over-active, Delta7 fires" ); }
+    CHECK_MSG( r.loaded and r.parts.at( "run_n_held" ) == 0.0 and r.hz.at( "late" ).at( "EPG" ) > 150.0 and r.hz.at( "late" ).at( "DELTA" ) > 150.0, "the patient: compass cells over-active, Delta7 fires" ); }
   const Res r = run( "dx_a_compass", patient, 1, true, "", false, true, 100 );
   CHECK( r.hints.size() == 3 );
   for ( const auto& h : r.hints ) no_digit( "dx hint " + std::to_string( h.tier ), h.text );

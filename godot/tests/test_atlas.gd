@@ -173,10 +173,10 @@ func _compass() -> void:
 	_check(gs.size() == 4, "a_signs has four cell-type cards (got %d)" % gs.size())
 	var free := {}
 	for g in gs: free[str(g["id"])] = Circuits.group_free(g, "sign")
-	_check(free.get("EPG", false) and free.get("PEG", false) and free.get("D7", false) and not free.get("PEN", true), "E-PG, P-EG and Delta7 have a free sign; P-EN has none (got %s)" % str(free))
+	_check(free.get("EPG", false) and free.get("PEG", false) and free.get("DELTA", false) and not free.get("PEN", true), "E-PG, P-EG and Delta7 have a free sign; P-EN has none (got %s)" % str(free))
 	var g2 := _given("a_gain"); var scale_free := {}
 	for g in Circuits.groups(g2): scale_free[str(g["id"])] = Circuits.group_free(g, "scale")
-	_check(scale_free.get("D7", false) and not scale_free.get("EPG", true) and not scale_free.get("PEG", true) and not scale_free.get("PEN", true), "only the Delta7 scale is free in a_gain (got %s)" % str(scale_free))
+	_check(scale_free.get("DELTA", false) and not scale_free.get("EPG", true) and not scale_free.get("PEG", true) and not scale_free.get("PEN", true), "only the Delta7 scale is free in a_gain (got %s)" % str(scale_free))
 	_check(Circuits.groups(_given("a_places")).is_empty(), "a_places has nothing to edit")
 	# through the engine: the given signs fail, the reference signs pass, a right and a wrong bet
 	Telemetry.budget_us = 1000000

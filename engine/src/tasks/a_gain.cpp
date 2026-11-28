@@ -55,8 +55,8 @@ public:
   std::vector< Hint > hints() const override
   {
     return { { 1, "Inhibition that spans the ring has to balance the excitation of the ring: with too little of it every cell is pulled along and the activity covers the ring.", "" },
-      { 2, "Run the cues and look at the ring. If the activity covers it, the Delta seven scale is too low.", "D7" },
-      { 3, "Raise the Delta seven scale in small steps and run the cues again after each step. The bump holds from about a third of the reference value up to the top of the range.", "D7" } };
+      { 2, "Run the cues and look at the ring. If the activity covers it, the Delta seven scale is too low.", "DELTA" },
+      { 3, "Raise the Delta seven scale in small steps and run the cues again after each step. The bump holds from about a third of the reference value up to the top of the range.", "DELTA" } };
   }
 
   std::map< std::string, Metric > metrics() const override
@@ -84,7 +84,7 @@ public:
 protected:
   void inspect( Engine& ) override
   {
-    if ( sign_of( "D7" ) == 0 ) mech_ = "The cell-type card of the Delta seven cells is missing: load the given circuit again.";
+    if ( sign_of( "DELTA" ) == 0 ) mech_ = "The cell-type card of the Delta seven cells is missing: load the given circuit again.";
   }
 };
 }  // namespace

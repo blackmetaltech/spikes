@@ -27,18 +27,18 @@ DxSpec spec()
   s.method = "Run the circuit and record. Open the scope of a cell type to see how strongly it fires after the cue. A silenced type still fires when its own input is strong enough, and the types after it "
              "lose what it carried. You can also silence a type yourself in the lesion lab. Then name the silenced type. The case is scored on what it took: each wrong guess and each probe beyond "
              "the first few lowers the score.";
-  s.candidates = { "pop:EPG", "pop:PENa", "pop:PENb", "pop:PEG", "pop:D7" };
-  s.answer = "pop:D7";
+  s.candidates = { "pop:EPG", "pop:PENa", "pop:PENb", "pop:PEG", "pop:DELTA" };
+  s.answer = "pop:DELTA";
   s.labels = { { "pop:EPG", "the compass cells (E-PG) carry nothing" }, { "pop:PENa", "the P-EN cells of the first kind (P-EN a) carry nothing" },
-    { "pop:PENb", "the P-EN cells of the second kind (P-EN b) carry nothing" }, { "pop:PEG", "the P-EG cells carry nothing" }, { "pop:D7", "the Delta7 cells carry nothing" } };
+    { "pop:PENb", "the P-EN cells of the second kind (P-EN b) carry nothing" }, { "pop:PEG", "the P-EG cells carry nothing" }, { "pop:DELTA", "the Delta7 cells carry nothing" } };
   s.explain = {
     { "pop:EPG", "With the output of the compass cells cut, the P-EG cells, the Delta seven cells and one kind of P-EN cell lose their drive and fall silent. Here they fire strongly, so the compass cells are not the silenced type." },
     { "pop:PENa", "With only the output of the first kind of P-EN cells cut, the ring still holds its bump in this model and the compass cells fire at an ordinary rate. Here they fire far too strongly, so the fault is elsewhere." },
     { "pop:PENb", "With only the output of the second kind of P-EN cells cut, the ring still holds its bump in this model and the compass cells fire at an ordinary rate. Here they fire far too strongly, so the fault is elsewhere." },
     { "pop:PEG", "With only the output of the P-EG cells cut, the ring still holds its bump in this model and the compass cells fire at an ordinary rate. Here they fire far too strongly, so the fault is elsewhere." },
-    { "pop:D7", "With the output of the Delta seven cells cut, nothing holds the activity in check: the compass cells fire strongly all round the ring, while the Delta seven cells themselves fire hard and pass nothing on." } };
+    { "pop:DELTA", "With the output of the Delta seven cells cut, nothing holds the activity in check: the compass cells fire strongly all round the ring, while the Delta seven cells themselves fire hard and pass nothing on." } };
   s.probes = { { "scope", "EPG", "separates a ring that is over-active from one that is quiet: the compass cells fire strongly all round the ring only when the inhibition across the ring is cut" },
-    { "cut", "pop:D7", "silencing a type that is already silent changes nothing downstream" } };
+    { "cut", "pop:DELTA", "silencing a type that is already silent changes nothing downstream" } };
   s.concepts_new = { "diagnosis" };
   s.concepts_used = { "inhibition_balance" };
   s.hint1 = "A ring that holds one bump needs excitation among its cells and inhibition across the ring. Record the compass cells after a cue and ask which of the two is missing.";
