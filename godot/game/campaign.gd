@@ -34,7 +34,8 @@ const CHAPTERS := [
 	{"id": "memory", "title": "Theory: Attractor memory", "organ": "bestiary", "wing": "theory", "blurb": "Hopfield's idea in spiking cells: a partial cue recalls a whole pattern, two patterns without blends, and a pattern written by spike-timing-dependent plasticity during an exposure."},
 	{"id": "tuning", "title": "Theory: Tuning and decoding", "organ": "bestiary", "wing": "theory", "blurb": "Cells tuned to an orientation or a direction: a tuned cell built by convergence, tuning sharpened by inhibition, and a direction decoded from a whole population with the population vector."},
 	# v0.6 Atlas wing (docs/ROADMAP-CONNECTOME.md): real wiring is given and the player reads it. Opens after the chapter I spine like the other wings.
-	{"id": "a_worm", "title": "Reading wiring", "organ": "bestiary", "wing": "atlas", "blurb": "The measured touch circuit of the worm: find the shortest route from a touch on the head to the backward muscles and test it by silencing, test a pattern in the wiring against chance, and bet on a lesion before you make it."}]
+	{"id": "a_worm", "title": "Reading wiring", "organ": "bestiary", "wing": "atlas", "blurb": "The measured touch circuit of the worm: find the shortest route from a touch on the head to the backward muscles and test it by silencing, test a pattern in the wiring against chance, and bet on a lesion before you make it."},
+	{"id": "a_compass", "title": "A ring from wiring", "organ": "bestiary", "wing": "atlas", "blurb": "The measured wiring of the fly compass: wiring does not give signs, so set them; bet on how many directions it can hold; balance the inhibition; and find which cell type has been silenced."}]
 
 ## Planned lineup per chapter: [id, title, node centre on the map (0..1, 0..1)].
 const PLANNED := {
@@ -54,6 +55,7 @@ const PLANNED := {
 	"memory": [["h_complete", "Recalling a whole from a part", Vector2(0.2, 0.62)], ["h_two", "Two memories, no blends", Vector2(0.5, 0.36)], ["h_learn", "Writing a memory with plasticity", Vector2(0.8, 0.62)]],
 	"tuning": [["t_tuned", "A cell tuned by its inputs", Vector2(0.2, 0.62)], ["t_sharpen", "Sharpening a tuning curve", Vector2(0.5, 0.36)], ["t_decode", "Reading a direction from a crowd", Vector2(0.8, 0.62)]],
 	"a_worm": [["a_path", "A route on paper", Vector2(0.2, 0.62)], ["a_motif", "Over-represented, but against what?", Vector2(0.5, 0.36)], ["a_predict", "Bet on a lesion", Vector2(0.8, 0.62)], ["dx_a_worm", "The worm that does not back up", Vector2(0.64, 0.86)]],
+	"a_compass": [["a_signs", "Set the signs", Vector2(0.2, 0.62)], ["a_places", "How many directions?", Vector2(0.5, 0.36)], ["a_gain", "Balance the inhibition", Vector2(0.8, 0.62)], ["dx_a_compass", "The compass that holds no bump", Vector2(0.64, 0.86)]],
 	"crab": [["s_pacemaker", "A pacemaker kernel", Vector2(0.2, 0.62)], ["s_phase", "Phase from rebound", Vector2(0.5, 0.36)], ["crab_pyloric", "The pyloric rhythm", Vector2(0.8, 0.62)]]}
 
 ## Extra slots for engine tasks that are not in PLANNED.
@@ -83,6 +85,9 @@ const CONCEPTS := {
 	"pathway": ["Pathway", "A route through the wiring from a sense to a muscle, found on a diagram. The shortest route on paper is a hypothesis: whether it carries the response has to be tested by silencing the cells off it.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
 	"prediction": ["Prediction before the experiment", "You commit to an answer first, then the experiment is run. A wrong bet costs something, so look at the wiring before you commit, and be ready to be wrong."],
 	"null_model": ["Null model", "A pattern in a wiring diagram means little until you say what chance would give. Counting a motif in random graphs with the same number of edges, the same degrees, or the same degrees and cell-type blocks can give three different answers.", "Milo R et al. (2002) Science 298:824, doi:10.1126/science.298.5594.824"],
+	"synaptic_sign": ["Sign of a synapse", "Wiring tells you which cell connects to which and with how many synapses, not whether a connection excites or inhibits. That is a property of the transmitter and the receptor, and has to be measured with physiology or assumed and tested.", "Franconville R, Beron C, Jayaraman V (2018) eLife 7:e37017, doi:10.7554/eLife.37017"],
+	"resting_places": ["Resting places of a ring", "A ring attractor in theory holds a bump at any heading. A ring with uneven wiring, measured or modelled, may hold it only at some headings and pull a cue between them to the nearest. Count the places before you call it a compass.", "Turner-Evans DB et al. (2020) Neuron 108:145, doi:10.1016/j.neuron.2020.08.006"],
+	"inhibition_balance": ["Balance of excitation and inhibition", "A ring that holds one bump needs inhibition strong enough to keep the activity to one place and weak enough to let it start and last. The gains that work form a window, not a point.", "Turner-Evans DB et al. (2020) Neuron 108:145, doi:10.1016/j.neuron.2020.08.006"],
 	"diagnosis": ["Diagnosis: from symptom to lesion", "Working backwards. The symptoms tell you what the circuit stopped doing; probing it with the scopes and lesions tells you where it was damaged.", "Rorden C, Karnath HO (2004) Nat Rev Neurosci 5:813, doi:10.1038/nrn1521"],
 	"persistence": ["Persistence: positive feedback holds a state", "Cells that excite each other keep each other firing after the input that started them has gone. A brief touch can start a state, a reversal for instance, that holds itself until something inhibits it.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
 	"command_switch": ["Command switch (winner takes all)", "Two command groups that inhibit each other cannot both be active. Each is driven by its own inputs, and when both are driven the stronger wins and silences the other: forward or backward, never both.", "Chalfie M et al. (1985) J Neurosci 5:956, doi:10.1523/JNEUROSCI.05-04-00956.1985"],
@@ -431,7 +436,8 @@ const FIRST_CHAPTER := "invertebrates"
 const WING_GATES := {
 	"aplysia": {"level": "m_neuromodulation", "title": "Heart: Neuromodulation"},
 	"crab": {"chapter": "leech", "title": "Bestiary: Leech"},
-	"fly_mb": {"chapter": "aplysia", "title": "Bestiary: Sea slug"}}
+	"fly_mb": {"chapter": "aplysia", "title": "Bestiary: Sea slug"},
+	"a_compass": {"chapter": "a_worm", "title": "Atlas: Reading wiring"}}
 
 static func chapter_open(ch: String) -> bool:
 	if unlock_all(): return true

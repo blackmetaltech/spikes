@@ -773,6 +773,65 @@ No individual in any of the 20 runs held at all four cues on seed 7 (so none rea
 
 Not tested: other cell models or synaptic dynamics (conductance-based, long synaptic time constants beyond 15 ms); signs other than the assumed ones; a different ring order, a per-cell background current, or noise; cue strength and duration; longer evolution runs or a different optimiser; a per-cell gene set (only 19 pair scales and 5 currents were free). The drift test used 24 draws, one per cue and seed, with a 500 ms cue; the drift speed of 187 degrees per second is a mean over the cue-to-window move and a lower bound on the move speed, since the bump may arrive earlier than 700 ms.
 
+## 4d. The compass levels measured in the engine (iteration A3)
+
+Runs 46125376018, 46126304606, 46127746707, 46129197369, 46130470624, 46131476627 and 46132527513 (`research.yml`, `build=full`; the numbers are printed by `engine/tests/tasks_atlas_compass_test` in measurement mode, `ATLAS_MEASURE=signs|places|gain|dx`, on the engine's own tasks `a_signs`, `a_places`, `a_gain`, `dx_a_compass`, not by the python tools). Every table is over circuit seeds 1 to 40 (task seed s gives circuit seed 1000 s + 7, as the game and `spike-run` do) unless it says five or twenty. The wiring and the setting are those of section 4c (`compass_setting.json`); what the levels add is the world, the readout and the criteria below. The 16-cue sweeps (the one with P-EG flipped and the per-cue gain table) ran with a temporary environment hook, `SPIKE_A_CUES`, that replaced the cues of the levels; it is in the history of the branch `w-a3` and not in the merged code, so those two tables cannot be reproduced from the final tests (the sweep of the reference, a_places, can). Where this note says "in this model", it means this circuit of point cells with fitted gains; none of it is a statement about the fly.
+
+**World.** A run is a row of trials of 3,700 ms. Trial: a reset (a negative current of 1 nA on every cell, 0 to 200 ms), a cue (Poisson, 300 Hz, 400 pA per spike, on the E-PG cells of heading k-1, k and k+1, 200 to 700 ms), nothing more. The readout is the rate of the E-PG cells of each of the 16 headings over the last 500 ms of the trial (3,000 to 3,500 ms after the cue starts), and "holds" is the definition of `compass_trial.held` (within 30 degrees of the cue, strength above 0.5, at least 0.7 of the spikes within two headings of the peak, 2 to 60 Hz). The 40 pA of tonic input that the study's two turn sensors gave every P-EN cell is part of their background current. Two things differ from the study and were checked: the cue is a Poisson sensor (independent trains per cell) instead of one shared train, and trials follow each other with a reset instead of each starting on a fresh circuit. With both, the 16-cue sweep below gives the same per-cue pattern as the study's single trials (cue 13 never holds; cues 2 and 14 on some seeds only; 71 of 80 trials there, 563 of 640 here).
+
+**1. a_signs: the eight sign assignments** (E-PG, P-EG, Delta7; the P-EN signs fixed excitatory), five cues in turn, headings 4, 11, 6, 15, 8, pass = the bump holds at all five. Held trials per cue (order 4, 11, 6, 15, 8), of 40 seeds:
+
+```
+E-PG P-EG Delta7   passes   held per cue (4, 11, 6, 15, 8)
++    +    -        40/40    40 40 40 40 40      <- the reference
++    +    +         0/40     0  0  0  0  0
++    -    -         0/40    40 24  0 40  1      <- P-EG flipped
++    -    +         0/40     0  0  0  0  0
+-    +    -         0/40     0  0  0  0  0
+-    +    +         0/40     0  0  0  0  0
+-    -    -         0/40     0  0  0  0  0
+-    -    +         0/40     0  0  0  0  0
+```
+
+The first cue set, headings 4, 8, 11, 15, was not robust: with P-EG flipped it passed on 3 of 40 seeds (held per cue 40, 3, 27, 40). Cue 6 was added because P-EG flipped does not hold there on any seed. The 16-cue sweep with P-EG flipped (E-PG +, Delta7 -; 40 seeds) holds, per cue 0 to 15: 37 0 0 40 40 40 0 0 1 13 0 26 40 40 39 40. The failures of P-EG flipped are almost all `moved` (a compact bump at another heading; 282 of 640 trials, 2 `spread`). Every assignment that makes E-PG or Delta7 wrong spreads over the ring without a bump (mean rate 8 to 353 Hz, strength 0.09 or less) on every trial.
+
+**2. a_places: how many directions?** Reference signs and gains, the 16 cues in turn, a resting place = the heading nearest to the bump angle of an active trial (mean rate 0.3 Hz or more).
+
+```
+distinct resting headings per run, 40 seeds:  six on 39, five on 1       (4 to 9 = "about6" on 40 of 40; 1 to 3, 13 or more, none on 0 of 40)
+held per cue 0..15, of 40:   40 39 21 40 40 40 40 40 40 39 40 40 40  0 24 40
+resting headings (trials, of 640):  2: 60   4: 140   6: 77   8: 83   11: 176   15: 104
+where each cue ends:  0->15 (40)  1->2 (39), 4 (1)  2->2 (21), 4 (19)  3,4,5->4  6->6  7->6 (37), 8 (3)  8,9->8  10..13->11  14->11 (16), 15 (24)  15->15
+```
+
+The same six places as section 4c (2, 4, 6, 8, 11, 15). The count is the answer; the level states it in words. The bet's candidates and their ranges (all16 13 or more, about6 4 to 9, two 1 to 3, none 0) are chosen to be far apart: the observed count is 5 or 6.
+
+**3. a_gain: one scale.** Sweep of the Delta7 scale (it multiplies every connection out of Delta7; 1.0 is the fitted gain), signs as in the reference, cues 4 and 12, passes of 40 seeds at every step of 0.05 from 0.10 to 1.80 and at 1.03:
+
+```
+scale       0.10 0.15 0.20 0.25 | 0.30 0.35 ... 1.80 (every step, 1.03 too)
+passes/40      0    0    0    0 |   40   40 ...   40
+mean rate Hz 202  151-175  82-103  70 |  58/53  51/46 ... 13/14        (cue 4 / cue 12; 22/21 at 1.0)
+```
+
+Below 0.30 the activity spreads (rate 60 Hz and over: `spread`, 80 of 80 trials at each of the four values); from 0.30 up to 1.80 the bump holds on 40 of 40 at all 36 values. **The window is one-sided.** More inhibition never killed the bump: it lowers the rates (5 to 7 Hz at scales 6 and 8) and the bump stays; above a scale of about 2 the result depends on the seed for some cues (cues 4 and 11: 19/20 passes at 2.0, 14 of 20 at 2.5, 11 of 20 at 3.5, 20 of 20 at 6 and 8), so the card's range stops at 1.8. Two things found on the way, kept for the record: (a) with the cues 4 and 11 there was a notch at 0.48 to 0.52 where the pass failed on every seed (the resting place of cue 11 moves to heading 12 and the bump settles more than 30 degrees from the cue); the resting places move with the gain, and across scales 0.3 to 1.8 only cues 4 and 12 hold at every step (5 seeds, 16 cues; cues 3 and 15 from 0.35, cue 5 from 0.6), which is why a_gain uses 4 and 12; (b) none of the other cell types has a window at all. With Delta7 at 1.0 (20 seeds): the E-PG scale holds from 0.30 to 2.0 (0.15 and below fails, 0.25 passes on 13 of 20) and has no upper edge to 2.0; the P-EG scale holds from 0.1 to 4 on every seed; the P-EN scale (both kinds) holds from 0.1 to 4 on every seed. So the Delta7 scale is the choice, with one clean edge, and the level says so (the card, the note and the verdict). This does not agree with the brief's expectation of a bump that dies under too much inhibition: in this model it does not.
+
+**4. dx_a_compass: silence one cell type** (the outputs of one type at weight 0; the two cues of a_gain; mean Hz per cell over 3,200 to 3,700 ms after the first cue starts; 40 seeds, ranges over seeds):
+
+```
+silenced   held at both cues   E-PG        P-EN a      P-EN b       P-EG        Delta7
+none         40/40              22.2-22.4   4.5-4.8     82.1-82.5    25.6-25.8   90.6-91.4
+E-PG          0/40              32.2-32.4   0.0         58.0         0.0         0.0
+P-EN a       40/40              21.6-22.0   4.5-4.7     81.5-82.0    25.1-25.6   89.2-90.0
+P-EN b       40/40              21.0-21.3   3.8-4.1     79.9-80.6    24.6-24.9   86.8-88.0
+P-EG         40/40              19.7-20.0   3.0-3.4     79.2-79.6    23.2-23.7   82.8-83.6
+Delta7        0/40              234.2-234.7 91.6-92.2   234.9-235.5  279.2-280.0 339.7-340.3
+```
+
+Only two lesions stop the ring holding a bump, E-PG and Delta7, and their signatures are far apart and the same on all 40 seeds: with Delta7 silenced the compass cells fire at 234 Hz and over and the Delta7 cells at 340 Hz; with E-PG silenced the P-EG, Delta7 and P-EN a cells are at 0.0 Hz. Silencing P-EG or either P-EN type is invisible in the holding (the compass cells change by 0 to 2.5 Hz). The culprit is Delta7: its signature (compass cells over-active while the Delta7 cells themselves fire hard) is distinct from every other candidate on all 40 seeds. The case lists all five types as candidates; the three that leave the ring working are ruled out by the recordings, not by the symptom.
+
+**Limits, plainly.** The criteria are those of this model. The wiring holds a bump where it is put at most cues, rests at about six headings and does not turn reliably (4c): there is no turning level. The count of resting places, the sign table and the gain window are results of point cells with fitted gains; the gains were fitted to hold a bump, so "this wiring holds a bump" is a statement about a fit, and the signs are the assumed ones that the fit found to be the only family that holds (4c). The state-space view of the roadmap is not built.
+
 ## 5. Sources
 
 Only the eleven verified papers are cited. Each is quoted in the form its `match` expression in `research/atlas-a-citations.json` expects.

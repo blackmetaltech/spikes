@@ -42,6 +42,7 @@ flowchart LR
   campaign_chapter_memory("Campaign chapter tab: Theory: Attractor memory")
   campaign_chapter_tuning("Campaign chapter tab: Theory: Tuning and decoding")
   campaign_chapter_a_worm("Campaign chapter tab: Atlas: Reading wiring")
+  campaign_chapter_a_compass("Campaign chapter tab: Atlas: A ring from wiring")
   parts["Parts bin (browse the catalogue)"]
   notebook["Lab notebook, Notes tab"]
   notebook_concepts("Notebook, Concepts tab (glossary)")
@@ -81,6 +82,7 @@ flowchart LR
   campaign -->|Chapter tabs| campaign_chapter_invertebrates
   campaign_chapter_worm -->|Chapter tabs| campaign_chapter_invertebrates
   campaign_chapter_dynamics -->|Chapter tabs| campaign_chapter_invertebrates
+  campaign_chapter_a_worm -->|Chapter tabs| campaign_chapter_invertebrates
   campaign -->|Pin_*| campaign
   campaign -->|StepMode| campaign
   notebook -->|BtnWhatIsReal| real
@@ -291,6 +293,7 @@ flowchart LR
 | `campaign.chapter.memory` | tab | Campaign chapter tab: Theory: Attractor memory |  |
 | `campaign.chapter.tuning` | tab | Campaign chapter tab: Theory: Tuning and decoding |  |
 | `campaign.chapter.a_worm` | tab | Campaign chapter tab: Atlas: Reading wiring |  |
+| `campaign.chapter.a_compass` | tab | Campaign chapter tab: Atlas: A ring from wiring |  |
 | `parts` | screen | Parts bin (browse the catalogue) | `BtnBack`, `BtnSandbox`, `PartsBin` |
 | `notebook` | screen | Lab notebook, Notes tab | `BtnBack`, `BtnWhatIsReal`, `TabNotes`, `TabConcepts` |
 | `notebook.concepts` | tab | Notebook, Concepts tab (glossary) |  |
@@ -361,5 +364,5 @@ flowchart LR
 | `BtnLesions` on `lab.more`, {'mode': 'standard'} | absent: The lesion lab opens after a pass. |
 | `BtnResults` on `lab.more`, {'mode': 'standard'} | absent: Results opens after a pass. |
 
-Counts: 74 nodes, 157 edges, 8 guard checks.
+Counts: 75 nodes, 158 edges, 8 guard checks.
 <!-- END GENERATED -->
