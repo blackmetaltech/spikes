@@ -29,7 +29,7 @@ SOURCE = ("Adult fly hemibrain v1.2.1, Scheffer LK et al. 2020, eLife 9:e57443, 
           "data/connectome/hemibrain/PROVENANCE.md; setting: data/connectome/hemibrain/compass_setting.json (research/atlas-a.md 4c)")
 PEN_TONIC = 40.0       # pA: what the two turn sensors gave every P-EN cell (BASE 40 units x turn_w 1.0 pA); baked into I_e
 CUE_HZ, CUE_W, CLEAR_W = 300.0, 400.0, -1000.0
-GAIN_GIVEN, GAIN_REF, GAIN_RANGE = 0.35, 1.0, [0.1, 3.0]    # a_gain: the Delta7 scale (set from research/atlas-a.md 4d)
+GAIN_GIVEN, GAIN_REF, GAIN_RANGE = 0.15, 1.03, [0.1, 1.8]    # a_gain: the Delta7 scale (set from research/atlas-a.md 4d)
 ANSWER_DX = "D7"       # the cell type whose outputs carry nothing in the patient of dx_a_compass (set from research/atlas-a.md 4d)
 CUE_SEQUENCE = {}
 LABEL = {"EPG": "E-PG cells (compass ring)", "PEN": "P-EN cells (shifters; their sign barely matters in this model, so it is fixed)", "PEG": "P-EG cells", "D7": "Delta7 cells (ring-wide)"}
