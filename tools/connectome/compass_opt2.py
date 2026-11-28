@@ -8,6 +8,7 @@ goes onto the P-EN cells of one half of the bridge (the constant background curr
 shift = signed angle between 'before' and the later window in headings (22.5 deg). Direction +1 = the left half (turn_right input; wiring predicts higher headings, see compass_heading.py),
 -1 = the right half (lower headings). A turn trial passes when direction * shift is between 2 and 10 headings, the two 'after' angles differ by at most 1 heading (it stays),
 the bump is still compact and in the rate band (strength above 0.5, near_peak above 0.7, 2 to 60 Hz mean rate). The hold trials are those of compass_trial.held (no pulse).
+With rot=1 each generation uses a new random set of 4 hold cues, 4 (cue, direction) turn trials among the 32 (16 cues, both directions) and circuit seed 7 or 8 for all individuals (parents are re-evaluated on it); file=NAME takes the start from another candidates file.
 Genes: the 19 pair scales, 5 population currents, turn_w (background gain, log10), pulse_w (log10). Score = 0.5 * hold + 0.5 * turn, with hold = mean of compass_opt.trial_score over
 cues 2, 6, 10, 14, and turn = mean over (cue 2, +1), (cue 10, -1), (cue 10, +1), (cue 2, -1) of gate * f(x) * p: gate = min(1, strength / 0.5) times 1 in band (0.3 outside),
 f = 0 for x <= 0, x / 2 up to 2, 1 up to 10, 1 - (x - 10) / 10 above (0 from 20), p = max(0.3, 1 - |after2 - after1| / 4). 1.0 is perfect. Workers: $JOBS.
@@ -59,16 +60,21 @@ def make(g, base):
     return p
 
 
+ALL_TURNS = tuple((c, d) for c in range(16) for d in (1, -1))
+
+
 def evaluate(a):
-    g, base = a
+    g, base = a[:2]
+    hc, tt, sd = a[2:] if len(a) > 2 else (HOLD_CUES, TURN_TRIALS, 7)
     p = make(g, base)
-    hold = [ct.trial(p, c, 7) for c in HOLD_CUES]
-    turns = [turn_trial(p, c, d, 7) for c, d in TURN_TRIALS]
+    hold = [ct.trial(p, c, sd) for c in hc]
+    turns = [turn_trial(p, c, d, sd) for c, d in tt]
     out = {"genes": g, "params": p, "held7": [ct.held(t) for t in hold], "turn7": [t["ok"] for t in turns], "x7": [t["x"] for t in turns],
-           "hold_score": sum(co.trial_score(t) for t in hold) / 4, "turn_score": sum(t["score"] for t in turns) / 4}
+           "hold_score": sum(co.trial_score(t) for t in hold) / len(hold), "turn_score": sum(t["score"] for t in turns) / len(turns)}
     out["score"] = 0.5 * out["hold_score"] + 0.5 * out["turn_score"]
     if all(out["held7"]) and all(out["turn7"]):
-        out["held8"] = [ct.held(ct.trial(p, c, 8)) for c in HOLD_CUES]; out["turn8"] = [turn_trial(p, c, d, 8)["ok"] for c, d in TURN_TRIALS]
+        sd2 = 8 if sd == 7 else 7
+        out["held8"] = [ct.held(ct.trial(p, c, sd2)) for c in hc]; out["turn8"] = [turn_trial(p, c, d, sd2)["ok"] for c, d in tt]
     return out
 
 
@@ -83,8 +89,8 @@ def mutate(g, rng):
             "tw": co.clip(g["tw"] + s * 2 * rng.gauss(0, 1), -0.7, 1.7), "pw": co.clip(g["pw"] + s * 3 * rng.gauss(0, 1), 0.0, 3.0), "sigma": s}
 
 
-def evolve(line, seed, minutes, path, mu, lam):
-    start = json.loads(open(os.path.join(HERE, "compass_candidates.jsonl")).read().splitlines()[line - 1])["top"][0]["params"]
+def evolve(line, seed, minutes, path, mu, lam, rot=False, fname="compass_candidates.jsonl"):
+    start = json.loads(open(os.path.join(HERE, fname)).read().splitlines()[line - 1])["top"][0]["params"]
     base = {k: v for k, v in start.items() if not (k.startswith("w_") or k.startswith("I_e_") or k in ("turn_w", "pulse_w"))}
     rng = random.Random(seed); t0 = time.time(); out = open(path, "w")
     with Pool(int(os.environ.get("JOBS", os.cpu_count() or 4))) as pool:
@@ -99,8 +105,13 @@ def evolve(line, seed, minutes, path, mu, lam):
             print("gen %d best %.4f (hold %.3f turn %.3f)  holds+turns 4/4 on seed 7: %d  and on seed 8: %d  turn shifts of best %s  %.0f s" % (gen, pop[0]["score"], pop[0]["hold_score"], pop[0]["turn_score"], len(both), len(p8), pop[0]["x7"], time.time() - t0), flush=True)
             out.write(json.dumps({"gen": gen, "best": pop[0]["score"], "top": [{k: r[k] for k in ("params", "score", "hold_score", "turn_score", "held7", "turn7", "x7", "held8", "turn8") if k in r} for r in pop[:3]]}) + "\n"); out.flush()
             if time.time() - t0 > minutes * 60: break
-            kids = pool.map(evaluate, [(mutate(rng.choice([r["genes"] for r in pop[:mu]]), rng), base) for _ in range(lam)], chunksize=1)
-            pop = sorted(kids + pop[:mu], key=lambda r: r["score"], reverse=True)[:lam]
+            if rot:   # a new random set of trials each generation, the same for everyone (parents are re-evaluated on it); circuit seeds 7 and 8 only, 101 to 105 stay unseen
+                hc = tuple(rng.sample(range(16), 4)); tt = tuple(rng.sample(ALL_TURNS, 4)); sd = rng.choice((7, 8)); par = [r["genes"] for r in pop[:mu]]
+                res = pool.map(evaluate, [(g_, base, hc, tt, sd) for g_ in par] + [(mutate(rng.choice(par), rng), base, hc, tt, sd) for _ in range(lam)], chunksize=1)
+                pop = sorted(res, key=lambda r: r["score"], reverse=True)[:lam]
+            else:
+                kids = pool.map(evaluate, [(mutate(rng.choice([r["genes"] for r in pop[:mu]]), rng), base) for _ in range(lam)], chunksize=1)
+                pop = sorted(kids + pop[:mu], key=lambda r: r["score"], reverse=True)[:lam]
             gen += 1
 
 
@@ -108,4 +119,4 @@ if __name__ == "__main__":
     if sys.argv[1] == "evolve":
         kv = dict(a.split("=") for a in sys.argv[6:])
         os.makedirs(os.path.dirname(sys.argv[5]) or ".", exist_ok=True)
-        evolve(int(sys.argv[2]), int(sys.argv[3]), float(sys.argv[4]), sys.argv[5], int(kv.get("mu", 4)), int(kv.get("lam", 16)))
+        evolve(int(sys.argv[2]), int(sys.argv[3]), float(sys.argv[4]), sys.argv[5], int(kv.get("mu", 4)), int(kv.get("lam", 16)), kv.get("rot") == "1", kv.get("file", "compass_candidates.jsonl"))
