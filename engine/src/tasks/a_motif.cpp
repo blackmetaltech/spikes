@@ -161,7 +161,7 @@ public:
   {
     return { { 1, "A count means little without a comparison. A shuffled graph is a comparison, and what the shuffle keeps fixed decides what the count is compared with.", "" },
       { 2, "Some cells have far more connections than others. Whether a shuffle keeps that decides what the real count is compared with.", "AVA" },
-      { 3, "The three shuffles keep more and more of the real wiring. Decide which of them a count has to beat to mean something, and commit before the engine runs them: a prediction earns more than trial and error.", "AVA" } };
+      { 3, "The three shuffles keep more and more of the measured wiring. Decide which of them a count has to beat to mean something, and commit before the engine runs them: a prediction earns more than trial and error.", "AVA" } };
   }
 
   std::map< std::string, Metric > metrics() const override

@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+- **The Atlas wing** (fourth tab on the campaign map, opens after chapter I): levels built on measured wiring that cannot be edited.
+- **Chapter "Reading wiring"** on the touch circuit of *C. elegans* (Cook et al. 2019): test a shortest route by silencing the classes off it; bet on the null model under which the feed-forward loop is over-represented; bet on which interneuron class can be lost; diagnose a worm that does not back up.
+- **Wiring tab in Analysis:** the connection matrix by cell type, a path finder with a "without" picker, and three null models for the motif census with the shuffled distribution drawn.
+- **Prediction bets:** commit to an answer before the run; wrong bets and extra instrument reads cost points.
+- **Silencing control:** a cell type that a level lets you switch off has an active / silenced switch.
+- `make play` downloads the newest CI build and starts it.
+
+### Known gaps
+- The Atlas chapter has no map plate yet and its map nodes sit close together.
+- Locked levels still show the add and connect buttons (they explain why they do nothing) and a neuron-count challenge that does not apply.
+- The worm levels are results of this model (every synapse excitatory, weights from synapse counts); the cards say so. Tail touch is not modelled.
+- The fly compass chapter is not in yet.
+
 ## [0.5.2] - 2026-11-23 — Windows
 
 ### Added

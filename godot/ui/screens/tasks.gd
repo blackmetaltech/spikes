@@ -7,7 +7,7 @@ extends Screen
 ## on_spine()); levels the engine does not have yet show as dashed "not installed" ghosts. Header: the difficulty mode (Guided / Standard / Researcher, saved,
 ## switchable any time), NOTEBOOK, PARTS BIN and SANDBOX.
 ## What each row of chapter tabs is (the second line of its label); the Theory row says it opens after chapter I.
-const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, after chapter I", "atlas": "real wiring, after chapter I"}
+const ROW_SUB := {"body": "organ systems", "bestiary": "model animals", "theory": "ideas, after chapter I", "atlas": "measured wiring, after chapter I"}
 const SHORT := {"invertebrates": "Invert.", "spinal": "Spinal", "heart": "Heart", "breathing": "Breathing", "autonomic": "Autonomic", "worm": "Worm", "leech": "Leech", "aplysia": "Slug", "fly_compass": "Compass", "fly_mb": "Mushroom", "crab": "Crab", "dynamics": "Dynamics", "rates": "Rates", "memory": "Memory", "tuning": "Tuning", "a_worm": "Worm wiring"}
 const KIND_NAME := {"micro": "MICRO-PUZZLE", "task": "TASK", "boss": "BOSS", "diagnosis": "DIAGNOSIS", "variant": "VARIANT"}
 var back_btn: Button
